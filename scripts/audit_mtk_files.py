@@ -131,14 +131,14 @@ def classify(rel_path: pathlib.Path, file_desc: str) -> tuple[str, str, str]:
             "Crash forensics and bugreport evidence referenced by exploit analysis.",
         )
 
-    if path_str.startswith("cve-2023-4622-arm64/phase4_exploit/vmlinux_rebuilt"):
+    if path_str.startswith("cve-2023-4622-arm64/reverse/vmlinux_rebuilt"):
         return (
             "High",
             "Keep",
             "Kernel image / IDA database; large, generated-looking, but usually the highest-value reverse-engineering state.",
         )
 
-    if "ion_traces/" in path_str:
+    if path_str.startswith("cve-2023-4622-arm64/driver_research/ion/traces/"):
         return (
             "High",
             "Archive",

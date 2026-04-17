@@ -12,30 +12,30 @@ cve-2023-4622-arm64/phase1_trigger/trigger
 cve-2023-4622-arm64/phase2_kaslr/kaslr_mali
 cve-2023-4622-arm64/phase2_kaslr/probe_20186
 cve-2023-4622-arm64/phase3_heap/exploit
-cve-2023-4622-arm64/phase4_exploit/exploit
+cve-2023-4622-arm64/phase4_chain/exploit
+cve-2023-4622-arm64/phase4_chain/exploit_p0
+cve-2023-4622-arm64/phase4_chain/poc_dos
+cve-2023-4622-arm64/phase4_chain/test_spray_alt
 
-# Rebuildable phase4_exploit binaries
-cve-2023-4622-arm64/phase4_exploit/cve_2022_28350_poc
-cve-2023-4622-arm64/phase4_exploit/ion_any_heap
-cve-2023-4622-arm64/phase4_exploit/ion_fuzz
-cve-2023-4622-arm64/phase4_exploit/ion_heap_scan
-cve-2023-4622-arm64/phase4_exploit/ion_heap_scan2
-cve-2023-4622-arm64/phase4_exploit/ion_mtk_probe
-cve-2023-4622-arm64/phase4_exploit/ion_probe
-cve-2023-4622-arm64/phase4_exploit/ion_raw_probe
-cve-2023-4622-arm64/phase4_exploit/ion_share_test
-cve-2023-4622-arm64/phase4_exploit/ion_test_pad
-cve-2023-4622-arm64/phase4_exploit/ion_verify_fd
-cve-2023-4622-arm64/phase4_exploit/mali_cve_2022_28350_probe
-cve-2023-4622-arm64/phase4_exploit/mali_fuzz
-cve-2023-4622-arm64/phase4_exploit/poc_dos
-cve-2023-4622-arm64/phase4_exploit/probe_hwcnt
-cve-2023-4622-arm64/phase4_exploit/probe_hwcnt_concurrent
-cve-2023-4622-arm64/phase4_exploit/probe_timer_latency
-cve-2023-4622-arm64/phase4_exploit/probe_vinstr_stress
-cve-2023-4622-arm64/phase4_exploit/test_spray_alt
-cve-2023-4622-arm64/phase4_exploit/test_mali_alloc
-cve-2023-4622-arm64/phase4_exploit/vuln_check
+# Rebuildable driver-research binaries
+cve-2023-4622-arm64/driver_research/mali/cve_2022_28350_poc
+cve-2023-4622-arm64/driver_research/mali/mali_cve_2022_28350_probe
+cve-2023-4622-arm64/driver_research/mali/mali_fuzz
+cve-2023-4622-arm64/driver_research/mali/probe_hwcnt
+cve-2023-4622-arm64/driver_research/mali/probe_hwcnt_concurrent
+cve-2023-4622-arm64/driver_research/mali/probe_timer_latency
+cve-2023-4622-arm64/driver_research/mali/probe_vinstr_stress
+cve-2023-4622-arm64/driver_research/mali/vuln_check
+cve-2023-4622-arm64/driver_research/ion/ion_any_heap
+cve-2023-4622-arm64/driver_research/ion/ion_fuzz
+cve-2023-4622-arm64/driver_research/ion/ion_heap_scan
+cve-2023-4622-arm64/driver_research/ion/ion_heap_scan2
+cve-2023-4622-arm64/driver_research/ion/ion_mtk_probe
+cve-2023-4622-arm64/driver_research/ion/ion_probe
+cve-2023-4622-arm64/driver_research/ion/ion_raw_probe
+cve-2023-4622-arm64/driver_research/ion/ion_share_test
+cve-2023-4622-arm64/driver_research/ion/ion_test_pad
+cve-2023-4622-arm64/driver_research/ion/ion_verify_fd
 
 # Large local reverse-engineering state
-cve-2023-4622-arm64/phase4_exploit/vmlinux_rebuilt*
+cve-2023-4622-arm64/reverse/vmlinux_rebuilt*
