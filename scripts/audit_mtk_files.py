@@ -254,7 +254,7 @@ def summary_block(entries: list[Entry]) -> str:
         "",
         "- `cve-2023-4622-arm64`: highest-value workspace; source, exploit experiments, evidence, and reverse DB are mixed together and should be separated logically, not pruned aggressively.",
         "- `exploit-gatebench`: already well-structured; keep intact and avoid mixing generated run state with source.",
-        "- `cve-2021-3444-bpf` and `cve-2022-38181-mali`: useful historical references; keep source, but treat compiled ELF files as rebuildable outputs unless provenance is unique.",
+        "- Historical side-path PoCs should be archived or removed once their outcome is captured elsewhere, instead of staying at repo root.",
         "- `cve-2023-4622-arm64/forensics`: high-value archived crash evidence; keep it grouped by date and experiment instead of leaving loose root-level dumps.",
         "- `scripts`: keep scripts; delete caches only.",
         "",

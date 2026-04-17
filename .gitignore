@@ -6,13 +6,6 @@ __pycache__/
 cve-2023-4622-arm64/.mcp.json
 
 # Rebuildable historical binaries
-cve-2021-3444-bpf/exploit
-cve-2021-3444-bpf/test_mali
-cve-2022-38181-mali/check_26083
-cve-2022-38181-mali/check_4211
-cve-2022-38181-mali/stride_test
-cve-2022-38181-mali/vuln_check
-cve-2022-38181-mali/vuln_check2
 cve-2023-4622-arm64/phase1_trigger/pagemap_test
 cve-2023-4622-arm64/phase1_trigger/probe
 cve-2023-4622-arm64/phase1_trigger/trigger
