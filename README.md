@@ -1,6 +1,6 @@
 # MT6893 Security Research
 
-Six security research findings from a privilege escalation study on a MediaTek MT6893 (Dimensity 1200) Android tablet.
+Eight security research findings from a privilege escalation study on a MediaTek MT6893 (Dimensity 1200) Android tablet.
 
 The target device (kernel 4.19.191, Mali Valhall r32p1, SPL 2023-06-05, SELinux enforcing) resisted the tested kernel and Mali escalation paths from `uid=2000`. These writeups document the specific technical reasons why those paths fail, plus later framework-level triage where applicable.
 
@@ -25,6 +25,8 @@ The target device (kernel 4.19.191, Mali Valhall r32p1, SPL 2023-06-05, SELinux 
 | [04](04-arm64-skb-offset-divergence/) | ARM64 `sk_buff` +0x10 trap | Android vendor kernels shift `sk_buff` fields by +0x10. Using x86 offsets causes `shinfo=0xffffff96` and instant DABT. |
 | [05](05-gpu-write-value-boundary/) | GPU WRITE_VALUE boundary | GPU WRITE_VALUE bypasses CPU `mprotect(PROT_READ)` but only reaches SAME_VA allocations — kernel memory stays unreachable. |
 | [06](06-cve-2024-31317-zygote-injection/) | CVE-2024-31317 Zygote injection | Android Framework bug: `hidden_api_blacklist_exemptions` was serialized into Zygote's line protocol without control-character filtering. Target framework static check shows the vulnerable direct-write pattern is present. |
+| [07](07-cve-2023-32836-display-overflow/) | CVE-2023-32836 display overflow | `/dev/dri/card0` is reachable from `system_app`, but the tested `CREATE_DUMB` path uses MTK 64-bit size calculation and direct atomic commit is permission-gated. |
+| [08](08-cve-2023-32863-display-drm-oob-read/) | CVE-2023-32863 display-drm OOB read | MTK private DRM getters are only partially reachable; tested handlers do not currently show a user-controlled OOB read. |
 
 ## Building the PoCs
 
@@ -38,7 +40,7 @@ make -f ../../common/Makefile.ndk
 make -f ../../common/Makefile.ndk push
 ```
 
-The PoCs are diagnostic/verification tools only. They do not contain exploit payloads.
+The 01-05 kernel/Mali PoCs are diagnostic/verification tools. Later directories document the `uid=1000` framework bridge and non-destructive display reachability probes separately.
 
 ## Structure
 
@@ -71,10 +73,16 @@ mt6893-security-research/
 │   └── poc/
 │       ├── probe_write_value.c     # Basic WRITE_VALUE primitive test
 │       └── probe_mprotect_bypass.c # mprotect bypass + import failure
-└── 06-cve-2024-31317-zygote-injection/
-    ├── README.md           # Zygote command injection analysis
-    └── poc/
-        └── check_patch_state.sh    # Non-invasive patch-level triage
+├── 06-cve-2024-31317-zygote-injection/
+│   ├── README.md           # Zygote command injection analysis
+│   └── poc/
+│       └── check_patch_state.sh    # Non-invasive patch-level triage
+├── 07-cve-2023-32836-display-overflow/
+│   ├── README.md           # DRM overflow analysis and runtime probes
+│   └── poc/
+│       └── DrmTrigger.java # Pure-Java syscall-based DRM probe
+└── 08-cve-2023-32863-display-drm-oob-read/
+    └── README.md           # Display-drm OOB read triage
 ```
 
 ## Ethics
