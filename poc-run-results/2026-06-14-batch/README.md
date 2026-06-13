@@ -19,6 +19,7 @@ Raw outputs from this run are archived in this directory.
 | Evidence | Purpose |
 |---|---|
 | `07_drm_trigger.txt` | system_app Java syscall + DRM `CREATE_DUMB` trigger test |
+| `07_atomicprobe.txt` | safe DRM atomic cap/resource/empty `TEST_ONLY` probe |
 | `07_devprobe.txt` | system_app raw `openat(O_RDWR)` device-node reachability |
 | `systemapp_service_probe.txt` | binder/service and sensitive device-node visibility from system_app |
 | `02_vuln_check_jit.txt` | Mali JIT `DONT_NEED` check for CVE-2022-38181 style chain |
@@ -52,6 +53,7 @@ Interpretation:
 - Java syscall infrastructure can issue DRM ioctls from `system_app`.
 - Current CVE-2023-32836 `CREATE_DUMB` overflow candidate is rejected with `-EINVAL`.
 - IDA/runtime evidence says this path uses the MTK 64-bit multiply implementation, not the vulnerable 32-bit helper.
+- The plane/atomic entry is only partially reachable: `SET_CLIENT_CAP ATOMIC` and plane enumeration work, but empty `DRM_MODE_ATOMIC_TEST_ONLY` returns `-EACCES`.
 
 Resulting CVE priority:
 
@@ -64,11 +66,11 @@ Resulting CVE priority:
 | CVE-2023-32868 | High | display-drm OOB write class; DRM device is reachable. |
 | CVE-2023-20775 | Medium-High | display classic buffer overflow; exact entry point not yet mapped. |
 | CVE-2023-32860 | Medium-High | display classic buffer overflow; exact entry point not yet mapped. |
-| CVE-2023-32836 | Low for current `CREATE_DUMB` path | Access and ioctl work, but the tested overflow path returns `-EINVAL`; other plane/display paths still open for analysis. |
+| CVE-2023-32836 | Low for tested direct paths | `CREATE_DUMB` returns `-EINVAL`; IDA does not show the historical `mtk_plane_atomic_update` MVA offset pattern; direct atomic commit returns `-EACCES`. |
 
 Next experiment:
 
-- Enumerate DRM ioctl handlers and display-specific private ioctls in IDA.
+- Enumerate display-specific private ioctls and adjacent WDMA/display address arithmetic in IDA.
 - Prioritize OOB read path first (`CVE-2023-32863`) because it could provide a kernel info leak for later bugs.
 
 ### 2. Batch 4: APU / ION

@@ -53,7 +53,7 @@ Important permissions observed on device:
 | CVE-2024-31317 Framework/Zygote | Confirmed exploited | Runtime `uid=1000 system_app` shell obtained. This is now the privilege bridge for second-stage vendor bugs. |
 | CVE-2023-32834 secmem | High increase | MediaTek 2023-11 lists High EoP, System privileges required, MT6893/MT8797/Android 13 affected. |
 | CVE-2023-32835 keyinstall | High increase | Same bulletin class as secmem: High EoP, System privileges required, MT6893/MT8797/Android 13 affected. |
-| CVE-2023-32836 display | Access precondition satisfied, current PoC path not vulnerable | `/dev/dri/card0` is reachable, but current `CREATE_DUMB` path uses MTK 64-bit multiply and returns `-EINVAL` for overflow candidates. Other display paths remain worth checking. |
+| CVE-2023-32836 display | Access precondition satisfied, tested direct paths not vulnerable | `/dev/dri/card0` is reachable, but current `CREATE_DUMB` path uses MTK 64-bit multiply and returns `-EINVAL`; `mtk_plane_atomic_update` lacks the historical MVA offset pattern; direct `DRM_MODE_ATOMIC TEST_ONLY` returns `-EACCES`. |
 | CVE-2024-20005 DA | High increase, entry point unknown | MediaTek 2024-03 says exploitation requires already having System privilege; MT6893/Android 13 affected. |
 | CVE-2024-20022 LK | High increase, special entry point | Affects MT8797/Android 13 and requires System privilege, but LK/bootloader paths may not be ordinary runtime ioctls. |
 | CVE-2024-20025 / 20027 / 20028 DA | High increase, entry point unknown | MediaTek 2024-03 lists EoP after obtaining System privilege; MT6893/Android 13 affected. |
@@ -72,7 +72,7 @@ Because `/dev/dri/card0` is now reachable from `system_app`, display/display-drm
 | CVE-2023-32867 | display drm | OOB write; MT6893 and Android 13 affected. |
 | CVE-2023-32868 | display drm | OOB write; MT6893 and Android 13 affected. |
 
-The current CVE-2023-32836 PoC only disproves the vulnerable `CREATE_DUMB` dumb-create path on this firmware. It does not prove the rest of the display driver is safe.
+The current CVE-2023-32836 checks disprove both tested direct paths on this firmware: `CREATE_DUMB` uses the MTK 64-bit size calculation, and direct atomic commit from `system_app` is denied with `-EACCES`. This does not prove the rest of the display driver is safe.
 
 ## Medium-High Priority Candidates
 
