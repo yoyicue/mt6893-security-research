@@ -22,6 +22,7 @@ Raw outputs from this run are archived in this directory.
 | `07_atomicprobe.txt` | safe DRM atomic cap/resource/empty `TEST_ONLY` probe |
 | `07_mtkprobe.txt` | safe MTK private DRM getter reachability probe |
 | `07_mtkwriteguard.txt` | invalid-input MTK register read/write guard probe |
+| `10_32865_color_transform.txt` | non-destructive `MTK_SUPPORT_COLOR_TRANSFORM` reachability/guard probe |
 | `07_devprobe.txt` | system_app raw `openat(O_RDWR)` device-node reachability |
 | `systemapp_service_probe.txt` | binder/service and sensitive device-node visibility from system_app |
 | `02_vuln_check_jit.txt` | Mali JIT `DONT_NEED` check for CVE-2022-38181 style chain |
@@ -58,6 +59,7 @@ Interpretation:
 - The plane/atomic entry is only partially reachable: `SET_CLIENT_CAP ATOMIC` and plane enumeration work, but empty `DRM_MODE_ATOMIC_TEST_ONLY` returns `-EACCES`.
 - MTK private DRM getter probing is also partial: `GET_DISPLAY_CAPS` and `GET_SESSION_INFO` return `-EACCES`, while `GET_MASTER_INFO`, `GET_LCM_INDEX`, and `AAL_GET_SIZE` succeed.
 - MTK private register write probing shows the non-auth register ioctls are reachable, but invalid physical register addresses are rejected before dispatch: `MTK_WRITE_REG(0xffffffff)` returns `-EFAULT`.
+- CVE-2023-32865 adjacent color-transform probing confirms `MTK_SUPPORT_COLOR_TRANSFORM` is reachable: an all-zero matrix returns `0`, and an unsupported matrix offset returns `-EFAULT` before state update.
 
 Resulting CVE priority:
 
@@ -65,7 +67,7 @@ Resulting CVE priority:
 |---|---|---|
 | CVE-2023-32863 | Medium-High | display-drm OOB read class; `/dev/dri/card0` reachable, but tested private getter path is partially permission-gated and no OOB-read shape has been identified yet. |
 | CVE-2023-32864 | Medium-High | display-drm OOB write class; register-write ioctls are reachable, but current `WRITE_REG` path has physical-address validation and invalid probes are rejected. |
-| CVE-2023-32865 | High | display-drm OOB write class; DRM device is reachable. |
+| CVE-2023-32865 | Medium-High | display-drm OOB write class; `MTK_SUPPORT_COLOR_TRANSFORM` validation path is reachable and guarded, while adjacent PQ/AAL write paths are state-changing and no exploitable OOB-write shape is confirmed yet. |
 | CVE-2023-32867 | High | display-drm OOB write class; DRM device is reachable. |
 | CVE-2023-32868 | High | display-drm OOB write class; DRM device is reachable. |
 | CVE-2023-20775 | Medium-High | display classic buffer overflow; exact entry point not yet mapped. |
@@ -75,7 +77,8 @@ Resulting CVE priority:
 Next experiment:
 
 - Continue display-specific private ioctl mapping in IDA, focusing on handlers with user-controlled indexes or lengths.
-- For `CVE-2023-32863`, obtain or reconstruct the `ALPS07326314` patch before adding any more PoC logic; current safe probe does not identify an exploitable handler.
+- Move next to `CVE-2023-32867` and `CVE-2023-32868`; 32865 now has reachability evidence but no confirmed vulnerable write path.
+- For `CVE-2023-32863` / `CVE-2023-32864` / `CVE-2023-32865`, obtain or reconstruct the exact ALPS patches before adding any more PoC logic.
 
 ### 2. Batch 4: APU / ION
 
@@ -201,7 +204,7 @@ Resulting CVE priority:
 
 ## Final Post-Run Order
 
-1. **Display / DRM OOB read/write cluster**: `CVE-2023-32865`, `32867`, `32868`, then `32864`, `32863`, `20775`, `32860`. `32864` remains reachable but the first register-write guard probe did not confirm it.
+1. **Display / DRM OOB read/write cluster**: `CVE-2023-32867`, `32868`, then `32865`, `32864`, `32863`, `20775`, `32860`. `32864` and `32865` remain reachable but the first guard probes did not confirm exploitable write paths.
 2. **APUSYS reachable surface**: APUSYS-related CVEs should be mapped next because `/dev/apusys` opens from `system_app`.
 3. **secmem / keyinstall via service paths**: `CVE-2023-32834`, `CVE-2023-32835`; direct secure nodes are blocked, so service PoC needed.
 4. **CMDQ / PQ / MMP indirect paths**: `CVE-2023-32849`, `CVE-2024-20037`, `CVE-2023-32866`; direct nodes blocked.
