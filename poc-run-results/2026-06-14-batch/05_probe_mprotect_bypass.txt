@@ -1,0 +1,31 @@
+=== GPU WRITE_VALUE mprotect Bypass Probe ===
+[*] uid=2000
+
+[T1] Baseline: WRITE_VALUE to own SAME_VA alloc
+    event=0x1 (DONE)
+    readback=0xc4a1a227060bcedf *** BASELINE OK ***
+
+[T2] USER_BUFFER import -> WRITE_VALUE (CPU VA target)
+    import gpu_va=0x41000, CPU VA=0x73776f1000
+    event=0x4
+    readback=0xdeaddeaddeaddead (unchanged — write did not reach target)
+
+[T3] SAME_VA alloc (CPU_RD only mmap) -> GPU write
+    target at 0x73776ee000 (CPU PROT_READ, GPU_WR)
+    event=0x4
+    readback=0xc4a1a227060bcedf *** GPU WROTE THROUGH CPU-RO PAGE ***
+
+[T4] SAME_VA full perms -> mprotect(PROT_READ) -> GPU write
+    wrote sentinel via CPU
+    mprotect -> PROT_READ
+    event=0x1 (DONE)
+    readback=0xc4a1a227060bcedf *** GPU WROTE THROUGH mprotect-RO PAGE ***
+
+=== Summary ===
+T1: SAME_VA write = expected success (baseline)
+T2: USER_BUFFER import = expected TRANSLATION_FAULT
+T3: CPU_RD-only + GPU_WR = mprotect bypass test
+T4: mprotect(PROT_READ) after full alloc = mprotect bypass test
+
+GPU page tables are independent of CPU mprotect.
+But GPU can only reach SAME_VA regions (userspace only).

