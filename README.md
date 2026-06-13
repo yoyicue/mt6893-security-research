@@ -1,8 +1,8 @@
 # MT6893 Security Research
 
-Five security research findings from a privilege escalation study on a MediaTek MT6893 (Dimensity 1200) Android tablet.
+Six security research findings from a privilege escalation study on a MediaTek MT6893 (Dimensity 1200) Android tablet.
 
-The target device (kernel 4.19.191, Mali Valhall r32p1, SPL 2023-06-05, SELinux enforcing) proved unexploitable from `uid=2000` via all known CVEs. These writeups document the specific technical reasons why.
+The target device (kernel 4.19.191, Mali Valhall r32p1, SPL 2023-06-05, SELinux enforcing) resisted the tested kernel and Mali escalation paths from `uid=2000`. These writeups document the specific technical reasons why those paths fail, plus later framework-level triage where applicable.
 
 ## Device
 
@@ -24,6 +24,7 @@ The target device (kernel 4.19.191, Mali Valhall r32p1, SPL 2023-06-05, SELinux 
 | [03](03-cve-2022-36449-retraction/) | CVE-2022-36449 retraction | `MEM_FREE` doesn't free the physical page — user mmap holds refcount=1. We retract our initial "UAF confirmed" claim. |
 | [04](04-arm64-skb-offset-divergence/) | ARM64 `sk_buff` +0x10 trap | Android vendor kernels shift `sk_buff` fields by +0x10. Using x86 offsets causes `shinfo=0xffffff96` and instant DABT. |
 | [05](05-gpu-write-value-boundary/) | GPU WRITE_VALUE boundary | GPU WRITE_VALUE bypasses CPU `mprotect(PROT_READ)` but only reaches SAME_VA allocations — kernel memory stays unreachable. |
+| [06](06-cve-2024-31317-zygote-injection/) | CVE-2024-31317 Zygote injection | Android Framework bug: `hidden_api_blacklist_exemptions` was serialized into Zygote's line protocol without control-character filtering. Target framework static check shows the vulnerable direct-write pattern is present. |
 
 ## Building the PoCs
 
@@ -65,11 +66,15 @@ mt6893-security-research/
 │   ├── README.md           # sk_buff offset drift documentation
 │   └── poc/
 │       └── skb_spray_demo.c    # Correct vs incorrect spray layout
-└── 05-gpu-write-value-boundary/
-    ├── README.md           # WRITE_VALUE capability and limits
+├── 05-gpu-write-value-boundary/
+│   ├── README.md           # WRITE_VALUE capability and limits
+│   └── poc/
+│       ├── probe_write_value.c     # Basic WRITE_VALUE primitive test
+│       └── probe_mprotect_bypass.c # mprotect bypass + import failure
+└── 06-cve-2024-31317-zygote-injection/
+    ├── README.md           # Zygote command injection analysis
     └── poc/
-        ├── probe_write_value.c     # Basic WRITE_VALUE primitive test
-        └── probe_mprotect_bypass.c # mprotect bypass + import failure
+        └── check_patch_state.sh    # Non-invasive patch-level triage
 ```
 
 ## Ethics
