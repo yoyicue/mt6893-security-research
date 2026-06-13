@@ -1,6 +1,6 @@
 # MT6893 Security Research
 
-Eight security research findings from a privilege escalation study on a MediaTek MT6893 (Dimensity 1200) Android tablet.
+Nine security research findings from a privilege escalation study on a MediaTek MT6893 (Dimensity 1200) Android tablet.
 
 The target device (kernel 4.19.191, Mali Valhall r32p1, SPL 2023-06-05, SELinux enforcing) resisted the tested kernel and Mali escalation paths from `uid=2000`. These writeups document the specific technical reasons why those paths fail, plus later framework-level triage where applicable.
 
@@ -27,6 +27,7 @@ The target device (kernel 4.19.191, Mali Valhall r32p1, SPL 2023-06-05, SELinux 
 | [06](06-cve-2024-31317-zygote-injection/) | CVE-2024-31317 Zygote injection | Android Framework bug: `hidden_api_blacklist_exemptions` was serialized into Zygote's line protocol without control-character filtering. Target framework static check shows the vulnerable direct-write pattern is present. |
 | [07](07-cve-2023-32836-display-overflow/) | CVE-2023-32836 display overflow | `/dev/dri/card0` is reachable from `system_app`, but the tested `CREATE_DUMB` path uses MTK 64-bit size calculation and direct atomic commit is permission-gated. |
 | [08](08-cve-2023-32863-display-drm-oob-read/) | CVE-2023-32863 display-drm OOB read | MTK private DRM getters are only partially reachable; tested handlers do not currently show a user-controlled OOB read. |
+| [09](09-cve-2023-32864-display-drm-oob-write/) | CVE-2023-32864 display-drm OOB write | MTK register write ioctls are reachable, but current `WRITE_REG` validates physical addresses and invalid write probes are rejected. |
 
 ## Building the PoCs
 
@@ -81,8 +82,10 @@ mt6893-security-research/
 │   ├── README.md           # DRM overflow analysis and runtime probes
 │   └── poc/
 │       └── DrmTrigger.java # Pure-Java syscall-based DRM probe
-└── 08-cve-2023-32863-display-drm-oob-read/
-    └── README.md           # Display-drm OOB read triage
+├── 08-cve-2023-32863-display-drm-oob-read/
+│   └── README.md           # Display-drm OOB read triage
+└── 09-cve-2023-32864-display-drm-oob-write/
+    └── README.md           # Display-drm OOB write triage
 ```
 
 ## Ethics

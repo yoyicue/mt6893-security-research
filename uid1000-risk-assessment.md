@@ -67,7 +67,7 @@ Because `/dev/dri/card0` is now reachable from `system_app`, display/display-drm
 | CVE-2023-20775 | display | Classic buffer overflow; MT6893 and Android 13 affected in the MediaTek 2023-07 bulletin. |
 | CVE-2023-32860 | display | Classic buffer overflow; MT6893 and Android 13 affected in the MediaTek 2023-12 bulletin. |
 | CVE-2023-32863 | display drm | OOB read; MT6893 and Android 13 affected. Current safe probe shows partial reachability: `GET_DISPLAY_CAPS`/`GET_SESSION_INFO` return `EACCES`, while `GET_MASTER_INFO`/`GET_LCM_INDEX`/`AAL_GET_SIZE` succeed. No OOB-read shape confirmed yet. |
-| CVE-2023-32864 | display drm | OOB write; MT6893 and Android 13 affected. |
+| CVE-2023-32864 | display drm | OOB write; MT6893 and Android 13 affected. Current register-write guard probe shows `WRITE_REG`/`READ_REG` are reachable but invalid physical addresses are rejected with `EFAULT`; `WRITE_SW_REG` unknown ids do not hit bounded table writes. |
 | CVE-2023-32865 | display drm | OOB write; MT6893 and Android 13 affected. |
 | CVE-2023-32867 | display drm | OOB write; MT6893 and Android 13 affected. |
 | CVE-2023-32868 | display drm | OOB write; MT6893 and Android 13 affected. |
@@ -98,7 +98,7 @@ The current CVE-2023-32836 checks disprove both tested direct paths on this firm
 
 ## Recommended Next Triage
 
-1. Display/display-drm: enumerate ioctls and symbol paths for CVE-2023-20775 and CVE-2023-32860/32864/32865/32867/32868. For CVE-2023-32863, prioritize locating the exact `ALPS07326314` patched handler because the first private-getter probe did not confirm an exploitable path.
+1. Display/display-drm: enumerate ioctls and symbol paths for CVE-2023-20775 and CVE-2023-32860/32865/32867/32868. For CVE-2023-32863 and CVE-2023-32864, prioritize locating the exact `ALPS07326314` / `ALPS07292187` patched handlers because the first probes did not confirm exploitable paths.
 2. secmem/keyinstall: identify runtime entry points, likely trusted execution / key management interfaces, then test reachability from `system_app`.
 3. CMDQ/PQ/MMP: map device nodes, binder services, and ioctl numbers; prioritize any path accessible from `system_app`.
 4. DA/AEE/LK: determine whether the advisory entry point exists at runtime or only during update/boot flows.

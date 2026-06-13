@@ -21,6 +21,7 @@ Raw outputs from this run are archived in this directory.
 | `07_drm_trigger.txt` | system_app Java syscall + DRM `CREATE_DUMB` trigger test |
 | `07_atomicprobe.txt` | safe DRM atomic cap/resource/empty `TEST_ONLY` probe |
 | `07_mtkprobe.txt` | safe MTK private DRM getter reachability probe |
+| `07_mtkwriteguard.txt` | invalid-input MTK register read/write guard probe |
 | `07_devprobe.txt` | system_app raw `openat(O_RDWR)` device-node reachability |
 | `systemapp_service_probe.txt` | binder/service and sensitive device-node visibility from system_app |
 | `02_vuln_check_jit.txt` | Mali JIT `DONT_NEED` check for CVE-2022-38181 style chain |
@@ -56,13 +57,14 @@ Interpretation:
 - IDA/runtime evidence says this path uses the MTK 64-bit multiply implementation, not the vulnerable 32-bit helper.
 - The plane/atomic entry is only partially reachable: `SET_CLIENT_CAP ATOMIC` and plane enumeration work, but empty `DRM_MODE_ATOMIC_TEST_ONLY` returns `-EACCES`.
 - MTK private DRM getter probing is also partial: `GET_DISPLAY_CAPS` and `GET_SESSION_INFO` return `-EACCES`, while `GET_MASTER_INFO`, `GET_LCM_INDEX`, and `AAL_GET_SIZE` succeed.
+- MTK private register write probing shows the non-auth register ioctls are reachable, but invalid physical register addresses are rejected before dispatch: `MTK_WRITE_REG(0xffffffff)` returns `-EFAULT`.
 
 Resulting CVE priority:
 
 | CVE | Post-run Risk | Reason |
 |---|---|---|
 | CVE-2023-32863 | Medium-High | display-drm OOB read class; `/dev/dri/card0` reachable, but tested private getter path is partially permission-gated and no OOB-read shape has been identified yet. |
-| CVE-2023-32864 | High | display-drm OOB write class; DRM device is reachable. Needs ioctl/path mapping. |
+| CVE-2023-32864 | Medium-High | display-drm OOB write class; register-write ioctls are reachable, but current `WRITE_REG` path has physical-address validation and invalid probes are rejected. |
 | CVE-2023-32865 | High | display-drm OOB write class; DRM device is reachable. |
 | CVE-2023-32867 | High | display-drm OOB write class; DRM device is reachable. |
 | CVE-2023-32868 | High | display-drm OOB write class; DRM device is reachable. |
@@ -199,7 +201,7 @@ Resulting CVE priority:
 
 ## Final Post-Run Order
 
-1. **Display / DRM OOB read/write cluster**: `CVE-2023-32864`, `32865`, `32867`, `32868`, then `32863`, `20775`, `32860`. `32863` remains useful if a real info-leak handler is found, but the first getter probe did not confirm it.
+1. **Display / DRM OOB read/write cluster**: `CVE-2023-32865`, `32867`, `32868`, then `32864`, `32863`, `20775`, `32860`. `32864` remains reachable but the first register-write guard probe did not confirm it.
 2. **APUSYS reachable surface**: APUSYS-related CVEs should be mapped next because `/dev/apusys` opens from `system_app`.
 3. **secmem / keyinstall via service paths**: `CVE-2023-32834`, `CVE-2023-32835`; direct secure nodes are blocked, so service PoC needed.
 4. **CMDQ / PQ / MMP indirect paths**: `CVE-2023-32849`, `CVE-2024-20037`, `CVE-2023-32866`; direct nodes blocked.
