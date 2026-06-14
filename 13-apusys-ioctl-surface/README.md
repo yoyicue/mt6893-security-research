@@ -13,7 +13,7 @@ The current result is **reachable but not yet mapped to a confirmed vulnerabilit
 
 The directory has no CVE number yet. The repository uses CVE-numbered directories when a test is tied to a specific public CVE or confirmed bug class. APUSYS is currently an exposed proprietary ioctl surface with handler-level mapping and runtime reachability evidence, but no confirmed CVE match or vulnerability primitive.
 
-This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths, negative memory-create cases, optional device-control reachability checks, direct dmabuf-source checks, a candidate-fd scan for the memory import path, HardwareBuffer-backed dmabuf import, and controlled `ucmd` negative tests. Valid APUSYS command buffers, heap shaping, and execution-path inputs remain separate experiment tracks.
+This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths, negative memory-create cases, optional device-control reachability checks, direct dmabuf-source checks, a candidate-fd scan for the memory import path, HardwareBuffer-backed dmabuf import, controlled `ucmd` gate tests, and a zero-header `run_cmd_async` parser probe. Valid APUSYS command buffers, heap shaping, and execution-path inputs remain separate experiment tracks.
 
 ## IDA handler map
 
@@ -79,7 +79,22 @@ Additional functions named during the APUSYS follow-up pass:
 | `vpu_init_dev_algo_sets` | `0xffffffc0087a5214` | Initializes per-VPU-core Normal and Preload algorithm sets from firmware/bin metadata |
 | `vpu_exit_dev_algo_sets` | `0xffffffc0087a56f0` | Tears down the Normal and Preload algorithm lists |
 
-Command-ops correction: `mdw_usr_get_cmd_ops` returns rodata table `0xffffffc0097966b8`; `mdw_usr_init` stores that pointer into runtime global `0xffffffc00a188e58`, and `mdw_usr_run_cmd_async`, `mdw_wait_cmd`, and `mdw_usr_destroy` all dispatch through that global. The table is therefore confirmed as the APUSYS user-command ops table. Its entries still have the same flat-Image address-form problem as the VPU algo ops table: simple `+0x4000000000` normalization lands inside unrelated-looking function bodies around `0xffffffc00880....`, so exact callback entry attribution remains unresolved.
+Command-ops correction: `mdw_usr_get_cmd_ops` returns rodata table `0xffffffc0097966b8`; `mdw_usr_init` stores that pointer into runtime global `0xffffffc00a188e58`, and `mdw_usr_run_cmd_async`, `mdw_wait_cmd`, and `mdw_usr_destroy` all dispatch through that global. The table is confirmed as the APUSYS user-command ops table. The entries are raw flat-Image pointers, not directly loaded IDB addresses. Built-in kallsyms gives the correct raw-to-IDB delta: raw `_stext = 0xffffff8008080800`, IDB `_stext = 0xffffffc008000800`, so raw function pointers normalize with `+0x3ffff80000`.
+
+| Command ops entry | Raw value | IDB callback |
+|---:|---:|---|
+| `+0x00` | `0xffffff8008810010` | `mdw_cmd_create_cmd` at `0xffffffc008790010` |
+| `+0x08` | `0xffffff80088105e8` | `mdw_cmd_delete_cmd` at `0xffffffc0087905e8` |
+| `+0x10` | `0xffffff80088107bc` | `mdw_cmd_abort_cmd` at `0xffffffc0087907bc` |
+| `+0x18` | `0xffffff8008810938` | `mdw_cmd_parse_cmd` at `0xffffffc008790938` |
+| `+0x20` | `0xffffff8008811290` | `mdw_cmd_end_sc` at `0xffffffc008791290` |
+| `+0x28` | `0xffffff800880fc54` | `mdw_cmd_get_ctx` at `0xffffffc00878fc54` |
+| `+0x30` | `0xffffff800880fe60` | `mdw_cmd_put_ctx` at `0xffffffc00878fe60` |
+| `+0x38` | `0xffffff80088115cc` | `mdw_cmd_sc_exec_num` at `0xffffffc0087915cc` |
+| `+0x40` | `0xffffff800881163c` | `mdw_cmd_sc_set_hnd` at `0xffffffc00879163c` |
+| `+0x48` | `0xffffff8008811ab0` | `mdw_cmd_sc_clr_hnd` at `0xffffffc008791ab0` |
+| `+0x50` | `0xffffff8008811af4` | `mdw_cmd_is_deadline` at `0xffffffc008791af4` |
+| `+0x58` | `0xffffff80088134ec` | `trace_raw_output_mdw_cmd` at `0xffffffc0087934ec` |
 
 Memory-ops correction: the APUSYS memory ops behind `0xffffffc00a189078` are now resolved. `mdw_mem_mgr_init` stores the object returned by `apusys_midware_register_driver`; that registration path creates the `"apusys midware"` ION client and installs the `mdw_mem_ion_*` callbacks above. The type-2 create path calls the registered `+0x30` IOVA map op. The type-3 create path calls `+0x20` KVA map first, then `+0x30` IOVA map, and unwinds KVA on IOVA failure.
 
@@ -166,22 +181,20 @@ After the `0x8001` check, normal VPU uses `mapped_kva + 4` as the payload pointe
 
 The same `ops+0x10` lookup interface is also used while building Preload entries in `vpu_init_dev_algo_sets`. In that path, the call at `0xffffffc0087a556c` passes `X0 = core+0x310`, `X1 = X26`, and `X2 = 0`; `X26` points at the Preload firmware entry's name/key field, while the entry metadata lives in the preceding 0x20 bytes and each entry advances by `0x40`. If lookup misses, the code allocates a new algorithm object and copies up to `0x1f` bytes from `X26` into that object.
 
-That gives a stronger lower-bound ABI for `mdw_usr_ucmd`: after the header word, `mapped_kva+4` is the provider payload pointer and likely starts with the algorithm lookup key itself. The all-zero HardwareBuffer case therefore supplies an empty key after a valid `0x8001` header, which is consistent with the observed lookup miss. The exact callback implementation and any fields after the key remain unresolved.
+That gives a stronger lower-bound ABI for `mdw_usr_ucmd`: after the header word, `mapped_kva+4` is the provider payload pointer and likely starts with the algorithm lookup key itself. The all-zero HardwareBuffer case supplies an empty key after a valid `0x8001` header, which is consistent with the observed lookup miss. The callback identities are now resolved; fields after the likely key remain to be mapped.
 
-The raw ops tables are named `vpu_normal_algo_ops_raw` at `0xffffffc00979ae70` and `vpu_preload_algo_ops_raw` at `0xffffffc00979aeb0` in IDA. Their entries are stored in the flat Image's compile-time address form (`0xffffff80...`), while this IDB is loaded under `0xffffffc0...`. A follow-up pass shows that the simple `+0x4000000000` normalization is not a valid function-entry resolution for these tables:
+The raw ops tables are named `vpu_normal_algo_ops_raw` at `0xffffffc00979ae70` and `vpu_preload_algo_ops_raw` at `0xffffffc00979aeb0` in IDA. They use the same raw flat-Image pointer form as the command ops table. The correct kallsyms-derived normalization is `+0x3ffff80000`; the earlier simple `+0x4000000000` normalization was off by the image text offset and incorrectly landed in the nearby thermal/battery cooling-device cluster.
 
-| Table entry | Raw value | Normalized landing point |
+| Table entry | Raw value | IDB callback |
 |---:|---:|---|
-| Normal/Preload `+0x00` | `0xffffff8008821758` | `sub_FFFFFFC0088216D4+0x84` |
-| Normal/Preload `+0x08` | `0xffffff8008821858` | `sub_FFFFFFC008821834+0x24` |
-| Normal/Preload `+0x10` | `0xffffff80088218a4` | `sub_FFFFFFC008821834+0x70` |
-| Normal/Preload `+0x18` | `0xffffff80088219e0` | `sub_FFFFFFC008821994+0x4c` |
-| Normal/Preload `+0x20` | `0xffffff8008821a64` | `sub_FFFFFFC008821994+0xd0` |
-| Normal-only `+0x28` | `0xffffff8008827d40` | `sub_FFFFFFC008827CF4+0x4c` |
+| Normal/Preload `+0x00` | `0xffffff8008821758` | `vpu_alg_load` at `0xffffffc0087a1758` |
+| Normal/Preload `+0x08` | `0xffffff8008821858` | `vpu_alg_unload` at `0xffffffc0087a1858` |
+| Normal/Preload `+0x10` | `0xffffff80088218a4` | `vpu_alg_get` at `0xffffffc0087a18a4` |
+| Normal/Preload `+0x18` | `0xffffff80088219e0` | `vpu_alg_put` at `0xffffffc0087a19e0` |
+| Normal/Preload `+0x20` | `0xffffff8008821a64` | `vpu_alg_release` at `0xffffffc0087a1a64` |
+| Normal-only `+0x28` | `0xffffff8008827d40` | `vpu_hw_alg_init` at `0xffffffc0087a7d40` |
 
-Those normalized landing points are instruction labels inside existing functions, not prologue/BTI-style function starts, and several would use callee-saved registers that the `BLR` call sites do not initialize. Treat them as unresolved flat-Image relocation artifacts, not as APUSYS callback entrypoints. Because the runtime `0x8001` test returns `-ENOENT` instead of crashing, the live kernel must have valid callback targets at the lookup call sites; this IDB just does not recover those targets from the raw table values alone.
-
-The thermal/battery cooling-device cluster around `0xffffffc0088216d4` still matters as a nearby static clue: it compares configured strings such as `mtk-cl-bcct02`, `mtk-cl-bcct01`, and `mtk-cl-bcct00`, plus runtime/BSS slots at `0xffffffc00a1c6308` through `0xffffffc00a1c6380`, and references `mtk_thermal_zone_bind_cooling_device_wrapper` plus list-removal helpers. However, this cluster is no longer treated as the confirmed normal VPU opcode-7 ABI. Do not add a matching-key runtime test until the actual relocated ops callbacks are recovered from a better-symbolized kernel image, runtime table dump, or kallsyms-equivalent evidence.
+For the `ucmd` path, the relevant lookup callback is `vpu_alg_get`. The branch reached from opcode `7` calls it first on the Normal set and then on the Preload set. The observed `-ENOENT` result therefore means the mapped payload passed the `0x8001` gate, reached the algorithm lookup interface, and missed both sets for the supplied empty key.
 
 ### APUSYS run_cmd_async / run_cmd_sync path
 
@@ -197,12 +210,18 @@ The thermal/battery cooling-device cluster around `0xffffffc0088216d4` still mat
 The run path is:
 
 1. `mdw_usr_run_cmd_async` rejects immediately if user `+0x0c` is nonzero. The current default Java probe intentionally uses this reject path.
-2. If `+0x0c == 0`, it loads command ops from runtime global `0xffffffc00a188e58`, calls ops `+0x00` with `{W0 = user+0x08, W1 = user+0x10, X3 = user context}`, and expects a command object pointer back.
-3. It calls ops `+0x18` with `{X0 = command object, X1 = stack scratch}` to parse/populate the command. On parse failure it logs `mdw_usr_par_apu_cmd` and calls ops `+0x10` to release the object.
+2. If `+0x0c == 0`, it loads command ops from runtime global `0xffffffc00a188e58`, calls `mdw_cmd_create_cmd` with `{W0 = user+0x08, W1 = user+0x10, W2 = user+0x0c, X3 = user context}`, and expects a command object pointer back.
+3. It calls `mdw_cmd_parse_cmd` with `{X0 = command object, X1 = stack scratch}` to parse/populate the command. On parse failure it logs `mdw_usr_par_apu_cmd` and calls `mdw_cmd_abort_cmd` to release the object.
 4. On parse success, it inserts the command object into the per-user command tree/list rooted at user-context `+0x60`, stores the resulting positive id in command object `+0x24`, and copies that id back to user argument `+0x00`.
 5. `mdw_usr_run_cmd_sync` calls async first, then `mdw_usr_wait_cmd`; `mdw_usr_wait_cmd` reads user argument `+0x00`, looks up the command object in the same per-user tree/list, and calls `mdw_wait_cmd`.
 
-This means the next safe run-command experiment is not just clearing `+0x0c`: ops `+0x00` needs coherent values at `+0x08` and `+0x10`, and ops `+0x18` needs a valid APUSYS command object format. Keep the default probe on the early reject path until the command-ops callbacks are resolved.
+`mdw_cmd_create_cmd` requires `offset + 0x30 <= length`; with the current wrapper offset is the zero field at user `+0x0c`. It allocates a command object, builds a memory object with fd at `+0x28` and length at `+0x14`, and maps the command buffer through the APUSYS memory op at `+0x20` for KVA access. `mdw_cmd_parse_cmd` then reads the mapped command buffer and applies early length checks before queueing:
+
+- `cmd_offset + 0x64 < mapped_length`;
+- the header offset read from mapped KVA at `mapped_kva + cmd_offset * 4 + 0x2c` must satisfy `header_offset + 0x28 <= mapped_length`;
+- if the first header word is `2`, an additional `header_offset + 0x34 <= mapped_length` check applies.
+
+The optional `--run-cmd-hardwarebuffer` probe clears `+0x0c`, imports the same ImageWriter-backed HardwareBuffer fd, and calls `run_cmd_async` with fd at user `+0x08` and length `0x4000` at user `+0x10`. With an all-zero mapped buffer, APUSYS memory-create succeeds at Parcel fd offset `388`, then `run_async_hwb_run_zero_pos388` returns `-EINVAL`. That is consistent with `mdw_cmd_create_cmd` reaching KVA map and `mdw_cmd_parse_cmd` rejecting the zero command header before queue insertion. The next run-command step is recovering a valid command-buffer layout, not callback identity.
 
 ## Ioctl command map
 
@@ -234,7 +253,7 @@ The `0x4004413C/3D` size mismatch is important for testing: the command encoding
 ## Current risk ranking
 
 1. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` lead to `mdw_usr_mem_create`, then into APUSYS ION KVA/IOVA callbacks. Negative tests confirm that type-2 and type-3 descriptors reach deeper than the initial user-copy guard without creating an object or crashing. Direct node sources remain constrained: no `/dev/dma_heap/*` nodes on this device, DRM dumb buffer creation succeeds but PRIME fd export returns `EACCES`, direct `/dev/ion` open returns `EACCES`, `/dev/ashmem` open returns `EACCES`, and ordinary openable fds such as `/dev/dri/card0`, `/dev/mali0`, `/dev/zero`, `/dev/null`, and `/dev/apusys` all fail APUSYS memory-create with `ENOMEM`. The usable fd source is now the framework path: running the probe through `app_process64` can create an `android.hardware.HardwareBuffer`, read a fd-bearing Parcel entry, and import that fd successfully through both APUSYS type-2 and type-3 memory-create. This is the highest APUSYS priority.
-2. **Command parsing/execution and ucmd paths**: `0xC0184107` and `0x40184106` reach `mdw_usr_run_cmd_async`. The current probe sets the user field at `+0x0c` to `1`, which makes this function return early before command-ops dispatch. Static analysis now maps the next gates: with `+0x0c == 0`, run_cmd calls command ops `+0x00`, then ops `+0x18`, and only then queues the object and writes a handle to user `+0x00`. `0x4014410E` reaches `mdw_usr_ucmd`; with `+0x0c == 0` it imports the fd as APUSYS memory, maps KVA/IOVA, bounds-checks the requested length, then calls `mdw_rsc_ucmd_dispatch` at `core+0x98`. The normal VPU opcode-7 `0x8001` mapped-buffer gate is runtime-confirmed: with the same HardwareBuffer fd source, a first u32 of `0` returns `EINVAL`, while a first u32 of `0x8001` returns `ENOENT` for core `0` and `1`. That `ENOENT` is now interpreted as Normal and Preload algo lookup miss after a successful mapped-buffer gate, not as a failed fd source. EDMA and MDLA do not show the same opcode-7 command path.
+2. **Command parsing/execution and ucmd paths**: `0xC0184107` and `0x40184106` reach `mdw_usr_run_cmd_async`. Static analysis resolves the command ops callbacks: clearing user `+0x0c` calls `mdw_cmd_create_cmd`, then `mdw_cmd_parse_cmd`, and only then queues the object and writes a handle to user `+0x00`. Runtime now confirms the HardwareBuffer fd source can reach this parser path: a zero-header ImageWriter-backed buffer imports successfully and `run_async_hwb_run_zero_pos388` returns `EINVAL`, matching parser rejection before queue insertion. `0x4014410E` reaches `mdw_usr_ucmd`; with `+0x0c == 0` it imports the fd as APUSYS memory, maps KVA/IOVA, bounds-checks the requested length, then calls `mdw_rsc_ucmd_dispatch` at `core+0x98`. The normal VPU opcode-7 `0x8001` mapped-buffer gate is runtime-confirmed: with the same HardwareBuffer fd source, a first u32 of `0` returns `EINVAL`, while a first u32 of `0x8001` returns `ENOENT` for core `0` and `1`. That `ENOENT` is now interpreted as Normal and Preload algo lookup miss after a successful mapped-buffer gate, not as a failed fd source. EDMA and MDLA do not show the same opcode-7 command path.
 3. **Device/resource control paths**: `0x4004413C/3D` call `mdw_usr_dev_sec_alloc/free`, and `0x400C4109` calls `mdw_usr_dev_ctrl_4109`. The free path has an id `< 0x40` guard; the `0x400C4109` path looks up a device/core and dispatches provider opcode `0` through `mdw_rsc_dev_op0_ctrl` with only a 0x0c user input. Static mapping shows MDLA/EDMA opcode `0` reaches power-on paths, normal VPU opcode `0` reaches control bookkeeping, and VPU RT opcode `0` returns early.
 4. **Handshake/wait/simple rejection paths**: useful for reachability, lower standalone risk.
 
@@ -359,6 +378,15 @@ CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
 ```
 
 `--ucmd-hardwarebuffer` creates a writeable RGBA `ImageReader` / `ImageWriter` pair, writes the first u32 of the image plane, obtains the output image's `HardwareBuffer`, and reuses the same Parcel-fd path for APUSYS. It runs two cases: first u32 `0`, then first u32 `0x8001`. It only calls normal VPU `mdw_usr_ucmd` for fd offsets that first pass APUSYS memory-create.
+
+Optional HardwareBuffer-backed `run_cmd_async` parser test:
+
+```sh
+CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe --run-cmd-hardwarebuffer
+```
+
+`--run-cmd-hardwarebuffer` creates the same writeable `ImageReader` / `ImageWriter` backed buffer, leaves the first command word as zero, imports the discovered HardwareBuffer fd through APUSYS memory-create, and then calls `run_cmd_async` only for fd offsets that first pass memory-create. It sets the run-command user argument as `{fd at +0x08, offset 0 at +0x0c, length 0x4000 at +0x10}`. This mode is a parser reachability check; it does not construct a valid APUSYS command buffer.
 
 [`poc/apusys_ioctl_probe.c`](poc/apusys_ioctl_probe.c) is a native version of the same reject checks for root/permissive lab contexts. It compiles successfully, but on the current device direct `adb shell` execution returns `open(/dev/apusys) failed: EACCES` because shell is not `system` or `camera`, and `system_app` cannot execute native ELF files from app data under SELinux enforcing.
 
@@ -522,6 +550,22 @@ CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
 
 Interpretation: a valid HardwareBuffer dmabuf and offset `0` are enough to reach the normal VPU `ucmd` content gate. Keeping the mapped buffer's first u32 at `0` returns `EINVAL`; changing only that first u32 to `0x8001` changes the result to `ENOENT` on both tested cores. That matches the static model where `0x8001` passes the first mapped-buffer check and the next stage walks Normal/Preload algorithm state. Current IDA evidence maps `ENOENT` to both lookup callbacks returning no object for the provided payload. The probe still does not construct a complete VPU algorithm payload.
 
+Observed optional `--run-cmd-hardwarebuffer` result from the same `system_app` context on 2026-06-14:
+
+```text
+CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe --run-cmd-hardwarebuffer
+...
+[*] --- run_cmd HardwareBuffer case: zero first_u32=0x0 ---
+[+] input image payload: first_u32=0x0 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] parcel_fd_pos_388 fd=61
+[*] hwb_run_zero_mem2_pos388 cmd=0xc0384103 ret=0
+[*] hwb_run_zero_mem3_pos388 cmd=0xc038410f ret=0
+[*] run_async_hwb_run_zero_pos388 cmd=0xc0184107 ret=-22 (EINVAL)
+```
+
+Interpretation: the same HardwareBuffer fd source can also reach the `run_cmd_async` command-buffer parser when user `+0x0c` is cleared and user `+0x10` is set to a nonzero length. The all-zero mapped buffer is rejected with `EINVAL` after memory import succeeds, which matches the static `mdw_cmd_parse_cmd` early command-header checks. The probe still does not queue a command or exercise provider execution.
+
 Plain `dalvikvm64` is a negative control for this mode:
 
 ```text
@@ -548,9 +592,8 @@ Interpretation: APUSYS memory-create is now a mapped and runtime-confirmed impor
 - Keep the current Java probe scoped to reject/query/negative-memory/device-control, fd-source scans, HardwareBuffer fd import, and controlled `ucmd` gate tests.
 - Use the `app_process64` HardwareBuffer path as the baseline fd source. Direct `/dev/ion`, `/dev/ashmem`, dma-heap device nodes, and DRM PRIME export remain blocked or unavailable in the current context.
 - Use kernel logs, if available from the lab context, to distinguish whether the `ENOMEM` path comes from ION import, cache sync, or IOVA map setup.
-- Keep the `run_cmd` `+0x0c` early-reject field set in default probes while resolving command ops `+0x00`, `+0x10`, and `+0x18`.
+- Keep the `run_cmd` parser probe limited to zero-header / invalid-header inputs until the command-buffer layout is mapped. Command ops `+0x00`, `+0x10`, and `+0x18` are now resolved as `mdw_cmd_create_cmd`, `mdw_cmd_abort_cmd`, and `mdw_cmd_parse_cmd`.
 - For `0x400C4109`, optional follow-up is a small control-value sweep on the live-success providers while watching return codes and kernel logs. The current control value `0` already confirms provider opcode `0` reachability.
-- For `mdw_usr_ucmd`, recover the actual relocated `vpu_normal_algo_ops_raw` / `vpu_preload_algo_ops_raw` callback entrypoints before claiming fields beyond the likely key at `mapped_kva+4`.
-- Do not add a matching-key runtime test until the real callback targets are resolved. The nearby thermal cooling-device string cluster may be state-changing if it ever proves connected.
+- For `mdw_usr_ucmd`, recover actual Normal/Preload algorithm keys from firmware/bin metadata or runtime state before adding a matching-key test. The resolved `vpu_alg_get` interface indicates the key begins at or near `mapped_kva+4`, but fields after that key still need mapping.
 - Continue mapping `mdla_run_command_sync`, `vpu_execute`, and `edma_execute` input structures before valid command-buffer experiments.
 - Continue scheduler/queue analysis after command parser targets are known. Valid command-buffer experiments come after that mapping.

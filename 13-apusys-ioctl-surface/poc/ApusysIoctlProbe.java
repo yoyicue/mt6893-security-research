@@ -55,6 +55,7 @@ public final class ApusysIoctlProbe {
         boolean ucmdNegative = false;
         boolean hardwareBuffer = false;
         boolean ucmdHardwareBuffer = false;
+        boolean runCmdHardwareBuffer = false;
         for (String arg : args) {
             if ("--query".equals(arg)) {
                 query = true;
@@ -74,14 +75,17 @@ public final class ApusysIoctlProbe {
                 hardwareBuffer = true;
             } else if ("--ucmd-hardwarebuffer".equals(arg)) {
                 ucmdHardwareBuffer = true;
+            } else if ("--run-cmd-hardwarebuffer".equals(arg)) {
+                runCmdHardwareBuffer = true;
             } else {
                 throw new IllegalArgumentException("unknown option: " + arg);
             }
         }
 
         System.out.println("[*] === APUSYS ioctl probe ===");
-        if (memNegative || devCtrl || memDmabuf || memIon
-                || fdScan || ucmdNegative || hardwareBuffer || ucmdHardwareBuffer) {
+        if (memNegative || devCtrl || memDmabuf || memIon || fdScan
+                || ucmdNegative || hardwareBuffer || ucmdHardwareBuffer
+                || runCmdHardwareBuffer) {
             System.out.println("[*] Mode: optional checks enabled;"
                 + " no secure alloc/free, no run_cmd cmdbuf\n");
         } else {
@@ -154,6 +158,10 @@ public final class ApusysIoctlProbe {
 
             if (ucmdHardwareBuffer) {
                 runUcmdHardwareBufferProbe(fd);
+            }
+
+            if (runCmdHardwareBuffer) {
+                runRunCmdHardwareBufferProbe(fd);
             }
 
             System.out.println("\n[+] Probe completed. Interpret results as handler reachability only.");
@@ -441,7 +449,7 @@ public final class ApusysIoctlProbe {
                 + " layers=" + optionalIntMethod(hb, "getLayers")
                 + " usage=" + optionalLongMethod(hb, "getUsage"));
 
-            probeHardwareBufferParcel(apusysFd, hb, false, "hwb");
+            probeHardwareBufferParcel(apusysFd, hb, false, false, "hwb");
         } catch (Throwable t) {
             System.out.println("[-] HardwareBuffer probe failed: " + shortThrowable(t));
         } finally {
@@ -513,9 +521,93 @@ public final class ApusysIoctlProbe {
                 + " format=" + optionalIntMethod(hb, "getFormat")
                 + " layers=" + optionalIntMethod(hb, "getLayers")
                 + " usage=" + optionalLongMethod(hb, "getUsage"));
-            probeHardwareBufferParcel(apusysFd, hb, true, "hwb_" + label);
+            probeHardwareBufferParcel(apusysFd, hb, true, false, "hwb_" + label);
         } catch (Throwable t) {
             System.out.println("[-] ucmd HardwareBuffer case " + label
+                + " failed: " + shortThrowable(t));
+        } finally {
+            if (hb != null) {
+                hb.close();
+            }
+            if (output != null) {
+                output.close();
+            }
+            if (input != null) {
+                input.close();
+            }
+            if (writer != null) {
+                writer.close();
+            }
+            if (reader != null) {
+                reader.close();
+            }
+        }
+    }
+
+    private static void runRunCmdHardwareBufferProbe(int apusysFd) throws Exception {
+        System.out.println("\n[*] === Optional APUSYS run_cmd HardwareBuffer parser probe ===");
+        System.out.println("[*] Mode: write zero header through ImageWriter,"
+            + " import HardwareBuffer fd, then call run_cmd_async only");
+
+        loadRuntimeLibraries();
+        dumpClassShape("android.hardware.HardwareBuffer");
+        dumpClassShape("android.media.ImageReader");
+        dumpClassShape("android.media.ImageWriter");
+
+        runOneRunCmdHardwareBufferProbe(apusysFd, "zero", 0);
+    }
+
+    private static void runOneRunCmdHardwareBufferProbe(int apusysFd, String label,
+                                                        int firstU32) throws Exception {
+        System.out.println("\n[*] --- run_cmd HardwareBuffer case: " + label
+            + " first_u32=0x" + Integer.toHexString(firstU32) + " ---");
+
+        android.media.ImageReader reader = null;
+        android.media.ImageWriter writer = null;
+        android.media.Image input = null;
+        android.media.Image output = null;
+        android.hardware.HardwareBuffer hb = null;
+        try {
+            reader = createRgbaImageReader(64, 64);
+            System.out.println("[+] ImageReader created: width=" + reader.getWidth()
+                + " height=" + reader.getHeight()
+                + " format=" + reader.getImageFormat()
+                + " hbFormat=" + reader.getHardwareBufferFormat()
+                + " usage=0x" + Long.toHexString(reader.getUsage()));
+
+            writer = android.media.ImageWriter.newInstance(reader.getSurface(), 2);
+            System.out.println("[+] ImageWriter created: width=" + writer.getWidth()
+                + " height=" + writer.getHeight()
+                + " format=" + writer.getFormat()
+                + " hbFormat=" + writer.getHardwareBufferFormat()
+                + " usage=0x" + Long.toHexString(writer.getUsage()));
+
+            input = writer.dequeueInputImage();
+            fillImageHeader(input, firstU32);
+            writer.queueInputImage(input);
+            input = null;
+
+            output = acquireImage(reader);
+            if (output == null) {
+                System.out.println("[-] ImageReader did not produce an output image");
+                return;
+            }
+
+            hb = output.getHardwareBuffer();
+            if (hb == null) {
+                System.out.println("[-] Image.getHardwareBuffer returned null");
+                return;
+            }
+
+            System.out.println("[+] Output HardwareBuffer:"
+                + " width=" + optionalIntMethod(hb, "getWidth")
+                + " height=" + optionalIntMethod(hb, "getHeight")
+                + " format=" + optionalIntMethod(hb, "getFormat")
+                + " layers=" + optionalIntMethod(hb, "getLayers")
+                + " usage=" + optionalLongMethod(hb, "getUsage"));
+            probeHardwareBufferParcel(apusysFd, hb, false, true, "hwb_run_" + label);
+        } catch (Throwable t) {
+            System.out.println("[-] run_cmd HardwareBuffer case " + label
                 + " failed: " + shortThrowable(t));
         } finally {
             if (hb != null) {
@@ -594,6 +686,7 @@ public final class ApusysIoctlProbe {
     private static void probeHardwareBufferParcel(int apusysFd,
                                                   android.hardware.HardwareBuffer hb,
                                                   boolean runUcmd,
+                                                  boolean runRunCmd,
                                                   String prefix)
             throws Exception {
         android.os.Parcel parcel = android.os.Parcel.obtain();
@@ -605,7 +698,7 @@ public final class ApusysIoctlProbe {
                 + " describe=0x" + Integer.toHexString(hb.describeContents()));
 
             tryReadAidlHardwareBuffer(apusysFd, parcel);
-            bruteReadParcelFds(apusysFd, parcel, size, runUcmd, prefix);
+            bruteReadParcelFds(apusysFd, parcel, size, runUcmd, runRunCmd, prefix);
         } finally {
             parcel.recycle();
         }
@@ -650,7 +743,8 @@ public final class ApusysIoctlProbe {
     }
 
     private static void bruteReadParcelFds(int apusysFd, android.os.Parcel parcel,
-                                           int size, boolean runUcmd, String prefix)
+                                           int size, boolean runUcmd,
+                                           boolean runRunCmd, String prefix)
             throws Exception {
         boolean found = false;
         int limit = size < 0x1000 ? size : 0x1000;
@@ -676,6 +770,10 @@ public final class ApusysIoctlProbe {
                     runUcmdWithFd(apusysFd, "ucmd_" + prefix + "_c1_pos" + pos,
                         3, 1, fd, 0, 0x1000);
                 }
+                if (runRunCmd && (mem2Ok || mem3Ok)) {
+                    runRunCmdWithFd(apusysFd,
+                        "run_async_" + prefix + "_pos" + pos, fd, 0, 0x4000);
+                }
                 pfd.close();
             } catch (Throwable ignored) {
                 // Most parcel offsets are not file-descriptor objects.
@@ -691,6 +789,16 @@ public final class ApusysIoctlProbe {
             return "hwb" + type + "_pos" + pos;
         }
         return prefix + "_mem" + type + "_pos" + pos;
+    }
+
+    private static long runRunCmdWithFd(int apusysFd, String name, int fd,
+                                        int offset, int length) throws Exception {
+        long runCmd = DrmTrigger.sScratchBuf + OFF_RUN_CMD;
+        DrmTrigger.zeroMem(runCmd, 0x18);
+        DrmTrigger.unsafePutInt(runCmd + 0x08, fd);
+        DrmTrigger.unsafePutInt(runCmd + 0x0c, offset);
+        DrmTrigger.unsafePutInt(runCmd + 0x10, length);
+        return ioctlAndPrint(apusysFd, name, APUSYS_CMD_RUN_ASYNC, runCmd);
     }
 
     private static void importFdsFromObject(int apusysFd, String prefix,
