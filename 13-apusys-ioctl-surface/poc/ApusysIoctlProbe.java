@@ -108,13 +108,19 @@ public final class ApusysIoctlProbe {
 
         long memA = DrmTrigger.sScratchBuf + OFF_MEM_A;
         DrmTrigger.zeroMem(memA, 0x38);
-        DrmTrigger.unsafePutLong(memA + 0x00, -1L);
-        long ret = ioctlAndPrint(fd, "mem_create2_badfd", APUSYS_CMD_MEM_CREATE2, memA);
+        long ret = ioctlAndPrint(fd, "mem_create2_zero", APUSYS_CMD_MEM_CREATE2, memA);
+        cleanupUnexpectedMemSuccess(fd, "mem_create2", APUSYS_CMD_MEM_FREE_02, memA, ret);
+        DrmTrigger.zeroMem(memA, 0x38);
+        DrmTrigger.unsafePutInt(memA + 0x20, -1);
+        ret = ioctlAndPrint(fd, "mem_create2_badfd", APUSYS_CMD_MEM_CREATE2, memA);
         cleanupUnexpectedMemSuccess(fd, "mem_create2", APUSYS_CMD_MEM_FREE_02, memA, ret);
 
         long memB = DrmTrigger.sScratchBuf + OFF_MEM_B;
         DrmTrigger.zeroMem(memB, 0x38);
-        DrmTrigger.unsafePutLong(memB + 0x00, -1L);
+        ret = ioctlAndPrint(fd, "mem_create3_zero", APUSYS_CMD_MEM_CREATE3, memB);
+        cleanupUnexpectedMemSuccess(fd, "mem_create3", APUSYS_CMD_MEM_FREE_10, memB, ret);
+        DrmTrigger.zeroMem(memB, 0x38);
+        DrmTrigger.unsafePutInt(memB + 0x20, -1);
         ret = ioctlAndPrint(fd, "mem_create3_badfd", APUSYS_CMD_MEM_CREATE3, memB);
         cleanupUnexpectedMemSuccess(fd, "mem_create3", APUSYS_CMD_MEM_FREE_10, memB, ret);
     }

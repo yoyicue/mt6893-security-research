@@ -48,6 +48,17 @@ Additional functions named during the APUSYS follow-up pass:
 | `mdw_mem_mgr_init` | `0xffffffc00879698c` | Initializes APUSYS memory manager state and stores the registered midware driver pointer at `0xffffffc00a189078` |
 | `apusys_mem_query_kva` | `0xffffffc008796a44` | Looks up imported memory by KVA range |
 | `apusys_mem_query_iova` | `0xffffffc008796b88` | Looks up imported memory by IOVA range |
+| `mdw_mem_ion_flush` | `0xffffffc008796dfc` | Registered memory op at `+0x10` |
+| `mdw_mem_ion_invalidate` | `0xffffffc008796f18` | Registered memory op at `+0x18` |
+| `mdw_mem_ion_map_kva` | `0xffffffc008797008` | Registered memory op at `+0x20`, imports a dmabuf fd and maps KVA |
+| `mdw_mem_ion_unmap_kva` | `0xffffffc0087971d8` | Registered memory op at `+0x28` |
+| `mdw_mem_ion_map_iova` | `0xffffffc008797290` | Registered memory op at `+0x30`, imports a dmabuf fd and maps IOVA |
+| `mdw_mem_ion_unmap_iova` | `0xffffffc008797400` | Registered memory op at `+0x38` |
+| `mdw_mem_ion_destroy_client` | `0xffffffc0087974a8` | Registered memory op at `+0x40`, tears down the ION client |
+| `mdw_mem_ion_check` | `0xffffffc0087974e4` | Validates APUSYS memory descriptor alignment/type before IOVA mapping |
+| `ion_import_dma_buf_fd_wrapper` | `0xffffffc008be9318` | ION wrapper used by APUSYS KVA/IOVA map paths |
+| `ion_sys_ioctl_cache_sync_wrapper` | `0xffffffc008bfa61c` | Small wrapper into the ION sys-ioctl handler |
+| `ion_sys_ioctl_handler` | `0xffffffc008bfa634` | ION sys-ioctl handler reached from the APUSYS IOVA path |
 | `mdw_queue_init` | `0xffffffc008793b14` | Initializes APUSYS command queue state |
 | `mdw_queue_insert` | `0xffffffc008793834` | Queue insertion helper |
 | `mdw_queue_pop` | `0xffffffc00879376c` | Queue pop helper |
@@ -56,6 +67,10 @@ Additional functions named during the APUSYS follow-up pass:
 | `mdw_sched_dev_routine` | `0xffffffc0087920ec` | Per-device scheduler routine |
 
 Important correction: reading the static object returned by `mdw_usr_get_cmd_ops` as 64-bit pointers produces `0xffffff800881...` values. After normalizing them to the IDB base, they land around `0xffffffc00881....`, but the referenced locations do not look like normal APUSYS parser function entries and include unrelated MMDVFS/clock strings. Treat `mdw_usr_get_cmd_ops` as unresolved until its runtime registration/use is proven. Do not use it as proof of a command parser target.
+
+Memory-ops correction: the APUSYS memory ops behind `0xffffffc00a189078` are now resolved. `mdw_mem_mgr_init` stores the object returned by `apusys_midware_register_driver`; that registration path creates the `"apusys midware"` ION client and installs the `mdw_mem_ion_*` callbacks above. The type-2 create path calls the registered `+0x30` IOVA map op. The type-3 create path calls `+0x20` KVA map first, then `+0x30` IOVA map, and unwinds KVA on IOVA failure.
+
+The 0x38 user memory descriptor is not an fd at offset `+0x00`. `mdw_mem_copy_user_desc` copies the user fd from descriptor offset `+0x20` into the kernel object at `+0x28`; this field is what the ION import wrapper receives. Other relevant checked fields are copied from user `+0x10`, `+0x14`, and `+0x18` into kernel `+0x18`, `+0x1c`, and `+0x20` for alignment/type validation in `mdw_mem_ion_check`.
 
 ## Ioctl command map
 
@@ -86,7 +101,7 @@ The `0x4004413C/3D` size mismatch is important for testing: the command encoding
 
 ## Current risk ranking
 
-1. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` lead to `mdw_usr_mem_create`. This path now has the clearest safe next experiment: bad-fd / zero-size negative tests against type-2 and type-3 import wrappers. Related functions include `mdw_mem_import_type2`, `mdw_mem_import_type3`, `apusys_mem_query_kva`, and `apusys_mem_query_iova`.
+1. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` lead to `mdw_usr_mem_create`, then into APUSYS ION KVA/IOVA callbacks. Safe negative tests now confirm that type-2 and type-3 descriptors reach deeper than the initial user-copy guard without creating an object or crashing. This remains the highest APUSYS priority because a valid dmabuf-backed descriptor would exercise ION import, KVA/IOVA mapping, cache sync, and APUSYS memory object lifetime.
 2. **Command parsing/execution path**: `0xC0184107` and `0x40184106` reach `mdw_usr_run_cmd_async`. The current safe probe sets the user field at `+0x0c` to `1`, which makes this function return early before the indirect ops calls. Clearing `+0x0c` enters unresolved indirect calls through `0xffffffc00a188e58`; this is currently a crash-risk test, not a useful vulnerability proof.
 3. **Secure device allocation path**: `0x4004413C/3D` call `mdw_usr_dev_sec_alloc/free`. The free path has an id `< 0x40` guard, but the alloc path still needs deeper review.
 4. **Handshake/wait/simple control paths**: useful for reachability, lower standalone risk.
@@ -140,7 +155,8 @@ dalvikvm64 -cp /data/data/com.android.settings/cache/apusys_ioctl_probe.dex Apus
 `--mem-negative` is intentionally not the default. It sends:
 
 - `mem_create2_null` / `mem_create3_null` with a NULL user pointer, expected to fail before import.
-- `mem_create2_badfd` / `mem_create3_badfd` with a 0x38 descriptor whose first 64-bit field is `-1` and all size/metadata fields are zero.
+- `mem_create2_zero` / `mem_create3_zero` with an all-zero 0x38 descriptor, including fd `0`.
+- `mem_create2_badfd` / `mem_create3_badfd` with a 0x38 descriptor whose fd field at user offset `+0x20` is `-1`.
 
 It does not pass a valid dmabuf, does not create command buffers, and does not request APUSYS execution. If a memory-create call unexpectedly succeeds, the probe attempts cleanup with the matching memory-free ioctl using the returned descriptor.
 
@@ -184,15 +200,17 @@ Observed optional `--mem-negative` result from the same `system_app` context on 
 ```text
 [*] mem_create2_null   cmd=0xc0384103 ret=-22 (EINVAL)
 [*] mem_create3_null   cmd=0xc038410f ret=-22 (EINVAL)
+[*] mem_create2_zero   cmd=0xc0384103 ret=-12 (ENOMEM)
 [*] mem_create2_badfd  cmd=0xc0384103 ret=-12 (ENOMEM)
+[*] mem_create3_zero   cmd=0xc038410f ret=-12 (ENOMEM)
 [*] mem_create3_badfd  cmd=0xc038410f ret=-12 (ENOMEM)
 ```
 
-Interpretation: `/dev/apusys` ioctl is confirmed reachable from `system_app`, generic invalid commands and disabled paths return controlled `EINVAL`, and handshake mode `1` returns structured data. The memory-create negative tests did not create an object or crash the device. The `ENOMEM` result for bad-fd/zero-size descriptors suggests the import wrappers may reach resource preparation before returning a generic allocation-style failure, so the next useful work is deeper static analysis of `mdw_mem_import_type2` / `mdw_mem_import_type3` and the registered memory ops behind `0xffffffc00a189078`.
+Interpretation: `/dev/apusys` ioctl is confirmed reachable from `system_app`, generic invalid commands and disabled paths return controlled `EINVAL`, and handshake mode `1` returns structured data. The memory-create negative tests did not create an object or crash the device. NULL user pointers fail at the early copy/argument guard with `EINVAL`. Both the all-zero descriptor and explicit bad-fd descriptor return `ENOMEM`, which means errno alone does not distinguish fd validation from later ION resource-preparation failure. Static analysis now shows the intended downstream path is APUSYS memory import into ION KVA/IOVA mapping via the registered `mdw_mem_ion_*` ops.
 
 ## Next analysis steps
 
-- Run `ApusysIoctlProbe --mem-negative` from the existing `uid=1000(system)` / `u:r:system_app:s0` context and record the exact errno results.
+- Keep the current Java probe reject-only. The next dynamic APUSYS memory test should require an explicit decision because a valid dmabuf-backed descriptor would move from reachability into real ION/APUSYS mapping behavior.
+- Use kernel logs, if available from the lab context, to distinguish whether the `ENOMEM` path comes from ION import, cache sync, or IOVA map setup.
 - Treat `mdw_usr_get_cmd_ops` / `0xffffffc00a188e58` as unresolved. Do not clear the `run_cmd` `+0x0c` early-reject field until the indirect call targets are confirmed.
-- Continue static analysis from `mdw_mem_import_type2`, `mdw_mem_import_type3`, and the registered midware memory ops behind `0xffffffc00a189078`.
 - Map `vpu_ucmd_handle`, EDMA/MDLA validators, and the scheduler queue only after command parser targets are known. No valid command-buffer experiment should be added before that.
