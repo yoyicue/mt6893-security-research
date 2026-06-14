@@ -17,6 +17,7 @@ public final class ApusysIoctlProbe {
     private static final long APUSYS_CMD_MEM_FREE_10 = 0xC0384110L;
     private static final long APUSYS_CMD_RUN_SYNC    = 0x40184106L;
     private static final long APUSYS_CMD_RUN_ASYNC   = 0xC0184107L;
+    private static final long APUSYS_CMD_WAIT        = 0x40184108L;
     private static final long APUSYS_CMD_DEV_CTRL    = 0x400C4109L;
     private static final long APUSYS_CMD_UCMD        = 0x4014410EL;
     private static final long APUSYS_CMD_DISABLED_0C = 0x4038410CL;
@@ -187,6 +188,7 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpAnnVersionIovaControl = false;
         boolean runCmdVpuXrpAnnVersionWrapperZeroDataIova = false;
         boolean runCmdVpuXrpAnnVersionWrapperZeroDataIovaControl = false;
+        boolean runCmdVpuXrpAnnVersionWrapperZeroDataWaitIova = false;
         boolean runCmdVpuXrpInternalAnnVersionIova = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDesc = false;
@@ -254,6 +256,8 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpAnnVersionWrapperZeroDataIova = true;
             } else if ("--run-cmd-vpu-xrp-ann-version-wrapper-zero-data-iova-control".equals(arg)) {
                 runCmdVpuXrpAnnVersionWrapperZeroDataIovaControl = true;
+            } else if ("--run-cmd-vpu-xrp-ann-version-wrapper-zero-data-wait-iova".equals(arg)) {
+                runCmdVpuXrpAnnVersionWrapperZeroDataWaitIova = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova".equals(arg)) {
                 runCmdVpuXrpInternalAnnVersionIova = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-control".equals(arg)) {
@@ -315,6 +319,7 @@ public final class ApusysIoctlProbe {
                 || runCmdVpuXrpAnnVersionIova || runCmdVpuXrpAnnVersionIovaControl
                 || runCmdVpuXrpAnnVersionWrapperZeroDataIova
                 || runCmdVpuXrpAnnVersionWrapperZeroDataIovaControl
+                || runCmdVpuXrpAnnVersionWrapperZeroDataWaitIova
                 || runCmdVpuXrpInternalAnnVersionIova
                 || runCmdVpuXrpInternalAnnVersionIovaControl
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDesc
@@ -478,6 +483,14 @@ public final class ApusysIoctlProbe {
                     XRP_CMD_FLAGS_INITIAL, VPU_DESC_ORDER_CODE_OUTPUT,
                     XRP_SETTINGS_LEN, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
                     XrpSettingsShape.WRAPPER_ZERO_DATA);
+            }
+
+            if (runCmdVpuXrpAnnVersionWrapperZeroDataWaitIova) {
+                runRunCmdVpuIovaHardwareBufferProbe(fd, true, true, true,
+                    XRP_OP_ANN_VERSION, 1000, false, VPU_DESC_MINIMAL,
+                    XRP_CMD_FLAGS_INITIAL, VPU_DESC_ORDER_CODE_OUTPUT,
+                    XRP_SETTINGS_LEN, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
+                    XrpSettingsShape.WRAPPER_ZERO_DATA, true);
             }
 
             if (runCmdVpuXrpInternalAnnVersionIova) {
@@ -1181,6 +1194,27 @@ public final class ApusysIoctlProbe {
                                                             int outputHeaderFlag,
                                                             XrpSettingsShape settingsShape)
             throws Exception {
+        runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, xrpSettings,
+            splitTargets, xrpOp, waitMs, twoVpuBuffers, descriptorMode,
+            cmdFlags, descriptorOrder, settingsLen, outputHeaderFlag,
+            settingsShape, false);
+    }
+
+    private static void runRunCmdVpuIovaHardwareBufferProbe(int apusysFd,
+                                                            boolean dispatch,
+                                                            boolean xrpSettings,
+                                                            boolean splitTargets,
+                                                            XrpOpSpec xrpOp,
+                                                            int waitMs,
+                                                            boolean twoVpuBuffers,
+                                                            int descriptorMode,
+                                                            int cmdFlags,
+                                                            int descriptorOrder,
+                                                            int settingsLen,
+                                                            int outputHeaderFlag,
+                                                            XrpSettingsShape settingsShape,
+                                                            boolean waitAfterAsync)
+            throws Exception {
         System.out.println("\n[*] === Optional APUSYS run_cmd VPU IOVA chained probe ===");
         if (xrpSettings) {
             System.out.println("[*] Mode: mem_create imports HardwareBuffer to get IOVA,"
@@ -1228,6 +1262,10 @@ public final class ApusysIoctlProbe {
                     + " output+0x10=0x"
                     + Integer.toHexString(outputHeaderFlag)
                     + " (PrepareOutputHeader(bool) stores this byte).");
+            }
+            if (waitAfterAsync) {
+                System.out.println("[*] Wait mode: call mdw_usr_wait_cmd"
+                    + " immediately after successful run_cmd_async.");
             }
         } else {
             System.out.println("[*] Mode: mem_create imports HardwareBuffer to get IOVA,"
@@ -1440,12 +1478,23 @@ public final class ApusysIoctlProbe {
             DrmTrigger.zeroMem(runCmd, 0x18);
             DrmTrigger.unsafePutInt(runCmd + 0x08, cmdFd);
             DrmTrigger.unsafePutInt(runCmd + 0x10, 0x4000);
+            dumpU32Words("run_cmd_arg_before_async", runCmd, 0x18);
+            long runRet = Long.MIN_VALUE;
             if (dispatch) {
-                long runRet = DrmTrigger.rawIoctl(apusysFd,
+                runRet = DrmTrigger.rawIoctl(apusysFd,
                     APUSYS_CMD_RUN_ASYNC, runCmd);
                 System.out.println("[*] run_async_vpu_iova cmd=0x"
                     + Long.toHexString(APUSYS_CMD_RUN_ASYNC)
                     + " ret=" + retText(runRet));
+                dumpU32Words("run_cmd_arg_after_async", runCmd, 0x18);
+                if (waitAfterAsync && runRet >= 0) {
+                    long waitRet = DrmTrigger.rawIoctl(apusysFd,
+                        APUSYS_CMD_WAIT, runCmd);
+                    System.out.println("[*] wait_vpu_iova cmd=0x"
+                        + Long.toHexString(APUSYS_CMD_WAIT)
+                        + " ret=" + retText(waitRet));
+                    dumpU32Words("run_cmd_arg_after_wait", runCmd, 0x18);
+                }
             } else {
                 System.out.println("[*] run_async_vpu_iova skipped by control mode");
             }

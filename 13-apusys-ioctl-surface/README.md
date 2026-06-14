@@ -575,12 +575,25 @@ windows unchanged, and changes only native descriptor `0`'s plane payload word
 remains the submitted `buffer_count=1`. Treat that as driver/request-status
 copyback, not APUNN output-section completion.
 
+The `--run-cmd-vpu-xrp-ann-version-wrapper-zero-data-wait-iova` variant calls
+`mdw_usr_wait_cmd` immediately after a successful async submit. Runtime confirms
+the async copyout contract: `runCmd+0x00` changes from `0` to command id `1`,
+and the same 0x18-byte argument is then valid for `0x40184108`. The wait ioctl
+returns `-5 (EIO)`, leaves `runCmd+0x00` unchanged, avoids the later
+`mdw_usr_destroy residual cmd` teardown warning, and still leaves APUNN
+settings/code/output/data windows unchanged while descriptor `0`'s native plane
+payload changes `0x504c4e30 -> 0x504c4e31`. IDA ties this `-EIO` result to
+`mdw_wait_cmd` seeing a failed subcommand pointer at command object `+0x1a0`,
+logging the command/subcommand failure, and mapping the result to `-EIO`.
+
 Additional wrapper-default result files:
 
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_wrapper_zero_data_iova.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_wrapper_zero_data_iova_kernel.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_wrapper_zero_data_iova_control.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_wrapper_zero_data_iova_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_wrapper_zero_data_wait_iova.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_wrapper_zero_data_wait_iova_kernel.txt`
 
 The internal `XTENSA_ANN_VERSION` follow-up switches from one native VPU buffer
 to host-wrapper-style input/output descriptors. The minimal two-buffer run and
@@ -722,9 +735,9 @@ missing APUNN completion condition.
 ## Current risk ranking
 
 1. **VPU D2D_EXT parameter ABI and IOVA-chain validation**: Highest current APUSYS task. `system_app` can import HardwareBuffer dmabufs, get APUSYS IOVA values, submit full-size normal-VPU requests, and reach `apu_lib_apunn`. IDA confirms the firmware handoff in `vpu_execute_d2d_handoff`: `request+0x50` is copied as `buffer_count * 0x40` bytes into the per-priority D2D buffer, then firmware receives `buffer_count`, the copied `struct vpu_buffer[]` IOVA, `sett_ptr`, and `sett_length` through `XTENSA_INFO12..15`; D2D_EXT also carries preload entry/IRAM through `XTENSA_INFO16/19`. Runtime shows VPU boot/map activity and descriptor-following into imported memory. APUNN output/data consumption is still not proven.
-2. **Firmware completion/output contract under VPU dispatch**: The one-buffer internal query/status shapes timeout in the VPU worker. The two-native-buffer internal-command-shaped probe changes lifecycle behavior: `run_cmd_async` returns `0`, teardown logs residual command state, and the visible writeback follows copied native buffer descriptor `0`. Libvpu-style descriptor metadata (`port_id=1`, `height=1`, `stride=size`), a five-descriptor alias shape, wrapper send-state settings `+0x00 = 0x5`, output-first descriptor order, `request+0x38 = 0x68`, output header `+0x10 = 1`, wrapper-default output size `0x40`, and zero APUNN data descriptors do not change the boundary. Static wrapper analysis now separates this probe shape from the ordinary `PrepareXrpCommand()` / `FinalizeXrpCommand()` path. The remaining contract is what makes firmware signal done through `XTENSA_INFO00/02`, make settings flags satisfy `(settings[0] & 0x0a) == 0x02`, and cause APUNN output writeback through the wrapper's normal output path.
-3. **Timeout-path command object lifetime**: `run_cmd_async` returns before the worker completes. Guard and two-buffer runs both show residual command cleanup boundaries. The same lifetime edge matters for fd close, process teardown, timeout, and abort experiments.
-4. **Writeback attribution and command-buffer copyback**: Split-target, two-buffer, and output-first runs localize the visible imported-buffer deltas to native VPU plane IOVAs reached through copied descriptors. The `ann_version_status_bit3_out0` run separates the earlier apparent `+8` operation-word write from the stable descriptor `0` writeback, and the output-first run shows that moving descriptor `0` to output moves the delta to the output header. The remaining attribution task is the semantic meaning of the descriptor-backed first-word change and whether it is firmware status, request-result state, or an internal command side effect.
+2. **Firmware completion/output contract under VPU dispatch**: The one-buffer internal query/status shapes timeout in the VPU worker. The two-native-buffer internal-command-shaped probe changes lifecycle behavior: `run_cmd_async` returns `0`, teardown logs residual command state, and the visible writeback follows copied native buffer descriptor `0`. Libvpu-style descriptor metadata (`port_id=1`, `height=1`, `stride=size`), a five-descriptor alias shape, wrapper send-state settings `+0x00 = 0x5`, output-first descriptor order, `request+0x38 = 0x68`, output header `+0x10 = 1`, wrapper-default output size `0x40`, and zero APUNN data descriptors do not change the boundary. The wait-after-async variant maps the current wrapper-zero-data request to `-EIO` without changing APUNN settings/output, so the midware sees a failed subcommand rather than normal APUNN completion. Static wrapper analysis now separates this probe shape from the ordinary `PrepareXrpCommand()` / `FinalizeXrpCommand()` path. The remaining contract is what makes firmware signal done through `XTENSA_INFO00/02`, make settings flags satisfy `(settings[0] & 0x0a) == 0x02`, and cause APUNN output writeback through the wrapper's normal output path.
+3. **Timeout-path command object lifetime**: `run_cmd_async` returns before the worker completes. Guard, async-only, and two-buffer runs show residual command cleanup boundaries; the wait-after-async run consumes the command id and avoids `mdw_usr_destroy residual cmd`, but returns `-EIO`. The lifetime edge is therefore real enough for fd close, process teardown, timeout, and abort experiments, but UAF has not been demonstrated.
+4. **Writeback attribution and command-buffer copyback**: Split-target, two-buffer, output-first, and wrapper-zero-data runs localize the visible imported-buffer deltas to native VPU plane IOVAs reached through copied descriptors. The `ann_version_status_bit3_out0` run separates the earlier apparent `+8` operation-word write from the stable descriptor `0` writeback, and the output-first run shows that moving descriptor `0` to output moves the delta to the output header. The remaining attribution task is the semantic meaning of the descriptor-backed first-word change and whether it is firmware status, request-result state, or an internal command side effect. A general writeback leak or APUNN output-section copyback is not established.
 5. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` import HardwareBuffer fds through APUSYS type-2/type-3 memory-create and copy out IOVA-like descriptor fields. This is the input path for any VPU request that references user-controlled memory.
 6. **Command parsing/execution and ucmd paths**: Validated at zero-header, invalid SC type, request-size guard, full-size VPU request acceptance, and `apu_lib_apunn` lookup success.
 7. **Device/resource control and secure alloc paths**: `0x4004413C/3D` call `mdw_usr_dev_sec_alloc/free`. These may influence APU power/security state. `0x400C4109` dispatches provider opcode `0`.
@@ -1017,6 +1030,13 @@ output operand id `0`. It moves output/data/plane payload windows to
 `+0x300/+0x400/+0x500/+0x700` so the larger code entry does not overlap them.
 `--run-cmd-vpu-xrp-ann-version-iova-control` performs the same setup without
 final dispatch.
+
+`--run-cmd-vpu-xrp-ann-version-wrapper-zero-data-iova` tests the standard
+wrapper default-output/zero-data shape with `code_size=0x1c8`, output size
+`0x40`, and no APUNN data descriptors. Its `-control` variant skips dispatch.
+`--run-cmd-vpu-xrp-ann-version-wrapper-zero-data-wait-iova` submits the same
+request asynchronously and then passes the copied-out command id to
+`mdw_usr_wait_cmd`.
 
 `--run-cmd-vpu-xrp-internal-ann-version-iova` mirrors the host-wrapper
 `PrepareInternalCommand()` shape: settings still describe the APUNN code/input

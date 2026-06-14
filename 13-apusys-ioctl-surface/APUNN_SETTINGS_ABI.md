@@ -572,6 +572,17 @@ APUNN command should visibly change settings `+0x00` so that
 `(flags & 0x0a) == 0x02`, and the output section should no longer retain the
 initial `0xffffffff, 0x40, 4, size` header.
 
+The direct ioctl wait experiment adds the midware-side completion view. In
+`--run-cmd-vpu-xrp-ann-version-wrapper-zero-data-wait-iova`, async submit writes
+command id `1` to `runCmd+0x00`; passing the same 0x18-byte argument to
+`0x40184108` returns `-EIO`. IDA maps this branch to `mdw_wait_cmd`: command
+object `+0x1a0` is a failed subcommand pointer, and a nonzero value logs the
+command/subcommand failure and returns `-EIO`. Wait does not copy APUNN
+completion status into the user argument. It consumes the command object, which
+is why this run avoids the later `mdw_usr_destroy residual cmd` warning. The
+APUNN settings/output windows remain unchanged, so this is a midware failure
+status, not the wrapper completion state.
+
 The follow-up
 `--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-output-first`
 variant keeps the same settings buffer (`code_iova = base+0x100`,
