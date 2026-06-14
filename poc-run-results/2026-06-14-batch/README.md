@@ -135,7 +135,7 @@ Interpretation:
 - `/dev/apusys` is a real reachable kernel surface from `system_app`.
 - APUSYS device-control ioctl `0x400C4109` reaches live provider opcode-0 paths for MDLA, normal VPU, EDMA, and MDLA RT. VPU RT returns `EACCES` on the same opcode.
 - APUSYS memory-create type-2/type-3 is now the highest APUSYS subpath with a working fd source: `app_process64` can create an `android.hardware.HardwareBuffer`, extract a fd-bearing Parcel entry, and import it through both memory-create variants.
-- APUSYS `mdw_usr_ucmd` now has a runtime-confirmed normal VPU opcode-7 content gate: with the HardwareBuffer fd source, offset `0`, nonzero length, device id `3`, and a live core id, first mapped u32 `0` returns `EINVAL`, while first mapped u32 `0x8001` returns `ENOENT`.
+- APUSYS `mdw_usr_ucmd` now has a runtime-confirmed normal VPU opcode-7 content gate: with the HardwareBuffer fd source, offset `0`, nonzero length, device id `3`, and a live core id, first mapped u32 `0` returns `EINVAL`, while first mapped u32 `0x8001` returns `ENOENT`. Current static analysis maps that `ENOENT` to a Normal/Preload lookup miss after the header gate.
 - Candidate-fd scanning shows no tested `/dev/dma_heap/*` nodes, `/dev/ashmem` open is denied, and ordinary openable non-dmabuf fds fail memory-create with `ENOMEM`.
 - Normal VPU `ucmd` with offset `0`, nonzero length, and bad fd fails cleanly with `EINVAL` for core `0` and `1`.
 - DRM dumb buffer creation works from `system_app`, but PRIME fd export returns `EACCES`.
@@ -147,7 +147,7 @@ Resulting CVE priority:
 
 | CVE / Area | Post-run Risk | Reason |
 |---|---|---|
-| APUSYS CVE candidates | Medium-High, rising | `/dev/apusys` opens with `O_RDWR`; `0x400C4109` provider opcode-0 dispatch is live for MDLA, normal VPU, EDMA, and MDLA RT. HardwareBuffer under `app_process64` provides a usable dmabuf fd, both APUSYS memory-create variants import it successfully, and normal VPU `ucmd` reaches beyond the `0x8001` gate to `ENOENT`. |
+| APUSYS CVE candidates | Medium-High, rising | `/dev/apusys` opens with `O_RDWR`; `0x400C4109` provider opcode-0 dispatch is live for MDLA, normal VPU, EDMA, and MDLA RT. HardwareBuffer under `app_process64` provides a usable dmabuf fd, both APUSYS memory-create variants import it successfully, and normal VPU `ucmd` reaches beyond the `0x8001` gate to a Normal/Preload lookup miss. |
 | CVE-2023-20768 / ION | Medium-Low for direct system_app node access | Dedicated old-ION path confirms `/dev/ion` open returns `EACCES` from `system_app`. |
 | Mali WRITE_VALUE boundary | Low for kernel LPE | WRITE_VALUE confirmed, but USER_BUFFER/kernel reachability is blocked. |
 
@@ -244,7 +244,7 @@ Resulting CVE priority:
 ## Final Post-Run Order
 
 1. **Display / DRM OOB read/write cluster**: `CVE-2023-32867`, `32868`, then `32865`, `32864`, `32863`, `20775`, `32860`. `32864` and `32865` remain reachable but the first guard probes did not confirm exploitable write paths.
-2. **APUSYS reachable surface**: APUSYS-related CVEs should be mapped next because `/dev/apusys` opens from `system_app`, provider dispatch is live, HardwareBuffer under `app_process64` supplies a dmabuf fd that APUSYS imports successfully, and normal VPU `ucmd` now reaches beyond the `0x8001` gate. The next experiment is resolving the `ENOENT` lookup result and expected `payload+4` ABI.
+2. **APUSYS reachable surface**: APUSYS-related CVEs should be mapped next because `/dev/apusys` opens from `system_app`, provider dispatch is live, HardwareBuffer under `app_process64` supplies a dmabuf fd that APUSYS imports successfully, and normal VPU `ucmd` now reaches beyond the `0x8001` gate. The next APUSYS step is resolving the raw VPU algo ops address form and confirming the candidate `payload+4` lookup ABI.
 3. **secmem / keyinstall via service paths**: `CVE-2023-32834`, `CVE-2023-32835`; direct secure nodes are blocked, so service PoC needed.
 4. **CMDQ / PQ / MMP indirect paths**: `CVE-2023-32849`, `CVE-2024-20037`, `CVE-2023-32866`; direct nodes blocked.
 5. **ION**: keep as pending until strict open/ioctl reachability is resolved.

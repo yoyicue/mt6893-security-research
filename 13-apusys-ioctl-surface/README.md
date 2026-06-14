@@ -153,14 +153,26 @@ The normal VPU provider opcode-7 branch at `0xffffffc0087a093c` then applies its
 - provider argument `+0x0c` is nonzero, which corresponds to user `+0x10`;
 - first u32 at the mapped KVA is `0x8001`.
 
-After the `0x8001` check, normal VPU uses `mapped_kva + 4` as the payload pointer. It locks the global VPU driver object, walks the registered VPU core list at `g_vpu_drv+0xb0`, and tries the per-core Normal algorithm set first, then the Preload set. `vpu_init_dev_algo_sets` initializes those sets at core offsets:
+After the `0x8001` check, normal VPU uses `mapped_kva + 4` as the payload pointer. It locks the global VPU driver object, walks the registered VPU core list at `g_vpu_drv+0xb0`, and tries the per-core Normal algorithm set first, then the Preload set. A zero lookup result from both sets leads to the observed `ENOENT`. The current runtime result therefore means the fd import, KVA mapping, size check, provider dispatch, and `0x8001` header gate have all succeeded; the missing piece is a lookup key inside the mapped payload.
+
+`vpu_init_dev_algo_sets` initializes those sets at core offsets:
 
 | Set | Core fields | Notes |
 |---|---|---|
 | Normal | name at `core+0x2c0`, list head at `core+0x2e8`, ops pointer at `core+0x308` | Populated from firmware/bin normal-algo metadata |
 | Preload | name at `core+0x310`, list head at `core+0x338`, ops pointer at `core+0x358` | Populated from firmware/bin preload-entry metadata |
 
-The raw ops tables are named `vpu_normal_algo_ops_raw` at `0xffffffc00979ae70` and `vpu_preload_algo_ops_raw` at `0xffffffc00979aeb0` in IDA. Their entries are stored in the kernel runtime address form (`0xffffff80...`), while this IDB is loaded under `0xffffffc0...`. A simple address normalization lands several entries inside larger IDA functions, so the exact callback entry semantics remain a follow-up item. One candidate callback sequence compares `payload+4` against thermal cooling-device names such as `mtk-cl-bcct02`, `mtk-cl-bcct01`, and `mtk-cl-bcct00`, but that should not be used as a final ucmd payload contract until the raw ops table addressing is resolved.
+The raw ops tables are named `vpu_normal_algo_ops_raw` at `0xffffffc00979ae70` and `vpu_preload_algo_ops_raw` at `0xffffffc00979aeb0` in IDA. Their entries are stored in the kernel runtime address form (`0xffffff80...`), while this IDB is loaded under `0xffffffc0...`. A simple address normalization lands several entries inside larger IDA functions, so the exact callback entry semantics remain a follow-up item.
+
+The strongest current candidate for the lookup ABI is:
+
+| Mapped offset | Meaning |
+|---:|---|
+| `+0x00` | opcode-7 header word, must be `0x8001` |
+| `+0x04` | provider payload pointer passed to Normal/Preload algo callbacks |
+| `+0x08` | candidate NUL-terminated lookup string, compared by callbacks as `payload+4` |
+
+Candidate callbacks around the normalized ops entries compare `payload+4` against thermal cooling-device names such as `mtk-cl-bcct02`, `mtk-cl-bcct01`, and `mtk-cl-bcct00`, then against seven runtime/BSS string slots at `0xffffffc00a1c6308`, `0xffffffc00a1c631c`, `0xffffffc00a1c6330`, `0xffffffc00a1c6344`, `0xffffffc00a1c6358`, `0xffffffc00a1c636c`, and `0xffffffc00a1c6380`. The follow-up helpers reference `mtk_thermal_zone_bind_cooling_device_wrapper` and list-removal state, so a runtime test that supplies a matching string is not just a parser probe; it may bind or unbind thermal cooling-device state. Keep the current Java test at the no-match `ENOENT` boundary until the raw ops entrypoints and side effects are pinned down.
 
 ## Ioctl command map
 
@@ -192,7 +204,7 @@ The `0x4004413C/3D` size mismatch is important for testing: the command encoding
 ## Current risk ranking
 
 1. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` lead to `mdw_usr_mem_create`, then into APUSYS ION KVA/IOVA callbacks. Negative tests confirm that type-2 and type-3 descriptors reach deeper than the initial user-copy guard without creating an object or crashing. Direct node sources remain constrained: no `/dev/dma_heap/*` nodes on this device, DRM dumb buffer creation succeeds but PRIME fd export returns `EACCES`, direct `/dev/ion` open returns `EACCES`, `/dev/ashmem` open returns `EACCES`, and ordinary openable fds such as `/dev/dri/card0`, `/dev/mali0`, `/dev/zero`, `/dev/null`, and `/dev/apusys` all fail APUSYS memory-create with `ENOMEM`. The usable fd source is now the framework path: running the probe through `app_process64` can create an `android.hardware.HardwareBuffer`, read a fd-bearing Parcel entry, and import that fd successfully through both APUSYS type-2 and type-3 memory-create. This is the highest APUSYS priority.
-2. **Command parsing/execution and ucmd paths**: `0xC0184107` and `0x40184106` reach `mdw_usr_run_cmd_async`. The current probe sets the user field at `+0x0c` to `1`, which makes this function return early before the indirect ops calls. `0x4014410E` reaches `mdw_usr_ucmd`; with `+0x0c == 0` it imports the fd as APUSYS memory, maps KVA/IOVA, bounds-checks the requested length, then calls `mdw_rsc_ucmd_dispatch` at `core+0x98`. The normal VPU opcode-7 `0x8001` mapped-buffer gate is now runtime-confirmed: with the same HardwareBuffer fd source, a first u32 of `0` returns `EINVAL`, while a first u32 of `0x8001` returns `ENOENT` for core `0` and `1`, consistent with reaching the next lookup stage. EDMA and MDLA do not show the same opcode-7 command path.
+2. **Command parsing/execution and ucmd paths**: `0xC0184107` and `0x40184106` reach `mdw_usr_run_cmd_async`. The current probe sets the user field at `+0x0c` to `1`, which makes this function return early before the indirect ops calls. `0x4014410E` reaches `mdw_usr_ucmd`; with `+0x0c == 0` it imports the fd as APUSYS memory, maps KVA/IOVA, bounds-checks the requested length, then calls `mdw_rsc_ucmd_dispatch` at `core+0x98`. The normal VPU opcode-7 `0x8001` mapped-buffer gate is now runtime-confirmed: with the same HardwareBuffer fd source, a first u32 of `0` returns `EINVAL`, while a first u32 of `0x8001` returns `ENOENT` for core `0` and `1`. That `ENOENT` is now interpreted as Normal and Preload algo lookup miss after a successful mapped-buffer gate, not as a failed fd source. EDMA and MDLA do not show the same opcode-7 command path.
 3. **Device/resource control paths**: `0x4004413C/3D` call `mdw_usr_dev_sec_alloc/free`, and `0x400C4109` calls `mdw_usr_dev_ctrl_4109`. The free path has an id `< 0x40` guard; the `0x400C4109` path looks up a device/core and dispatches provider opcode `0` through `mdw_rsc_dev_op0_ctrl` with only a 0x0c user input. Static mapping shows MDLA/EDMA opcode `0` reaches power-on paths, normal VPU opcode `0` reaches control bookkeeping, and VPU RT opcode `0` returns early.
 4. **Handshake/wait/simple rejection paths**: useful for reachability, lower standalone risk.
 
@@ -478,7 +490,7 @@ CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
 [*] ucmd_hwb_gate8001_c1_pos388 cmd=0x4014410e ret=-2 (ENOENT)
 ```
 
-Interpretation: a valid HardwareBuffer dmabuf and offset `0` are enough to reach the normal VPU `ucmd` content gate. Keeping the mapped buffer's first u32 at `0` returns `EINVAL`; changing only that first u32 to `0x8001` changes the result to `ENOENT` on both tested cores. That matches the static model where `0x8001` passes the first mapped-buffer check and the next stage walks Normal/Preload algorithm state. The probe still does not construct a complete VPU algorithm payload.
+Interpretation: a valid HardwareBuffer dmabuf and offset `0` are enough to reach the normal VPU `ucmd` content gate. Keeping the mapped buffer's first u32 at `0` returns `EINVAL`; changing only that first u32 to `0x8001` changes the result to `ENOENT` on both tested cores. That matches the static model where `0x8001` passes the first mapped-buffer check and the next stage walks Normal/Preload algorithm state. Current IDA evidence maps `ENOENT` to both lookup callbacks returning no object for the provided payload. The probe still does not construct a complete VPU algorithm payload.
 
 Plain `dalvikvm64` is a negative control for this mode:
 
@@ -499,7 +511,7 @@ Observed optional `--ucmd-negative` result from the same `system_app` context on
 [*] ucmd_vpu_c1_badfd  cmd=0x4014410e ret=-22 (EINVAL)
 ```
 
-Interpretation: APUSYS memory-create is now a mapped and runtime-confirmed import path from `system_app`. Direct node fd sources are still constrained: DRM can allocate a dumb buffer but cannot export a PRIME fd, direct old-ION allocation cannot start because `/dev/ion` open is denied, tested `/dev/dma_heap/*` nodes are absent, `/dev/ashmem` open is denied, and ordinary non-dmabuf fds fail memory-create with `ENOMEM`. The usable source is the framework path: `app_process64` can create a HardwareBuffer dmabuf and import it through APUSYS. The `ucmd` HardwareBuffer test confirms that normal VPU arguments with offset `0`, nonzero length, and first mapped u32 `0x8001` move beyond the zero-header `EINVAL` gate to `ENOENT`.
+Interpretation: APUSYS memory-create is now a mapped and runtime-confirmed import path from `system_app`. Direct node fd sources are still constrained: DRM can allocate a dumb buffer but cannot export a PRIME fd, direct old-ION allocation cannot start because `/dev/ion` open is denied, tested `/dev/dma_heap/*` nodes are absent, `/dev/ashmem` open is denied, and ordinary non-dmabuf fds fail memory-create with `ENOMEM`. The usable source is the framework path: `app_process64` can create a HardwareBuffer dmabuf and import it through APUSYS. The `ucmd` HardwareBuffer test confirms that normal VPU arguments with offset `0`, nonzero length, and first mapped u32 `0x8001` move beyond the zero-header `EINVAL` gate to the Normal/Preload lookup miss.
 
 ## Next analysis steps
 
@@ -508,7 +520,7 @@ Interpretation: APUSYS memory-create is now a mapped and runtime-confirmed impor
 - Use kernel logs, if available from the lab context, to distinguish whether the `ENOMEM` path comes from ION import, cache sync, or IOVA map setup.
 - Keep `mdw_usr_get_cmd_ops` / `0xffffffc00a188e58` marked unresolved. Leave the `run_cmd` `+0x0c` early-reject field set while resolving the indirect call targets.
 - For `0x400C4109`, optional follow-up is a small control-value sweep on the live-success providers while watching return codes and kernel logs. The current control value `0` already confirms provider opcode `0` reachability.
-- For `mdw_usr_ucmd`, the next concrete experiment is resolving the `ENOENT` result after the `0x8001` gate: identify the expected `payload+4` ABI and which Normal/Preload algorithm lookup key is missing.
-- Resolve the raw VPU algo ops table address form before treating the `payload+4` cooling-device-name comparisons as the final opcode-7 payload ABI.
+- For `mdw_usr_ucmd`, finish resolving the raw VPU algo ops table address form before treating the candidate `payload+4` cooling-device-name comparisons as the final opcode-7 payload ABI.
+- If a matching-key runtime test is added, keep it separate from the default safe probe and document that it may alter thermal cooling-device bind/unbind state.
 - Continue mapping `mdla_run_command_sync`, `vpu_execute`, and `edma_execute` input structures before valid command-buffer experiments.
 - Continue scheduler/queue analysis after command parser targets are known. Valid command-buffer experiments come after that mapping.
