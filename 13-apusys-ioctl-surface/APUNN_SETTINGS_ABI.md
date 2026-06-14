@@ -910,6 +910,16 @@ This gives the current interpretation boundary:
   settings remain `0x5`, output/data descriptor/data payload remain unchanged,
   and code word `0` changes `0x2713 -> 0x271b`. A single ordinary data
   descriptor is also not the missing APUNN completion condition.
+- Static wrapper analysis of `XrpVpuStream::CreateVpuRequest()` shows the
+  standard request builder adds the same native VPU buffer descriptor five
+  times. The `wrapper_one_data_code5` result keeps `settings_len=0x68`,
+  wrapper send-state flags, wrapper-default output size `0x40`, and one
+  standard APUNN data descriptor, but sets `buffer_count=5` with all five
+  copied native descriptors pointing at the code/input window. Dispatch still
+  returns `0`, settings remain `0x5`, output/data descriptor/data payload
+  remain unchanged, and code word `0` changes `0x2713 -> 0x271b`. Repeating the
+  code/input native descriptor five times is therefore not the missing APUNN
+  completion condition.
 - The `wrapper_one_data_output44` result follows the host wrapper's dynamic
   output-size formula for one `0x1c8` Xtensa operation: output size
   `0x40 + 4 * 1 = 0x44`, output header flag `1`, `settings_len=0x68`,
@@ -1044,9 +1054,10 @@ produce settings completion or APUNN output writeback either. Restoring a
 single ordinary APUNN data descriptor under the wrapper-sized request also
 leaves the same code-first native descriptor writeback boundary. Combining that
 one-data shape with the wrapper dynamic output size `0x44` and output header
-flag `1` leaves the same boundary. Directly setting native VPU `request+0x28`
-bit `2` changes kernel slot bookkeeping but also leaves the same APUNN
-settings/output boundary.
+flag `1` leaves the same boundary. Repeating the code/input native descriptor
+five times also leaves the same boundary. Directly setting native VPU
+`request+0x28` bit `2` changes kernel slot bookkeeping but also leaves the same
+APUNN settings/output boundary.
 It does not yet prove APUNN data descriptor consumption, APUNN output-section
 writeback, the missing completion parameter, or the full semantic meaning of
 the observed native-buffer writeback. The batch-level devapc warning remains
