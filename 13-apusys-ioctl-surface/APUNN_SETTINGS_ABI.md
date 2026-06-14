@@ -660,6 +660,10 @@ longer points at them through the settings tuple:
 | `target_settings5_no_settings_wait` | Same settings-backed request, followed by `mdw_usr_wait_cmd` | `run_async_vpu_iova ret=0`; `wait_vpu_iova ret=0`; settings change `0x5 -> 0x7`; settings `+0x30` is cleared; code/input is unchanged; output words through offset `0x40` become `0xffffffff` |
 | `target_settings5_no_settings_opcode_matrix` control | Same settings-backed request, opcodes `10001..10009`, no dispatch | Every case preserves settings `0x5`, settings `+0x30`, code/opcode words, and initialized output header |
 | `target_settings5_no_settings_opcode_matrix` | Same settings-backed request, opcodes `10001..10009`, followed by `mdw_usr_wait_cmd` | Every case returns `0` from dispatch and wait, changes settings `0x5 -> 0x7`, clears settings `+0x30`, leaves the code/opcode window unchanged, and writes output; `10004` writes through output offset `0x3c`, while the other tested opcodes write through offset `0x40` |
+| `target_settings5_no_settings_operand_id_matrix` control | Same settings-backed request, opcode `10003`, output operand ids `0/1/2/3/0xffff`, no dispatch | Every case preserves settings `0x5`, settings `+0x30`, code/operand-list words, and initialized output/data windows |
+| `target_settings5_no_settings_operand_id_matrix` | Same settings-backed request, output operand ids `0/1/2/3/0xffff`, followed by `mdw_usr_wait_cmd` | Every case returns `0` from dispatch and wait, changes settings `0x5 -> 0x7`, clears settings `+0x30`, and leaves the code/operand-list words unchanged; data descriptor and data payload remain unchanged; output tail varies across repeats and is not operand-id-stable |
+| `target_settings5_no_settings_op_shape_matrix` control | Same settings-backed request, opcode `10003`, input/output counts `0/0`, `0/1`, `0/2`, `1/0`, `1/1`, and `2/1`, no dispatch | Every case preserves settings `0x5`, settings `+0x30`, code/count/operand-list words, and initialized output/data windows |
+| `target_settings5_no_settings_op_shape_matrix` | Same settings-backed request, tested input/output count combinations, followed by `mdw_usr_wait_cmd` | Every case returns `0` from dispatch and wait, changes settings `0x5 -> 0x7`, clears settings `+0x30`, and leaves the code window unchanged; data descriptor and data payload remain unchanged; output tail varies across repeats and is not count-stable |
 
 Result files:
 
@@ -679,6 +683,18 @@ Result files:
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_opcode_matrix_kernel.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_opcode_matrix_control.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_opcode_matrix_control_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_id_matrix.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_id_matrix_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_id_matrix_control.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_id_matrix_control_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_id_matrix_repeat.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_id_matrix_repeat_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix_control.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix_control_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix_repeat.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix_repeat_kernel.txt`
 
 The code5 summary rerun shows that the copied-back native request fields
 `result_status` (`+0x34`), slot (`+0xb68`), and `algo_ret` (`+0xb6c`) remain zero
@@ -1696,6 +1712,23 @@ This gives the current interpretation boundary:
   code-first `10005..10007` timeout/error behavior is not the completed opcode
   contract; it is a consequence of pointing descriptor slot `0` at the wrong
   buffer.
+- The `target_settings5_no_settings_operand_id_matrix` result keeps the
+  completed settings-backed shape, keeps opcode `10003`, and varies the single
+  output operand id through `0`, `1`, `2`, `3`, and `0xffff`. Every dispatch
+  case returns `0`, every wait returns `0`, every case changes settings
+  `0x5 -> 0x7`, clears settings `+0x30`, and leaves the code/operand-list words
+  unchanged. Data descriptor and data payload windows stay unchanged. Output
+  tail length is not stable per operand id across the dispatch and repeat runs,
+  so operand id is accepted metadata but not yet a stable output-semantics
+  selector.
+- The `target_settings5_no_settings_op_shape_matrix` result keeps the completed
+  settings-backed shape, keeps opcode `10003`, and varies input/output counts
+  across `0/0`, `0/1`, `0/2`, `1/0`, `1/1`, and `2/1` with matching operand
+  lists. Every dispatch case returns `0`, every wait returns `0`, every case
+  changes settings `0x5 -> 0x7`, clears settings `+0x30`, and leaves the code
+  window unchanged. Data descriptor and data payload windows stay unchanged.
+  Output tail length varies across repeats, so these tested counts do not gate
+  completion and do not yet explain output/data binding.
 - The `target_code5_no_settings_word_matrix` result keeps the same request shape
   and varies only descriptor-0 word `0`. No-dispatch controls preserve every
   input. Dispatch plus wait maps ordinary words through `old | 0xb`, while the
@@ -1947,20 +1980,25 @@ five native descriptors point at the DSP command/settings buffer,
 `request+0x38/+0x40` are clear, dispatch and wait both return `0`, settings
 flags change `0x5 -> 0x7`, settings `+0x30` is cleared, and the code/input
 window is unchanged. The completed-shape opcode matrix shows `10001..10009` all
-complete. Output is filled through offset `0x40` for every tested opcode except
-`10004`, which fills through offset `0x3c`.
+complete. The completed-shape output-operand-id and operation-count matrices
+show operand ids `0/1/2/3/0xffff` and tested count combinations also complete.
+Output is filled through offset `0x40` for every tested opcode except `10004`,
+which fills through offset `0x3c`; the operand/count repeats show output-tail
+length can vary outside the opcode axis, so the tail is not yet a stable
+semantic label.
 
 The earlier code-first, output-first, descriptor-size, priority, buffer-count,
 port-id, format, plane-count, height, output-operand-id, operation-shape, and
 opcode matrices remain useful diagnostics. They show descriptor slot `0` is the
 active status/writeback target in incomplete shapes, `buffer_count=0` suppresses
 that state write, and code-first `10005..10007` select timeout/error classes
-with `10006/10007` normalizing to `10005`. The settings-backed opcode matrix
-shows those timeout/error classes do not apply once descriptor slot `0` points
-at the DSP command/settings buffer. These diagnostics do not establish a
+with `10006/10007` normalizing to `10005`. The settings-backed matrices show
+those timeout/error classes do not apply once descriptor slot `0` points at the
+DSP command/settings buffer. These diagnostics do not establish a
 source-sensitive leak. The completed output writeback currently looks like
-deterministic APUNN completion data, not disclosure of unrelated firmware or
-kernel memory.
+completion data with some tail variability, not disclosure of unrelated
+firmware or kernel memory; data descriptor and data payload windows remained
+unchanged in the new operand/count matrices.
 
 Timeout and teardown experiments map a real command lifetime edge, but UAF is
 not demonstrated. Wait consumes the command id, async teardown can leave
