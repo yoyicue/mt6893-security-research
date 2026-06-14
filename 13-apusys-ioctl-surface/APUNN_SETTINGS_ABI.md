@@ -179,11 +179,50 @@ imported-buffer offset `0`; that shape pointed settings and plane MVA at the
 same malformed buffer base, so the split XRP-shaped result supersedes it for
 section-routing attribution.
 
+The follow-up `--run-cmd-vpu-xrp-ann-version-iova` run uses the same
+split-target VPU request, but sets a nonzero target-side code section:
+
+| Field | Value |
+|---|---:|
+| `code_size` | `0x1c8` |
+| first opcode | `10003` / `0x2713` (`XTENSA_ANN_VERSION` in the recovered helper table) |
+| first operation stride | `0x1c8` |
+| input count | `0` |
+| output count | `1` |
+| output operand id | `0` |
+
+Runtime accepts this request at the APUSYS/VPU level:
+
+| Target | Before | After | Interpretation |
+|---|---:|---:|---|
+| `code+0x00` at `0x100` | `0x00002713` | `0x00002713` | Code section unchanged |
+| `output+0x00` at `0x300` | `0xffffffff` | `0xffffffff` | Output section unchanged |
+| `data_desc+0x00` at `0x400` | `0x00000003` | `0x00000003` | Data descriptor unchanged |
+| `data_payload+0x00` at `0x500` | `0x41505530` | `0x41505530` | APUNN/XRP data descriptor target unchanged |
+| `plane_payload+0x00` at `0x700` | `0x504c4e30` | `0x504c4e31` | Visible `+1` still follows native VPU plane0 MVA |
+| command request head/tail | unchanged | unchanged | Not explained by visible command-buffer copyback |
+
+The matching no-dispatch control leaves every window unchanged. Kernel logs for
+the dispatch run show VPU map/boot activity (`vpu_map_sg_to_iova` and
+`vpu_dev_boot_sequence`) without an APUNN-specific error in the filtered output.
+This proves the target tolerates a one-entry `0x1c8` code section for this
+request shape, but it does not prove that APUNN executed the operation or
+consumed the APUNN data descriptor.
+
+Additional result files:
+
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_iova.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_iova_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_iova_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_iova_control_kernel.txt`
+
 ## Code-section clues
 
 `/tmp/mtk-apu-artifacts/libneuron_platform.so` contains host-side XRP debug
 helpers that describe the Xtensa operation table used by APUNN-style command
-buffers:
+buffers. `XrpCommandInfo::GetNumXtensaOPs()` at `0x12ac4` reads the first
+entry's stride from `code_base+0x04`; `XrpDebugger::PrintXtensaOperations()` at
+`0x13664` walks each operation and prints operand ids from the list area:
 
 | Entry offset | Size | Meaning |
 |---:|---:|---|
@@ -194,11 +233,28 @@ buffers:
 | `+0x10` | 4 | Output operand count |
 | `+0x48 + operand_off` | 2 each | Input operand ids followed by output operand ids |
 
-This is enough to construct a structurally valid nonzero code section, but not
-enough to choose a confirmed harmless opcode. The next runtime experiment should
-therefore start with a debug-recognized no-op or status-only opcode recovered
-from the same helper tables, then vary only `code_size` and the first operation
-entry while keeping the already validated VPU request and split-target layout.
+The target-side `/tmp/mtk-apu-artifacts/device/libneuron_platform.vpu.so`
+wrapper does not use this host/debug stride rule in
+`XrpCommandInfo::GetNumXtensaOPs()` at `0xcd18`. It derives the number of
+operations from the code-section size divided by a fixed `0x1c8` entry size.
+That makes `0x1c8` the current target entry size for runtime probes; the
+host/debug table above is useful for field names, but not sufficient as the full
+firmware ABI.
+
+The same helper separates operation ids into several namespaces:
+
+| Opcode range / rule | Name source | Observed names |
+|---|---|---|
+| `0..992`, indexed by `opcode >> 4` | builtin-like table | `CONV2D`, `RELU`, `RESHAPE`, `CAST`, `GET_ALGO_INFO`, `LOCAL_MEM_INFO`, `XTENSA_ANN_VERSION`, `GET_DETAILED_OP_INFO`, `unknown`, `apu_lib_apunn`, `apu_lib_custom`, `apunn_dynamic`, `custom_dynamic` |
+| `10001..10009`, indexed by `opcode - 10001` | internal table | `GET_ALGO_INFO`, `LOCAL_MEM_INFO`, `XTENSA_ANN_VERSION`, `GET_DETAILED_OP_INFO`, `unknown`, `apu_lib_apunn`, `apu_lib_custom`, `apunn_dynamic`, `custom_dynamic` |
+| `15001` | special case | `custom op` |
+| `15002` | special case | `builtin cv op` |
+
+No confirmed no-op appears in the recovered name tables. The `10003`
+`XTENSA_ANN_VERSION` probe above shows that a minimal one-entry target code
+section can be submitted without a user-visible crash, but the unchanged
+output/data windows mean the expected output operand and remaining `0x1c8` entry
+fields are still unmapped.
 
 ## Evidence map
 
@@ -212,6 +268,7 @@ Userland wrapper evidence:
 | `libvpu.so` | `VpuRequestImp::mmapMVA` | `0x7858` | Fills per-plane MVA/IOVA entries |
 | `libvpu.so` | `VpuStreamImp::runReq` | `0x91fc` | Copies native `0xb70` request into APUSYS command memory |
 | `libneuron_platform.vpu.so` | `XrpCommandInfo::Initialize` | `0xc5e4` | Initializes main XRP command buffer and magic |
+| `libneuron_platform.vpu.so` | `XrpCommandInfo::GetNumXtensaOPs` | `0xcd18` | Counts target operations using fixed `0x1c8` code entries |
 | `libneuron_platform.vpu.so` | `XrpCommandInfo::InitCodeSection` | `0xc728` | Writes code size/IOVA fields |
 | `libneuron_platform.vpu.so` | `XrpCommandInfo::InitOutputSection` | `0xc848` | Initializes output header and writes output size/IOVA |
 | `libneuron_platform.vpu.so` | `XrpCommandInfo::InitDataSection` | `0xcaa0` | Writes data descriptor size/IOVA |
@@ -219,7 +276,8 @@ Userland wrapper evidence:
 | `libneuron_platform.vpu.so` | `XrpVpuStream::CreateVpuRequest` | `0x16d54` | Calls `vpuRequest_setProperty()` for the prepared settings payload |
 
 Runtime evidence so far proves `apu_lib_apunn` lookup, normal VPU request
-acceptance, VPU boot/map activity, XRP-shaped settings header tolerance, and a
+acceptance, VPU boot/map activity, XRP-shaped settings header tolerance,
+target-side nonzero code-section tolerance for a minimal `0x1c8` entry, and a
 controlled native VPU plane0-MVA writeback. It does not yet prove APUNN data
 descriptor consumption, APUNN code-section operation execution, or the semantic
 meaning of the observed `+1` plane-MVA change.

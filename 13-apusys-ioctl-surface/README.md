@@ -468,6 +468,32 @@ vpu_cmd_after_request_head/tail unchanged
 
 The split-target control leaves both windows unchanged. The current attribution is therefore precise: the visible `+1` writeback follows the native VPU plane0 MVA descriptor, not the APUNN/XRP data descriptor. With `code_size=0`, this still does not prove APUNN code-section operation execution.
 
+The follow-up `--run-cmd-vpu-xrp-ann-version-iova` mode keeps the split-target
+layout, shifts output/data windows to avoid overlap with the larger code
+section, and submits one target-sized Xtensa operation entry:
+
+```text
+code_size=0x1c8 opcode=10003 stride=0x1c8 inputs=0 outputs=1 output_operand=0
+```
+
+Observed dispatch result:
+
+```text
+[*] run_async_vpu_iova cmd=0xc0184107 ret=0
+xrp_after_code[0x100]          unchanged
+xrp_after_output[0x300]        unchanged
+xrp_after_data_desc[0x400]     unchanged
+xrp_after_data_payload[0x500]  unchanged
+xrp_after_plane_payload[0x700]: [0] 0x504c4e30 -> 0x504c4e31
+vpu_cmd_after_request_head/tail unchanged
+```
+
+The matching `--run-cmd-vpu-xrp-ann-version-iova-control` run leaves every
+window unchanged. Kernel logs for the dispatch run show VPU map/boot activity.
+This proves that the normal-VPU/APUNN request path tolerates a nonzero
+`0x1c8` code entry for this minimal `XTENSA_ANN_VERSION` shape, but APUNN
+operation execution and APUNN data-descriptor consumption remain unproven.
+
 ## Ioctl command map
 
 The ioctl magic byte is `0x41` (`'A'`). The dispatcher uses fixed internal copy sizes before calling sub-handlers; it does not trust arbitrary user sizes.
@@ -497,9 +523,9 @@ The `0x4004413C/3D` size mismatch is important for testing: the command encoding
 
 ## Current risk ranking
 
-1. **VPU firmware settings ABI and IOVA-chain validation**: Highest current APUSYS task. `system_app` can import HardwareBuffer dmabufs, get APUSYS IOVA values, and submit full-size normal-VPU requests. The corrected probe writes `setting_length`, `setting_iova`, `buffer_count`, and plane0 MVA according to `libvpu.so`; runtime shows VPU boot/map activity. The XRP-shaped split-target run keeps settings/output/data-descriptor, APUNN data payload, and command-buffer copyback windows unchanged, while the native VPU plane0 MVA target changes first word from `0x504c4e30` to `0x504c4e31`.
+1. **VPU firmware settings ABI and IOVA-chain validation**: Highest current APUSYS task. `system_app` can import HardwareBuffer dmabufs, get APUSYS IOVA values, and submit full-size normal-VPU requests. The corrected probe writes `setting_length`, `setting_iova`, `buffer_count`, and plane0 MVA according to `libvpu.so`; runtime shows VPU boot/map activity. The XRP-shaped split-target run keeps settings/output/data-descriptor, APUNN data payload, and command-buffer copyback windows unchanged, while the native VPU plane0 MVA target changes first word from `0x504c4e30` to `0x504c4e31`. A follow-up nonzero `code_size=0x1c8` / opcode `10003` run is also accepted at the dispatch level, but still leaves APUNN output/data windows unchanged.
 2. **Timeout-path command object race**: `run_cmd_async` returns before the worker completes. The guard run already showed `mdw_usr_destroy residual cmd(...)` after worker-side rejection. The same lifetime boundary matters for full VPU timeout/abort paths.
-3. **Writeback attribution and command-buffer copyback**: The XRP-shaped split-target run localizes the visible imported-buffer delta to native VPU plane0 MVA because command request head/tail and APUNN data descriptor target do not change. The remaining attribution task is the semantic meaning of the `+1` plane-MVA writeback and the APUNN code-section operation format.
+3. **Writeback attribution and command-buffer copyback**: The XRP-shaped split-target and nonzero-code runs localize the visible imported-buffer delta to native VPU plane0 MVA because command request head/tail and APUNN data descriptor target do not change. The remaining attribution task is the semantic meaning of the `+1` plane-MVA writeback and the APUNN `0x1c8` operation-entry field layout.
 4. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` import HardwareBuffer fds through APUSYS type-2/type-3 memory-create and copy out IOVA-like descriptor fields. This is the input path for any VPU request that references user-controlled memory.
 5. **Command parsing/execution and ucmd paths**: Validated at zero-header, invalid SC type, request-size guard, full-size VPU request acceptance, and `apu_lib_apunn` lookup success.
 6. **Device/resource control and secure alloc paths**: `0x4004413C/3D` call `mdw_usr_dev_sec_alloc/free`. These may influence APU power/security state. `0x400C4109` dispatches provider opcode `0`.
@@ -702,6 +728,14 @@ CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
 
 `--run-cmd-vpu-xrp-split-iova` keeps the same APUNN/XRP settings layout but separates the APUNN data descriptor target at `+0x400` from the native VPU plane0 MVA target at `+0x600`. This is the current writeback-attribution mode. `--run-cmd-vpu-xrp-split-iova-control` performs the same setup without final dispatch.
 
+`--run-cmd-vpu-xrp-ann-version-iova` keeps the split-target attribution shape
+and uses a nonzero target-side code section: `code_size=0x1c8`, opcode `10003`
+(`XTENSA_ANN_VERSION` in the recovered helper names), no inputs, one output, and
+output operand id `0`. It moves output/data/plane payload windows to
+`+0x300/+0x400/+0x500/+0x700` so the larger code entry does not overlap them.
+`--run-cmd-vpu-xrp-ann-version-iova-control` performs the same setup without
+final dispatch.
+
 ```sh
 # VPU exec without IOVA import:
 CLASSPATH=.../apusys_ioctl_probe.dex \
@@ -730,6 +764,14 @@ CLASSPATH=.../apusys_ioctl_probe.dex \
 # Same split-target APUNN/XRP setup, no final run_cmd_async dispatch:
 CLASSPATH=.../apusys_ioctl_probe.dex \
   app_process64 /system/bin ApusysIoctlProbe --run-cmd-vpu-xrp-split-iova-control
+
+# Nonzero code-section APUNN/XRP setup:
+CLASSPATH=.../apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe --run-cmd-vpu-xrp-ann-version-iova
+
+# Same nonzero code-section setup, no final run_cmd_async dispatch:
+CLASSPATH=.../apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe --run-cmd-vpu-xrp-ann-version-iova-control
 ```
 
 Automated run:
@@ -795,6 +837,24 @@ python3 13-apusys-ioctl-surface/poc/run_system_app_probe.py \
   --mode=--run-cmd-vpu-xrp-split-iova-control \
   --result-name 13_apusys_run_cmd_vpu_xrp_split_iova_control.txt \
   --kernel-result-name 13_apusys_run_cmd_vpu_xrp_split_iova_control_kernel.txt \
+  --kernel-pattern "apusys|vpu|mdw|xos|devapc|iommu|vpu_req_check|vpu_execute|sched_trace|cmd_done|timeout|Timeout|TIMEOUT|oops|panic" \
+  --timeout 180
+
+# --run-cmd-vpu-xrp-ann-version-iova:
+python3 13-apusys-ioctl-surface/poc/run_system_app_probe.py \
+  -s 7FPE0824B0801372 --local-port 48888 \
+  --mode=--run-cmd-vpu-xrp-ann-version-iova \
+  --result-name 13_apusys_run_cmd_vpu_xrp_ann_version_iova.txt \
+  --kernel-result-name 13_apusys_run_cmd_vpu_xrp_ann_version_iova_kernel.txt \
+  --kernel-pattern "apusys|vpu|mdw|xos|devapc|iommu|vpu_req_check|vpu_execute|sched_trace|cmd_done|timeout|Timeout|TIMEOUT|oops|panic" \
+  --timeout 180
+
+# --run-cmd-vpu-xrp-ann-version-iova-control:
+python3 13-apusys-ioctl-surface/poc/run_system_app_probe.py \
+  -s 7FPE0824B0801372 --local-port 48888 \
+  --mode=--run-cmd-vpu-xrp-ann-version-iova-control \
+  --result-name 13_apusys_run_cmd_vpu_xrp_ann_version_iova_control.txt \
+  --kernel-result-name 13_apusys_run_cmd_vpu_xrp_ann_version_iova_control_kernel.txt \
   --kernel-pattern "apusys|vpu|mdw|xos|devapc|iommu|vpu_req_check|vpu_execute|sched_trace|cmd_done|timeout|Timeout|TIMEOUT|oops|panic" \
   --timeout 180
 ```
@@ -1088,8 +1148,8 @@ Interpretation: APUSYS memory-create is now a mapped and runtime-confirmed impor
 
 The remaining APUSYS closure items are:
 
-- Map the APUNN/XRP code-section operation format. Static userland helpers show the first operation entry carries opcode, stride, operand-list offset, input count, and output count, but a confirmed harmless opcode is still needed before a nonzero-code runtime probe.
-- Run a nonzero `code_size` APUNN probe with the already validated split-target layout, so APUNN data-descriptor consumption can be separated from native VPU plane0-MVA writeback.
+- Map the target APUNN/XRP `0x1c8` operation-entry fields. Host/debug helpers expose opcode, stride, operand-list offset, input count, and output count, but the device wrapper counts fixed `0x1c8` entries and the minimal `XTENSA_ANN_VERSION` entry leaves output/data windows unchanged.
+- Vary internal query/status opcode and output operand shape while keeping the validated split-target layout. This is the remaining step to separate APUNN data-descriptor consumption from native VPU plane0-MVA writeback.
 - Attribute the native plane0-MVA `+1` writeback semantically: identify whether it is firmware status, driver-side status, or a request-result field.
 - Map `mdw_cmd_sc_clr_hnd` writeback after provider return and timeout/abort.
 - Test timeout lifecycle races around fd close / `mdw_usr_destroy` / scheduler cleanup.
