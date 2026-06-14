@@ -390,7 +390,14 @@ python3 13-apusys-ioctl-surface/poc/run_system_app_probe.py \
   -s 7FPE0824B0801372 --local-port 48888
 ```
 
-The runner builds the dex, uploads it through the `uid=1000(system)` shell into `/data/data/com.android.settings/cache/apusys_ioctl_probe.dex`, verifies the remote md5, runs `app_process64`, and saves stdout plus filtered kernel logs under `poc-run-results/2026-06-14-batch/`.
+Full clean/rebuild/upload/run, including the CVE-2024-31317 `system_app` bind shell:
+
+```sh
+python3 13-apusys-ioctl-surface/poc/run_system_app_probe.py \
+  -s 7FPE0824B0801372 --local-port 48888 --rebuild-shell
+```
+
+The runner can call `06-cve-2024-31317-zygote-injection/poc/rebuild_bind_shell.py`, then builds the APUSYS dex, uploads it through the `uid=1000(system)` shell into `/data/data/com.android.settings/cache/apusys_ioctl_probe.dex`, verifies the remote md5, runs `app_process64`, and saves stdout plus filtered kernel logs under `poc-run-results/2026-06-14-batch/`. Use `--rebuild-if-needed` instead of `--rebuild-shell` when the existing shell should be reused if it is still valid.
 
 Run from the existing `uid=1000(system)` / `u:r:system_app:s0` dalvikvm context:
 

