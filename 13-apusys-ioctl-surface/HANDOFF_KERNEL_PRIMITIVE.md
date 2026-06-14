@@ -47,6 +47,10 @@ The first command-lifetime close-race pass is also implemented. It proves that
 after `run_cmd_async`, but the tested completed and timeout windows did not
 produce a crash, KASAN report, panic, or kernel-pointer copyback.
 
+This handoff note is now the APUSYS closure artifact. `APUNN_SETTINGS_ABI.md`
+stays as the long-form ABI/evidence log; new APUNN facts belong here only when
+they change a kernel primitive decision.
+
 ## Kernel primitive triage
 
 The direct ioctl work is past reachability. Current risk is concentrated in
@@ -62,6 +66,32 @@ step.
 | Timeout/abort lifetime | Remaining kernel-side candidate, currently low confidence | fd close after async dispatch reliably reaches residual command teardown, including the timeout shape, but the first completed and timeout windows show no oops/KASAN/panic and no stale object copyback |
 | Service-wrapper path | Supportive, not a blocker for kernel primitive triage | Direct ioctl already reproduces the wrapper-shaped completed request. A positive wrapper dump is useful for real NN binding semantics, but not required to classify completed-path copyback or the first teardown race |
 | Concurrent submissions | Next cheap kernel experiment if more time is spent | Two in-flight commands sharing one imported IOVA can test scheduler/memory lifetime without adding more firmware parser uncertainty |
+
+## Firmware-visible boundary for primitive work
+
+IDA and runtime evidence now place the direct ioctl trigger at the final
+kernel/firmware boundary. The firmware does not receive the original userland
+`struct vpu_request`; the VPU driver validates the `0xb70` request, copies
+`request+0x50` descriptors into a kernel-owned D2D command buffer, writes the
+copied descriptor-array IOVA and settings tuple to VPU MMIO, and dispatches
+`apu_lib_apunn` through the Preload / `D2D_EXT` path on this build.
+
+| Firmware-visible input | Kernel/user source | Primitive relevance |
+|---|---|---|
+| D2D command id `0x24` | `vpu_execute()` misses the Normal set, ORs bit `2` into `request+0x28`, then retries the Preload set | The current Java trigger reaches the same Preload/D2D_EXT class that runtime logs show; caller-supplied bit `2` is mainly a slot/lifetime selector |
+| `INFO12` / buffer count | `request+0x35`, bounded below `0x21` by the provider gate | `buffer_count=0` suppresses descriptor-following state writeback; the completed wrapper replay uses `5` |
+| `INFO13` / descriptor-array IOVA | Kernel copy of `request+0x50 + i*0x40`, not the original user buffer | Descriptor slot order and descriptor-0 target explain the observed status/writeback deltas; this is a real firmware input but not yet an arbitrary write primitive |
+| `INFO14/INFO15` / settings tuple | `request+0x40` and `request+0x38` | The completed wrapper-shaped request clears this tuple, so it is not the required completion path for the target wrapper replay |
+| Descriptor-backed DSP command/settings buffer | Five native descriptors all point at the same imported DSP command/settings buffer | This is the current stable completion trigger: settings `0x5 -> 0x7`, standard data descriptor pointer clear, and bounded output fill |
+| Output/data descriptor sections | APUNN settings fields inside the descriptor-backed DSP buffer | `settings+0x08` bounds output fill; tested data payloads, data targets, and plane windows do not flow into source-sensitive output |
+| APUSYS command-buffer copyback | `mdw_cmd_sc_clr_hnd()` copies the provider-updated temporary `0xb70` request back to user-mapped command memory | Completed copies currently expose only scalar tail state (`request+0xb60`, preload slot in `request+0xb68`), not kernel pointers or imported-buffer IOVAs |
+
+The primitive interpretation is therefore narrow. APUNN is a stable firmware
+executor and completion oracle, but the demonstrated mutable channels are
+bounded output, settings state, descriptor-following status words, and APUSYS
+request tail state. More opcode/operand matrices are useful only if they create
+source-sensitive output, change host copyback contents, or alter async command
+lifetime.
 
 Practical next step: run at most one focused kernel-lifetime batch before
 closing this surface for now. Use timeout/abort copyback diff plus a small
