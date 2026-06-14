@@ -316,6 +316,10 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpTargetSettings5NoSettingsOpShapeMatrixIovaControl = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsCodeSizeMatrixIova = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsCodeSizeMatrixIovaControl = false;
+        boolean runCmdVpuXrpTargetSettings5NoSettingsCodeSizeRangeMatrixIova = false;
+        boolean runCmdVpuXrpTargetSettings5NoSettingsCodeSizeRangeMatrixIovaControl = false;
+        boolean runCmdVpuXrpTargetSettings5NoSettingsCodeSizeCleanMatrixIova = false;
+        boolean runCmdVpuXrpTargetSettings5NoSettingsCodeSizeCleanMatrixIovaControl = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsOutputShapeMatrixIova = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsOutputShapeMatrixIovaControl = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsDataDescMatrixIova = false;
@@ -503,6 +507,14 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpTargetSettings5NoSettingsCodeSizeMatrixIova = true;
             } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-code-size-matrix-iova-control".equals(arg)) {
                 runCmdVpuXrpTargetSettings5NoSettingsCodeSizeMatrixIovaControl = true;
+            } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-code-size-range-matrix-iova".equals(arg)) {
+                runCmdVpuXrpTargetSettings5NoSettingsCodeSizeRangeMatrixIova = true;
+            } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-code-size-range-matrix-iova-control".equals(arg)) {
+                runCmdVpuXrpTargetSettings5NoSettingsCodeSizeRangeMatrixIovaControl = true;
+            } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-code-size-clean-matrix-iova".equals(arg)) {
+                runCmdVpuXrpTargetSettings5NoSettingsCodeSizeCleanMatrixIova = true;
+            } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-code-size-clean-matrix-iova-control".equals(arg)) {
+                runCmdVpuXrpTargetSettings5NoSettingsCodeSizeCleanMatrixIovaControl = true;
             } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-output-shape-matrix-iova".equals(arg)) {
                 runCmdVpuXrpTargetSettings5NoSettingsOutputShapeMatrixIova = true;
             } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-output-shape-matrix-iova-control".equals(arg)) {
@@ -638,6 +650,10 @@ public final class ApusysIoctlProbe {
                 || runCmdVpuXrpTargetSettings5NoSettingsOpShapeMatrixIovaControl
                 || runCmdVpuXrpTargetSettings5NoSettingsCodeSizeMatrixIova
                 || runCmdVpuXrpTargetSettings5NoSettingsCodeSizeMatrixIovaControl
+                || runCmdVpuXrpTargetSettings5NoSettingsCodeSizeRangeMatrixIova
+                || runCmdVpuXrpTargetSettings5NoSettingsCodeSizeRangeMatrixIovaControl
+                || runCmdVpuXrpTargetSettings5NoSettingsCodeSizeCleanMatrixIova
+                || runCmdVpuXrpTargetSettings5NoSettingsCodeSizeCleanMatrixIovaControl
                 || runCmdVpuXrpTargetSettings5NoSettingsOutputShapeMatrixIova
                 || runCmdVpuXrpTargetSettings5NoSettingsOutputShapeMatrixIovaControl
                 || runCmdVpuXrpTargetSettings5NoSettingsDataDescMatrixIova
@@ -1114,6 +1130,26 @@ public final class ApusysIoctlProbe {
 
             if (runCmdVpuXrpTargetSettings5NoSettingsCodeSizeMatrixIovaControl) {
                 runRunCmdVpuXrpTargetSettings5NoSettingsCodeSizeMatrixProbe(
+                    fd, false);
+            }
+
+            if (runCmdVpuXrpTargetSettings5NoSettingsCodeSizeRangeMatrixIova) {
+                runRunCmdVpuXrpTargetSettings5NoSettingsCodeSizeRangeMatrixProbe(
+                    fd, true);
+            }
+
+            if (runCmdVpuXrpTargetSettings5NoSettingsCodeSizeRangeMatrixIovaControl) {
+                runRunCmdVpuXrpTargetSettings5NoSettingsCodeSizeRangeMatrixProbe(
+                    fd, false);
+            }
+
+            if (runCmdVpuXrpTargetSettings5NoSettingsCodeSizeCleanMatrixIova) {
+                runRunCmdVpuXrpTargetSettings5NoSettingsCodeSizeCleanMatrixProbe(
+                    fd, true);
+            }
+
+            if (runCmdVpuXrpTargetSettings5NoSettingsCodeSizeCleanMatrixIovaControl) {
+                runRunCmdVpuXrpTargetSettings5NoSettingsCodeSizeCleanMatrixProbe(
                     fd, false);
             }
 
@@ -3175,10 +3211,64 @@ public final class ApusysIoctlProbe {
             0x000001c9,
             0x00000390,
         };
+        runRunCmdVpuXrpTargetSettings5NoSettingsCodeSizeCases(
+            apusysFd, dispatch, codeSizes, "wrapper_one_data_code_size");
+    }
+
+    private static void runRunCmdVpuXrpTargetSettings5NoSettingsCodeSizeRangeMatrixProbe(
+            int apusysFd, boolean dispatch) throws Exception {
+        int[] codeSizes = {
+            0x00000000,
+            0x00000004,
+            0x00000008,
+            0x0000000c,
+            0x00000010,
+            0x00000011,
+            0x00000012,
+            0x00000013,
+            0x00000014,
+            0x00000018,
+            0x0000001c,
+            0x00000020,
+            0x0000003f,
+            0x00000040,
+            0x00000044,
+            0x00000047,
+            0x00000048,
+            0x00000049,
+            0x0000004c,
+            0x000001c7,
+            XRP_CODE_OP_SIZE,
+            0x000001c9,
+            0x000001ca,
+            0x000001cc,
+        };
+        runRunCmdVpuXrpTargetSettings5NoSettingsCodeSizeCases(
+            apusysFd, dispatch, codeSizes, "wrapper_one_data_code_size_range");
+    }
+
+    private static void runRunCmdVpuXrpTargetSettings5NoSettingsCodeSizeCleanMatrixProbe(
+            int apusysFd, boolean dispatch) throws Exception {
+        int[] codeSizes = {
+            0x00000011,
+            0x00000014,
+            0x0000001c,
+            0x00000020,
+            0x00000040,
+            0x00000048,
+            0x0000004c,
+            0x000001c9,
+        };
+        runRunCmdVpuXrpTargetSettings5NoSettingsCodeSizeCases(
+            apusysFd, dispatch, codeSizes, "wrapper_one_data_code_size_clean");
+    }
+
+    private static void runRunCmdVpuXrpTargetSettings5NoSettingsCodeSizeCases(
+            int apusysFd, boolean dispatch, int[] codeSizes, String labelPrefix)
+            throws Exception {
         for (int codeSize : codeSizes) {
             XrpSettingsShape shape = new XrpSettingsShape(
-                "wrapper_one_data_code_size"
-                    + Integer.toHexString(codeSize),
+                labelPrefix + Integer.toHexString(codeSize),
                 XRP_OUTPUT_SIZE_WRAPPER_DEFAULT, XRP_DATA_DESC_SIZE, true,
                 codeSize);
             System.out.println("\n[*] === target-settings5/no-settings"
