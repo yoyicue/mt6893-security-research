@@ -157,7 +157,7 @@ Main XRP command buffer fields recovered from userland wrappers:
 | Offset | Size | Meaning |
 |---:|---:|---|
 | `+0x00` | 4 | Command flags; `Initialize()` writes `4`, then `CreateXrpCommand()` sets bit `0x1`, so the normal pre-dispatch value is `5` |
-| `+0x04` | 4 | Code section size |
+| `+0x04` | 4 | Code section size; runtime now shows this is a firmware acceptance gate |
 | `+0x08` | 4 | Output section size |
 | `+0x0c` | 4 | Data descriptor section size |
 | `+0x10` | 4 | Low 32 bits of code section IOVA |
@@ -369,6 +369,17 @@ That puts the next unresolved parser boundary on the VPU/APUNN side: the
 normal VPU request and `libneuron_platform.vpu.so` wrapper route a raw
 code-section IOVA/size pair, while the `0x1c8` entry fields after the basic
 debug-visible header are consumed outside these userland helpers.
+
+The completed-shape code-size matrix makes settings `+0x04` a runtime gate, not
+just a wrapper field. In the settings-backed five-descriptor/no-settings shape,
+code sizes `0` and `4` reach dispatch but wait returns `-EIO`, settings remain
+`0x5`, settings `+0x30` stays nonzero, output stays at the initialized header,
+and native request `result_status` becomes `0x2`. Code size `0x48` is the
+smallest tested value that reaches normal APUNN completion, matching the first
+debug-visible operand-list boundary at `entry+0x48`. Code sizes `0x1c7`,
+`0x1c8`, and `0x390` complete in both dispatch runs. Code size `0x1c9` completed
+once and then repeated with wait success but no APUNN settings/output
+completion, so it remains an unstable or alignment-sensitive edge.
 
 ## MVPU embedded-kernel side evidence
 
@@ -669,6 +680,8 @@ longer points at them through the settings tuple:
 | `target_settings5_no_settings_operand_id_matrix` | Same settings-backed request, output operand ids `0/1/2/3/0xffff`, followed by `mdw_usr_wait_cmd` | Every case returns `0` from dispatch and wait, changes settings `0x5 -> 0x7`, clears settings `+0x30`, and leaves the code/operand-list words unchanged; data descriptor and data payload remain unchanged; output tail varies across repeats and is not operand-id-stable |
 | `target_settings5_no_settings_op_shape_matrix` control | Same settings-backed request, opcode `10003`, input/output counts `0/0`, `0/1`, `0/2`, `1/0`, `1/1`, and `2/1`, no dispatch | Every case preserves settings `0x5`, settings `+0x30`, code/count/operand-list words, and initialized output/data windows |
 | `target_settings5_no_settings_op_shape_matrix` | Same settings-backed request, tested input/output count combinations, followed by `mdw_usr_wait_cmd` | Every case returns `0` from dispatch and wait, changes settings `0x5 -> 0x7`, clears settings `+0x30`, and leaves the code window unchanged; data descriptor and data payload remain unchanged; output tail varies across repeats and is not count-stable |
+| `target_settings5_no_settings_code_size_matrix` control | Same settings-backed request, opcode `10003`, code sizes `0/4/0x48/0x1c7/0x1c8/0x1c9/0x390`, no dispatch | Every case preserves the initialized code-size field, settings `0x5`, settings `+0x30`, and output/data windows |
+| `target_settings5_no_settings_code_size_matrix` | Same settings-backed request, varied `settings+0x04`, followed by `mdw_usr_wait_cmd` | Code sizes `0` and `4` fail with `-EIO` and do not complete APUNN settings/output. `0x48` is the smallest tested completed size; `0x1c7`, `0x1c8`, and `0x390` complete consistently. `0x1c9` is unstable: one run completed, one repeat returned wait success without settings/output completion |
 | `target_settings5_no_settings_output_shape_matrix` control | Same settings-backed request, opcode `10003`, output sizes `0/4/0x10/0x3c/0x40/0x44/0x80` plus header flag `1` cases, no dispatch | Every case preserves the initialized output header, settings `0x5`, standard data descriptor pointer, and data payload |
 | `target_settings5_no_settings_output_shape_matrix` | Same settings-backed request, varied output size/header, followed by `mdw_usr_wait_cmd` | Every case returns `0`, changes settings `0x5 -> 0x7`, and clears `settings+0x30`; small sizes leave header words intact, larger sizes show `settings+0x08` as the maximum output-fill bound, with some repeat-time tail skips |
 | `target_settings5_no_settings_data_desc_matrix` control | Same settings-backed request, opcode `10003`, varied data descriptor size and pointer presence, no dispatch | Every case preserves settings, output header, data descriptor, and data payload |
@@ -710,6 +723,12 @@ Result files:
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix_control_kernel.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix_repeat.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix_repeat_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_matrix.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_matrix_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_matrix_control.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_matrix_control_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_matrix_repeat.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_matrix_repeat_kernel.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_output_shape_matrix.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_output_shape_matrix_kernel.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_output_shape_matrix_control.txt`
@@ -1770,6 +1789,15 @@ This gives the current interpretation boundary:
   window unchanged. Data descriptor and data payload windows stay unchanged.
   Output tail length varies across repeats, so these tested counts do not gate
   completion and do not yet explain output/data binding.
+- The `target_settings5_no_settings_code_size_matrix` result keeps the completed
+  settings-backed shape, keeps opcode `10003`, and varies settings `+0x04`
+  through `0`, `4`, `0x48`, `0x1c7`, `0x1c8`, `0x1c9`, and `0x390`. The
+  no-dispatch control preserves every initialized size. Sizes `0` and `4`
+  fail with wait `-EIO`, keep settings at `0x5`, preserve `settings+0x30`, leave
+  output unchanged, and set native request `result_status=0x2`. Size `0x48` is
+  the smallest tested value that reaches APUNN settings/output completion;
+  `0x1c7`, `0x1c8`, and `0x390` complete in both dispatch runs. Size `0x1c9` is
+  unstable and needs an isolated alignment/range matrix.
 - The `target_settings5_no_settings_output_shape_matrix` result keeps the
   completed settings-backed shape and varies `settings+0x08` / output header
   `+0x0c` across `0`, `4`, `0x10`, `0x3c`, `0x40`, `0x44`, and `0x80`, with
@@ -2067,10 +2095,13 @@ flags change `0x5 -> 0x7`, settings `+0x30` is cleared, and the code/input
 window is unchanged. The completed-shape opcode matrix shows `10001..10009` all
 complete. The completed-shape output-operand-id and operation-count matrices
 show operand ids `0/1/2/3/0xffff` and tested count combinations also complete.
-Output is filled through offset `0x40` for every tested opcode except `10004`,
-which fills through offset `0x3c`; the operand/count repeats show output-tail
-length can vary outside the opcode axis, so the tail is not yet a stable
-semantic label. The completed-shape output-size/header matrix shows
+The completed-shape code-size matrix shows `settings+0x04` is a code-section
+acceptance gate: sizes `0` and `4` fail with `-EIO`, `0x48` is the smallest
+tested completed size, `0x1c7/0x1c8/0x390` complete consistently, and `0x1c9`
+is unstable. Output is filled through offset `0x40` for every tested opcode
+except `10004`, which fills through offset `0x3c`; the operand/count repeats
+show output-tail length can vary outside the opcode axis, so the tail is not yet
+a stable semantic label. The completed-shape output-size/header matrix shows
 `settings+0x08` bounds the maximum output fill. The data-descriptor matrix
 shows standard `data_desc_size=0x0c` clears `settings+0x30`, while larger
 descriptor sections preserve `settings+0x30` and clear descriptor word `0`.

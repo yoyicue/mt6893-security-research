@@ -194,13 +194,20 @@ public final class ApusysIoctlProbe {
         final int outputSize;
         final int dataDescSize;
         final boolean includeDataDesc;
+        final Integer codeSizeOverride;
 
         XrpSettingsShape(String label, int outputSize, int dataDescSize,
                          boolean includeDataDesc) {
+            this(label, outputSize, dataDescSize, includeDataDesc, null);
+        }
+
+        XrpSettingsShape(String label, int outputSize, int dataDescSize,
+                         boolean includeDataDesc, Integer codeSizeOverride) {
             this.label = label;
             this.outputSize = outputSize;
             this.dataDescSize = dataDescSize;
             this.includeDataDesc = includeDataDesc;
+            this.codeSizeOverride = codeSizeOverride;
         }
     }
 
@@ -307,6 +314,8 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpTargetSettings5NoSettingsOperandIdMatrixIovaControl = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsOpShapeMatrixIova = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsOpShapeMatrixIovaControl = false;
+        boolean runCmdVpuXrpTargetSettings5NoSettingsCodeSizeMatrixIova = false;
+        boolean runCmdVpuXrpTargetSettings5NoSettingsCodeSizeMatrixIovaControl = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsOutputShapeMatrixIova = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsOutputShapeMatrixIovaControl = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsDataDescMatrixIova = false;
@@ -490,6 +499,10 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpTargetSettings5NoSettingsOpShapeMatrixIova = true;
             } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-op-shape-matrix-iova-control".equals(arg)) {
                 runCmdVpuXrpTargetSettings5NoSettingsOpShapeMatrixIovaControl = true;
+            } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-code-size-matrix-iova".equals(arg)) {
+                runCmdVpuXrpTargetSettings5NoSettingsCodeSizeMatrixIova = true;
+            } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-code-size-matrix-iova-control".equals(arg)) {
+                runCmdVpuXrpTargetSettings5NoSettingsCodeSizeMatrixIovaControl = true;
             } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-output-shape-matrix-iova".equals(arg)) {
                 runCmdVpuXrpTargetSettings5NoSettingsOutputShapeMatrixIova = true;
             } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-output-shape-matrix-iova-control".equals(arg)) {
@@ -623,6 +636,8 @@ public final class ApusysIoctlProbe {
                 || runCmdVpuXrpTargetSettings5NoSettingsOperandIdMatrixIovaControl
                 || runCmdVpuXrpTargetSettings5NoSettingsOpShapeMatrixIova
                 || runCmdVpuXrpTargetSettings5NoSettingsOpShapeMatrixIovaControl
+                || runCmdVpuXrpTargetSettings5NoSettingsCodeSizeMatrixIova
+                || runCmdVpuXrpTargetSettings5NoSettingsCodeSizeMatrixIovaControl
                 || runCmdVpuXrpTargetSettings5NoSettingsOutputShapeMatrixIova
                 || runCmdVpuXrpTargetSettings5NoSettingsOutputShapeMatrixIovaControl
                 || runCmdVpuXrpTargetSettings5NoSettingsDataDescMatrixIova
@@ -1089,6 +1104,16 @@ public final class ApusysIoctlProbe {
 
             if (runCmdVpuXrpTargetSettings5NoSettingsOpShapeMatrixIovaControl) {
                 runRunCmdVpuXrpTargetSettings5NoSettingsOpShapeMatrixProbe(
+                    fd, false);
+            }
+
+            if (runCmdVpuXrpTargetSettings5NoSettingsCodeSizeMatrixIova) {
+                runRunCmdVpuXrpTargetSettings5NoSettingsCodeSizeMatrixProbe(
+                    fd, true);
+            }
+
+            if (runCmdVpuXrpTargetSettings5NoSettingsCodeSizeMatrixIovaControl) {
+                runRunCmdVpuXrpTargetSettings5NoSettingsCodeSizeMatrixProbe(
                     fd, false);
             }
 
@@ -3139,6 +3164,37 @@ public final class ApusysIoctlProbe {
         }
     }
 
+    private static void runRunCmdVpuXrpTargetSettings5NoSettingsCodeSizeMatrixProbe(
+            int apusysFd, boolean dispatch) throws Exception {
+        int[] codeSizes = {
+            0x00000000,
+            0x00000004,
+            0x00000048,
+            0x000001c7,
+            XRP_CODE_OP_SIZE,
+            0x000001c9,
+            0x00000390,
+        };
+        for (int codeSize : codeSizes) {
+            XrpSettingsShape shape = new XrpSettingsShape(
+                "wrapper_one_data_code_size"
+                    + Integer.toHexString(codeSize),
+                XRP_OUTPUT_SIZE_WRAPPER_DEFAULT, XRP_DATA_DESC_SIZE, true,
+                codeSize);
+            System.out.println("\n[*] === target-settings5/no-settings"
+                + " code-size case 0x"
+                + Integer.toHexString(codeSize) + " dispatch="
+                + (dispatch ? 1 : 0) + " ===");
+            runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, true, true,
+                XRP_OP_ANN_VERSION, 1000, true, VPU_DESC_LIBVPU_SETTINGS5,
+                XRP_CMD_FLAGS_SEND, VPU_DESC_ORDER_CODE_OUTPUT,
+                XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
+                shape, dispatch, VPU_REQUEST_FLAGS_DEFAULT, false,
+                XRP_OPCODE_XTENSA_ANN_VERSION, null, null, null, null, null,
+                null, null);
+        }
+    }
+
     private static void runRunCmdVpuXrpTargetSettings5NoSettingsOutputShapeMatrixProbe(
             int apusysFd, boolean dispatch) throws Exception {
         int[] outputSizes = {
@@ -4026,7 +4082,9 @@ public final class ApusysIoctlProbe {
         }
 
         int s = XRP_SETTINGS_OFF;
-        int codeSize = xrpOp.hasCode() ? XRP_CODE_OP_SIZE : XRP_CODE_SIZE_ZERO;
+        int codeSize = settingsShape.codeSizeOverride != null
+            ? settingsShape.codeSizeOverride
+            : (xrpOp.hasCode() ? XRP_CODE_OP_SIZE : XRP_CODE_SIZE_ZERO);
         putU32LE(buffer, s + 0x00, cmdFlags);
         putU32LE(buffer, s + 0x04, codeSize);
         putU32LE(buffer, s + 0x08, settingsShape.outputSize);
