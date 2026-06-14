@@ -664,6 +664,12 @@ longer points at them through the settings tuple:
 | `target_settings5_no_settings_operand_id_matrix` | Same settings-backed request, output operand ids `0/1/2/3/0xffff`, followed by `mdw_usr_wait_cmd` | Every case returns `0` from dispatch and wait, changes settings `0x5 -> 0x7`, clears settings `+0x30`, and leaves the code/operand-list words unchanged; data descriptor and data payload remain unchanged; output tail varies across repeats and is not operand-id-stable |
 | `target_settings5_no_settings_op_shape_matrix` control | Same settings-backed request, opcode `10003`, input/output counts `0/0`, `0/1`, `0/2`, `1/0`, `1/1`, and `2/1`, no dispatch | Every case preserves settings `0x5`, settings `+0x30`, code/count/operand-list words, and initialized output/data windows |
 | `target_settings5_no_settings_op_shape_matrix` | Same settings-backed request, tested input/output count combinations, followed by `mdw_usr_wait_cmd` | Every case returns `0` from dispatch and wait, changes settings `0x5 -> 0x7`, clears settings `+0x30`, and leaves the code window unchanged; data descriptor and data payload remain unchanged; output tail varies across repeats and is not count-stable |
+| `target_settings5_no_settings_output_shape_matrix` control | Same settings-backed request, opcode `10003`, output sizes `0/4/0x10/0x3c/0x40/0x44/0x80` plus header flag `1` cases, no dispatch | Every case preserves the initialized output header, settings `0x5`, standard data descriptor pointer, and data payload |
+| `target_settings5_no_settings_output_shape_matrix` | Same settings-backed request, varied output size/header, followed by `mdw_usr_wait_cmd` | Every case returns `0`, changes settings `0x5 -> 0x7`, and clears `settings+0x30`; small sizes leave header words intact, larger sizes show `settings+0x08` as the maximum output-fill bound, with some repeat-time tail skips |
+| `target_settings5_no_settings_data_desc_matrix` control | Same settings-backed request, opcode `10003`, varied data descriptor size and pointer presence, no dispatch | Every case preserves settings, output header, data descriptor, and data payload |
+| `target_settings5_no_settings_data_desc_matrix` | Same settings-backed request, varied data descriptor size/pointer, followed by `mdw_usr_wait_cmd` | Every case returns `0` and writes output; no pointer stays zero, non-null size `0` is preserved, standard size `0x0c` clears `settings+0x30`, and larger sizes `0x18/0x80` preserve `settings+0x30` but clear descriptor word `0` |
+| `target_settings5_no_settings_data_payload_matrix` control | Same settings-backed request, opcode `10003`, standard data descriptor, varied data payload word bases, no dispatch | Every case preserves the chosen payload pattern and initialized output header |
+| `target_settings5_no_settings_data_payload_matrix` | Same settings-backed request, payload word bases `0/0x41505530/0x5a5a0000/0x7f000000`, followed by `mdw_usr_wait_cmd` | Every case returns `0`, changes settings `0x5 -> 0x7`, clears `settings+0x30`, leaves data descriptor and payload unchanged, and writes completion-style output that does not reflect the payload pattern |
 
 Result files:
 
@@ -695,6 +701,24 @@ Result files:
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix_control_kernel.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix_repeat.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix_repeat_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_output_shape_matrix.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_output_shape_matrix_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_output_shape_matrix_control.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_output_shape_matrix_control_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_output_shape_matrix_repeat.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_output_shape_matrix_repeat_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_desc_matrix.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_desc_matrix_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_desc_matrix_control.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_desc_matrix_control_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_desc_matrix_repeat.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_desc_matrix_repeat_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_payload_matrix.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_payload_matrix_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_payload_matrix_control.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_payload_matrix_control_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_payload_matrix_repeat.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_payload_matrix_repeat_kernel.txt`
 
 The code5 summary rerun shows that the copied-back native request fields
 `result_status` (`+0x34`), slot (`+0xb68`), and `algo_ret` (`+0xb6c`) remain zero
@@ -1729,6 +1753,30 @@ This gives the current interpretation boundary:
   window unchanged. Data descriptor and data payload windows stay unchanged.
   Output tail length varies across repeats, so these tested counts do not gate
   completion and do not yet explain output/data binding.
+- The `target_settings5_no_settings_output_shape_matrix` result keeps the
+  completed settings-backed shape and varies `settings+0x08` / output header
+  `+0x0c` across `0`, `4`, `0x10`, `0x3c`, `0x40`, `0x44`, and `0x80`, with
+  additional output header `+0x10 = 1` cases for `0x40` and `0x44`. Every
+  dispatch case returns `0`, every wait returns `0`, every case changes
+  settings `0x5 -> 0x7`, and standard data descriptor size `0x0c` still clears
+  `settings+0x30`. Small output sizes leave initialized header words intact.
+  Larger output sizes show `settings+0x08` is the maximum output-fill bound,
+  although repeat-time tail skips still occur.
+- The `target_settings5_no_settings_data_desc_matrix` result keeps the completed
+  settings-backed shape and varies `settings+0x0c/+0x30`. Every dispatch case
+  returns `0`, every wait returns `0`, and output is written. A null descriptor
+  pointer remains null. A non-null pointer with `data_desc_size=0` is preserved.
+  The standard one-entry size `0x0c` clears `settings+0x30` and leaves the
+  descriptor entry unchanged. Larger sizes `0x18` and `0x80` leave
+  `settings+0x30` nonzero and clear descriptor word `0` while preserving the
+  descriptor's size and IOVA words.
+- The `target_settings5_no_settings_data_payload_matrix` result keeps the
+  standard data descriptor and varies the data payload word base through `0`,
+  `0x41505530`, `0x5a5a0000`, and `0x7f000000`. Every dispatch case returns
+  `0`, every wait returns `0`, every case changes settings `0x5 -> 0x7`, clears
+  `settings+0x30`, and leaves data descriptor and data payload bytes unchanged.
+  Output remains completion-style `0xffffffff` data and does not reflect the
+  chosen payload pattern, so this tested shape is not source-sensitive.
 - The `target_code5_no_settings_word_matrix` result keeps the same request shape
   and varies only descriptor-0 word `0`. No-dispatch controls preserve every
   input. Dispatch plus wait maps ordinary words through `old | 0xb`, while the
@@ -1985,7 +2033,12 @@ show operand ids `0/1/2/3/0xffff` and tested count combinations also complete.
 Output is filled through offset `0x40` for every tested opcode except `10004`,
 which fills through offset `0x3c`; the operand/count repeats show output-tail
 length can vary outside the opcode axis, so the tail is not yet a stable
-semantic label.
+semantic label. The completed-shape output-size/header matrix shows
+`settings+0x08` bounds the maximum output fill. The data-descriptor matrix
+shows standard `data_desc_size=0x0c` clears `settings+0x30`, while larger
+descriptor sections preserve `settings+0x30` and clear descriptor word `0`.
+The data-payload pattern matrix shows tested payload contents are preserved and
+are not copied into output.
 
 The earlier code-first, output-first, descriptor-size, priority, buffer-count,
 port-id, format, plane-count, height, output-operand-id, operation-shape, and
@@ -1997,8 +2050,8 @@ those timeout/error classes do not apply once descriptor slot `0` points at the
 DSP command/settings buffer. These diagnostics do not establish a
 source-sensitive leak. The completed output writeback currently looks like
 completion data with some tail variability, not disclosure of unrelated
-firmware or kernel memory; data descriptor and data payload windows remained
-unchanged in the new operand/count matrices.
+firmware or kernel memory; data payload windows remained unchanged across
+payload patterns `0`, `0x41505530`, `0x5a5a0000`, and `0x7f000000`.
 
 Timeout and teardown experiments map a real command lifetime edge, but UAF is
 not demonstrated. Wait consumes the command id, async teardown can leave
