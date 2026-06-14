@@ -372,8 +372,40 @@ Risk ranking:
 | 2 | Two `run_cmd_async` commands on the same fd, both referencing the same imported IOVA, then `mem_free` after the first dispatch window | Amplifies rank 1 by keeping one command queued/running while another may finish or timeout; tests scheduler ordering plus shared-IOMMU lifetime. | one command completes and the other faults, residual cmd count > 1, list/refcount warning, freed-IOVA DMA symptom |
 | 3 | Two commands sharing IOVA, no explicit `mem_free`, then close fd without waits | Exercises residual command abort and mem teardown together, but fd close already calls `abort_cmd` before residual memory cleanup. Current close-race runs make this lower confidence than explicit mem_free. | residual cmd/mem ordering, UAF only if abort fails to serialize provider return |
 
-The next experiment should start with rank 1, not the broader multi-command
-case:
+Rank 1 timeout-shape experiment is now implemented as
+`poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-mem-free-race-iova`. It runs the
+same timeout-prone minimal/split `XTENSA_ANN_VERSION` APUNN request with
+`mem_free(shared_iova)` after `0/10/50/100/500 ms`, keeps the HardwareBuffers
+alive for the timeout window, then calls `wait_cmd`.
+
+Observed from `system_app` on 2026-06-15:
+
+```
+result=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_iova.txt
+kernel=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_iova_kernel_relevant.txt
+
+free_after=0ms:   run_async=0, mem_free=0, request result_status=0x2, wait=-EIO
+free_after=10ms:  run_async=0, mem_free=0, request result_status=0x2, wait=-EIO
+free_after=50ms:  run_async=0, mem_free=0, request result_status=0x2, wait=-EIO
+free_after=100ms: run_async=0, mem_free=0, request result_status=0x2, wait=-EIO
+free_after=500ms: run_async=0, mem_free=0, request result_status=0x2, wait=-EIO
+```
+
+Kernel-side signal for the run is controlled provider failure: repeated
+`request (D2D_EXT) timeout, priority: 0, algo: apu_lib_apunn`,
+`mdw_sched_trace ... ret(-110)`, and `mdw_wait_cmd ... fail`. No `devapc`,
+IOMMU fault, panic/Oops, or `BUG` line is present in the preserved filtered log.
+
+Interpretation: the lifetime gap is real enough to measure because the same fd
+can successfully `mem_free` the imported shared IOVA while the submitted VPU
+command is still outstanding. The timeout/minimal shape does not by itself turn
+that gap into a kernel fault or visible stale writeback on this device; it
+degrades to provider timeout and `wait_cmd=-EIO`. Rank 1 remains the right
+race family, but the next useful variants are the completed fast-writeback
+shape and then allocator-reuse pressure around the freed dmabuf, not another
+timeout-only delay sweep.
+
+Rank 1 experiment shape:
 
 ```
 mem_create(type2, shared_hwb_fd) -> shared_iova
@@ -387,10 +419,9 @@ wait_cmd(cmd_id) or close(fd)
 dump shared HardwareBuffer and cmd buffer; collect kernel log
 ```
 
-Use the timeout-prone shape first because it maximizes the provider opcode-4
-window. If this produces only clean `-EIO`/timeout behavior, repeat with the
-completed `settings5/no-settings` shape to test fast firmware writeback, then
-move to rank 2 with two commands sharing the same imported IOVA.
+Next, repeat rank 1 with the completed `settings5/no-settings` shape to test
+fast firmware writeback, then move to rank 2 with two commands sharing the same
+imported IOVA.
 
 Kernel log terms to preserve unfiltered: `mdw_usr_mem_free`,
 `mdw_mem_ion_unmap_iova`, `ion_free`, `request (D2D_EXT) timeout`,
