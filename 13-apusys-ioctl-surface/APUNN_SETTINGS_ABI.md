@@ -1018,6 +1018,9 @@ state. The firmware-side model can still be pinned down to the last kernel/user
 boundary: the wrapper builds the XRP settings and native VPU request, `mdw`
 copies the request into kernel memory, and the VPU driver translates it into a
 D2D/D2D_EXT register tuple plus a copied buffer-descriptor array.
+Device-side file searches under `/vendor/firmware`, `/system_ext`, `/odm`, and
+the pulled APU/Neuron artifacts currently expose wrapper libraries and service
+libraries, but not a standalone `apu_lib_apunn` firmware image.
 
 The normal-VPU provider gate is now IDA-confirmed in `vmlinux.bin`:
 
@@ -1056,6 +1059,12 @@ to copy `request+0x50` into the per-priority VPU command buffer:
 | `0xffffffc0087a20f8` | Destination is the per-priority D2D buffer at `core + priority * 0xb0 + 0x3f8` |
 | `sub_FFFFFFC0087A20C8` / `0xffffffc0087a20c8` | Returns the copied descriptor-array IOVA from `core + priority * 0xb0 + 0x400` |
 
+The priority value used in those helpers is bounded by
+`vpu_get_preload_entry_for_priority()` at `0xffffffc0087a1f40`: values above
+`2` use slot `2`, negative values become `0`, and the selected Preload object is
+loaded from `core + priority * 0xb0 + 0x3c8`. This object is kernel-owned
+firmware metadata, not the original user request.
+
 The firmware-visible MMIO writes in the same function are:
 
 | MMIO offset from `core+0xa0` | Firmware input |
@@ -1074,6 +1083,17 @@ For D2D_EXT, the driver also writes preload state before the common
 | `+0x27c` | `request+0xb68` priority/slot value |
 | `+0x290` | sum of preload object fields `+0xfb0` and `+0xfb8` |
 | `+0x29c` | preload object `+0xfc0` |
+
+Those preload fields come from `vpu_init_dev_algo_sets()`. On a Preload lookup
+miss, the driver copies the firmware entry key/name from the metadata pointer
+`X26` and stores allocated preload state in the algorithm object: `+0xfb0` is
+the program/entry allocation returned by `vpu_preload_iova_alloc()`, `+0xfb8`
+is the entry adjustment computed from metadata fields at `X26-0x18` and
+`X26-0x02`, and `+0xfc0` is populated by a separate preload allocation path
+when the lookup hits an existing algorithm object and the entry metadata permits
+another allocation. The exact firmware-side semantic of `+0xfc0` remains a
+preload input, but the dispatch boundary is fixed: firmware receives only the
+resulting register values and copied descriptor/settings IOVAs.
 
 The trigger sequence then clears a status bit at MMIO `+0x910`, sets bit `0` at
 MMIO `+0x204`, waits for completion, maps the per-priority status word through
@@ -1284,6 +1304,9 @@ Kernel handoff evidence:
 | `drivers/misc/mediatek/apusys/vpu/p1/vpu_hw.h` | register table | Documents `DO_D2D` as INFO12 buffer count, INFO13 buffer-array pointer, INFO14 setting pointer, and INFO15 setting size |
 | IDA `vmlinux.bin` | `vpu_execute` at `0xffffffc0087a7974` | Kernel execution entry that reaches the D2D/D2D_EXT request path |
 | IDA `vmlinux.bin` | `sub_FFFFFFC0087A5B74` at `0xffffffc0087a5b74` | Copies `request+0x50` descriptors, writes MMIO `+0x280/+0x284/+0x288/+0x28c`, triggers command id `0x22/0x24`, and waits for completion |
+| IDA `vmlinux.bin` | `vpu_get_preload_entry_for_priority` at `0xffffffc0087a1f40` | Clamps priority to `0..2` and returns the selected Preload object from `core + priority * 0xb0 + 0x3c8` |
+| IDA `vmlinux.bin` | `vpu_get_d2d_buffer_array_iova` at `0xffffffc0087a20c8` | Returns the firmware-visible copied descriptor-array IOVA from `core + priority * 0xb0 + 0x400` |
+| IDA `vmlinux.bin` | `vpu_copy_req_buffers_to_d2d_inner` at `0xffffffc0087a20f8` | Copies `buffer_count * 0x40` bytes from `request+0x50` into `*(core + priority * 0xb0 + 0x3f8)` |
 
 Runtime evidence so far proves `apu_lib_apunn` lookup, normal VPU request
 acceptance, VPU boot/map activity, XRP-shaped settings header tolerance,
