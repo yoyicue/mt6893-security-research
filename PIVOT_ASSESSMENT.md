@@ -90,13 +90,13 @@ See `11-cve-2022-22706-mali-write-readonly/IDA_HANDOFF.md` for full details.
 
 #### D. `/dev/apusys` — MTK AI Processing Unit
 
-Confirmed open from system_app. Completely unexplored ioctl surface.
+Confirmed open from system_app. IDA now maps the main midware ioctl dispatcher: `mdw_ioctl` at `0xffffffc00878a0ec`.
 
-**Why interesting**: Private MTK driver, likely less audited than display/GPU. Separate code base from the well-studied Mali/DRM paths.
+**Why interesting**: Private MTK driver, directly open from `uid=1000(system)`, and routes into APUSYS command parsing, VPU/MDLA/EDMA execution, memory import/IOVA, and Reviser resource paths.
 
-**Risk**: Very little public CVE/research exists for APUSYS. Pure black-box analysis needed.
+**Risk**: Medium-high research priority, but not yet a confirmed vulnerability. The dispatcher uses fixed `copy_from_user` sizes and several early validation gates. The most interesting paths are `mdw_usr_run_cmd_async`/`mdw_usr_run_cmd_sync` and `mdw_usr_mem_create`.
 
-**Action**: IDA: find apusys ioctl handler table, enumerate commands, look for common bug patterns (unchecked copy_from_user sizes, array index without bounds).
+**Action**: Continue from [`13-apusys-ioctl-surface/README.md`](13-apusys-ioctl-surface/README.md). Run the safe reject-only ioctl probe first, then statically inspect the parser ops table before constructing any valid command buffer.
 
 #### E. Binder service-mediated kernel bugs
 

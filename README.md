@@ -1,6 +1,6 @@
 # MT6893 Security Research
 
-Ten security research findings from a privilege escalation study on a MediaTek MT6893 (Dimensity 1200) Android tablet.
+Security research findings from a privilege escalation study on a MediaTek MT6893 (Dimensity 1200) Android tablet.
 
 The target device (kernel 4.19.191, Mali Valhall r32p1, SPL 2023-06-05, SELinux enforcing) resisted the tested kernel and Mali escalation paths from `uid=2000`. These writeups document the specific technical reasons why those paths fail, plus later framework-level triage where applicable.
 
@@ -29,6 +29,9 @@ The target device (kernel 4.19.191, Mali Valhall r32p1, SPL 2023-06-05, SELinux 
 | [08](08-cve-2023-32863-display-drm-oob-read/) | CVE-2023-32863 display-drm OOB read | MTK private DRM getters are only partially reachable; tested handlers do not currently show a user-controlled OOB read. |
 | [09](09-cve-2023-32864-display-drm-oob-write/) | CVE-2023-32864 display-drm OOB write | MTK register write ioctls are reachable, but current `WRITE_REG` validates physical addresses and invalid write probes are rejected. |
 | [10](10-cve-2023-32865-display-drm-oob-write/) | CVE-2023-32865 display-drm OOB write | The color-transform validation ioctl is reachable from `system_app` and rejects unsupported matrices; the exact vulnerable write path is not yet identified. |
+| [11](11-cve-2022-22706-mali-write-readonly/) | CVE-2022-22706 Mali write-readonly | Mali WRITE_VALUE can modify GPU-mapped userspace pages but does not cross into kernel memory on this target. |
+| [12](12-cve-2023-33200-mali-race-uaf/) | CVE-2023-33200 Mali imported-buffer race | Patched/dead on this target: `kbase_vmap_prot` rejects non-NATIVE imported USER_BUF allocations before the race window can open. |
+| [13](13-apusys-ioctl-surface/) | APUSYS ioctl surface | `/dev/apusys` opens from `system_app`; IDA maps `mdw_ioctl` and command/parser paths, but no confirmed APUSYS vulnerability is identified yet. |
 
 ## Building the PoCs
 
@@ -87,10 +90,21 @@ mt6893-security-research/
 │   └── README.md           # Display-drm OOB read triage
 ├── 09-cve-2023-32864-display-drm-oob-write/
 │   └── README.md           # Display-drm OOB write triage
-└── 10-cve-2023-32865-display-drm-oob-write/
-    ├── README.md           # Display-drm color-transform / OOB write triage
+├── 10-cve-2023-32865-display-drm-oob-write/
+│   ├── README.md           # Display-drm color-transform / OOB write triage
+│   └── poc/
+│       └── Mtk32865Probe.java # Non-destructive color-transform probe
+├── 11-cve-2022-22706-mali-write-readonly/
+│   └── README.md           # Mali WRITE_VALUE read-only boundary
+├── 12-cve-2023-33200-mali-race-uaf/
+│   ├── README.md           # Imported USER_BUFFER race triage
+│   └── poc/
+│       └── mali33200_state_probe.c
+└── 13-apusys-ioctl-surface/
+    ├── README.md           # APUSYS midware ioctl surface map
     └── poc/
-        └── Mtk32865Probe.java # Non-destructive color-transform probe
+        ├── ApusysIoctlProbe.java # system_app Java reachability probe
+        └── apusys_ioctl_probe.c  # Native lab-context variant
 ```
 
 ## Ethics
