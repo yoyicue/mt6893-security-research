@@ -62,7 +62,10 @@ public final class ApusysIoctlProbe {
     private static final int XRP_SETTINGS_LEN = 0x100;
     private static final int XRP_SETTINGS_LEN_WRAPPER = 0x68;
     private static final int XRP_CMD_FLAGS_INITIAL = 0x4;
+    private static final int XRP_CMD_FLAGS_COMPLETE = 0x2;
+    private static final int XRP_CMD_FLAGS_COMPLETE_SEND = 0x3;
     private static final int XRP_CMD_FLAGS_SEND = 0x5;
+    private static final int XRP_CMD_FLAGS_SEND_ERROR = 0xd;
     private static final int XRP_CODE_OFF = 0x100;
     private static final int XRP_CODE_SIZE_ZERO = 0x00;
     private static final int XRP_CODE_OP_SIZE = 0x1c8;
@@ -215,6 +218,8 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataCode5Control = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlotControl = false;
+        boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix = false;
+        boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrixControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsOutputReady = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsOutputReadyControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsOutputFirst = false;
@@ -308,6 +313,10 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot-control".equals(arg)) {
                 runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlotControl = true;
+            } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-flags-matrix".equals(arg)) {
+                runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix = true;
+            } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-flags-matrix-control".equals(arg)) {
+                runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrixControl = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-output-ready".equals(arg)) {
                 runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsOutputReady = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-output-ready-control".equals(arg)) {
@@ -364,8 +373,14 @@ public final class ApusysIoctlProbe {
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsSettings68Control
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperData
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataControl
+                || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataOutput44
+                || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataOutput44Control
+                || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataCode5
+                || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataCode5Control
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlotControl
+                || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix
+                || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrixControl
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsOutputReady
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsOutputReadyControl
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsOutputFirst
@@ -639,6 +654,14 @@ public final class ApusysIoctlProbe {
                     XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
                     XrpSettingsShape.WRAPPER_ONE_DATA, false,
                     VPU_REQUEST_FLAGS_PRELOAD_SLOT);
+            }
+
+            if (runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix) {
+                runRunCmdVpuXrpFlagsMatrixHardwareBufferProbe(fd, true);
+            }
+
+            if (runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrixControl) {
+                runRunCmdVpuXrpFlagsMatrixHardwareBufferProbe(fd, false);
             }
 
             if (runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsOutputReady) {
@@ -1793,6 +1816,38 @@ public final class ApusysIoctlProbe {
         printXrpCaseBanner("single case", spec);
         runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, true, true,
             spec, 20000);
+    }
+
+    private static void runRunCmdVpuXrpFlagsMatrixHardwareBufferProbe(
+            int apusysFd, boolean dispatch) throws Exception {
+        System.out.println("\n[*] === APUSYS run_cmd VPU APUNN/XRP flags matrix ===");
+        System.out.println("[*] Mode: wrapper-data request shape with varied"
+            + " settings[0] flags to test whether APUNN reads, preserves, or"
+            + " overwrites the host completion bits.");
+        if (!dispatch) {
+            System.out.println("[*] Control: each case imports the buffers but"
+                + " skips run_cmd_async.");
+        }
+        int[] flags = new int[] {
+            XRP_CMD_FLAGS_INITIAL,
+            XRP_CMD_FLAGS_COMPLETE,
+            XRP_CMD_FLAGS_COMPLETE_SEND,
+            XRP_CMD_FLAGS_SEND,
+            XRP_CMD_FLAGS_SEND_ERROR,
+        };
+        for (int i = 0; i < flags.length; i++) {
+            int cmdFlags = flags[i];
+            System.out.println("\n[*] --- XRP flags matrix case " + (i + 1)
+                + "/" + flags.length
+                + ": settings[0]=0x" + Integer.toHexString(cmdFlags)
+                + " completion_predicate="
+                + (((cmdFlags & 0x0a) == 0x02) ? "true" : "false")
+                + " time_ms=" + System.currentTimeMillis() + " ---");
+            runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, true, true,
+                XRP_OP_ANN_VERSION, 20000, true, VPU_DESC_LIBVPU,
+                cmdFlags, VPU_DESC_ORDER_CODE_OUTPUT, XRP_SETTINGS_LEN_WRAPPER,
+                XRP_OUTPUT_HEADER_FLAG_DEFAULT, XrpSettingsShape.WRAPPER_ONE_DATA);
+        }
     }
 
     private static void printXrpCaseBanner(String prefix, XrpOpSpec spec) {

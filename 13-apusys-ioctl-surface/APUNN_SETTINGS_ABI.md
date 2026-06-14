@@ -596,6 +596,27 @@ APUNN command should visibly change settings `+0x00` so that
 `(flags & 0x0a) == 0x02`, and the output section should no longer retain the
 initial `0xffffffff, 0x40, 4, size` header.
 
+The 2026-06-14 flags matrix then tested whether pre-seeding the host-side
+completion bits changes the same wrapper-data request. It used the
+`settings_len=0x68`, code-first two-buffer, libvpu-descriptor,
+one-data-descriptor shape and varied only settings `+0x00`:
+
+| Initial settings flags | Wrapper predicate before dispatch | Dispatch result |
+|---:|---|---|
+| `0x4` | false | `run_async_vpu_iova ret=0`; settings stay `0x4`; code word `0` changes `0x2713 -> 0x271b`; output/data unchanged |
+| `0x2` | true | `run_async_vpu_iova ret=0`; settings stay `0x2`; code word `0` changes `0x2713 -> 0x271b`; output/data unchanged |
+| `0x3` | true | `run_async_vpu_iova ret=0`; settings stay `0x3`; code word `0` changes `0x2713 -> 0x271b`; output/data unchanged |
+| `0x5` | false | `run_async_vpu_iova ret=0`; settings stay `0x5`; code word `0` changes `0x2713 -> 0x271b`; output/data unchanged |
+| `0x0d` | false | `run_async_vpu_iova ret=0`; settings stay `0x0d`; code word `0` changes `0x2713 -> 0x271b`; output/data unchanged |
+
+The no-dispatch control preserves the original code word `0x2713` for all five
+flag values. The dispatch kernel log shows VPU boot activity and residual
+command cleanup, but no captured APUNN output completion. Therefore
+`settings[0]` is not a standalone firmware trigger in this direct-request
+shape: pre-seeding the wrapper's completion predicate makes the host-side oracle
+true in memory, but the firmware path neither consumes it as completion nor
+overwrites it into a new output state.
+
 The direct ioctl wait experiment adds the midware-side completion view. In
 `--run-cmd-vpu-xrp-ann-version-wrapper-zero-data-wait-iova`, async submit writes
 command id `1` to `runCmd+0x00`; passing the same 0x18-byte argument to
@@ -980,6 +1001,12 @@ This gives the current interpretation boundary:
   settings remain `0x5`, output/data descriptor/data payload remain unchanged,
   and code word `0` changes `0x2713 -> 0x271b`. A single ordinary data
   descriptor is also not the missing APUNN completion condition.
+- The `flags_matrix` result varies only settings `+0x00` across `0x4`, `0x2`,
+  `0x3`, `0x5`, and `0x0d` on the same wrapper-one-data request. Even the
+  pre-seeded completion states `0x2` and `0x3` are preserved unchanged after
+  dispatch, while output/data stay unchanged and code word `0` still changes
+  `0x2713 -> 0x271b`. The settings flags word is therefore not a standalone
+  APUNN completion trigger in this direct request shape.
 - Static wrapper analysis of `XrpVpuStream::CreateVpuRequest()` shows the
   standard request builder adds the same native VPU buffer descriptor five
   times. The `wrapper_one_data_code5` result keeps `settings_len=0x68`,
@@ -1059,6 +1086,10 @@ Additional matrix result files:
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_wrapper_data_preload_slot_kernel.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_wrapper_data_preload_slot_control.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_wrapper_data_preload_slot_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_flags_matrix.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_flags_matrix_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_flags_matrix_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_flags_matrix_control_kernel.txt`
 
 ## Evidence map
 
