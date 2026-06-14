@@ -412,6 +412,28 @@ read-violation warning. The current parser conclusion is therefore that the
 debug-visible opcode/count/operand fields are sufficient for request acceptance
 but not sufficient for APUNN output/data binding or successful completion.
 
+The 2026-06-14 operand-offset matrix moved the debug-visible operand-list
+offset in the current wrapper-data request shape. It keeps the two native
+libvpu-style descriptors, `settings_len=0x68`, wrapper send-state flags
+`settings[0]=0x5`, one standard APUNN data descriptor, and the
+`XTENSA_ANN_VERSION` one-output operation. It varies only operation
+`entry+0x08` and relocates the zero output operand id to
+`entry+0x48+operand_off`:
+
+| Operand-list offset | Control result | Dispatch result |
+|---:|---|---|
+| `0x00` | All windows unchanged | `run_async_vpu_iova ret=0`; settings stay `0x5`; code word `0` changes `0x2713 -> 0x271b`; output/data unchanged |
+| `0x10` | All windows unchanged | Same result |
+| `0x40` | All windows unchanged | Same result |
+| `0x100` | All windows unchanged | Same result |
+
+The dispatch kernel log records VPU map/boot activity and four residual
+commands at process teardown, with no captured APUNN output completion. This
+rules out the operand-list offset field value and relocated zero output operand
+as the missing APUNN completion trigger in the direct ioctl request shape. It
+does not prove whether firmware honors `entry+0x08` for nonzero operand ids,
+because the tested output operand id is `0` in every case.
+
 ## Standard wrapper request path
 
 The host-side `/tmp/mtk-apu-artifacts/libneuron_platform.so` separates the
@@ -448,7 +470,7 @@ The relevant standard-wrapper field interpretation is now:
 | `XrpBufferDesc+0x20` | Access flags; copied into data descriptor entry `+0x00` |
 | `XrpBufferDesc+0x24..+0x38` | Physical/import metadata populated by allocation/import; the low 32-bit IOVA fields are used for settings/data entries |
 | `PrepareXtensaCommandBuffer()` | Writes settings `+0x04 = code_size`, `+0x10 = code_iova_low32` |
-| `CalculateOutputSize()` | Returns `0x40` in the default wrapper mode; when the wrapper output-sizing option is set, it derives a larger output size from the code/input layout and adds the same `0x40` header base |
+| `CalculateOutputSize()` | Returns `0x40` in the default wrapper mode; when the wrapper output-sizing option is set, it computes `0x40 + 4 * (code_size / first_entry_stride)` |
 | `PrepareOutputBuffer()` | Writes settings `+0x08 = output_size`, `+0x20 = output_iova_low32`, then prepares the output header |
 | `PrepareOutputHeader(bool)` | Writes output `+0x00/+0x04 = 0xffffffff/0x40`, `+0x08 = 4`, `+0x0c = output_size`, `+0x10 = bool flag` |
 | `PrepareDataBuffer()` | Allocates a data-descriptor section sized as `data_buffer_count * 0x0c`; the zero-data-buffer path is valid and leaves no data section to consume |
@@ -1090,6 +1112,10 @@ Additional matrix result files:
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_flags_matrix_kernel.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_flags_matrix_control.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_flags_matrix_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_operand_offset_matrix.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_operand_offset_matrix_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_operand_offset_matrix_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_operand_offset_matrix_control_kernel.txt`
 
 ## Evidence map
 
@@ -1169,7 +1195,9 @@ one-data shape with the wrapper dynamic output size `0x44` and output header
 flag `1` leaves the same boundary. Repeating the code/input native descriptor
 five times also leaves the same boundary. Directly setting native VPU
 `request+0x28` bit `2` changes kernel slot bookkeeping but also leaves the same
-APUNN settings/output boundary.
+APUNN settings/output boundary. Moving the operation operand-list offset through
+`0`, `0x10`, `0x40`, and `0x100` in the same wrapper-one-data shape is accepted
+but still leaves the same code-first native descriptor writeback boundary.
 It does not yet prove APUNN data descriptor consumption, APUNN output-section
 writeback, the missing completion parameter, or the full semantic meaning of
 the observed native-buffer writeback. The batch-level devapc warning remains

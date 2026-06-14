@@ -102,6 +102,21 @@ public final class ApusysIoctlProbe {
     private static final XrpOpSpec XRP_OP_ANN_VERSION = new XrpOpSpec(
         "ann_version", "XTENSA_ANN_VERSION",
         XRP_OPCODE_XTENSA_ANN_VERSION, 0, 1, new int[] { 0 });
+    private static final XrpOpSpec[] XRP_OP_OPERAND_OFFSET_MATRIX =
+        new XrpOpSpec[] {
+            new XrpOpSpec("ann_version_operand_off0_out0",
+                "XTENSA_ANN_VERSION", XRP_OPCODE_XTENSA_ANN_VERSION,
+                0, 1, new int[] { 0 }, 0x00),
+            new XrpOpSpec("ann_version_operand_off10_out0",
+                "XTENSA_ANN_VERSION", XRP_OPCODE_XTENSA_ANN_VERSION,
+                0, 1, new int[] { 0 }, 0x10),
+            new XrpOpSpec("ann_version_operand_off40_out0",
+                "XTENSA_ANN_VERSION", XRP_OPCODE_XTENSA_ANN_VERSION,
+                0, 1, new int[] { 0 }, 0x40),
+            new XrpOpSpec("ann_version_operand_off100_out0",
+                "XTENSA_ANN_VERSION", XRP_OPCODE_XTENSA_ANN_VERSION,
+                0, 1, new int[] { 0 }, 0x100),
+        };
     private static final XrpOpSpec[] XRP_OP_MATRIX = new XrpOpSpec[] {
         new XrpOpSpec("get_algo_info_out0", "GET_ALGO_INFO",
             XRP_OPCODE_GET_ALGO_INFO, 0, 1, new int[] { 0 }),
@@ -129,11 +144,22 @@ public final class ApusysIoctlProbe {
         final int inputCount;
         final int outputCount;
         final int[] operandIds;
+        final int operandListOffset;
 
         XrpOpSpec(String label, String name, int opcode, int inputCount,
                   int outputCount, int[] operandIds) {
+            this(label, name, opcode, inputCount, outputCount, operandIds, 0);
+        }
+
+        XrpOpSpec(String label, String name, int opcode, int inputCount,
+                  int outputCount, int[] operandIds, int operandListOffset) {
             if (operandIds.length != inputCount + outputCount) {
                 throw new IllegalArgumentException("operand count mismatch");
+            }
+            if (operandListOffset < 0
+                    || 0x48 + operandListOffset + operandIds.length * 2
+                    > XRP_CODE_OP_SIZE) {
+                throw new IllegalArgumentException("operand list out of entry");
             }
             this.label = label;
             this.name = name;
@@ -141,6 +167,7 @@ public final class ApusysIoctlProbe {
             this.inputCount = inputCount;
             this.outputCount = outputCount;
             this.operandIds = operandIds;
+            this.operandListOffset = operandListOffset;
         }
 
         boolean hasCode() {
@@ -220,6 +247,8 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlotControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrixControl = false;
+        boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescOperandOffsetMatrix = false;
+        boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescOperandOffsetMatrixControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsOutputReady = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsOutputReadyControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsOutputFirst = false;
@@ -317,6 +346,10 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-flags-matrix-control".equals(arg)) {
                 runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrixControl = true;
+            } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-operand-offset-matrix".equals(arg)) {
+                runCmdVpuXrpInternalAnnVersionIovaLibvpuDescOperandOffsetMatrix = true;
+            } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-operand-offset-matrix-control".equals(arg)) {
+                runCmdVpuXrpInternalAnnVersionIovaLibvpuDescOperandOffsetMatrixControl = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-output-ready".equals(arg)) {
                 runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsOutputReady = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-output-ready-control".equals(arg)) {
@@ -381,6 +414,8 @@ public final class ApusysIoctlProbe {
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlotControl
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrixControl
+                || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescOperandOffsetMatrix
+                || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescOperandOffsetMatrixControl
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsOutputReady
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsOutputReadyControl
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsOutputFirst
@@ -662,6 +697,14 @@ public final class ApusysIoctlProbe {
 
             if (runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrixControl) {
                 runRunCmdVpuXrpFlagsMatrixHardwareBufferProbe(fd, false);
+            }
+
+            if (runCmdVpuXrpInternalAnnVersionIovaLibvpuDescOperandOffsetMatrix) {
+                runRunCmdVpuXrpOperandOffsetMatrixHardwareBufferProbe(fd, true);
+            }
+
+            if (runCmdVpuXrpInternalAnnVersionIovaLibvpuDescOperandOffsetMatrixControl) {
+                runRunCmdVpuXrpOperandOffsetMatrixHardwareBufferProbe(fd, false);
             }
 
             if (runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsOutputReady) {
@@ -1850,12 +1893,39 @@ public final class ApusysIoctlProbe {
         }
     }
 
+    private static void runRunCmdVpuXrpOperandOffsetMatrixHardwareBufferProbe(
+            int apusysFd, boolean dispatch) throws Exception {
+        System.out.println("\n[*] === APUSYS run_cmd VPU APUNN/XRP operand-offset matrix ===");
+        System.out.println("[*] Mode: wrapper-data request shape with varied"
+            + " Xtensa operation entry+0x08 operand-list offsets. Each case"
+            + " relocates the output operand id to entry+0x48+operand_off.");
+        if (!dispatch) {
+            System.out.println("[*] Control: each case imports the buffers but"
+                + " skips run_cmd_async.");
+        }
+        for (int i = 0; i < XRP_OP_OPERAND_OFFSET_MATRIX.length; i++) {
+            XrpOpSpec spec = XRP_OP_OPERAND_OFFSET_MATRIX[i];
+            System.out.println("\n[*] --- XRP operand-offset matrix case "
+                + (i + 1) + "/" + XRP_OP_OPERAND_OFFSET_MATRIX.length
+                + ": operand_off=0x"
+                + Integer.toHexString(spec.operandListOffset)
+                + " time_ms=" + System.currentTimeMillis() + " ---");
+            printXrpCaseBanner("operand-offset case", spec);
+            runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, true, true,
+                spec, 20000, true, VPU_DESC_LIBVPU,
+                XRP_CMD_FLAGS_SEND, VPU_DESC_ORDER_CODE_OUTPUT,
+                XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
+                XrpSettingsShape.WRAPPER_ONE_DATA);
+        }
+    }
+
     private static void printXrpCaseBanner(String prefix, XrpOpSpec spec) {
         System.out.println("\n[*] --- XRP " + prefix
             + ": " + spec.label
             + " opcode=" + spec.opcode + " name=" + spec.name
             + " inputs=" + spec.inputCount
             + " outputs=" + spec.outputCount
+            + " operand_off=0x" + Integer.toHexString(spec.operandListOffset)
             + " operands=" + xrpOperandListText(spec)
             + " time_ms=" + System.currentTimeMillis() + " ---");
     }
@@ -2269,6 +2339,8 @@ public final class ApusysIoctlProbe {
             + " xrp_name=" + xrpOp.name
             + " xrp_inputs=" + xrpOp.inputCount
             + " xrp_outputs=" + xrpOp.outputCount
+            + " xrp_operand_off=0x"
+            + Integer.toHexString(xrpOp.operandListOffset)
             + " xrp_operands=" + xrpOperandListText(xrpOp)
             + " plane_count=" + planes.length
             + " cap=" + buffer.capacity()
@@ -2370,11 +2442,13 @@ public final class ApusysIoctlProbe {
             int op = XRP_CODE_OFF;
             putU16LE(buffer, op + 0x00, xrpOp.opcode);
             putU32LE(buffer, op + 0x04, XRP_CODE_OP_SIZE);
-            putU32LE(buffer, op + 0x08, 0);
+            putU32LE(buffer, op + 0x08, xrpOp.operandListOffset);
             putU32LE(buffer, op + 0x0c, xrpOp.inputCount);
             putU32LE(buffer, op + 0x10, xrpOp.outputCount);
             for (int i = 0; i < xrpOp.operandIds.length; i++) {
-                putU16LE(buffer, op + 0x48 + (i * 2), xrpOp.operandIds[i]);
+                putU16LE(buffer,
+                    op + 0x48 + xrpOp.operandListOffset + (i * 2),
+                    xrpOp.operandIds[i]);
             }
         }
 
@@ -2414,6 +2488,8 @@ public final class ApusysIoctlProbe {
             + " op_name=" + xrpOp.name
             + " inputs=" + xrpOp.inputCount
             + " outputs=" + xrpOp.outputCount
+            + " operand_off=0x"
+            + Integer.toHexString(xrpOp.operandListOffset)
             + " operands=" + xrpOperandListText(xrpOp)
             + " output_off=0x" + Integer.toHexString(outputOff)
             + " output_header_flag=0x"
@@ -2500,7 +2576,7 @@ public final class ApusysIoctlProbe {
             buf, XRP_SETTINGS_OFF, 0x80);
         if (xrpOp.hasCode()) {
             dumpByteBufferRange("xrp_" + phase + "_code",
-                buf, XRP_CODE_OFF, 0x100);
+                buf, XRP_CODE_OFF, XRP_CODE_OP_SIZE);
         }
         dumpByteBufferRange("xrp_" + phase + "_output",
             buf, xrpOutputOff(xrpOp), 0x80);
