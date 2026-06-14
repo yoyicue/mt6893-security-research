@@ -1148,7 +1148,7 @@ Interpretation: APUSYS memory-create is now a mapped and runtime-confirmed impor
 
 The remaining APUSYS closure items are:
 
-- Map the target APUNN/XRP `0x1c8` operation-entry fields. Host/debug helpers expose opcode, stride, operand-list offset, input count, and output count, but the device wrapper counts fixed `0x1c8` entries and the minimal `XTENSA_ANN_VERSION` entry leaves output/data windows unchanged.
+- Map the VPU/APUNN-side `0x1c8` operation-entry fields. Host/debug helpers expose opcode, stride, operand-list offset, input count, and output count; the device wrapper only routes raw code-section IOVA/size and counts fixed `0x1c8` entries. The minimal `XTENSA_ANN_VERSION` entry leaves output/data windows unchanged.
 - Vary internal query/status opcode and output operand shape while keeping the validated split-target layout. This is the remaining step to separate APUNN data-descriptor consumption from native VPU plane0-MVA writeback.
 - Attribute the native plane0-MVA `+1` writeback semantically: identify whether it is firmware status, driver-side status, or a request-result field.
 - Map `mdw_cmd_sc_clr_hnd` writeback after provider return and timeout/abort.

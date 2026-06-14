@@ -241,6 +241,20 @@ That makes `0x1c8` the current target entry size for runtime probes; the
 host/debug table above is useful for field names, but not sufficient as the full
 firmware ABI.
 
+The target wrapper also keeps the code bytes opaque. The relevant handoff is:
+
+| Function | Address | Static behavior |
+|---|---:|---|
+| `XrpIntrinsicWrapper::FinalizeCommand()` | `0x1213c` | Copies caller `cXrpBufferInfo` records of size `0x30` into a temporary vector after validating the buffer index at `+0x08` |
+| `XrpIntrinsicExecutor::PrepareCodeSection()` | `0xf7f0` | Resolves the code buffer by the `cXrpBufferInfo+0x08` index and passes the resulting `XrpBufferDesc` to `InitCodeSection()` |
+| `XrpCommandInfo::InitCodeSection()` | `0xc728` | Reads `XrpBufferDesc+0x10` as code size and `XrpBufferDesc+0x28` as code IOVA, then writes those values to settings `+0x04` and `+0x10` |
+| `XrpPatternDump::DumpXtensaOperations()` | `0x157b4` | Writes the raw code-section bytes to `/data/local/tmp/xrp_xtensa_operation.bin`; it does not parse operation fields |
+
+That puts the next unresolved parser boundary on the VPU/APUNN side: the
+normal VPU request and `libneuron_platform.vpu.so` wrapper route a raw
+code-section IOVA/size pair, while the `0x1c8` entry fields after the basic
+debug-visible header are consumed outside these userland helpers.
+
 The same helper separates operation ids into several namespaces:
 
 | Opcode range / rule | Name source | Observed names |
