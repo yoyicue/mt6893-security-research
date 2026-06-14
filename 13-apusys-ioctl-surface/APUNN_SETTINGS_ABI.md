@@ -292,6 +292,24 @@ algo: apu_lib_apunn`, and APUSYS devapc read-violation warnings. The current
 log shape is enough to classify the data windows, but not enough to attribute
 the timeout/devapc sequence to an individual matrix case.
 
+The follow-up single-case mode (`--run-cmd-vpu-xrp-op-case-iova=<case>`) clears
+kernel logs per case and waits longer before dumping buffers. It confirms the
+stable per-case behavior:
+
+| Case label | Wait | Stable result |
+|---|---:|---|
+| `get_algo_info_out0` | 10s | Only native plane payload changes; VPU worker times out |
+| `local_mem_info_out0` | 10s | Only native plane payload changes; VPU worker times out |
+| `ann_version_out0` | 10s | Only native plane payload changes; VPU worker times out |
+| `detailed_op_info_out0` | 10s | Only native plane payload changes; VPU worker times out |
+| `ann_version_no_output` | 20s | Only native plane payload changes; VPU worker times out |
+| `ann_version_out1` | 20s | Only native plane payload changes; VPU worker times out |
+
+The single-case logs do not reproduce the batch `apusys_devapc_isr`
+read-violation warning. The current parser conclusion is therefore that the
+debug-visible opcode/count/operand fields are sufficient for request acceptance
+but not sufficient for APUNN output/data binding or successful completion.
+
 Additional matrix result files:
 
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_matrix_iova.txt`
@@ -322,7 +340,8 @@ Runtime evidence so far proves `apu_lib_apunn` lookup, normal VPU request
 acceptance, VPU boot/map activity, XRP-shaped settings header tolerance,
 target-side nonzero code-section tolerance for six internal query/status
 operation shapes, a controlled native VPU plane0-MVA writeback, and a
-batch-level VPU timeout/devapc warning signal under matrix dispatch. It does
-not yet prove APUNN data descriptor consumption, APUNN code-section operation
-execution, per-op timeout attribution, or the semantic meaning of the observed
-`+1` plane-MVA change.
+per-case VPU timeout under single-operation dispatch. It does not yet prove
+APUNN data descriptor consumption, successful APUNN code-section operation
+execution, the missing completion parameter, or the semantic meaning of the
+observed `+1` plane-MVA change. The batch-level devapc warning remains
+non-attributed because isolated single-case runs did not reproduce it.

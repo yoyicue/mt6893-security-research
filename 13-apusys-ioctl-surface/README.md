@@ -522,6 +522,46 @@ Additional matrix result files:
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_matrix_iova_control.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_matrix_iova_control_kernel.txt`
 
+The single-case mode `--run-cmd-vpu-xrp-op-case-iova=<case>` reruns one matrix
+case with a longer wait before dumping buffers. The first four cases already
+show timeout within a 10s wait; the last two were rerun with a 20s wait to avoid
+missing a late worker timeout:
+
+| Case | Wait | Data-window result | Kernel result |
+|---|---:|---|---|
+| `get_algo_info_out0` | 10s | Only native `plane_payload[0]` changes | VPU map/boot, `request (D2D_EXT) timeout`, `ret(-110)` |
+| `local_mem_info_out0` | 10s | Only native `plane_payload[0]` changes | VPU map/boot, `ret(-110)` |
+| `ann_version_out0` | 10s | Only native `plane_payload[0]` changes | VPU boot, `request (D2D_EXT) timeout`, `ret(-110)` |
+| `detailed_op_info_out0` | 10s | Only native `plane_payload[0]` changes | VPU map/boot, `request (D2D_EXT) timeout` |
+| `ann_version_no_output` | 20s | Only native `plane_payload[0]` changes | VPU map/boot, `request (D2D_EXT) timeout`, `ret(-110)` |
+| `ann_version_out1` | 20s | Only native `plane_payload[0]` changes | VPU map/boot, `ret(-110)` |
+
+The isolated single-case logs do not reproduce the batch `apusys_devapc_isr`
+read-violation warning. Treat the devapc lines from the batch run as a
+non-attributed signal until a case-specific reproduction exists. The stable
+single-case result is simpler: each submitted `0x1c8` operation shape reaches
+VPU dispatch, causes the same native plane-MVA `+1` writeback, leaves APUNN
+output/data windows unchanged, and times out on the worker side.
+
+Additional single-case result files:
+
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_get_algo_info_out0.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_get_algo_info_out0_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_local_mem_info_out0.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_local_mem_info_out0_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_ann_version_out0.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_ann_version_out0_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_detailed_op_info_out0.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_detailed_op_info_out0_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_ann_version_no_output_20s.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_ann_version_no_output_20s_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_ann_version_out1_20s.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_ann_version_out1_20s_kernel.txt`
+
+The earlier 10s `ann_version_no_output` and `ann_version_out1` single-case
+captures are retained in the result directory, but the `_20s` reruns supersede
+them for timeout attribution.
+
 ## Ioctl command map
 
 The ioctl magic byte is `0x41` (`'A'`). The dispatcher uses fixed internal copy sizes before calling sub-handlers; it does not trust arbitrary user sizes.
@@ -552,7 +592,7 @@ The `0x4004413C/3D` size mismatch is important for testing: the command encoding
 ## Current risk ranking
 
 1. **VPU firmware settings ABI and IOVA-chain validation**: Highest current APUSYS task. `system_app` can import HardwareBuffer dmabufs, get APUSYS IOVA values, and submit full-size normal-VPU requests. The corrected probe writes `setting_length`, `setting_iova`, `buffer_count`, and plane0 MVA according to `libvpu.so`; runtime shows VPU boot/map activity. The XRP-shaped split-target run keeps settings/output/data-descriptor, APUNN data payload, and command-buffer copyback windows unchanged, while the native VPU plane0 MVA target changes first word from `0x504c4e30` to `0x504c4e31`. The nonzero `code_size=0x1c8` runs for opcodes `10001..10004` and simple output-shape changes are accepted at the dispatch level, but still leave APUNN output/data windows unchanged.
-2. **Timeout/devapc behavior under VPU dispatch**: The matrix dispatch log records worker-side timeout (`ret(-110)`, `request (D2D_EXT) timeout`) and APUSYS devapc read-violation warnings. The batch proves this behavior is reachable from the same `system_app` IOVA request chain, but does not yet attribute it to an individual opcode case.
+2. **Timeout behavior under VPU dispatch**: Single-case runs show worker-side timeout (`ret(-110)` and/or `request (D2D_EXT) timeout`) for all six tested internal query/status operation shapes. The batch devapc warning did not reproduce in the isolated single-case logs, so it remains a non-attributed signal.
 3. **Timeout-path command object race**: `run_cmd_async` returns before the worker completes. The guard run already showed `mdw_usr_destroy residual cmd(...)` after worker-side rejection. The same lifetime boundary matters for full VPU timeout/abort paths.
 4. **Writeback attribution and command-buffer copyback**: The XRP-shaped split-target and nonzero-code runs localize the visible imported-buffer delta to native VPU plane0 MVA because command request head/tail and APUNN data descriptor target do not change. The remaining attribution task is the semantic meaning of the `+1` plane-MVA writeback and the APUNN `0x1c8` operation-entry field layout.
 5. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` import HardwareBuffer fds through APUSYS type-2/type-3 memory-create and copy out IOVA-like descriptor fields. This is the input path for any VPU request that references user-controlled memory.
@@ -772,6 +812,11 @@ APUNN-data payload, native VPU plane payload, and command-buffer windows.
 `--run-cmd-vpu-xrp-op-matrix-iova-control` performs the same cases without
 final dispatch.
 
+`--run-cmd-vpu-xrp-op-case-iova=<case>` runs one case from the same matrix with
+a 20s wait before the after-dump, which is long enough to catch the observed
+VPU worker timeout. `--run-cmd-vpu-xrp-op-case-iova-control=<case>` performs
+the same setup without final dispatch.
+
 | Case label | Opcode | Name | Inputs | Outputs | Operand ids |
 |---|---:|---|---:|---:|---|
 | `get_algo_info_out0` | `10001` | `GET_ALGO_INFO` | `0` | `1` | `[0]` |
@@ -825,6 +870,16 @@ CLASSPATH=.../apusys_ioctl_probe.dex \
 # Same matrix setup, no final run_cmd_async dispatch:
 CLASSPATH=.../apusys_ioctl_probe.dex \
   app_process64 /system/bin ApusysIoctlProbe --run-cmd-vpu-xrp-op-matrix-iova-control
+
+# One APUNN/XRP matrix case with a longer timeout attribution window:
+CLASSPATH=.../apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe \
+  --run-cmd-vpu-xrp-op-case-iova=get_algo_info_out0
+
+# Same single-case setup, no final run_cmd_async dispatch:
+CLASSPATH=.../apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe \
+  --run-cmd-vpu-xrp-op-case-iova-control=get_algo_info_out0
 ```
 
 Automated run:
@@ -1220,7 +1275,7 @@ Interpretation: APUSYS memory-create is now a mapped and runtime-confirmed impor
 The remaining APUSYS closure items are:
 
 - Map the VPU/APUNN-side `0x1c8` operation-entry fields. Host/debug helpers expose opcode, stride, operand-list offset, input count, and output count; the device wrapper only routes raw code-section IOVA/size and counts fixed `0x1c8` entries. The minimal `XTENSA_ANN_VERSION` entry leaves output/data windows unchanged.
-- Split the matrix timeout/devapc signal into individual case runs or add absolute per-case timestamps, then correlate `ret(-110)` / `apusys_devapc_isr` with the submitted opcode shape.
+- Explain the per-case VPU timeout: all six tested nonzero `0x1c8` query/status shapes reach dispatch and then timeout without APUNN output/data writes. The missing parameter is likely outside the debug-visible opcode/count/operand header.
 - Attribute the native plane0-MVA `+1` writeback semantically: identify whether it is firmware status, driver-side status, or a request-result field.
 - Map `mdw_cmd_sc_clr_hnd` writeback after provider return and timeout/abort.
 - Test timeout lifecycle races around fd close / `mdw_usr_destroy` / scheduler cleanup.

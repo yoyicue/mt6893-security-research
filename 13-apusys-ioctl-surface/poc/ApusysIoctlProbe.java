@@ -150,6 +150,8 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpAnnVersionIovaControl = false;
         boolean runCmdVpuXrpOpMatrixIova = false;
         boolean runCmdVpuXrpOpMatrixIovaControl = false;
+        XrpOpSpec runCmdVpuXrpOpCaseIova = null;
+        XrpOpSpec runCmdVpuXrpOpCaseIovaControl = null;
         String ucmdKey = null;
         String ucmdKeyDump = null;
         for (String arg : args) {
@@ -199,6 +201,14 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpOpMatrixIova = true;
             } else if ("--run-cmd-vpu-xrp-op-matrix-iova-control".equals(arg)) {
                 runCmdVpuXrpOpMatrixIovaControl = true;
+            } else if (arg.startsWith("--run-cmd-vpu-xrp-op-case-iova=")) {
+                String label = arg.substring(
+                    "--run-cmd-vpu-xrp-op-case-iova=".length());
+                runCmdVpuXrpOpCaseIova = requireXrpOpSpec(label);
+            } else if (arg.startsWith("--run-cmd-vpu-xrp-op-case-iova-control=")) {
+                String label = arg.substring(
+                    "--run-cmd-vpu-xrp-op-case-iova-control=".length());
+                runCmdVpuXrpOpCaseIovaControl = requireXrpOpSpec(label);
             } else if (arg.startsWith("--ucmd-key=")) {
                 ucmdKey = arg.substring("--ucmd-key=".length());
                 validateUcmdKey(ucmdKey);
@@ -219,6 +229,8 @@ public final class ApusysIoctlProbe {
                 || runCmdVpuXrpSplitIova || runCmdVpuXrpSplitIovaControl
                 || runCmdVpuXrpAnnVersionIova || runCmdVpuXrpAnnVersionIovaControl
                 || runCmdVpuXrpOpMatrixIova || runCmdVpuXrpOpMatrixIovaControl
+                || runCmdVpuXrpOpCaseIova != null
+                || runCmdVpuXrpOpCaseIovaControl != null
                 || ucmdKey != null || ucmdKeyDump != null) {
             System.out.println("[*] Mode: optional checks enabled;"
                 + " no secure alloc/free; some modes submit controlled"
@@ -357,6 +369,16 @@ public final class ApusysIoctlProbe {
 
             if (runCmdVpuXrpOpMatrixIovaControl) {
                 runRunCmdVpuXrpOpMatrixHardwareBufferProbe(fd, false);
+            }
+
+            if (runCmdVpuXrpOpCaseIova != null) {
+                runRunCmdVpuXrpOpCaseHardwareBufferProbe(fd, true,
+                    runCmdVpuXrpOpCaseIova);
+            }
+
+            if (runCmdVpuXrpOpCaseIovaControl != null) {
+                runRunCmdVpuXrpOpCaseHardwareBufferProbe(fd, false,
+                    runCmdVpuXrpOpCaseIovaControl);
             }
 
             if (ucmdKey != null) {
@@ -841,6 +863,17 @@ public final class ApusysIoctlProbe {
                                                             boolean splitTargets,
                                                             XrpOpSpec xrpOp)
             throws Exception {
+        runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, xrpSettings,
+            splitTargets, xrpOp, 3000);
+    }
+
+    private static void runRunCmdVpuIovaHardwareBufferProbe(int apusysFd,
+                                                            boolean dispatch,
+                                                            boolean xrpSettings,
+                                                            boolean splitTargets,
+                                                            XrpOpSpec xrpOp,
+                                                            int waitMs)
+            throws Exception {
         System.out.println("\n[*] === Optional APUSYS run_cmd VPU IOVA chained probe ===");
         if (xrpSettings) {
             System.out.println("[*] Mode: mem_create imports HardwareBuffer to get IOVA,"
@@ -1059,8 +1092,9 @@ public final class ApusysIoctlProbe {
             }
 
             // wait a bit for VPU timeout / completion
-            System.out.println("[*] Waiting 3s before original buffer dump...");
-            Thread.sleep(3000);
+            System.out.println("[*] Waiting " + waitMs
+                + "ms before original buffer dump...");
+            Thread.sleep(waitMs);
 
             // dump the original imported buffer to see if VPU wrote anything back
             System.out.println("[*] Dumping original IOVA buffer post-execution:");
@@ -1119,15 +1153,37 @@ public final class ApusysIoctlProbe {
         }
         for (int i = 0; i < XRP_OP_MATRIX.length; i++) {
             XrpOpSpec spec = XRP_OP_MATRIX[i];
-            System.out.println("\n[*] --- XRP matrix case " + (i + 1)
-                + "/" + XRP_OP_MATRIX.length + ": " + spec.label
-                + " opcode=" + spec.opcode + " name=" + spec.name
-                + " inputs=" + spec.inputCount
-                + " outputs=" + spec.outputCount
-                + " operands=" + xrpOperandListText(spec) + " ---");
+            printXrpCaseBanner("matrix case " + (i + 1)
+                + "/" + XRP_OP_MATRIX.length, spec);
             runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, true, true,
                 spec);
         }
+    }
+
+    private static void runRunCmdVpuXrpOpCaseHardwareBufferProbe(int apusysFd,
+                                                                 boolean dispatch,
+                                                                 XrpOpSpec spec)
+            throws Exception {
+        System.out.println("\n[*] === APUSYS run_cmd VPU APUNN/XRP opcode case ===");
+        System.out.println("[*] Mode: single split-target IOVA probe for one"
+            + " internal-query opcode shape.");
+        if (!dispatch) {
+            System.out.println("[*] Control: imports the buffers but skips"
+                + " run_cmd_async.");
+        }
+        printXrpCaseBanner("single case", spec);
+        runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, true, true,
+            spec, 20000);
+    }
+
+    private static void printXrpCaseBanner(String prefix, XrpOpSpec spec) {
+        System.out.println("\n[*] --- XRP " + prefix
+            + ": " + spec.label
+            + " opcode=" + spec.opcode + " name=" + spec.name
+            + " inputs=" + spec.inputCount
+            + " outputs=" + spec.outputCount
+            + " operands=" + xrpOperandListText(spec)
+            + " time_ms=" + System.currentTimeMillis() + " ---");
     }
 
     private static void runRunCmdVpuExecHardwareBufferProbe(int apusysFd)
@@ -1583,6 +1639,28 @@ public final class ApusysIoctlProbe {
 
     private static long iovaLow32(int base, int off) {
         return ((long) (base + off)) & 0xffffffffL;
+    }
+
+    private static XrpOpSpec requireXrpOpSpec(String label) {
+        for (int i = 0; i < XRP_OP_MATRIX.length; i++) {
+            XrpOpSpec spec = XRP_OP_MATRIX[i];
+            if (spec.label.equals(label)) {
+                return spec;
+            }
+        }
+        throw new IllegalArgumentException("unknown XRP op case '" + label
+            + "'; valid labels: " + xrpOpLabelsText());
+    }
+
+    private static String xrpOpLabelsText() {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < XRP_OP_MATRIX.length; i++) {
+            if (i != 0) {
+                sb.append(',');
+            }
+            sb.append(XRP_OP_MATRIX[i].label);
+        }
+        return sb.toString();
     }
 
     private static String xrpOperandListText(XrpOpSpec xrpOp) {
