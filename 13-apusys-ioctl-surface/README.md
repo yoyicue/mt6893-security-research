@@ -826,7 +826,10 @@ the descriptor-0 word behaves like a status/flags OR with `0xb`:
 `0x504c4e30 -> 0x504c4e3b`. The `0xffffffff` case changes to
 `0xfffffffd` and returns `-EIO` from wait while the kernel log records a VPU
 scheduler timeout. This makes the current visible writeback look like a
-firmware/worker state word, not an APUNN output-section copyback or leak.
+firmware/worker state word, not an APUNN output-section copyback or leak. The
+2026-06-15 summary rerun keeps `slot_b68=0` and `algo_ret_b6c=0` for every
+tested word; only the all-ones `-EIO` case changes request `+0x34`
+(`result_status`) to `0x2`.
 
 The descriptor-size matrix
 `--run-cmd-vpu-xrp-target-code5-no-settings-size-matrix-iova` keeps the same

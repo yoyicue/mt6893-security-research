@@ -1,0 +1,11 @@
+pattern=apusys|vpu|mdw|vpu_req_check
+source=adb logcat -b kernel or dmesg fallback
+
+06-15 03:32:29.152 31338 31338 I         : (5)[31338:main][apusys][warn] mdw_ioctl not support fw load
+06-15 03:32:29.152 31338 31338 I         : (5)[31338:main][apusys][warn] mdw_ioctl not suppot fw unload
+06-15 03:32:29.152 31338 31338 I         : (5)[31338:main][apusys][error] mdw_usr_run_cmd_async don't support offset(1)
+06-15 03:32:29.152 31338 31338 I         : (5)[31338:main][apusys][error] mdw_usr_run_cmd_async don't support offset(1)
+06-15 03:32:29.152 31338 31338 I         : (5)[31338:main][apusys][error] mdw_usr_ucmd don't support offset(1)
+06-15 03:32:42.457   378   378 I (3)[378:apusys_vpu0]: request (D2D_EXT) timeout, priority: 0, algo: apu_lib_apunn
+06-15 03:32:42.457   378   378 W -(3)[378:apusys_vpu0]vpu_execute_d2d: 7 callbacks suppressed
+06-15 03:32:42.461   378   378 I         : (3)[378:apusys_vpu0][apusys][error] mdw_sched_trace fail : pid(31338/31338) cmd(0x0/0xffffff801523d000-#0/1) dev(3/vpu-#0) mp(0x0/0/1/0x0) sched(0/0/0/0/0/0) mem(0/0/0x0/0x0) boost(0) time(9128260/9128327) ret(-110)

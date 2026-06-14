@@ -691,6 +691,8 @@ Result files:
 - `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_word_matrix_control_kernel.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_word_matrix.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_word_matrix_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_code5_no_settings_word_matrix_summary.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_code5_no_settings_word_matrix_summary_kernel.txt`
 
 Settings remain `0x5`, output remains `0xffffffff`, and data descriptor/data
 payload windows remain unchanged in every case. For ordinary inputs, the
@@ -699,6 +701,15 @@ error/timeout state and clears bit `1`. This pins the current visible writeback
 as state-word behavior on copied native descriptor `0`. It still does not show
 APUNN settings completion, APUNN output-section copyback, or a source-sensitive
 leak.
+
+The 2026-06-15 summary rerun adds request-field visibility to the same matrix.
+`slot_b68` and `algo_ret_b6c` remain `0` in every case. Successful-wait cases
+also keep `result_status=0`; the all-ones `-EIO` case changes
+`result_status=0x2` while leaving `algo_ret_b6c=0`. The rerun also misses the
+`0x2713 -> 0x271b` write for that single case, reinforcing the earlier
+timing/state sensitivity. Request `+0x34` is therefore a provider status byte for
+the error path, while `+0xb6c` is not the missing APUNN output signal in this
+shape.
 
 The descriptor-size matrix keeps the same target-wrapper-shaped request, keeps
 code/input word `0` at `0x2713`, and varies only the copied native descriptor
@@ -1884,7 +1895,9 @@ explicit wait variant returns `0` while preserving the same code/input
 writeback-only boundary. The 2026-06-15 summary rerun shows the copied-back
 request status, slot, and `algo_ret` fields stay zero in that successful wait
 case, so `+0x34`, `+0xb68`, and `+0xb6c` are not the missing APUNN output signal
-for this shape. Non-exact outer sizes `0x20`, `0x90`, `0x1c8`, `0xb6c`,
+for this shape. The summary first-word rerun adds that `+0x34` becomes `0x2`
+only in the all-ones `-EIO` case while `+0xb6c` still stays zero. Non-exact outer
+sizes `0x20`, `0x90`, `0x1c8`, `0xb6c`,
 and `0xb80` fail without the descriptor-0 state writeback. The descriptor-0
 first-word matrix shows ordinary inputs becoming `old | 0xb`, and the all-ones
 input entering a timeout/error path as `0xffffffff -> 0xfffffffd` with wait
