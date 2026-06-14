@@ -13,7 +13,7 @@ The current result is **reachable, with a confirmed VPU algorithm lookup hit, bu
 
 The directory has no CVE number yet. The repository uses CVE-numbered directories when a test is tied to a specific public CVE or confirmed bug class. APUSYS is currently an exposed proprietary ioctl surface with handler-level mapping and runtime reachability evidence, but no confirmed CVE match or vulnerability primitive.
 
-This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths, negative memory-create cases, optional device-control reachability checks, direct dmabuf-source checks, a candidate-fd scan for the memory import path, HardwareBuffer-backed dmabuf import, controlled `ucmd` gate tests, and a zero-header `run_cmd_async` parser probe. Valid APUSYS command buffers, heap shaping, and execution-path inputs remain separate experiment tracks.
+This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths, negative memory-create cases, optional device-control reachability checks, direct dmabuf-source checks, a candidate-fd scan for the memory import path, HardwareBuffer-backed dmabuf import, controlled `ucmd` gate tests, and zero-header / invalid-subcommand `run_cmd_async` parser probes. Valid APUSYS command buffers, heap shaping, and execution-path inputs remain separate experiment tracks.
 
 ## IDA handler map
 
@@ -308,7 +308,7 @@ For inline code-buffer info, parser verifies `cmd_base + ofs_cb_info + cb_info_s
 
 For normal VPU execution, the later provider opcode-4 check is still stricter than the generic APUSYS parser. The normal VPU handler expects its provider argument `+0x00` to point at a VPU request object and provider argument `+0x0c` to equal `0xb70`. It then requires request field `+0x28 < 0x10` and byte `+0x35 < 0x21`, clears request `+0xb68`, stores the APUSYS core id into request `+0xb5c`, and dispatches `vpu_execute` unless request `+0x28` bit `2` selects `vpu_execute_with_slot`. `vpu_execute` treats request `+0x04` as the algorithm name string and request `+0x28` as flags, matching the separate `ucmd` evidence that algorithm state is name-keyed.
 
-The optional `--run-cmd-hardwarebuffer` probe clears `+0x0c`, imports the same ImageWriter-backed HardwareBuffer fd, and calls `run_cmd_async` with fd at user `+0x08` and length `0x4000` at user `+0x10`. With an all-zero mapped buffer, APUSYS memory-create succeeds at Parcel fd offset `388`, then `run_async_hwb_run_zero_pos388` returns `-EINVAL`. That is consistent with `mdw_cmd_create_cmd` reaching KVA map and rejecting the zero command header before queue insertion. The remaining run-command work is mapping the provider-specific code-buffer info and VPU/MDLA/EDMA request layouts before any valid command-buffer experiment.
+The optional `--run-cmd-invalid-sc` probe uses the same fd source but writes a non-executing command buffer that satisfies the top-level magic/version/count/offset gates and deliberately sets the first subcommand type to `0x20`. Runtime and kernel-log evidence show this reaches `mdw_cmd_sc_valid` and fails at `invalid type(32)`, then returns through `mdw_usr_par_apu_cmd parse cmd fail(-22)`. That closes the parser-depth check without constructing a provider request. The remaining run-command work is mapping the provider-specific code-buffer info and VPU/MDLA/EDMA request layouts before any valid command-buffer experiment.
 
 ## Ioctl command map
 
@@ -492,6 +492,15 @@ CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
 ```
 
 `--run-cmd-hardwarebuffer` creates the same writeable `ImageReader` / `ImageWriter` backed buffer, leaves the first command word as zero, imports the discovered HardwareBuffer fd through APUSYS memory-create, and then calls `run_cmd_async` only for fd offsets that first pass memory-create. It sets the run-command user argument as `{fd at +0x08, offset 0 at +0x0c, length 0x4000 at +0x10}`. This mode is a parser reachability check; it does not construct a valid APUSYS command buffer.
+
+Optional deeper parser guard check:
+
+```sh
+CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe --run-cmd-invalid-sc
+```
+
+`--run-cmd-invalid-sc` writes a valid top-level APUSYS command header plus one invalid 0x28-byte subcommand header with `type=0x20`. The expected result is still `EINVAL`, but kernel logs should identify the deeper guard as `mdw_cmd_sc_valid ... invalid type(32)`.
 
 [`poc/apusys_ioctl_probe.c`](poc/apusys_ioctl_probe.c) is a native version of the same reject checks for root/permissive lab contexts. It compiles successfully, but on the current device direct `adb shell` execution returns `open(/dev/apusys) failed: EACCES` because shell is not `system` or `camera`, and `system_app` cannot execute native ELF files from app data under SELinux enforcing.
 
@@ -715,6 +724,25 @@ CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
 
 Interpretation: the same HardwareBuffer fd source can also reach the `run_cmd_async` command-buffer parser when user `+0x0c` is cleared and user `+0x10` is set to a nonzero length. The all-zero mapped buffer is rejected with `EINVAL` after memory import succeeds, which matches the static `mdw_cmd_parse_cmd` early command-header checks. The probe still does not queue a command or exercise provider execution.
 
+Observed optional `--run-cmd-invalid-sc` result from the same `system_app` context on 2026-06-14:
+
+```text
+[*] --- run_cmd HardwareBuffer case: invalid_sc_type20 first_u32=0x0 invalid_sc=true ---
+[+] input run_cmd invalid_sc payload: magic=0x3d2070ece309c231 version=1 num_sc=1 sc0_off=0x30 sc0_type=0x20 pdr_cnt_off=0x54 scr_off=0x58 cb_info_off=0x60 ...
+[*] hwb_run_invalid_sc_type20_mem2_pos388 cmd=0xc0384103 ret=0
+[*] hwb_run_invalid_sc_type20_mem3_pos388 cmd=0xc038410f ret=0
+[*] run_async_hwb_run_invalid_sc_type20_pos388 cmd=0xc0184107 ret=-22 (EINVAL)
+```
+
+Kernel log excerpt:
+
+```text
+[apusys][error] mdw_cmd_sc_valid sc(...-#0) invalid type(32)
+[apusys][error] mdw_usr_par_apu_cmd parse cmd fail(-22)
+```
+
+Interpretation: the command buffer is no longer rejected only at the zero-header gate. It reaches the recovered top-level command-header parser, selects subcommand `#0`, copies the 0x28-byte subcommand header, reaches `mdw_cmd_sc_valid`, and fails at the deliberate invalid `type=0x20` guard. This still does not queue a command or enter VPU/MDLA/EDMA provider execution.
+
 Plain `dalvikvm64` is a negative control for this mode:
 
 ```text
@@ -741,7 +769,7 @@ Interpretation: APUSYS memory-create is now a mapped and runtime-confirmed impor
 - Keep the current Java probe scoped to reject/query/negative-memory/device-control, fd-source scans, HardwareBuffer fd import, and controlled `ucmd` gate tests.
 - Use the `app_process64` HardwareBuffer path as the baseline fd source. Direct `/dev/ion`, `/dev/ashmem`, dma-heap device nodes, and DRM PRIME export remain blocked or unavailable in the current context.
 - Use kernel logs, if available from the lab context, to distinguish whether the `ENOMEM` path comes from ION import, cache sync, or IOVA map setup.
-- Keep the `run_cmd` parser probe limited to zero-header / invalid-header inputs while provider-specific code-buffer info and request layouts are mapped. Command ops `+0x00`, `+0x10`, and `+0x18` are resolved as `mdw_cmd_create_cmd`, `mdw_cmd_abort_cmd`, and `mdw_cmd_parse_cmd`; top-level and 0x28-byte subcommand headers are now partially recovered.
+- Keep the `run_cmd` parser probe limited to zero-header / invalid-subcommand inputs while provider-specific code-buffer info and request layouts are mapped. Command ops `+0x00`, `+0x10`, and `+0x18` are resolved as `mdw_cmd_create_cmd`, `mdw_cmd_abort_cmd`, and `mdw_cmd_parse_cmd`; top-level and 0x28-byte subcommand headers are now runtime-confirmed through the `mdw_cmd_sc_valid invalid type(32)` guard.
 - For `0x400C4109`, optional follow-up is a small control-value sweep on the live-success providers while watching return codes and kernel logs. The current control value `0` already confirms provider opcode `0` reachability.
 - For `mdw_usr_ucmd`, the `apu_lib_apunn` opcode-7 lookup/writeback check is complete for the visible 0x24-byte `libvpu.so::getAlgo()` command buffer: success returns `0`, then `vpu_alg_put`, with no first-64-byte Image-plane change.
 - Continue mapping `mdla_run_command_sync`, `vpu_execute`, and `edma_execute` input structures before valid command-buffer experiments.
