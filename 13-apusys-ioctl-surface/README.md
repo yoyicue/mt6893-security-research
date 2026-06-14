@@ -13,7 +13,7 @@ The current result is **reachable but not yet mapped to a confirmed vulnerabilit
 
 The directory has no CVE number yet. The repository uses CVE-numbered directories when a test is tied to a specific public CVE or confirmed bug class. APUSYS is currently an exposed proprietary ioctl surface with handler-level mapping and runtime reachability evidence, but no confirmed CVE match or vulnerability primitive.
 
-This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths, negative memory-create cases, optional device-control reachability checks, direct dmabuf-source checks, a candidate-fd scan for the memory import path, and controlled `ucmd` negative tests. Valid command buffers, usable dmabuf descriptors, heap shaping, and execution-path inputs are separate experiment tracks.
+This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths, negative memory-create cases, optional device-control reachability checks, direct dmabuf-source checks, a candidate-fd scan for the memory import path, HardwareBuffer-backed dmabuf import, and controlled `ucmd` negative tests. Valid APUSYS command buffers, heap shaping, and execution-path inputs remain separate experiment tracks.
 
 ## IDA handler map
 
@@ -191,7 +191,7 @@ The `0x4004413C/3D` size mismatch is important for testing: the command encoding
 
 ## Current risk ranking
 
-1. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` lead to `mdw_usr_mem_create`, then into APUSYS ION KVA/IOVA callbacks. Negative tests confirm that type-2 and type-3 descriptors reach deeper than the initial user-copy guard without creating an object or crashing. Direct dmabuf-source checks from `system_app` now show: no `/dev/dma_heap/*` nodes on this device, DRM dumb buffer creation succeeds but PRIME fd export returns `EACCES`, direct `/dev/ion` open returns `EACCES`, `/dev/ashmem` open returns `EACCES`, and ordinary openable fds such as `/dev/dri/card0`, `/dev/mali0`, `/dev/zero`, `/dev/null`, and `/dev/apusys` all fail APUSYS memory-create with `ENOMEM`. This remains the highest APUSYS priority, but the current blocker is obtaining a usable dmabuf fd in this context.
+1. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` lead to `mdw_usr_mem_create`, then into APUSYS ION KVA/IOVA callbacks. Negative tests confirm that type-2 and type-3 descriptors reach deeper than the initial user-copy guard without creating an object or crashing. Direct node sources remain constrained: no `/dev/dma_heap/*` nodes on this device, DRM dumb buffer creation succeeds but PRIME fd export returns `EACCES`, direct `/dev/ion` open returns `EACCES`, `/dev/ashmem` open returns `EACCES`, and ordinary openable fds such as `/dev/dri/card0`, `/dev/mali0`, `/dev/zero`, `/dev/null`, and `/dev/apusys` all fail APUSYS memory-create with `ENOMEM`. The usable fd source is now the framework path: running the probe through `app_process64` can create an `android.hardware.HardwareBuffer`, read a fd-bearing Parcel entry, and import that fd successfully through both APUSYS type-2 and type-3 memory-create. This is the highest APUSYS priority.
 2. **Command parsing/execution and ucmd paths**: `0xC0184107` and `0x40184106` reach `mdw_usr_run_cmd_async`. The current probe sets the user field at `+0x0c` to `1`, which makes this function return early before the indirect ops calls. `0x4014410E` reaches `mdw_usr_ucmd`; with `+0x0c == 0` it imports the fd as APUSYS memory, maps KVA/IOVA, bounds-checks the requested length, then calls `mdw_rsc_ucmd_dispatch` at `core+0x98`. The provider opcode `7` path is now narrowed: normal VPU has a concrete `0x8001` mapped-buffer gate and walks per-core Normal/Preload algorithm sets, while EDMA and MDLA do not show the same opcode-7 command path.
 3. **Device/resource control paths**: `0x4004413C/3D` call `mdw_usr_dev_sec_alloc/free`, and `0x400C4109` calls `mdw_usr_dev_ctrl_4109`. The free path has an id `< 0x40` guard; the `0x400C4109` path looks up a device/core and dispatches provider opcode `0` through `mdw_rsc_dev_op0_ctrl` with only a 0x0c user input. Static mapping shows MDLA/EDMA opcode `0` reaches power-on paths, normal VPU opcode `0` reaches control bookkeeping, and VPU RT opcode `0` returns early.
 4. **Handshake/wait/simple rejection paths**: useful for reachability, lower standalone risk.
@@ -248,7 +248,7 @@ dalvikvm64 -cp /data/data/com.android.settings/cache/apusys_ioctl_probe.dex Apus
 - `mem_create2_zero` / `mem_create3_zero` with an all-zero 0x38 descriptor, including fd `0`.
 - `mem_create2_badfd` / `mem_create3_badfd` with a 0x38 descriptor whose fd field at user offset `+0x20` is `-1`.
 
-No valid dmabuf or APUSYS command buffer is supplied in this mode. If a memory-create call unexpectedly succeeds, the probe attempts cleanup with the matching memory-free ioctl using the returned descriptor.
+No valid dmabuf or APUSYS command buffer is supplied in this mode. If a memory-create call succeeds, the probe attempts cleanup with the matching memory-free ioctl using the returned descriptor.
 
 Optional device-control tests:
 
@@ -299,6 +299,15 @@ dalvikvm64 -cp /data/data/com.android.settings/cache/apusys_ioctl_probe.dex Apus
 ```
 
 `--ucmd-negative` sends normal VPU `mdw_usr_ucmd` arguments for device id `3`, core `0` and `1`, bad fd `-1`, offset `0`, and nonzero length `0x1000`. It does not provide a valid mapped command buffer. This verifies the controlled failure mode after clearing the `+0x0c` early-reject field.
+
+Optional HardwareBuffer-backed dmabuf import:
+
+```sh
+CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe --hardwarebuffer
+```
+
+`--hardwarebuffer` allocates a small `android.hardware.HardwareBuffer`, writes it to a Parcel, enumerates fd-bearing Parcel offsets, and passes discovered fds through APUSYS type-2 and type-3 memory-create descriptors. Use `app_process64` for this mode. Plain `dalvikvm64` can load the Java classes but does not have the required framework JNI registration for `HardwareBuffer.nCreateHardwareBuffer()` or HIDL `HwBinder/HwParcel`.
 
 [`poc/apusys_ioctl_probe.c`](poc/apusys_ioctl_probe.c) is a native version of the same reject checks for root/permissive lab contexts. It compiles successfully, but on the current device direct `adb shell` execution returns `open(/dev/apusys) failed: EACCES` because shell is not `system` or `camera`, and `system_app` cannot execute native ELF files from app data under SELinux enforcing.
 
@@ -409,6 +418,44 @@ Observed optional `--fd-scan` result from the same `system_app` context on 2026-
 [-] fdscan_open_ion failed: open(/dev/ion) failed: errno=13
 ```
 
+Observed optional `--hardwarebuffer` result from the same `system_app` context on 2026-06-14:
+
+```text
+CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe --hardwarebuffer
+...
+[+] HardwareBuffer created: id=<java.lang.NoSuchMethodException: android.hardware.HardwareBuffer.getId []> width=64 height=64 format=1 layers=1 usage=0x133
+[*] HardwareBuffer parcel: dataSize=436 hasFd=true describe=0x1
+[+] AIDL HardwareBuffer readFromParcel succeeded
+[+] parcel_fd_pos_364 fd=57
+[*] hwb2_pos364        cmd=0xc0384103 ret=-12 (ENOMEM)
+[*] hwb3_pos364        cmd=0xc038410f ret=-12 (ENOMEM)
+[+] parcel_fd_pos_388 fd=57
+[*] hwb2_pos388        cmd=0xc0384103 ret=0
+    hwb2_pos388_desc: [0]=0x0 [4]=0x0 [8]=0xfd80c000 [12]=0x1000 [16]=0x4000 [20]=0x0 [24]=0x0 [28]=0x0 [32]=0x39 [36]=0x0 [40]=0x2d [44]=0x0 [48]=0x0 [52]=0x0
+[+] hwb2_pos388 succeeded; id=0x2d, cleaning up
+[*] hwb2_pos388_cleanup cmd=0xc0384102 ret=0
+[*] hwb3_pos388        cmd=0xc038410f ret=0
+    hwb3_pos388_desc: [0]=0x0 [4]=0x0 [8]=0xfd80c000 [12]=0x1000 [16]=0x4000 [20]=0x0 [24]=0x0 [28]=0x0 [32]=0x39 [36]=0x0 [40]=0x2d [44]=0x0 [48]=0x0 [52]=0x0
+[+] hwb3_pos388 succeeded; id=0x2d, cleaning up
+[*] hwb3_pos388_cleanup cmd=0xc0384110 ret=0
+[+] parcel_fd_pos_412 fd=57
+[*] hwb2_pos412        cmd=0xc0384103 ret=-12 (ENOMEM)
+[*] hwb3_pos412        cmd=0xc038410f ret=-12 (ENOMEM)
+```
+
+Interpretation: the `app_process64` runtime path provides a valid framework-created dmabuf fd to the probe. The APUSYS type-2 and type-3 memory-create paths both import the fd successfully and return an object id, and the matching free ioctls clean up successfully. Offsets `364` and `412` read fd objects from the Parcel but fail APUSYS memory-create with `ENOMEM`; offset `388` is the useful descriptor read in this run.
+
+Plain `dalvikvm64` is a negative control for this mode:
+
+```text
+dalvikvm64 -cp /data/data/com.android.settings/cache/apusys_ioctl_probe.dex ApusysIoctlProbe --hardwarebuffer
+...
+[-] load /system/lib64/libandroid_runtime.so failed: java.lang.UnsatisfiedLinkError: dlopen failed: library "/system/lib64/libandroid_runtime.so" needed or dlopened by "/apex/com.android.art/lib64/libnativeloader.so" is not accessible for the namespace "classloader-namespace"
+[-] class android.os.HwBinder unavailable: java.lang.UnsatisfiedLinkError: No implementation found for long android.os.HwBinder.native_init()
+[-] HardwareBuffer probe failed: java.lang.UnsatisfiedLinkError: No implementation found for long android.hardware.HardwareBuffer.nCreateHardwareBuffer(int, int, int, int, long)
+```
+
 Observed optional `--ucmd-negative` result from the same `system_app` context on 2026-06-14:
 
 ```text
@@ -418,16 +465,16 @@ Observed optional `--ucmd-negative` result from the same `system_app` context on
 [*] ucmd_vpu_c1_badfd  cmd=0x4014410e ret=-22 (EINVAL)
 ```
 
-Interpretation: APUSYS memory-create remains a mapped high-interest path, but current direct fd sources do not supply a valid dmabuf from `system_app`. DRM can allocate a dumb buffer but cannot export a PRIME fd. Direct old-ION allocation cannot start because `/dev/ion` open is denied in this SELinux context. This device also does not expose the tested `/dev/dma_heap/*` nodes, `/dev/ashmem` open is denied, and ordinary non-dmabuf fds fail APUSYS memory-create with `ENOMEM`. The `ucmd` negative test confirms that normal VPU arguments with offset `0` and nonzero length fail cleanly with a bad fd before any valid opcode-7 payload is possible. A later memory-import or VPU `ucmd` experiment needs a framework-mediated dmabuf allocation path or a lab context that can provide a benign dmabuf fd.
+Interpretation: APUSYS memory-create is now a mapped and runtime-confirmed import path from `system_app`. Direct node fd sources are still constrained: DRM can allocate a dumb buffer but cannot export a PRIME fd, direct old-ION allocation cannot start because `/dev/ion` open is denied, tested `/dev/dma_heap/*` nodes are absent, `/dev/ashmem` open is denied, and ordinary non-dmabuf fds fail memory-create with `ENOMEM`. The usable source is the framework path: `app_process64` can create a HardwareBuffer dmabuf and import it through APUSYS. The `ucmd` negative test confirms that normal VPU arguments with offset `0` and nonzero length fail cleanly with a bad fd; the next positive `ucmd` experiment should reuse the HardwareBuffer fd source and put `0x8001` at the start of the mapped buffer.
 
 ## Next analysis steps
 
-- Keep the current Java probe scoped to reject/query/negative-memory/device-control, fd-source scans, and controlled `ucmd` negatives. A valid dmabuf-backed descriptor is still the next step for real ION/APUSYS mapping behavior.
-- Look for a `system_app`-reachable framework or HAL path that returns a dmabuf-backed object. Direct `/dev/ion`, `/dev/ashmem`, dma-heap device nodes, and DRM PRIME export are blocked or unavailable in the current context.
+- Keep the current Java probe scoped to reject/query/negative-memory/device-control, fd-source scans, HardwareBuffer fd import, and controlled `ucmd` tests.
+- Use the `app_process64` HardwareBuffer path as the baseline fd source. Direct `/dev/ion`, `/dev/ashmem`, dma-heap device nodes, and DRM PRIME export remain blocked or unavailable in the current context.
 - Use kernel logs, if available from the lab context, to distinguish whether the `ENOMEM` path comes from ION import, cache sync, or IOVA map setup.
 - Keep `mdw_usr_get_cmd_ops` / `0xffffffc00a188e58` marked unresolved. Leave the `run_cmd` `+0x0c` early-reject field set while resolving the indirect call targets.
 - For `0x400C4109`, optional follow-up is a small control-value sweep on the live-success providers while watching return codes and kernel logs. The current control value `0` already confirms provider opcode `0` reachability.
-- For `mdw_usr_ucmd`, the next concrete experiment is a valid dmabuf fd plus a mapped buffer whose first u32 is `0x8001`, using device id `3` for normal VPU and a live core id observed through `--dev-ctrl`.
+- For `mdw_usr_ucmd`, the next concrete experiment is the HardwareBuffer dmabuf fd plus a mapped buffer whose first u32 is `0x8001`, using device id `3` for normal VPU and a live core id observed through `--dev-ctrl`.
 - Resolve the raw VPU algo ops table address form before treating the `payload+4` cooling-device-name comparisons as the final opcode-7 payload ABI.
 - Continue mapping `mdla_run_command_sync`, `vpu_execute`, and `edma_execute` input structures before valid command-buffer experiments.
 - Continue scheduler/queue analysis after command parser targets are known. Valid command-buffer experiments come after that mapping.

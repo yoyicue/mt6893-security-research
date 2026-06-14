@@ -53,6 +53,7 @@ public final class ApusysIoctlProbe {
         boolean memIon = false;
         boolean fdScan = false;
         boolean ucmdNegative = false;
+        boolean hardwareBuffer = false;
         for (String arg : args) {
             if ("--query".equals(arg)) {
                 query = true;
@@ -68,13 +69,16 @@ public final class ApusysIoctlProbe {
                 fdScan = true;
             } else if ("--ucmd-negative".equals(arg)) {
                 ucmdNegative = true;
+            } else if ("--hardwarebuffer".equals(arg)) {
+                hardwareBuffer = true;
             } else {
                 throw new IllegalArgumentException("unknown option: " + arg);
             }
         }
 
         System.out.println("[*] === APUSYS ioctl probe ===");
-        if (memNegative || devCtrl || memDmabuf || memIon || fdScan || ucmdNegative) {
+        if (memNegative || devCtrl || memDmabuf || memIon
+                || fdScan || ucmdNegative || hardwareBuffer) {
             System.out.println("[*] Mode: optional checks enabled;"
                 + " no secure alloc/free, no valid cmdbuf\n");
         } else {
@@ -141,6 +145,10 @@ public final class ApusysIoctlProbe {
                 runUcmdNegative(fd);
             }
 
+            if (hardwareBuffer) {
+                runHardwareBufferProbe(fd);
+            }
+
             System.out.println("\n[+] Probe completed. Interpret results as handler reachability only.");
         } finally {
             if (fd >= 0) {
@@ -159,20 +167,20 @@ public final class ApusysIoctlProbe {
         long memA = DrmTrigger.sScratchBuf + OFF_MEM_A;
         DrmTrigger.zeroMem(memA, 0x38);
         long ret = ioctlAndPrint(fd, "mem_create2_zero", APUSYS_CMD_MEM_CREATE2, memA);
-        cleanupUnexpectedMemSuccess(fd, "mem_create2", APUSYS_CMD_MEM_FREE_02, memA, ret);
+        cleanupMemSuccess(fd, "mem_create2", APUSYS_CMD_MEM_FREE_02, memA, ret);
         DrmTrigger.zeroMem(memA, 0x38);
         DrmTrigger.unsafePutInt(memA + 0x20, -1);
         ret = ioctlAndPrint(fd, "mem_create2_badfd", APUSYS_CMD_MEM_CREATE2, memA);
-        cleanupUnexpectedMemSuccess(fd, "mem_create2", APUSYS_CMD_MEM_FREE_02, memA, ret);
+        cleanupMemSuccess(fd, "mem_create2", APUSYS_CMD_MEM_FREE_02, memA, ret);
 
         long memB = DrmTrigger.sScratchBuf + OFF_MEM_B;
         DrmTrigger.zeroMem(memB, 0x38);
         ret = ioctlAndPrint(fd, "mem_create3_zero", APUSYS_CMD_MEM_CREATE3, memB);
-        cleanupUnexpectedMemSuccess(fd, "mem_create3", APUSYS_CMD_MEM_FREE_10, memB, ret);
+        cleanupMemSuccess(fd, "mem_create3", APUSYS_CMD_MEM_FREE_10, memB, ret);
         DrmTrigger.zeroMem(memB, 0x38);
         DrmTrigger.unsafePutInt(memB + 0x20, -1);
         ret = ioctlAndPrint(fd, "mem_create3_badfd", APUSYS_CMD_MEM_CREATE3, memB);
-        cleanupUnexpectedMemSuccess(fd, "mem_create3", APUSYS_CMD_MEM_FREE_10, memB, ret);
+        cleanupMemSuccess(fd, "mem_create3", APUSYS_CMD_MEM_FREE_10, memB, ret);
     }
 
     private static void runDevCtrlProbe(int fd) throws Exception {
@@ -397,6 +405,252 @@ public final class ApusysIoctlProbe {
         return ioctlAndPrint(apusysFd, name, APUSYS_CMD_UCMD, ucmd);
     }
 
+    private static void runHardwareBufferProbe(int apusysFd) throws Exception {
+        System.out.println("\n[*] === Optional HardwareBuffer dmabuf probe ===");
+        System.out.println("[*] Mode: allocate HardwareBuffer, inspect fd-bearing Parcel,"
+            + " import discovered fds through APUSYS memory-create only");
+
+        loadRuntimeLibraries();
+        dumpClassShape("android.os.HwBinder");
+        dumpClassShape("android.os.HwParcel");
+        dumpClassShape("android.os.NativeHandle");
+        dumpClassShape("android.hardware.common.NativeHandle");
+        dumpClassShape("android.hardware.graphics.common.HardwareBuffer");
+        dumpClassShape("android.hardware.graphics.allocator.V4_0.IAllocator");
+
+        android.hardware.HardwareBuffer hb = null;
+        android.os.Parcel parcel = null;
+        try {
+            long usage = android.hardware.HardwareBuffer.USAGE_CPU_READ_OFTEN
+                | android.hardware.HardwareBuffer.USAGE_CPU_WRITE_OFTEN
+                | android.hardware.HardwareBuffer.USAGE_GPU_SAMPLED_IMAGE;
+            hb = android.hardware.HardwareBuffer.create(
+                64, 64, android.hardware.HardwareBuffer.RGBA_8888, 1, usage);
+            System.out.println("[+] HardwareBuffer created:"
+                + " id=" + optionalLongMethod(hb, "getId")
+                + " width=" + optionalIntMethod(hb, "getWidth")
+                + " height=" + optionalIntMethod(hb, "getHeight")
+                + " format=" + optionalIntMethod(hb, "getFormat")
+                + " layers=" + optionalIntMethod(hb, "getLayers")
+                + " usage=" + optionalLongMethod(hb, "getUsage"));
+
+            parcel = android.os.Parcel.obtain();
+            hb.writeToParcel(parcel, 0);
+            int size = parcel.dataSize();
+            System.out.println("[*] HardwareBuffer parcel: dataSize=" + size
+                + " hasFd=" + parcel.hasFileDescriptors()
+                + " describe=0x" + Integer.toHexString(hb.describeContents()));
+
+            tryReadAidlHardwareBuffer(apusysFd, parcel);
+            bruteReadParcelFds(apusysFd, parcel, size);
+        } catch (Throwable t) {
+            System.out.println("[-] HardwareBuffer probe failed: " + shortThrowable(t));
+        } finally {
+            if (parcel != null) {
+                parcel.recycle();
+            }
+            if (hb != null) {
+                hb.close();
+            }
+        }
+    }
+
+    private static void loadRuntimeLibraries() {
+        String[] libs = {
+            "/apex/com.android.art/lib64/libnativehelper.so",
+            "/system/lib64/libhidlbase.so",
+            "/system/lib64/libhidltransport.so",
+            "/system/lib64/libui.so",
+            "/system/lib64/libgui.so",
+            "/system/lib64/libhwui.so",
+            "/system/lib64/libandroid_runtime.so"
+        };
+        for (int i = 0; i < libs.length; i++) {
+            try {
+                System.load(libs[i]);
+                System.out.println("[+] loaded " + libs[i]);
+            } catch (Throwable t) {
+                System.out.println("[-] load " + libs[i] + " failed: " + shortThrowable(t));
+            }
+        }
+    }
+
+    private static void tryReadAidlHardwareBuffer(int apusysFd, android.os.Parcel parcel)
+            throws Exception {
+        try {
+            Class<?> hbClass = Class.forName("android.hardware.graphics.common.HardwareBuffer");
+            Object aidlHb = hbClass.getDeclaredConstructor().newInstance();
+            java.lang.reflect.Method read = hbClass.getDeclaredMethod(
+                "readFromParcel", android.os.Parcel.class);
+            read.setAccessible(true);
+            parcel.setDataPosition(0);
+            read.invoke(aidlHb, parcel);
+            System.out.println("[+] AIDL HardwareBuffer readFromParcel succeeded");
+            dumpObjectFields("aidl_hardware_buffer", aidlHb, 0);
+            importFdsFromObject(apusysFd, "aidl_hwb", aidlHb, 0);
+        } catch (Throwable t) {
+            System.out.println("[-] AIDL HardwareBuffer parse failed: " + shortThrowable(t));
+        }
+    }
+
+    private static void bruteReadParcelFds(int apusysFd, android.os.Parcel parcel, int size)
+            throws Exception {
+        boolean found = false;
+        int limit = size < 0x1000 ? size : 0x1000;
+        for (int pos = 0; pos < limit; pos += 4) {
+            try {
+                parcel.setDataPosition(pos);
+                android.os.ParcelFileDescriptor pfd = parcel.readFileDescriptor();
+                if (pfd == null) {
+                    continue;
+                }
+                int fd = pfd.getFd();
+                System.out.println("[+] parcel_fd_pos_" + pos + " fd=" + fd);
+                found = true;
+                runMemCreateWithFd(apusysFd, "hwb2_pos" + pos,
+                    APUSYS_CMD_MEM_CREATE2, APUSYS_CMD_MEM_FREE_02, fd, 0x4000);
+                runMemCreateWithFd(apusysFd, "hwb3_pos" + pos,
+                    APUSYS_CMD_MEM_CREATE3, APUSYS_CMD_MEM_FREE_10, fd, 0x4000);
+                pfd.close();
+            } catch (Throwable ignored) {
+                // Most parcel offsets are not file-descriptor objects.
+            }
+        }
+        if (!found) {
+            System.out.println("[-] No ParcelFileDescriptor could be read from HardwareBuffer parcel");
+        }
+    }
+
+    private static void importFdsFromObject(int apusysFd, String prefix,
+                                            Object obj, int depth) throws Exception {
+        if (obj == null || depth > 4) {
+            return;
+        }
+
+        if (obj instanceof android.os.ParcelFileDescriptor) {
+            int fd = ((android.os.ParcelFileDescriptor) obj).getFd();
+            System.out.println("[+] " + prefix + "_pfd fd=" + fd);
+            runMemCreateWithFd(apusysFd, prefix + "_mem2",
+                APUSYS_CMD_MEM_CREATE2, APUSYS_CMD_MEM_FREE_02, fd, 0x4000);
+            runMemCreateWithFd(apusysFd, prefix + "_mem3",
+                APUSYS_CMD_MEM_CREATE3, APUSYS_CMD_MEM_FREE_10, fd, 0x4000);
+            return;
+        }
+
+        Class<?> cls = obj.getClass();
+        if (cls.isArray()) {
+            int len = java.lang.reflect.Array.getLength(obj);
+            for (int i = 0; i < len; i++) {
+                importFdsFromObject(apusysFd, prefix + "_" + i,
+                    java.lang.reflect.Array.get(obj, i), depth + 1);
+            }
+            return;
+        }
+
+        java.lang.reflect.Field[] fields = cls.getDeclaredFields();
+        for (int i = 0; i < fields.length; i++) {
+            java.lang.reflect.Field f = fields[i];
+            f.setAccessible(true);
+            try {
+                Object value = f.get(obj);
+                importFdsFromObject(apusysFd, prefix + "_" + f.getName(),
+                    value, depth + 1);
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    private static void dumpClassShape(String name) {
+        try {
+            Class<?> cls = Class.forName(name);
+            System.out.println("[+] class " + name + " present");
+            java.lang.reflect.Field[] fields = cls.getDeclaredFields();
+            for (int i = 0; i < fields.length && i < 12; i++) {
+                System.out.println("    field " + fields[i].toString());
+            }
+            java.lang.reflect.Method[] methods = cls.getDeclaredMethods();
+            for (int i = 0; i < methods.length && i < 12; i++) {
+                System.out.println("    method " + methods[i].toString());
+            }
+        } catch (Throwable t) {
+            System.out.println("[-] class " + name + " unavailable: " + shortThrowable(t));
+        }
+    }
+
+    private static void dumpObjectFields(String label, Object obj, int depth) {
+        if (obj == null || depth > 3) {
+            return;
+        }
+        Class<?> cls = obj.getClass();
+        System.out.println("    " + label + " class=" + cls.getName());
+        java.lang.reflect.Field[] fields = cls.getDeclaredFields();
+        for (int i = 0; i < fields.length && i < 16; i++) {
+            java.lang.reflect.Field f = fields[i];
+            f.setAccessible(true);
+            try {
+                Object value = f.get(obj);
+                System.out.println("    " + label + "." + f.getName()
+                    + "=" + fieldValue(value));
+                if (value != null && !isSimpleValue(value)) {
+                    dumpObjectFields(label + "." + f.getName(), value, depth + 1);
+                }
+            } catch (Throwable t) {
+                System.out.println("    " + label + "." + f.getName()
+                    + "=<" + shortThrowable(t) + ">");
+            }
+        }
+    }
+
+    private static boolean isSimpleValue(Object value) {
+        return value instanceof String
+            || value instanceof Number
+            || value instanceof Boolean
+            || value.getClass().isPrimitive();
+    }
+
+    private static String fieldValue(Object value) {
+        if (value == null) {
+            return "null";
+        }
+        Class<?> cls = value.getClass();
+        if (!cls.isArray()) {
+            return value.toString();
+        }
+        return cls.getComponentType().getName() + "[" + java.lang.reflect.Array.getLength(value) + "]";
+    }
+
+    private static String optionalIntMethod(Object obj, String name) {
+        try {
+            java.lang.reflect.Method method = obj.getClass().getMethod(name);
+            Object value = method.invoke(obj);
+            return String.valueOf(value);
+        } catch (Throwable t) {
+            return "<" + shortThrowable(t) + ">";
+        }
+    }
+
+    private static String optionalLongMethod(Object obj, String name) {
+        try {
+            java.lang.reflect.Method method = obj.getClass().getMethod(name);
+            Object value = method.invoke(obj);
+            if (value instanceof Number) {
+                return "0x" + Long.toHexString(((Number) value).longValue());
+            }
+            return String.valueOf(value);
+        } catch (Throwable t) {
+            return "<" + shortThrowable(t) + ">";
+        }
+    }
+
+    private static String shortThrowable(Throwable t) {
+        Throwable cause = t;
+        if (t instanceof java.lang.reflect.InvocationTargetException
+                && ((java.lang.reflect.InvocationTargetException) t).getTargetException() != null) {
+            cause = ((java.lang.reflect.InvocationTargetException) t).getTargetException();
+        }
+        return cause.getClass().getName() + ": " + cause.getMessage();
+    }
+
     private static int ionAlloc(int ionFd, int heapMask, int size) throws Exception {
         long alloc = DrmTrigger.sScratchBuf + OFF_ION_ALLOC;
         DrmTrigger.zeroMem(alloc, 0x20);
@@ -455,18 +709,18 @@ public final class ApusysIoctlProbe {
         if (ret >= 0) {
             dumpU32Words(name + "_desc", mem, 0x38);
         }
-        cleanupUnexpectedMemSuccess(fd, name, freeCmd, mem, ret);
+        cleanupMemSuccess(fd, name, freeCmd, mem, ret);
     }
 
-    private static void cleanupUnexpectedMemSuccess(int fd, String name, long freeCmd,
-                                                    long mem, long ret) throws Exception {
+    private static void cleanupMemSuccess(int fd, String name, long freeCmd,
+                                          long mem, long ret) throws Exception {
         if (ret < 0) {
             return;
         }
 
         long id = DrmTrigger.unsafeGetLong(mem + 0x28);
-        System.out.println("[!] " + name + " unexpectedly succeeded; id=0x"
-            + Long.toHexString(id) + ", attempting cleanup");
+        System.out.println("[+] " + name + " succeeded; id=0x"
+            + Long.toHexString(id) + ", cleaning up");
         ioctlAndPrint(fd, name + "_cleanup", freeCmd, mem);
     }
 

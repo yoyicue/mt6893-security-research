@@ -30,6 +30,8 @@ Raw outputs from this run are archived in this directory.
 | `13_apusys_mem_ion.txt` | APUSYS memory-create fd-source check using old ION allocation/share path |
 | `13_apusys_fd_scan.txt` | APUSYS memory-create candidate-fd scan for dma-heap and ordinary openable fds |
 | `13_apusys_ucmd_negative.txt` | APUSYS normal VPU `ucmd` negative with offset 0, nonzero length, and bad fd |
+| `13_apusys_hardwarebuffer.txt` | APUSYS HardwareBuffer fd-source negative control under plain `dalvikvm64` |
+| `13_apusys_hardwarebuffer_app_process.txt` | APUSYS HardwareBuffer fd-source positive import under `app_process64` |
 | `02_vuln_check_jit.txt` | Mali JIT `DONT_NEED` check for CVE-2022-38181 style chain |
 | `02_diag_dont_need.txt` | Mali non-JIT `DONT_NEED` behavior |
 | `03_diag_refcount.txt` | CVE-2022-36449 page refcount diagnostic |
@@ -87,7 +89,7 @@ Next experiment:
 
 ### 2. Batch 4: APU / ION
 
-Risk after test: **APUSYS remains medium-high; direct ION from system_app moves down**.
+Risk after test: **APUSYS moves up inside the medium-high tier; direct ION from system_app moves down**.
 
 Evidence:
 
@@ -106,6 +108,13 @@ Evidence:
 [-] fdscan_open_ashmem failed: open(/dev/ashmem) failed: errno=13
 [*] fdscan2_dri_card0  cmd=0xc0384103 ret=-12 (ENOMEM)
 [*] ucmd_vpu_c0_badfd  cmd=0x4014410e ret=-22 (EINVAL)
+[+] HardwareBuffer created: id=<java.lang.NoSuchMethodException: android.hardware.HardwareBuffer.getId []> width=64 height=64 format=1 layers=1 usage=0x133
+[*] HardwareBuffer parcel: dataSize=436 hasFd=true describe=0x1
+[+] parcel_fd_pos_388 fd=57
+[*] hwb2_pos388        cmd=0xc0384103 ret=0
+[+] hwb2_pos388 succeeded; id=0x2d, cleaning up
+[*] hwb3_pos388        cmd=0xc038410f ret=0
+[+] hwb3_pos388 succeeded; id=0x2d, cleaning up
 ```
 
 `systemapp_service_probe.txt` shows `/dev/ion` exists and is world-readable/writable at DAC level:
@@ -120,19 +129,20 @@ Interpretation:
 
 - `/dev/apusys` is a real reachable kernel surface from `system_app`.
 - APUSYS device-control ioctl `0x400C4109` reaches live provider opcode-0 paths for MDLA, normal VPU, EDMA, and MDLA RT. VPU RT returns `EACCES` on the same opcode.
-- APUSYS memory-create type-2/type-3 remains the highest APUSYS subpath, but the current experiment lacks a valid dmabuf fd source in this context.
-- APUSYS `mdw_usr_ucmd` now has a concrete normal VPU opcode-7 gate: a valid dmabuf-backed mapping, offset `0`, nonzero length, device id `3`, a live core id, and first mapped u32 `0x8001`.
+- APUSYS memory-create type-2/type-3 is now the highest APUSYS subpath with a working fd source: `app_process64` can create an `android.hardware.HardwareBuffer`, extract a fd-bearing Parcel entry, and import it through both memory-create variants.
+- APUSYS `mdw_usr_ucmd` now has a concrete normal VPU opcode-7 gate: the HardwareBuffer fd source can satisfy the dmabuf-backed mapping prerequisite; the remaining inputs are offset `0`, nonzero length, device id `3`, a live core id, and first mapped u32 `0x8001`.
 - Candidate-fd scanning shows no tested `/dev/dma_heap/*` nodes, `/dev/ashmem` open is denied, and ordinary openable non-dmabuf fds fail memory-create with `ENOMEM`.
 - Normal VPU `ucmd` with offset `0`, nonzero length, and bad fd fails cleanly with `EINVAL` for core `0` and `1`.
 - DRM dumb buffer creation works from `system_app`, but PRIME fd export returns `EACCES`.
 - Direct `/dev/ion` allocation/share is blocked at open with `EACCES` despite permissive-looking DAC bits on the node.
+- Plain `dalvikvm64` cannot create `HardwareBuffer` because framework native libraries are not available in its classloader namespace. The same dex under `app_process64` has working `HwBinder/HwParcel` JNI and can create/import the buffer.
 - Mali WRITE_VALUE works, but it was already reachable from uid=2000 shell and remains bounded to GPU-mapped userspace VA. It does not become a kernel primitive from uid=1000 alone.
 
 Resulting CVE priority:
 
 | CVE / Area | Post-run Risk | Reason |
 |---|---|---|
-| APUSYS CVE candidates | Medium-High | `/dev/apusys` opens with `O_RDWR`; `0x400C4109` provider opcode-0 dispatch is live for MDLA, normal VPU, EDMA, and MDLA RT. Memory-create and normal VPU opcode-7 `ucmd` are mapped, but direct fd-source tests did not find a usable dmabuf fd. |
+| APUSYS CVE candidates | Medium-High, rising | `/dev/apusys` opens with `O_RDWR`; `0x400C4109` provider opcode-0 dispatch is live for MDLA, normal VPU, EDMA, and MDLA RT. HardwareBuffer under `app_process64` provides a usable dmabuf fd, and both type-2 and type-3 APUSYS memory-create paths import it successfully. |
 | CVE-2023-20768 / ION | Medium-Low for direct system_app node access | Dedicated old-ION path confirms `/dev/ion` open returns `EACCES` from `system_app`. |
 | Mali WRITE_VALUE boundary | Low for kernel LPE | WRITE_VALUE confirmed, but USER_BUFFER/kernel reachability is blocked. |
 
@@ -229,7 +239,7 @@ Resulting CVE priority:
 ## Final Post-Run Order
 
 1. **Display / DRM OOB read/write cluster**: `CVE-2023-32867`, `32868`, then `32865`, `32864`, `32863`, `20775`, `32860`. `32864` and `32865` remain reachable but the first guard probes did not confirm exploitable write paths.
-2. **APUSYS reachable surface**: APUSYS-related CVEs should be mapped next because `/dev/apusys` opens from `system_app`; the immediate experiment blocker is a framework/HAL or lab-context dmabuf fd for memory-create and normal VPU `ucmd`.
+2. **APUSYS reachable surface**: APUSYS-related CVEs should be mapped next because `/dev/apusys` opens from `system_app`, provider dispatch is live, and HardwareBuffer under `app_process64` supplies a dmabuf fd that APUSYS imports successfully. The next experiment is normal VPU `ucmd` with device id `3`, core `0/1`, offset `0`, nonzero length, and first mapped u32 `0x8001`.
 3. **secmem / keyinstall via service paths**: `CVE-2023-32834`, `CVE-2023-32835`; direct secure nodes are blocked, so service PoC needed.
 4. **CMDQ / PQ / MMP indirect paths**: `CVE-2023-32849`, `CVE-2024-20037`, `CVE-2023-32866`; direct nodes blocked.
 5. **ION**: keep as pending until strict open/ioctl reachability is resolved.
@@ -239,4 +249,4 @@ Resulting CVE priority:
 
 - This ranking is based on safe PoCs and reachability probes only.
 - No kernel-corrupting OOB write was executed.
-- A candidate can move up again if IDA identifies a reachable ioctl/service path that does not require blocked device nodes.
+- A candidate can move up again if IDA identifies a reachable ioctl/service path, or if an existing framework/HAL fd source unlocks a deeper path.
