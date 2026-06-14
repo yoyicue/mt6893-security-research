@@ -153,7 +153,7 @@ The normal VPU provider opcode-7 branch at `0xffffffc0087a093c` then applies its
 - provider argument `+0x0c` is nonzero, which corresponds to user `+0x10`;
 - first u32 at the mapped KVA is `0x8001`.
 
-After the `0x8001` check, normal VPU uses `mapped_kva + 4` as the payload pointer. It locks the global VPU driver object, walks the registered VPU core list at `g_vpu_drv+0xb0`, and tries the per-core Normal algorithm set first, then the Preload set. A zero lookup result from both sets leads to the observed `ENOENT`. The current runtime result therefore means the fd import, KVA mapping, size check, provider dispatch, and `0x8001` header gate have all succeeded; the missing piece is a lookup key inside the mapped payload.
+After the `0x8001` check, normal VPU uses `mapped_kva + 4` as the payload pointer. It locks the global VPU driver object, walks the registered VPU core list at `g_vpu_drv+0xb0`, and tries the per-core Normal algorithm set first, then the Preload set. A zero lookup result from both sets reaches `0xffffffc0087a0c70`, which unlocks and returns `-ENOENT`. The empty-list path is different: it reaches `0xffffffc0087a0a88` and returns success. The current runtime result therefore means the fd import, KVA mapping, size check, provider dispatch, `0x8001` header gate, and at least one Normal/Preload lookup attempt have all succeeded; the missing piece is the expected payload key.
 
 `vpu_init_dev_algo_sets` initializes those sets at core offsets:
 
@@ -173,7 +173,7 @@ The raw ops tables are named `vpu_normal_algo_ops_raw` at `0xffffffc00979ae70` a
 | Normal/Preload `+0x20` | `0xffffff8008821a64` | `sub_FFFFFFC008821994+0xd0` |
 | Normal-only `+0x28` | `0xffffff8008827d40` | `sub_FFFFFFC008827CF4+0x4c` |
 
-Those normalized landing points are instruction labels inside existing functions, not prologue/BTI-style function starts, and several would use callee-saved registers that the `BLR` call sites do not initialize. Treat them as unresolved flat-Image relocation artifacts, not as APUSYS callback entrypoints.
+Those normalized landing points are instruction labels inside existing functions, not prologue/BTI-style function starts, and several would use callee-saved registers that the `BLR` call sites do not initialize. Treat them as unresolved flat-Image relocation artifacts, not as APUSYS callback entrypoints. Because the runtime `0x8001` test returns `-ENOENT` instead of crashing, the live kernel must have valid callback targets at the lookup call sites; this IDB just does not recover those targets from the raw table values alone.
 
 The thermal/battery cooling-device cluster around `0xffffffc0088216d4` still matters as a nearby static clue: it compares configured strings such as `mtk-cl-bcct02`, `mtk-cl-bcct01`, and `mtk-cl-bcct00`, plus runtime/BSS slots at `0xffffffc00a1c6308` through `0xffffffc00a1c6380`, and references `mtk_thermal_zone_bind_cooling_device_wrapper` plus list-removal helpers. However, this cluster is no longer treated as the confirmed normal VPU opcode-7 ABI. Do not add a matching-key runtime test until the actual relocated ops callbacks are recovered from a better-symbolized kernel image, runtime table dump, or kallsyms-equivalent evidence.
 
