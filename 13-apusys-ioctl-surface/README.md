@@ -13,7 +13,7 @@ The current result is **reachable through APUSYS memory import, normal-VPU algor
 
 The directory has no CVE number yet. The repository uses CVE-numbered directories when a test is tied to a specific public CVE or confirmed bug class. APUSYS is currently an exposed proprietary ioctl surface with confirmed VPU hardware dispatch reachability from an unprivileged `system_app` context, but no confirmed CVE match or memory corruption primitive.
 
-This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths, negative memory-create cases, optional device-control reachability checks, direct dmabuf-source checks, a candidate-fd scan for the memory import path, HardwareBuffer-backed dmabuf import, controlled `ucmd` gate tests, zero-header / invalid-subcommand `run_cmd_async` parser probes, a normal-VPU valid-type request-size guard probe, a full-size (`0xb70`) VPU execution probe, a chained IOVA-import + VPU request probe, an XRP-shaped APUNN settings probe, no-dispatch IOVA controls, a small APUNN/XRP opcode/operand matrix mode, and two-native-buffer internal-command-shaped modes with minimal/libvpu-style descriptor metadata, wrapper send-state command flags, output-first descriptor order, wrapper-sized settings, output-ready header state, one standard APUNN data descriptor, and an Xtensa operation operand-list offset matrix. The remaining closure work is to align the Java request with the target wrapper's five-descriptor request builder and recover the firmware output/completion contract.
+This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths, negative memory-create cases, optional device-control reachability checks, direct dmabuf-source checks, a candidate-fd scan for the memory import path, HardwareBuffer-backed dmabuf import, controlled `ucmd` gate tests, zero-header / invalid-subcommand `run_cmd_async` parser probes, a normal-VPU valid-type request-size guard probe, a full-size (`0xb70`) VPU execution probe, a chained IOVA-import + VPU request probe, an XRP-shaped APUNN settings probe, no-dispatch IOVA controls, a small APUNN/XRP opcode/operand matrix mode, and two-native-buffer internal-command-shaped modes with minimal/libvpu-style descriptor metadata, wrapper send-state command flags, output-first descriptor order, wrapper-sized settings, output-ready header state, one standard APUNN data descriptor, an Xtensa operation operand-list offset matrix, and a target-wrapper-shaped five-descriptor/no-settings-property replay with an explicit wait variant. The remaining closure work is to recover the firmware output/completion contract.
 
 ## IDA handler map
 
@@ -760,6 +760,21 @@ and code word `0` changes `0x2713 -> 0x271b`. The five-identical-code-buffer
 native descriptor shape is therefore not the missing APUNN completion
 condition.
 
+The closer target-wrapper replay
+`--run-cmd-vpu-xrp-target-code5-no-settings-iova` keeps the same five copied
+code/input descriptors but clears the native VPU settings tuple
+(`request+0x38 = 0`, `request+0x40 = 0`) because the target
+`CreateVpuRequest()` path has no visible `vpuRequest_setProperty()` call. Its
+control leaves all windows unchanged. Dispatch returns `0`, VPU boot/map logs
+are present, settings/output/data windows remain unchanged, and code word `0`
+changes `0x2713 -> 0x271b`. The explicit wait variant
+`--run-cmd-vpu-xrp-target-code5-no-settings-wait-iova` also returns `0` from
+`mdw_usr_wait_cmd` and consumes the command id without producing APUNN
+settings completion or output writeback. Therefore the no-settings-property
+five-descriptor shape is accepted by the APUSYS/VPU path and reaches the same
+descriptor-0 writeback boundary, but still does not expose the APUNN normal
+output contract.
+
 IDA confirms `request+0x28` bit `2` is not just firmware payload: the normal
 VPU provider uses it to select `vpu_execute_with_slot()`, and `vpu_execute()`
 uses it to choose the Preload algorithm set instead of trying Normal first. The
@@ -805,12 +820,12 @@ Current primitive closure status:
 
 | Candidate | Status | Current evidence | Missing evidence |
 |---|---|---|---|
-| Firmware interaction | Partially complete | `system_app` can import HardwareBuffer dmabufs, submit full-size VPU requests, reach `apu_lib_apunn`, and drive the D2D_EXT handoff with firmware-visible descriptor/settings IOVAs. Host debug helpers also pin the basic Xtensa operation fields and confirm `10003` as `XTENSA_ANN_VERSION`. The flags matrix shows `settings[0]` is preserved and not a standalone completion trigger. The operand-offset matrix shows `entry+0x08` values `0/0x10/0x40/0x100` are accepted but do not change the incomplete code-first boundary. This is enough for parser and descriptor-binding experiments. | Normal APUNN completion/output contract: `XTENSA_INFO00/02`, firmware-driven settings transition to `(flags & 0x0a) == 0x02`, and wrapper `WritebackCommand()` output flow. |
+| Firmware interaction | Partially complete | `system_app` can import HardwareBuffer dmabufs, submit full-size VPU requests, reach `apu_lib_apunn`, and drive the D2D_EXT handoff with firmware-visible descriptor/settings IOVAs. Host debug helpers also pin the basic Xtensa operation fields and confirm `10003` as `XTENSA_ANN_VERSION`. The flags matrix shows `settings[0]` is preserved and not a standalone completion trigger. The operand-offset matrix shows `entry+0x08` values `0/0x10/0x40/0x100` are accepted but do not change the incomplete code-first boundary. The target-wrapper-shaped `buffer_count=5`, no-settings-property replay is accepted, produces the same descriptor-0 code writeback, and its wait variant returns `0`; this is enough for parser, descriptor-binding, and command-lifetime experiments. | Normal APUNN completion/output contract: `XTENSA_INFO00/02`, firmware-driven settings transition to `(flags & 0x0a) == 0x02`, and wrapper `WritebackCommand()` output flow. |
 | Writeback leak | Not established | Split-target and output-first runs prove descriptor-backed first-word deltas follow copied native VPU descriptors. | A source-sensitive copyback or leak from firmware/APUNN output memory into attacker-readable memory. Current deltas look status/side-effect-like, not a leak primitive. |
 | Timeout UAF | Not established | Async, wait-after-async, teardown, and timeout runs map a real command lifetime edge; wait consumes the command id and converts the current request to `-EIO`. | Any stale command reuse, corrupted object access, refcount imbalance, or crash tied to fd close/process teardown/abort timing. |
 
 1. **VPU D2D_EXT parameter ABI and IOVA-chain validation**: Highest current APUSYS task. `system_app` can import HardwareBuffer dmabufs, get APUSYS IOVA values, submit full-size normal-VPU requests, and reach `apu_lib_apunn`. IDA confirms the firmware handoff in `vpu_execute_d2d_handoff`: `request+0x50` is copied as `buffer_count * 0x40` bytes into the per-priority D2D buffer, then firmware receives `buffer_count`, the copied `struct vpu_buffer[]` IOVA, `sett_ptr`, and `sett_length` through `XTENSA_INFO12..15`; D2D_EXT also carries preload entry/IRAM through `XTENSA_INFO16/19`. Runtime shows VPU boot/map activity and descriptor-following into imported memory. APUNN output/data consumption is still not proven.
-2. **Firmware completion/output contract under VPU dispatch**: The one-buffer internal query/status shapes timeout in the VPU worker. The two-native-buffer internal-command-shaped probe changes lifecycle behavior: `run_cmd_async` returns `0`, teardown logs residual command state, and the visible writeback follows copied native buffer descriptor `0`. Libvpu-style descriptor metadata (`port_id=1`, `height=1`, `stride=size`), a five-descriptor alias shape, five identical code/input descriptors, wrapper send-state settings `+0x00 = 0x5`, pre-seeded completion-like settings `+0x00 = 0x2/0x3`, output-first descriptor order, `request+0x38 = 0x68`, output header `+0x10 = 1`, wrapper-default output size `0x40`, wrapper dynamic output size `0x44`, one standard APUNN data descriptor, caller-supplied `request+0x28` bit `2`, and relocated zero-output operand-list offsets `0/0x10/0x40/0x100` do not change the completion/output boundary. The wait-after-async variant maps the current wrapper-zero-data request to `-EIO` without changing APUNN settings/output, so the midware sees a failed subcommand rather than normal APUNN completion. Static wrapper analysis now separates this probe shape from the ordinary `PrepareXrpCommand()` / `FinalizeXrpCommand()` path. The remaining contract is what makes firmware signal done through `XTENSA_INFO00/02`, actively transition settings flags to `(settings[0] & 0x0a) == 0x02`, and cause APUNN output writeback through the wrapper's normal output path.
+2. **Firmware completion/output contract under VPU dispatch**: The one-buffer internal query/status shapes timeout in the VPU worker. The two-native-buffer internal-command-shaped probe changes lifecycle behavior: `run_cmd_async` returns `0`, teardown logs residual command state, and the visible writeback follows copied native buffer descriptor `0`. Libvpu-style descriptor metadata (`port_id=1`, `height=1`, `stride=size`), a five-descriptor alias shape, five identical code/input descriptors, wrapper send-state settings `+0x00 = 0x5`, pre-seeded completion-like settings `+0x00 = 0x2/0x3`, output-first descriptor order, `request+0x38 = 0x68`, clearing the settings tuple to match the target wrapper's no-`setProperty` path, output header `+0x10 = 1`, wrapper-default output size `0x40`, wrapper dynamic output size `0x44`, one standard APUNN data descriptor, caller-supplied `request+0x28` bit `2`, and relocated zero-output operand-list offsets `0/0x10/0x40/0x100` do not change the completion/output boundary. The wrapper-zero-data wait-after-async variant maps to `-EIO`; the target-wrapper no-settings wait variant returns `0` but still leaves APUNN settings/output unchanged. Static wrapper analysis now separates the property-path probes from the ordinary target `CreateVpuRequest()` path. The remaining contract is what makes firmware signal done through `XTENSA_INFO00/02`, actively transition settings flags to `(settings[0] & 0x0a) == 0x02`, and cause APUNN output writeback through the wrapper's normal output path.
 3. **Timeout-path command object lifetime**: `run_cmd_async` returns before the worker completes. Guard, async-only, and two-buffer runs show residual command cleanup boundaries; the wait-after-async run consumes the command id and avoids `mdw_usr_destroy residual cmd`, but returns `-EIO`. The lifetime edge is therefore real enough for fd close, process teardown, timeout, and abort experiments, but UAF has not been demonstrated.
 4. **Writeback attribution and command-buffer copyback**: Split-target, two-buffer, output-first, and wrapper-zero-data runs localize the visible imported-buffer deltas to native VPU plane IOVAs reached through copied descriptors. The `ann_version_status_bit3_out0` run separates the earlier apparent `+8` operation-word write from the stable descriptor `0` writeback, and the output-first run shows that moving descriptor `0` to output moves the delta to the output header. The remaining attribution task is the semantic meaning of the descriptor-backed first-word change and whether it is firmware status, request-result state, or an internal command side effect. A general writeback leak or APUNN output-section copyback is not established.
 5. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` import HardwareBuffer fds through APUSYS type-2/type-3 memory-create and copy out IOVA-like descriptor fields. This is the input path for any VPU request that references user-controlled memory.
@@ -1170,6 +1185,13 @@ native descriptors at the code/input window, matching the repeated-addBuffer
 pattern recovered from `XrpVpuStream::CreateVpuRequest()`; its `-control`
 variant skips dispatch. The saved pair still leaves settings, output, data
 descriptor, and data payload unchanged. The matching
+`--run-cmd-vpu-xrp-target-code5-no-settings-iova` variant keeps the five
+code/input descriptors but clears `request+0x38/+0x40` so the request no
+longer references the direct-probe settings-property buffer; its `-control`
+variant skips dispatch, and `--run-cmd-vpu-xrp-target-code5-no-settings-wait-iova`
+adds an immediate `mdw_usr_wait_cmd` call after async submit. The saved wait run
+returns `0` from both async and wait, changes only code/input word `0`
+`0x2713 -> 0x271b`, and leaves settings/output/data unchanged. The matching
 `--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot`
 variant also sets native VPU request flags `request+0x28 = 0x4`, entering the
 kernel Preload/slot path directly; its `-control` variant skips dispatch. The
@@ -1293,6 +1315,16 @@ CLASSPATH=.../apusys_ioctl_probe.dex \
 CLASSPATH=.../apusys_ioctl_probe.dex \
   app_process64 /system/bin ApusysIoctlProbe \
   --run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc5-control
+
+# Closest target-wrapper replay: five code/input descriptors, no settings property:
+CLASSPATH=.../apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe \
+  --run-cmd-vpu-xrp-target-code5-no-settings-iova
+
+# Same target-wrapper replay with explicit mdw_usr_wait_cmd:
+CLASSPATH=.../apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe \
+  --run-cmd-vpu-xrp-target-code5-no-settings-wait-iova
 
 # APUNN/XRP internal query/status opcode and operand matrix:
 CLASSPATH=.../apusys_ioctl_probe.dex \
@@ -1715,7 +1747,7 @@ The remaining APUSYS closure items are:
   wrapper step is to recover that service/library initialization state, rerun
   APUWARE with `--finalize-slot-index`, and then dump
   `XRP_GetPreparedRequests()`.
-- Map how `apu_lib_apunn` uses the copied `struct vpu_buffer[]` beyond ordinary libvpu metadata. `port_id=1`, DATA format, `plane_count=1`, `height=1`, `stride=size`, `length=size`, `buffer_count=5` aliases, five identical code/input descriptors, wrapper send-state settings `+0x00 = 0x5`, pre-seeded completion-like settings `+0x00 = 0x2/0x3`, output-first descriptor order, `request+0x38 = 0x68`, output header `+0x10 = 1`, wrapper dynamic output size `0x44`, the standard `{type=3, size, iova}` data descriptor under `settings_len=0x68`, direct `request+0x28` bit `2` Preload/slot selection, and zero-output operand-list offsets `0/0x10/0x40/0x100` have been tested without producing normal completion behavior.
+- Map how `apu_lib_apunn` uses the copied `struct vpu_buffer[]` beyond ordinary libvpu metadata. `port_id=1`, DATA format, `plane_count=1`, `height=1`, `stride=size`, `length=size`, `buffer_count=5` aliases, five identical code/input descriptors, target-wrapper no-settings-property descriptors, wrapper send-state settings `+0x00 = 0x5`, pre-seeded completion-like settings `+0x00 = 0x2/0x3`, output-first descriptor order, `request+0x38 = 0x68`, `request+0x38/+0x40 = 0/0`, output header `+0x10 = 1`, wrapper dynamic output size `0x44`, the standard `{type=3, size, iova}` data descriptor under `settings_len=0x68`, direct `request+0x28` bit `2` Preload/slot selection, and zero-output operand-list offsets `0/0x10/0x40/0x100` have been tested without producing normal completion behavior.
 - Determine the firmware completion/output contract: which APUNN settings and buffer descriptor fields cause `DS_PREEMPT_DONE` / `DS_ALG_DONE`, `XTENSA_INFO00`, and `XTENSA_INFO02` to be produced, which run changes settings flags to satisfy `(settings[0] & 0x0a) == 0x02`, and which path maps to host `WritebackCommand()` output handling. The `ann_version_status_bit3_out0` op-word experiment has ruled out pre-setting bit `3` in opcode `10003` as the missing completion condition.
 - Shift the next matrix toward the standard wrapper path recovered from `libneuron_platform.so`: command-buffer id input binding, `PrepareXtensaCommandBuffer()`, output allocation/binding, `PrepareOutputBuffer()`, and `PrepareDataBuffer()` / `FinalizeDataBuffer()`. The current descriptor shapes prove descriptor-following; the `0x68` settings-length run, `output+0x10 = 1` run, wrapper dynamic output size `0x44` run, and flags matrix rule out several wrapper-visible candidates as the missing completion condition. Firmware still does not actively transition settings to `(settings[0] & 0x0a) == 0x02` or produce the wrapper's normal APUNN output writeback.
 - Map the remaining VPU/APUNN-side `0x1c8` operation-entry semantics. Host/debug helpers now statically pin opcode, stride, operand-list offset, input count, output count, operand-id layout, and the `10003` / `XTENSA_ANN_VERSION` mapping; the device wrapper still only routes raw code-section IOVA/size and counts fixed `0x1c8` entries.

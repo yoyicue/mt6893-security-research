@@ -26,6 +26,11 @@ the firmware-facing `request+0x38/+0x40` tuple is still a real kernel input and
 a valid libvpu property-path shape, but it is not proven to be how this target
 wrapper normally submits APUNN.
 
+The direct ioctl replay now covers both sides of that split. The property-path
+probes set `request+0x38/+0x40` to the XRP settings buffer. The target-wrapper
+replay sets `buffer_count=5`, repeats the code/input descriptor five times, and
+zeros `request+0x38/+0x40` to match the no-visible-`setProperty()` path.
+
 The current `--run-cmd-vpu-iova` probe validates layer 2 and dispatch
 reachability. It intentionally uses a minimal malformed settings payload by
 pointing `setting_iova` at the imported HardwareBuffer base. The newer
@@ -586,13 +591,36 @@ tested both deltas against the internal `XTENSA_ANN_VERSION` request:
 | `libvpu_metadata` | Keeps `buffer_count=2`, but uses libvpu-style `port_id=1`, `height=1`, `stride=size`, `length=size` descriptors for code/input and output | Control unchanged; dispatch returns `0`, code/input first word changes `0x2713 -> 0x271b`, output/data windows unchanged, teardown logs residual command |
 | `libvpu_metadata_alias5` | Uses libvpu-style metadata and `buffer_count=5` with code/output aliases | Same result: code/input first word changes `0x2713 -> 0x271b`, output/data windows unchanged, teardown logs residual command |
 
-The next unresolved field is therefore not ordinary VPU descriptor metadata,
-descriptor count, or basic `0x1c8` opcode/count routing. It is the APUNN
-firmware-side completion/output contract: the standard wrapper's
-code/output/data buffer contents, command flags, settings fields, or
-output-header semantics that make APUNN signal done and write to the settings
-output section. The internal-command contents remain relevant only if a
-service-side entry point is found that reaches `PrepareInternalCommand()`.
+The 2026-06-15 target-wrapper replay then tested the static
+`CreateVpuRequest()` correction directly. It keeps the wrapper-one-data
+observability windows in the imported buffer, but the native VPU request no
+longer points at them through the settings tuple:
+
+| Variant | Native request shape | Runtime result |
+|---|---|---|
+| `target_code5_no_settings` control | `buffer_count=5`, all five descriptors point at code/input, `request+0x38 = 0`, `request+0x40 = 0`, no dispatch | All settings/code/output/data windows and command buffer stay unchanged |
+| `target_code5_no_settings` dispatch | Same request, with async submit | `run_async_vpu_iova ret=0`; VPU boot/map logs present; settings/output/data windows unchanged; code/input first word changes `0x2713 -> 0x271b`; teardown logs residual command |
+| `target_code5_no_settings_wait` | Same request, followed by `mdw_usr_wait_cmd` | `run_async_vpu_iova ret=0`; `wait_vpu_iova ret=0`; settings/output/data windows unchanged; code/input first word changes `0x2713 -> 0x271b`; no residual command warning in the captured kernel log |
+
+Result files:
+
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_wait.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_wait_kernel.txt`
+
+This rules out the presence of a direct settings-property tuple as the cause of
+the current incomplete boundary. The target-wrapper-shaped no-settings request
+is accepted by APUSYS/VPU and can be waited successfully, but firmware still
+does not transition settings flags to `(settings[0] & 0x0a) == 0x02` or write
+the APUNN output/data windows. The next unresolved field is therefore not
+ordinary VPU descriptor metadata, descriptor count, `request+0x38/+0x40`
+presence, or basic `0x1c8` opcode/count routing. It is the APUNN firmware-side
+completion/output contract: the standard wrapper's code/output/data buffer
+contents, command flags, or output-header semantics that make APUNN signal done
+and write to the settings output section.
 
 ## Command flags and completion state
 
@@ -1087,6 +1115,15 @@ This gives the current interpretation boundary:
   remain unchanged, and code word `0` changes `0x2713 -> 0x271b`. Repeating the
   code/input native descriptor five times is therefore not the missing APUNN
   completion condition.
+- The `target_code5_no_settings` result keeps those five code/input native
+  descriptors but clears the native settings tuple (`request+0x38/+0x40 = 0`),
+  matching the target `CreateVpuRequest()` path where no `setProperty()` call
+  is visible. Dispatch still returns `0`, settings/output/data remain
+  unchanged, and code word `0` changes `0x2713 -> 0x271b`. The explicit wait
+  variant returns `0` from `mdw_usr_wait_cmd`, consumes the command, and still
+  leaves APUNN settings/output/data unchanged. The settings-property tuple is
+  therefore not required for the descriptor-0 writeback and is not the missing
+  APUNN completion condition.
 - The `wrapper_one_data_output44` result follows the host wrapper's dynamic
   output-size formula for one `0x1c8` Xtensa operation: output size
   `0x40 + 4 * 1 = 0x44`, output header flag `1`, `settings_len=0x68`,
@@ -1231,7 +1268,10 @@ operation shapes, a controlled native VPU buffer writeback, a per-case timeout
 for the earlier one-buffer shape, and a two-native-buffer `XTENSA_ANN_VERSION`
 dispatch where copied native buffer descriptor `0` points at the code/input
 window and the kernel logs residual command state instead of the earlier D2D
-timeout. Libvpu-style descriptor metadata, a five-descriptor alias shape, and
+timeout. The target-wrapper-shaped five-code-descriptor/no-settings-property
+request is accepted too, and its explicit wait variant returns `0` while
+preserving the same code/input writeback-only boundary. Libvpu-style descriptor
+metadata, a five-descriptor alias shape, and
 the wrapper send-state command flag value `0x5` do not change that boundary.
 Changing the firmware-visible settings length from `0x100` to the wrapper DSP
 command buffer size `0x68` also leaves the same boundary in place. Setting the
@@ -1246,7 +1286,9 @@ five times also leaves the same boundary. Directly setting native VPU
 APUNN settings/output boundary. Moving the operation operand-list offset through
 `0`, `0x10`, `0x40`, and `0x100` in the same wrapper-one-data shape is accepted
 but still leaves the same code-first native descriptor writeback boundary.
-It does not yet prove APUNN data descriptor consumption, APUNN output-section
-writeback, the missing completion parameter, or the full semantic meaning of
-the observed native-buffer writeback. The batch-level devapc warning remains
-non-attributed because isolated single-case runs did not reproduce it.
+Clearing `request+0x38/+0x40` rules out the direct settings-property tuple as
+the cause of the writeback or of the incomplete boundary. It does not yet prove
+APUNN data descriptor consumption, APUNN output-section writeback, the missing
+completion parameter, or the full semantic meaning of the observed
+native-buffer writeback. The batch-level devapc warning remains non-attributed
+because isolated single-case runs did not reproduce it.
