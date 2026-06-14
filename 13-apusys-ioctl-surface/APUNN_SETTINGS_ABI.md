@@ -655,6 +655,7 @@ longer points at them through the settings tuple:
 | `target_code5_no_settings` control | `buffer_count=5`, all five descriptors point at code/input, `request+0x38 = 0`, `request+0x40 = 0`, no dispatch | All settings/code/output/data windows and command buffer stay unchanged |
 | `target_code5_no_settings` dispatch | Same request, with async submit | `run_async_vpu_iova ret=0`; VPU boot/map logs present; settings/output/data windows unchanged; code/input first word changes `0x2713 -> 0x271b`; teardown logs residual command |
 | `target_code5_no_settings_wait` | Same request, followed by `mdw_usr_wait_cmd` | `run_async_vpu_iova ret=0`; `wait_vpu_iova ret=0`; settings/output/data windows unchanged; code/input first word changes `0x2713 -> 0x271b`; no residual command warning in the captured kernel log |
+| `target_code5_no_settings_wait_summary` | Same wait variant with semantic request-field dumps | Before and after dispatch: `result_status=0`, `slot_b68=0`, `algo_ret_b6c=0`, `buffer_count=5`, and `settings_len/settings_iova=0`; code/input first word still changes `0x2713 -> 0x271b` |
 
 Result files:
 
@@ -664,6 +665,14 @@ Result files:
 - `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_kernel.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_wait.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_wait_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_code5_no_settings_wait_summary.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_code5_no_settings_wait_summary_kernel.txt`
+
+The summary rerun shows that the copied-back native request fields
+`result_status` (`+0x34`), slot (`+0xb68`), and `algo_ret` (`+0xb6c`) remain zero
+in the successful wait case. Those fields therefore do not carry the observed
+descriptor-0 `0x2713 -> 0x271b` state write or APUNN output completion in this
+request shape.
 
 The follow-up descriptor-0 first-word matrix keeps the same
 target-wrapper-shaped request and varies only code/input word `0`.
@@ -1872,7 +1881,10 @@ descriptor `0` points at the code/input window and the kernel logs residual
 command state instead of the earlier D2D timeout. The target-wrapper-shaped
 five-code-descriptor/no-settings-property request is accepted too, and its
 explicit wait variant returns `0` while preserving the same code/input
-writeback-only boundary. Non-exact outer sizes `0x20`, `0x90`, `0x1c8`, `0xb6c`,
+writeback-only boundary. The 2026-06-15 summary rerun shows the copied-back
+request status, slot, and `algo_ret` fields stay zero in that successful wait
+case, so `+0x34`, `+0xb68`, and `+0xb6c` are not the missing APUNN output signal
+for this shape. Non-exact outer sizes `0x20`, `0x90`, `0x1c8`, `0xb6c`,
 and `0xb80` fail without the descriptor-0 state writeback. The descriptor-0
 first-word matrix shows ordinary inputs becoming `old | 0xb`, and the all-ones
 input entering a timeout/error path as `0xffffffff -> 0xfffffffd` with wait

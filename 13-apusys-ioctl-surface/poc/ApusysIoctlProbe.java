@@ -1877,10 +1877,10 @@ public final class ApusysIoctlProbe {
                     + Integer.toHexString(descriptorPayloadSizeOverride));
             }
             if (requestPriorityOverride != null) {
-                System.out.println("[*] VPU request priority override:"
+                System.out.println("[*] VPU request slot word override:"
                     + " request+0xb68=0x"
                     + Integer.toHexString(requestPriorityOverride)
-                    + " (D2D_EXT clamps to priority 0..2).");
+                    + " (default opcode-4 path rewrites this before D2D_EXT).");
             }
             if (requestBufferCountOverride != null) {
                 System.out.println("[*] Native request buffer_count override:"
@@ -3611,8 +3611,37 @@ public final class ApusysIoctlProbe {
             buf, 0x00, 0x80);
         dumpByteBufferRange("vpu_cmd_" + phase + "_request_head",
             buf, 0x60, 0xc0);
+        dumpVpuRequestSummary("vpu_cmd_" + phase + "_request_summary", buf);
         dumpByteBufferRange("vpu_cmd_" + phase + "_request_tail",
             buf, 0x60 + 0xb40, 0x30);
+    }
+
+    private static void dumpVpuRequestSummary(String name,
+                                              java.nio.ByteBuffer buf) {
+        final int reqBase = 0x60;
+        final int reqSize = 0xb70;
+        if (buf.capacity() < reqBase + reqSize) {
+            System.out.println("    " + name + ": unavailable cap="
+                + buf.capacity());
+            return;
+        }
+
+        long flags = getU64LE(buf, reqBase + 0x28);
+        int resultStatus = buf.get(reqBase + 0x34) & 0xff;
+        int bufferCount = buf.get(reqBase + 0x35) & 0xff;
+        int settingsLen = getU32LE(buf, reqBase + 0x38);
+        long settingsIova = getU64LE(buf, reqBase + 0x40);
+        int slot = getU32LE(buf, reqBase + 0xb68);
+        int algoRet = getU32LE(buf, reqBase + 0xb6c);
+
+        System.out.println("    " + name
+            + ": flags=0x" + Long.toHexString(flags)
+            + " result_status=0x" + Integer.toHexString(resultStatus)
+            + " buffer_count=0x" + Integer.toHexString(bufferCount)
+            + " settings_len=0x" + Integer.toHexString(settingsLen)
+            + " settings_iova=0x" + Long.toHexString(settingsIova)
+            + " slot_b68=0x" + Integer.toHexString(slot)
+            + " algo_ret_b6c=0x" + Integer.toHexString(algoRet));
     }
 
     private static void dumpByteBuffer(String name, java.nio.ByteBuffer buf,
@@ -3781,6 +3810,21 @@ public final class ApusysIoctlProbe {
         for (int i = 0; i < 8; i++) {
             buffer.put(off + i, (byte) ((value >>> (8 * i)) & 0xff));
         }
+    }
+
+    private static int getU32LE(java.nio.ByteBuffer buffer, int off) {
+        return (buffer.get(off) & 0xff)
+            | ((buffer.get(off + 1) & 0xff) << 8)
+            | ((buffer.get(off + 2) & 0xff) << 16)
+            | ((buffer.get(off + 3) & 0xff) << 24);
+    }
+
+    private static long getU64LE(java.nio.ByteBuffer buffer, int off) {
+        long value = 0;
+        for (int i = 0; i < 8; i++) {
+            value |= ((long) buffer.get(off + i) & 0xffL) << (8 * i);
+        }
+        return value;
     }
 
     private static void validateUcmdKey(String key) {

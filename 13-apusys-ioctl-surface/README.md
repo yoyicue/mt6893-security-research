@@ -809,7 +809,11 @@ changes `0x2713 -> 0x271b`. The explicit wait variant
 settings completion or output writeback. Therefore the no-settings-property
 five-descriptor shape is accepted by the APUSYS/VPU path and reaches the same
 descriptor-0 writeback boundary, but still does not expose the APUNN normal
-output contract.
+output contract. The 2026-06-15 summary rerun adds request-field dumps: before
+and after dispatch, `result_status=0`, `slot_b68=0`, and `algo_ret_b6c=0`, while
+code word `0` still changes `0x2713 -> 0x271b`. The successful wait path is
+therefore not reporting APUNN output completion through request `+0x34`,
+`+0xb68`, or `+0xb6c`.
 
 The descriptor-0 first-word matrix
 `--run-cmd-vpu-xrp-target-code5-no-settings-word-matrix-iova` keeps that same
