@@ -76,6 +76,8 @@ Additional functions named during the APUSYS follow-up pass:
 | `mdw_sched_init` | `0xffffffc008792e9c` | Initializes scheduler state and scheduler thread |
 | `mdw_sched_routine` | `0xffffffc008792f9c` | Main APUSYS scheduler thread routine |
 | `mdw_sched_dev_routine` | `0xffffffc0087920ec` | Per-device scheduler routine |
+| `vpu_init_dev_algo_sets` | `0xffffffc0087a5214` | Initializes per-VPU-core Normal and Preload algorithm sets from firmware/bin metadata |
+| `vpu_exit_dev_algo_sets` | `0xffffffc0087a56f0` | Tears down the Normal and Preload algorithm lists |
 
 Important correction: reading the static object returned by `mdw_usr_get_cmd_ops` as 64-bit pointers produces `0xffffff800881...` values. After normalizing them to the IDB base, they land around `0xffffffc00881....`, but the referenced locations do not look like normal APUSYS parser function entries and include unrelated MMDVFS/clock strings. `mdw_usr_get_cmd_ops` remains unresolved until its runtime registration/use is proven; parser-target attribution requires independent registration/use evidence.
 
@@ -119,11 +121,46 @@ Provider opcode notes from the current static pass:
 | Provider path | Opcode behavior |
 |---|---|
 | `apusys_mdla_handler` | For device id `2`, opcode `0` calls `mdla_pwr_on`, opcode `1`/`3` go through `mdla_pwr_off`, opcode `2` is a success return, and opcode `4` reaches `mdla_run_command_sync`. For device id `0x22`, opcode `4` reaches `mdla_run_command_sync`; other opcodes return without the same command path. |
-| normal VPU entry `0xffffffc0087a077c` | Opcode `0` reaches `vpu_send_cmd_op0`, opcode `1` reaches `vpu_send_cmd_op1`, opcode `2` returns success, opcode `3` is suspend/resume bookkeeping, opcode `4` reaches `vpu_execute` / `vpu_execute_with_slot`, and opcode `7` handles ucmd command id `0x8001`. |
+| normal VPU entry `0xffffffc0087a077c` | Opcode `0` reaches `vpu_send_cmd_op0`, opcode `1` reaches `vpu_send_cmd_op1`, opcode `2` returns success, opcode `3` is suspend/resume bookkeeping, opcode `4` reaches `vpu_execute` / `vpu_execute_with_slot`, and opcode `7` handles mapped ucmd buffers whose first u32 is `0x8001`. |
 | `vpu_send_cmd_rt_handler` | Opcode `4` and `5` are execute/preempt paths with request checks; opcode `0`, `1`, `6`, and `7` return through early access/error paths. |
 | `edma_send_cmd_handler` | Opcode `0` calls `edma_power_on`, opcode `3` calls `edma_power_off`, opcode `2`/`5` return success, and opcode `4` reaches `edma_execute` only when the argument pointer is non-null and argument field `+0x0c` equals `0x15`. |
 
-`mdw_rsc_dev_op0_ctrl` passes a small stack argument object to providers as `{0, control_value, 0xbb8}`. `mdw_rsc_ucmd_dispatch` passes `{mapped_kva, mapped_size, user_field_0x10}`. For `mdw_usr_ucmd`, the APUSYS memory KVA/IOVA mapping and range check must succeed before provider opcode `7` is reached.
+`mdw_rsc_dev_op0_ctrl` passes a small stack argument object to providers as `{0, control_value, 0xbb8}`. `mdw_rsc_ucmd_dispatch` passes `{mapped_kva, mem_field_0x10_from_iova_setup, user_field_0x10}`. For `mdw_usr_ucmd`, the APUSYS memory KVA/IOVA mapping and range check must succeed before provider opcode `7` is reached.
+
+### Normal VPU opcode-7 ucmd path
+
+`0x4014410E` / `mdw_usr_ucmd` uses a compact 0x14-byte user argument:
+
+| Offset | Use |
+|---:|---|
+| `+0x00` | device id passed to `mdw_dev_lookup_core` |
+| `+0x04` | core id passed to `mdw_dev_lookup_core` |
+| `+0x08` | dmabuf fd, copied into the temporary APUSYS mem object at `+0x28` |
+| `+0x0c` | mapped-buffer offset; this build rejects nonzero values before memory mapping |
+| `+0x10` | requested mapped length; copied into the temporary APUSYS mem object at `+0x14` and later passed to the provider wrapper |
+
+The path is:
+
+1. `mdw_usr_ucmd` rejects immediately with `EINVAL` if user `+0x0c` is nonzero.
+2. It builds a temporary APUSYS memory object on the stack, imports the fd through memory op `+0x20` for KVA mapping, then memory op `+0x30` for IOVA/cache setup.
+3. It verifies `offset + length <= mapped_length`; because offset must be zero in this build, the requested length must fit inside the mapped object.
+4. It looks up `{device_id, core_id}` and calls `core+0x98` (`mdw_rsc_ucmd_dispatch`), which invokes the provider handler with opcode `7`.
+
+The normal VPU provider opcode-7 branch at `0xffffffc0087a093c` then applies its own gate:
+
+- provider argument pointer is non-null;
+- provider argument `+0x08` is nonzero;
+- provider argument `+0x0c` is nonzero, which corresponds to user `+0x10`;
+- first u32 at the mapped KVA is `0x8001`.
+
+After the `0x8001` check, normal VPU uses `mapped_kva + 4` as the payload pointer. It locks the global VPU driver object, walks the registered VPU core list at `g_vpu_drv+0xb0`, and tries the per-core Normal algorithm set first, then the Preload set. `vpu_init_dev_algo_sets` initializes those sets at core offsets:
+
+| Set | Core fields | Notes |
+|---|---|---|
+| Normal | name at `core+0x2c0`, list head at `core+0x2e8`, ops pointer at `core+0x308` | Populated from firmware/bin normal-algo metadata |
+| Preload | name at `core+0x310`, list head at `core+0x338`, ops pointer at `core+0x358` | Populated from firmware/bin preload-entry metadata |
+
+The raw ops tables are named `vpu_normal_algo_ops_raw` at `0xffffffc00979ae70` and `vpu_preload_algo_ops_raw` at `0xffffffc00979aeb0` in IDA. Their entries are stored in the kernel runtime address form (`0xffffff80...`), while this IDB is loaded under `0xffffffc0...`. A simple address normalization lands several entries inside larger IDA functions, so the exact callback entry semantics remain a follow-up item. One candidate callback sequence compares `payload+4` against thermal cooling-device names such as `mtk-cl-bcct02`, `mtk-cl-bcct01`, and `mtk-cl-bcct00`, but that should not be used as a final ucmd payload contract until the raw ops table addressing is resolved.
 
 ## Ioctl command map
 
@@ -155,7 +192,7 @@ The `0x4004413C/3D` size mismatch is important for testing: the command encoding
 ## Current risk ranking
 
 1. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` lead to `mdw_usr_mem_create`, then into APUSYS ION KVA/IOVA callbacks. Negative tests confirm that type-2 and type-3 descriptors reach deeper than the initial user-copy guard without creating an object or crashing. Two direct dmabuf-source checks have now been tried from `system_app`: DRM dumb buffer creation succeeds but PRIME fd export returns `EACCES`, and direct `/dev/ion` open returns `EACCES`. This remains the highest APUSYS priority, but the current blocker is obtaining a usable dmabuf fd in this context.
-2. **Command parsing/execution and ucmd paths**: `0xC0184107` and `0x40184106` reach `mdw_usr_run_cmd_async`. The current probe sets the user field at `+0x0c` to `1`, which makes this function return early before the indirect ops calls. `0x4014410E` reaches `mdw_usr_ucmd`; with `+0x0c == 0` it maps APUSYS memory through `+0x20`/`+0x30`, bounds-checks the requested range, then calls `mdw_rsc_ucmd_dispatch` at `core+0x98`. The provider opcode `7` path is now narrowed: normal VPU has a meaningful ucmd branch for mapped command id `0x8001`, while EDMA and MDLA do not show the same opcode-7 command path.
+2. **Command parsing/execution and ucmd paths**: `0xC0184107` and `0x40184106` reach `mdw_usr_run_cmd_async`. The current probe sets the user field at `+0x0c` to `1`, which makes this function return early before the indirect ops calls. `0x4014410E` reaches `mdw_usr_ucmd`; with `+0x0c == 0` it imports the fd as APUSYS memory, maps KVA/IOVA, bounds-checks the requested length, then calls `mdw_rsc_ucmd_dispatch` at `core+0x98`. The provider opcode `7` path is now narrowed: normal VPU has a concrete `0x8001` mapped-buffer gate and walks per-core Normal/Preload algorithm sets, while EDMA and MDLA do not show the same opcode-7 command path.
 3. **Device/resource control paths**: `0x4004413C/3D` call `mdw_usr_dev_sec_alloc/free`, and `0x400C4109` calls `mdw_usr_dev_ctrl_4109`. The free path has an id `< 0x40` guard; the `0x400C4109` path looks up a device/core and dispatches provider opcode `0` through `mdw_rsc_dev_op0_ctrl` with only a 0x0c user input. Static mapping shows MDLA/EDMA opcode `0` reaches power-on paths, normal VPU opcode `0` reaches control bookkeeping, and VPU RT opcode `0` returns early.
 4. **Handshake/wait/simple rejection paths**: useful for reachability, lower standalone risk.
 
@@ -339,6 +376,7 @@ Interpretation: APUSYS memory-create remains a mapped high-interest path, but th
 - Use kernel logs, if available from the lab context, to distinguish whether the `ENOMEM` path comes from ION import, cache sync, or IOVA map setup.
 - Keep `mdw_usr_get_cmd_ops` / `0xffffffc00a188e58` marked unresolved. Leave the `run_cmd` `+0x0c` early-reject field set while resolving the indirect call targets.
 - For `0x400C4109`, optional follow-up is a small control-value sweep on the live-success providers while watching return codes and kernel logs. The current control value `0` already confirms provider opcode `0` reachability.
-- For `mdw_usr_ucmd`, focus on normal VPU opcode `7`: it requires a mapped command pointer, non-zero size fields, and mapped command id `0x8001`.
+- For `mdw_usr_ucmd`, the next concrete experiment is a valid dmabuf fd plus a mapped buffer whose first u32 is `0x8001`, using device id `3` for normal VPU and a live core id observed through `--dev-ctrl`.
+- Resolve the raw VPU algo ops table address form before treating the `payload+4` cooling-device-name comparisons as the final opcode-7 payload ABI.
 - Continue mapping `mdla_run_command_sync`, `vpu_execute`, and `edma_execute` input structures before valid command-buffer experiments.
 - Continue scheduler/queue analysis after command parser targets are known. Valid command-buffer experiments come after that mapping.

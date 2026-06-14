@@ -115,6 +115,7 @@ Interpretation:
 - `/dev/apusys` is a real reachable kernel surface from `system_app`.
 - APUSYS device-control ioctl `0x400C4109` reaches live provider opcode-0 paths for MDLA, normal VPU, EDMA, and MDLA RT. VPU RT returns `EACCES` on the same opcode.
 - APUSYS memory-create type-2/type-3 remains the highest APUSYS subpath, but the current experiment lacks a valid dmabuf fd source in this context.
+- APUSYS `mdw_usr_ucmd` now has a concrete normal VPU opcode-7 gate: a valid dmabuf-backed mapping, offset `0`, nonzero length, device id `3`, a live core id, and first mapped u32 `0x8001`.
 - DRM dumb buffer creation works from `system_app`, but PRIME fd export returns `EACCES`.
 - Direct `/dev/ion` allocation/share is blocked at open with `EACCES` despite permissive-looking DAC bits on the node.
 - Mali WRITE_VALUE works, but it was already reachable from uid=2000 shell and remains bounded to GPU-mapped userspace VA. It does not become a kernel primitive from uid=1000 alone.
@@ -123,7 +124,7 @@ Resulting CVE priority:
 
 | CVE / Area | Post-run Risk | Reason |
 |---|---|---|
-| APUSYS CVE candidates | Medium-High | `/dev/apusys` opens with `O_RDWR`; `0x400C4109` provider opcode-0 dispatch is live for MDLA, normal VPU, EDMA, and MDLA RT. Memory-create is mapped but still needs a usable dmabuf fd source. |
+| APUSYS CVE candidates | Medium-High | `/dev/apusys` opens with `O_RDWR`; `0x400C4109` provider opcode-0 dispatch is live for MDLA, normal VPU, EDMA, and MDLA RT. Memory-create and normal VPU opcode-7 `ucmd` are mapped but still need a usable dmabuf fd source. |
 | CVE-2023-20768 / ION | Medium-Low for direct system_app node access | Dedicated old-ION path confirms `/dev/ion` open returns `EACCES` from `system_app`. |
 | Mali WRITE_VALUE boundary | Low for kernel LPE | WRITE_VALUE confirmed, but USER_BUFFER/kernel reachability is blocked. |
 
@@ -220,7 +221,7 @@ Resulting CVE priority:
 ## Final Post-Run Order
 
 1. **Display / DRM OOB read/write cluster**: `CVE-2023-32867`, `32868`, then `32865`, `32864`, `32863`, `20775`, `32860`. `32864` and `32865` remain reachable but the first guard probes did not confirm exploitable write paths.
-2. **APUSYS reachable surface**: APUSYS-related CVEs should be mapped next because `/dev/apusys` opens from `system_app`.
+2. **APUSYS reachable surface**: APUSYS-related CVEs should be mapped next because `/dev/apusys` opens from `system_app`; the immediate experiment blocker is a usable dmabuf fd for memory-create and normal VPU `ucmd`.
 3. **secmem / keyinstall via service paths**: `CVE-2023-32834`, `CVE-2023-32835`; direct secure nodes are blocked, so service PoC needed.
 4. **CMDQ / PQ / MMP indirect paths**: `CVE-2023-32849`, `CVE-2024-20037`, `CVE-2023-32866`; direct nodes blocked.
 5. **ION**: keep as pending until strict open/ioctl reachability is resolved.
