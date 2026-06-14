@@ -885,12 +885,44 @@ make APUNN consume the normal output/data contract.
 
 Result files:
 
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_descriptor_layout_matrix_control.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_descriptor_layout_matrix_control_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_descriptor_layout_matrix.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_descriptor_layout_matrix_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_descriptor_layout_matrix_repeat.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_descriptor_layout_matrix_repeat_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_descriptor_layout_matrix_fixed_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_descriptor_layout_matrix_fixed_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_descriptor_layout_matrix_fixed.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_descriptor_layout_matrix_fixed_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_descriptor_layout_matrix_fixed_repeat.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_descriptor_layout_matrix_fixed_repeat_kernel.txt`
+
+The output-first opcode matrix fixes descriptor slot `0` at output and slot `1`
+at code/input, then repeats the `10001..10009` opcode set:
+
+| Opcode | Label | Wait result | Code word result | Output word result |
+|---:|---|---|---|---|
+| `10001` / `0x2711` | `GET_ALGO_INFO` | `-EIO` | unchanged `0x2711` | `0xffffffff -> 0xfffffffd` |
+| `10002` / `0x2712` | `LOCAL_MEM_INFO` | `-EIO` | unchanged `0x2712` | `0xffffffff -> 0xfffffffd` |
+| `10003` / `0x2713` | `XTENSA_ANN_VERSION` | `-EIO` | unchanged `0x2713` | `0xffffffff -> 0xfffffffd` |
+| `10004` / `0x2714` | `GET_DETAILED_OP_INFO` | `-EIO` | unchanged `0x2714` | `0xffffffff -> 0xfffffffd` |
+| `10005` / `0x2715` | `UNKNOWN_10005` | `-EIO` | unchanged `0x2715` | `0xffffffff -> 0xfffffffd` |
+| `10006` / `0x2716` | `APU_LIB_APUNN_10006` | `-EIO` | unchanged `0x2716` | `0xffffffff -> 0xfffffffd` |
+| `10007` / `0x2717` | `APU_LIB_CUSTOM_10007` | `-EIO` | unchanged `0x2717` | `0xffffffff -> 0xfffffffd` |
+| `10008` / `0x2718` | `APUNN_DYNAMIC_10008` | `-EIO` | unchanged `0x2718` | `0xffffffff -> 0xfffffffd` |
+| `10009` / `0x2719` | `CUSTOM_DYNAMIC_10009` | `-EIO` | unchanged `0x2719` | `0xffffffff -> 0xfffffffd` |
+
+The repeat dispatch run reproduces the same table. In the code-first opcode
+matrix, opcode classes select different code-window status behavior. In the
+output-first opcode matrix, every opcode converges to the same output-slot
+failure status, and the code window is not rewritten. This makes descriptor
+slot `0` the active status/writeback target in the current incomplete path; the
+opcode parser's normal status classes are only visible when slot `0` points at
+the code/input operation window.
+
+Result files:
+
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_output_first_opcode_matrix_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_output_first_opcode_matrix_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_output_first_opcode_matrix.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_output_first_opcode_matrix_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_output_first_opcode_matrix_repeat.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_output_first_opcode_matrix_repeat_kernel.txt`
 
 This rules out the presence of a direct settings-property tuple as the cause of
 the current incomplete boundary. The target-wrapper-shaped no-settings request
@@ -901,10 +933,11 @@ next unresolved field is therefore not ordinary VPU descriptor metadata,
 nonzero descriptor count, `request+0x38/+0x40` presence, native descriptor
 payload size, request priority/slot, descriptor port/format/plane-count bytes,
 descriptor height, output operand id, tested input/output count combinations,
-basic `0x1c8` count routing, or simple five-descriptor role ordering. The
-opcode word is parsed and does select
-different APUNN firmware-side status/timeout classes, but opcode alone is still
-not the completion/output contract. The remaining gap is the standard wrapper's
+basic `0x1c8` count routing, simple five-descriptor role ordering, or pairing
+output slot `0` with all recovered internal opcodes. The opcode word is parsed
+and does select different APUNN firmware-side status/timeout classes, but those
+classes depend on the descriptor slot `0` target and still do not produce the
+normal completion/output contract. The remaining gap is the standard wrapper's
 code/output/data buffer contents, command flags, or output-header semantics that
 make APUNN signal done and write to the settings output section.
 

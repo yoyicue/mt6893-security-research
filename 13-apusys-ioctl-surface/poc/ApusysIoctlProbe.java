@@ -272,6 +272,8 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpTargetCode5NoSettingsOpcodeMatrixIovaControl = false;
         boolean runCmdVpuXrpTargetCode5NoSettingsDescriptorLayoutMatrixIova = false;
         boolean runCmdVpuXrpTargetCode5NoSettingsDescriptorLayoutMatrixIovaControl = false;
+        boolean runCmdVpuXrpTargetCode5NoSettingsOutputFirstOpcodeMatrixIova = false;
+        boolean runCmdVpuXrpTargetCode5NoSettingsOutputFirstOpcodeMatrixIovaControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlotControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix = false;
@@ -421,6 +423,10 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpTargetCode5NoSettingsDescriptorLayoutMatrixIova = true;
             } else if ("--run-cmd-vpu-xrp-target-code5-no-settings-descriptor-layout-matrix-iova-control".equals(arg)) {
                 runCmdVpuXrpTargetCode5NoSettingsDescriptorLayoutMatrixIovaControl = true;
+            } else if ("--run-cmd-vpu-xrp-target-code5-no-settings-output-first-opcode-matrix-iova".equals(arg)) {
+                runCmdVpuXrpTargetCode5NoSettingsOutputFirstOpcodeMatrixIova = true;
+            } else if ("--run-cmd-vpu-xrp-target-code5-no-settings-output-first-opcode-matrix-iova-control".equals(arg)) {
+                runCmdVpuXrpTargetCode5NoSettingsOutputFirstOpcodeMatrixIovaControl = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot".equals(arg)) {
                 runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot-control".equals(arg)) {
@@ -522,6 +528,8 @@ public final class ApusysIoctlProbe {
                 || runCmdVpuXrpTargetCode5NoSettingsOpcodeMatrixIovaControl
                 || runCmdVpuXrpTargetCode5NoSettingsDescriptorLayoutMatrixIova
                 || runCmdVpuXrpTargetCode5NoSettingsDescriptorLayoutMatrixIovaControl
+                || runCmdVpuXrpTargetCode5NoSettingsOutputFirstOpcodeMatrixIova
+                || runCmdVpuXrpTargetCode5NoSettingsOutputFirstOpcodeMatrixIovaControl
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrixControl
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescOperandOffsetMatrix
@@ -908,6 +916,16 @@ public final class ApusysIoctlProbe {
 
             if (runCmdVpuXrpTargetCode5NoSettingsDescriptorLayoutMatrixIovaControl) {
                 runRunCmdVpuXrpTargetCode5NoSettingsDescriptorLayoutMatrixProbe(
+                    fd, false);
+            }
+
+            if (runCmdVpuXrpTargetCode5NoSettingsOutputFirstOpcodeMatrixIova) {
+                runRunCmdVpuXrpTargetCode5NoSettingsOutputFirstOpcodeMatrixProbe(
+                    fd, true);
+            }
+
+            if (runCmdVpuXrpTargetCode5NoSettingsOutputFirstOpcodeMatrixIovaControl) {
+                runRunCmdVpuXrpTargetCode5NoSettingsOutputFirstOpcodeMatrixProbe(
                     fd, false);
             }
 
@@ -2723,7 +2741,23 @@ public final class ApusysIoctlProbe {
 
     private static void runRunCmdVpuXrpTargetCode5NoSettingsOpcodeMatrixProbe(
             int apusysFd, boolean dispatch) throws Exception {
-        XrpOpSpec[] specs = {
+        XrpOpSpec[] specs = targetCode5NoSettingsOpcodeMatrixSpecs();
+        for (XrpOpSpec op : specs) {
+            System.out.println("\n[*] === target-code5/no-settings"
+                + " opcode case " + op.label + " dispatch="
+                + (dispatch ? 1 : 0) + " ===");
+            runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, true, true,
+                op, 1000, true, VPU_DESC_LIBVPU_CODE5,
+                XRP_CMD_FLAGS_SEND, VPU_DESC_ORDER_CODE_OUTPUT,
+                XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
+                XrpSettingsShape.WRAPPER_ONE_DATA, dispatch,
+                VPU_REQUEST_FLAGS_DEFAULT, false, op.opcode,
+                null, null, null, null, null, null, null);
+        }
+    }
+
+    private static XrpOpSpec[] targetCode5NoSettingsOpcodeMatrixSpecs() {
+        return new XrpOpSpec[] {
             new XrpOpSpec("get_algo_info_out0", "GET_ALGO_INFO",
                 10001, 0, 1, new int[] { 0 }),
             new XrpOpSpec("local_mem_info_out0", "LOCAL_MEM_INFO",
@@ -2743,18 +2777,6 @@ public final class ApusysIoctlProbe {
             new XrpOpSpec("custom_dynamic_10009_out0", "CUSTOM_DYNAMIC_10009",
                 10009, 0, 1, new int[] { 0 }),
         };
-        for (XrpOpSpec op : specs) {
-            System.out.println("\n[*] === target-code5/no-settings"
-                + " opcode case " + op.label + " dispatch="
-                + (dispatch ? 1 : 0) + " ===");
-            runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, true, true,
-                op, 1000, true, VPU_DESC_LIBVPU_CODE5,
-                XRP_CMD_FLAGS_SEND, VPU_DESC_ORDER_CODE_OUTPUT,
-                XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
-                XrpSettingsShape.WRAPPER_ONE_DATA, dispatch,
-                VPU_REQUEST_FLAGS_DEFAULT, false, op.opcode,
-                null, null, null, null, null, null, null);
-        }
     }
 
     private static void runRunCmdVpuXrpTargetCode5NoSettingsDescriptorLayoutMatrixProbe(
@@ -2775,6 +2797,23 @@ public final class ApusysIoctlProbe {
                 XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
                 XrpSettingsShape.WRAPPER_ONE_DATA, dispatch,
                 VPU_REQUEST_FLAGS_DEFAULT, false, XRP_OPCODE_XTENSA_ANN_VERSION,
+                null, null, null, null, null, null, null);
+        }
+    }
+
+    private static void runRunCmdVpuXrpTargetCode5NoSettingsOutputFirstOpcodeMatrixProbe(
+            int apusysFd, boolean dispatch) throws Exception {
+        XrpOpSpec[] specs = targetCode5NoSettingsOpcodeMatrixSpecs();
+        for (XrpOpSpec op : specs) {
+            System.out.println("\n[*] === target-code5/no-settings"
+                + " output-first opcode case " + op.label + " dispatch="
+                + (dispatch ? 1 : 0) + " ===");
+            runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, true, true,
+                op, 1000, true, VPU_DESC_LIBVPU_MIXED5_OUTPUT_FIRST,
+                XRP_CMD_FLAGS_SEND, VPU_DESC_ORDER_CODE_OUTPUT,
+                XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
+                XrpSettingsShape.WRAPPER_ONE_DATA, dispatch,
+                VPU_REQUEST_FLAGS_DEFAULT, false, op.opcode,
                 null, null, null, null, null, null, null);
         }
     }
@@ -3101,7 +3140,8 @@ public final class ApusysIoctlProbe {
                 descriptorPlaneCountOverride, descriptorHeightOverride);
         }
 
-        if (twoVpuBuffers && descriptorMode != VPU_DESC_LIBVPU_CODE5) {
+        if (twoVpuBuffers && !vpuDescriptorModeHasExplicitFiveLayout(
+                descriptorMode)) {
             putVpuBufferDescriptor(buffer, reqBase + 0x90, iovaAddr,
                 buf1PayloadOff, buf1PayloadSize, descriptorMode,
                 descriptorPortIdOverride, descriptorFormatOverride,
@@ -3209,6 +3249,13 @@ public final class ApusysIoctlProbe {
     private static boolean vpuDescriptorModeUsesFive(int descriptorMode) {
         return descriptorMode == VPU_DESC_LIBVPU_ALIAS5
             || descriptorMode == VPU_DESC_LIBVPU_CODE5
+            || descriptorMode == VPU_DESC_LIBVPU_MIXED5
+            || descriptorMode == VPU_DESC_LIBVPU_MIXED5_OUTPUT_FIRST;
+    }
+
+    private static boolean vpuDescriptorModeHasExplicitFiveLayout(
+            int descriptorMode) {
+        return descriptorMode == VPU_DESC_LIBVPU_CODE5
             || descriptorMode == VPU_DESC_LIBVPU_MIXED5
             || descriptorMode == VPU_DESC_LIBVPU_MIXED5_OUTPUT_FIRST;
     }
