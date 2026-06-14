@@ -254,6 +254,8 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpTargetCode5NoSettingsPriorityMatrixIovaControl = false;
         boolean runCmdVpuXrpTargetCode5NoSettingsBufferCountMatrixIova = false;
         boolean runCmdVpuXrpTargetCode5NoSettingsBufferCountMatrixIovaControl = false;
+        boolean runCmdVpuXrpTargetCode5NoSettingsPortMatrixIova = false;
+        boolean runCmdVpuXrpTargetCode5NoSettingsPortMatrixIovaControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlotControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix = false;
@@ -371,6 +373,10 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpTargetCode5NoSettingsBufferCountMatrixIova = true;
             } else if ("--run-cmd-vpu-xrp-target-code5-no-settings-buffer-count-matrix-iova-control".equals(arg)) {
                 runCmdVpuXrpTargetCode5NoSettingsBufferCountMatrixIovaControl = true;
+            } else if ("--run-cmd-vpu-xrp-target-code5-no-settings-port-matrix-iova".equals(arg)) {
+                runCmdVpuXrpTargetCode5NoSettingsPortMatrixIova = true;
+            } else if ("--run-cmd-vpu-xrp-target-code5-no-settings-port-matrix-iova-control".equals(arg)) {
+                runCmdVpuXrpTargetCode5NoSettingsPortMatrixIovaControl = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot".equals(arg)) {
                 runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot-control".equals(arg)) {
@@ -456,6 +462,8 @@ public final class ApusysIoctlProbe {
                 || runCmdVpuXrpTargetCode5NoSettingsPriorityMatrixIovaControl
                 || runCmdVpuXrpTargetCode5NoSettingsBufferCountMatrixIova
                 || runCmdVpuXrpTargetCode5NoSettingsBufferCountMatrixIovaControl
+                || runCmdVpuXrpTargetCode5NoSettingsPortMatrixIova
+                || runCmdVpuXrpTargetCode5NoSettingsPortMatrixIovaControl
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrixControl
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescOperandOffsetMatrix
@@ -777,6 +785,14 @@ public final class ApusysIoctlProbe {
 
             if (runCmdVpuXrpTargetCode5NoSettingsBufferCountMatrixIovaControl) {
                 runRunCmdVpuXrpTargetCode5NoSettingsBufferCountMatrixProbe(fd, false);
+            }
+
+            if (runCmdVpuXrpTargetCode5NoSettingsPortMatrixIova) {
+                runRunCmdVpuXrpTargetCode5NoSettingsPortMatrixProbe(fd, true);
+            }
+
+            if (runCmdVpuXrpTargetCode5NoSettingsPortMatrixIovaControl) {
+                runRunCmdVpuXrpTargetCode5NoSettingsPortMatrixProbe(fd, false);
             }
 
             if (runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot) {
@@ -1542,7 +1558,7 @@ public final class ApusysIoctlProbe {
             splitTargets, xrpOp, waitMs, twoVpuBuffers, descriptorMode,
             cmdFlags, descriptorOrder, settingsLen, outputHeaderFlag,
             settingsShape, waitAfterAsync, requestFlags, includeSettingsProperty,
-            null, null, null, null);
+            null, null, null, null, null);
     }
 
     private static void runRunCmdVpuIovaHardwareBufferProbe(int apusysFd,
@@ -1567,7 +1583,7 @@ public final class ApusysIoctlProbe {
             splitTargets, xrpOp, waitMs, twoVpuBuffers, descriptorMode,
             cmdFlags, descriptorOrder, settingsLen, outputHeaderFlag,
             settingsShape, waitAfterAsync, requestFlags, includeSettingsProperty,
-            codeFirstWordOverride, null, null, null);
+            codeFirstWordOverride, null, null, null, null);
     }
 
     private static void runRunCmdVpuIovaHardwareBufferProbe(int apusysFd,
@@ -1589,7 +1605,8 @@ public final class ApusysIoctlProbe {
                                                             Integer codeFirstWordOverride,
                                                             Integer descriptorPayloadSizeOverride,
                                                             Integer requestPriorityOverride,
-                                                            Integer requestBufferCountOverride)
+                                                            Integer requestBufferCountOverride,
+                                                            Integer descriptorPortIdOverride)
             throws Exception {
         System.out.println("\n[*] === Optional APUSYS run_cmd VPU IOVA chained probe ===");
         if (xrpSettings) {
@@ -1680,6 +1697,12 @@ public final class ApusysIoctlProbe {
                     + " request+0x35=0x"
                     + Integer.toHexString(requestBufferCountOverride)
                     + " (D2D_EXT passes this as XTENSA_INFO12).");
+            }
+            if (descriptorPortIdOverride != null) {
+                System.out.println("[*] Native descriptor port-id override:"
+                    + " descriptor+0x00=0x"
+                    + Integer.toHexString(descriptorPortIdOverride)
+                    + " for every emitted descriptor.");
             }
         } else {
             System.out.println("[*] Mode: mem_create imports HardwareBuffer to get IOVA,"
@@ -1838,12 +1861,16 @@ public final class ApusysIoctlProbe {
                     label = label + "_bufcnt_"
                         + Integer.toHexString(requestBufferCountOverride);
                 }
+                if (descriptorPortIdOverride != null) {
+                    label = label + "_port_"
+                        + Integer.toHexString(descriptorPortIdOverride);
+                }
                 fillRunCmdVpuXrpIova(input2, "apu_lib_apunn", label,
                     iovaLow, iovaSize, splitTargets, xrpOp, twoVpuBuffers,
                     descriptorMode, cmdFlags, descriptorOrder, settingsLen,
                     requestFlags, includeSettingsProperty,
                     descriptorPayloadSizeOverride, requestPriorityOverride,
-                    requestBufferCountOverride);
+                    requestBufferCountOverride, descriptorPortIdOverride);
             } else {
                 fillRunCmdVpuIova(input2, "apu_lib_apunn", "vpu_iova_apunn",
                     iovaLow, iovaSize);
@@ -2325,7 +2352,7 @@ public final class ApusysIoctlProbe {
                 XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
                 XrpSettingsShape.WRAPPER_ONE_DATA, dispatch,
                 VPU_REQUEST_FLAGS_DEFAULT, false, XRP_OPCODE_XTENSA_ANN_VERSION,
-                descriptorSize, null, null);
+                descriptorSize, null, null, null);
         }
     }
 
@@ -2349,7 +2376,7 @@ public final class ApusysIoctlProbe {
                 XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
                 XrpSettingsShape.WRAPPER_ONE_DATA, dispatch,
                 VPU_REQUEST_FLAGS_DEFAULT, false, XRP_OPCODE_XTENSA_ANN_VERSION,
-                null, priority, null);
+                null, priority, null, null);
         }
     }
 
@@ -2375,7 +2402,32 @@ public final class ApusysIoctlProbe {
                 XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
                 XrpSettingsShape.WRAPPER_ONE_DATA, dispatch,
                 VPU_REQUEST_FLAGS_DEFAULT, false, XRP_OPCODE_XTENSA_ANN_VERSION,
-                null, null, bufferCount);
+                null, null, bufferCount, null);
+        }
+    }
+
+    private static void runRunCmdVpuXrpTargetCode5NoSettingsPortMatrixProbe(
+            int apusysFd, boolean dispatch) throws Exception {
+        int[] portIds = {
+            0x00000000,
+            0x00000001,
+            0x00000002,
+            0x00000003,
+            0x00000004,
+            0x000000ff,
+        };
+        for (int portId : portIds) {
+            System.out.println("\n[*] === target-code5/no-settings"
+                + " descriptor-port-id case 0x"
+                + Integer.toHexString(portId) + " dispatch="
+                + (dispatch ? 1 : 0) + " ===");
+            runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, true, true,
+                XRP_OP_ANN_VERSION, 1000, true, VPU_DESC_LIBVPU_CODE5,
+                XRP_CMD_FLAGS_SEND, VPU_DESC_ORDER_CODE_OUTPUT,
+                XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
+                XrpSettingsShape.WRAPPER_ONE_DATA, dispatch,
+                VPU_REQUEST_FLAGS_DEFAULT, false, XRP_OPCODE_XTENSA_ANN_VERSION,
+                null, null, null, portId);
         }
     }
 
@@ -2544,7 +2596,8 @@ public final class ApusysIoctlProbe {
                                              boolean includeSettingsProperty,
                                              Integer descriptorPayloadSizeOverride,
                                              Integer requestPriorityOverride,
-                                             Integer requestBufferCountOverride)
+                                             Integer requestBufferCountOverride,
+                                             Integer descriptorPortIdOverride)
             throws Exception {
         android.media.Image.Plane[] planes = image.getPlanes();
         if (planes == null || planes.length == 0) {
@@ -2643,25 +2696,30 @@ public final class ApusysIoctlProbe {
             for (int i = 0; i < 5; i++) {
                 putVpuBufferDescriptor(buffer, reqBase + 0x50 + (i * 0x40),
                     iovaAddr, XRP_CODE_OFF, codeDescriptorPayloadSize,
-                    descriptorMode);
+                    descriptorMode, descriptorPortIdOverride);
             }
         } else {
             putVpuBufferDescriptor(buffer, reqBase + 0x50, iovaAddr,
-                buf0PayloadOff, buf0PayloadSize, descriptorMode);
+                buf0PayloadOff, buf0PayloadSize, descriptorMode,
+                descriptorPortIdOverride);
         }
 
         if (twoVpuBuffers && descriptorMode != VPU_DESC_LIBVPU_CODE5) {
             putVpuBufferDescriptor(buffer, reqBase + 0x90, iovaAddr,
-                buf1PayloadOff, buf1PayloadSize, descriptorMode);
+                buf1PayloadOff, buf1PayloadSize, descriptorMode,
+                descriptorPortIdOverride);
         }
 
         if (descriptorMode == VPU_DESC_LIBVPU_ALIAS5) {
             putVpuBufferDescriptor(buffer, reqBase + 0xd0, iovaAddr,
-                legacyBuf0PayloadOff, legacyBuf0PayloadSize, descriptorMode);
+                legacyBuf0PayloadOff, legacyBuf0PayloadSize, descriptorMode,
+                descriptorPortIdOverride);
             putVpuBufferDescriptor(buffer, reqBase + 0x110, iovaAddr,
-                outputPayloadOff, XRP_OUTPUT_SIZE, descriptorMode);
+                outputPayloadOff, XRP_OUTPUT_SIZE, descriptorMode,
+                descriptorPortIdOverride);
             putVpuBufferDescriptor(buffer, reqBase + 0x150, iovaAddr,
-                legacyBuf0PayloadOff, legacyBuf0PayloadSize, descriptorMode);
+                legacyBuf0PayloadOff, legacyBuf0PayloadSize, descriptorMode,
+                descriptorPortIdOverride);
         }
 
         image.setTimestamp(System.nanoTime());
@@ -2702,6 +2760,9 @@ public final class ApusysIoctlProbe {
             + (descriptorPayloadSizeOverride != null
                 ? " descriptor_payload_size_override=0x"
                 + Integer.toHexString(descriptorPayloadSizeOverride) : "")
+            + (descriptorPortIdOverride != null
+                ? " descriptor_port_id_override=0x"
+                + Integer.toHexString(descriptorPortIdOverride) : "")
             + " descriptor_order=" + vpuDescriptorOrderName(descriptorOrder)
             + " xrp_opcode=" + xrpOp.opcode
             + " xrp_name=" + xrpOp.name
@@ -2750,9 +2811,12 @@ public final class ApusysIoctlProbe {
                                                int baseIova,
                                                int payloadOff,
                                                int payloadSize,
-                                               int descriptorMode) {
+                                               int descriptorMode,
+                                               Integer descriptorPortIdOverride) {
         boolean libvpuShape = descriptorMode != VPU_DESC_MINIMAL;
-        buffer.put(off + 0x00, (byte) (libvpuShape ? 1 : 0)); // port_id
+        int portId = descriptorPortIdOverride != null
+            ? descriptorPortIdOverride : (libvpuShape ? 1 : 0);
+        buffer.put(off + 0x00, (byte) portId);                // port_id
         buffer.put(off + 0x01, (byte) 0);                     // DATA format
         buffer.put(off + 0x02, (byte) 1);                     // plane_count
         putU32LE(buffer, off + 0x04, payloadSize);            // width

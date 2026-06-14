@@ -714,6 +714,23 @@ descriptor-0 state writeback path. Once one copied descriptor is advertised,
 larger counts up to the kernel-accepted maximum `0x20` do not alter the same
 writeback boundary or produce APUNN settings/output completion.
 
+The descriptor-port-id matrix keeps the same target-wrapper-shaped request,
+`buffer_count=5`, and first word `0x2713`, but varies descriptor byte `+0x00`
+through `0,1,2,3,4,0xff`. Control preserves the requested byte and leaves APUNN
+windows unchanged. Dispatch plus wait returns `0` for every tested port. The
+first dispatch misses visible descriptor-0 writeback for default `port_id=1`,
+but the repeat writes `0x2713 -> 0x271b` for every tested port. Descriptor port
+id is therefore not a hard role/acceptance gate for this state writeback.
+
+Result files:
+
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_port_matrix_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_port_matrix_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_port_matrix.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_port_matrix_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_port_matrix_repeat.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_port_matrix_repeat_kernel.txt`
+
 This rules out the presence of a direct settings-property tuple as the cause of
 the current incomplete boundary. The target-wrapper-shaped no-settings request
 is accepted by APUSYS/VPU and can be waited successfully when at least one native
@@ -1303,6 +1320,14 @@ This gives the current interpretation boundary:
   `0x2713 -> 0x271b` and returns `0` from wait. This confirms firmware-visible
   descriptor count is a real liveness gate for descriptor-0 state writeback, but
   not the APUNN completion/output condition once nonzero.
+- The `target_code5_no_settings_port_matrix` result keeps the same
+  five-descriptor/no-settings request shape and `buffer_count=5`, but varies
+  descriptor byte `+0x00` through `0,1,2,3,4,0xff`. No-dispatch controls preserve
+  `0x2713` and APUNN windows. Dispatch plus wait returns `0` for every tested
+  port; the first dispatch missed visible descriptor-0 writeback for default
+  `port_id=1`, but a repeat run wrote `0x2713 -> 0x271b` for every tested value.
+  Descriptor port id is therefore not a hard role/acceptance gate for this state
+  writeback and is not the APUNN completion/output condition.
 - The `wrapper_one_data_output44` result follows the host wrapper's dynamic
   output-size formula for one `0x1c8` Xtensa operation: output size
   `0x40 + 4 * 1 = 0x44`, output header flag `1`, `settings_len=0x68`,
@@ -1466,9 +1491,11 @@ dispatch, and repeats the same state write in the second run, so priority/slot i
 also not the missing completion/output condition. The request-buffer-count matrix
 shows `request+0x35 = 0` suppresses the state write and makes wait return
 `-EIO`, while `1,2,3,4,5,0x20` all produce the same `0x2713 -> 0x271b` state
-write without APUNN output completion. Libvpu-style descriptor metadata, a
-five-descriptor alias shape, and the wrapper send-state command flag value `0x5`
-do not change that boundary.
+write without APUNN output completion. The descriptor-port-id matrix accepts
+`0,1,2,3,4,0xff` and repeats the same descriptor-0 state write, so descriptor
+byte `+0x00` is not the missing role gate either. Libvpu-style descriptor
+metadata, a five-descriptor alias shape, and the wrapper send-state command flag
+value `0x5` do not change that boundary.
 Changing the firmware-visible settings length from `0x100` to the wrapper DSP
 command buffer size `0x68` also leaves the same boundary in place. Setting the
 wrapper-controlled output header flag byte at `output+0x10` to `1` does not
