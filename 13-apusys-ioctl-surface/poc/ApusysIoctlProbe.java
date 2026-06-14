@@ -57,6 +57,7 @@ public final class ApusysIoctlProbe {
         boolean ucmdHardwareBuffer = false;
         boolean runCmdHardwareBuffer = false;
         String ucmdKey = null;
+        String ucmdKeyDump = null;
         for (String arg : args) {
             if ("--query".equals(arg)) {
                 query = true;
@@ -81,6 +82,9 @@ public final class ApusysIoctlProbe {
             } else if (arg.startsWith("--ucmd-key=")) {
                 ucmdKey = arg.substring("--ucmd-key=".length());
                 validateUcmdKey(ucmdKey);
+            } else if (arg.startsWith("--ucmd-key-dump=")) {
+                ucmdKeyDump = arg.substring("--ucmd-key-dump=".length());
+                validateUcmdKey(ucmdKeyDump);
             } else {
                 throw new IllegalArgumentException("unknown option: " + arg);
             }
@@ -89,7 +93,7 @@ public final class ApusysIoctlProbe {
         System.out.println("[*] === APUSYS ioctl probe ===");
         if (memNegative || devCtrl || memDmabuf || memIon || fdScan
                 || ucmdNegative || hardwareBuffer || ucmdHardwareBuffer
-                || runCmdHardwareBuffer || ucmdKey != null) {
+                || runCmdHardwareBuffer || ucmdKey != null || ucmdKeyDump != null) {
             System.out.println("[*] Mode: optional checks enabled;"
                 + " no secure alloc/free, no run_cmd cmdbuf\n");
         } else {
@@ -170,6 +174,10 @@ public final class ApusysIoctlProbe {
 
             if (ucmdKey != null) {
                 runUcmdKeyHardwareBufferProbe(fd, ucmdKey);
+            }
+
+            if (ucmdKeyDump != null) {
+                runUcmdKeyDumpHardwareBufferProbe(fd, ucmdKeyDump);
             }
 
             System.out.println("\n[+] Probe completed. Interpret results as handler reachability only.");
@@ -496,6 +504,21 @@ public final class ApusysIoctlProbe {
             "key_" + sanitizeLabel(key), 0x8001, key);
     }
 
+    private static void runUcmdKeyDumpHardwareBufferProbe(int apusysFd, String key)
+            throws Exception {
+        System.out.println("\n[*] === Optional APUSYS ucmd key lookup dump probe ===");
+        System.out.println("[*] Mode: same as --ucmd-key, plus Image plane"
+            + " payload dump before/after each ucmd ioctl");
+
+        loadRuntimeLibraries();
+        dumpClassShape("android.hardware.HardwareBuffer");
+        dumpClassShape("android.media.ImageReader");
+        dumpClassShape("android.media.ImageWriter");
+
+        runOneUcmdHardwareBufferProbe(apusysFd,
+            "keydump_" + sanitizeLabel(key), 0x8001, key, true);
+    }
+
     private static void runOneUcmdHardwareBufferProbe(int apusysFd, String label,
                                                       int firstU32) throws Exception {
         runOneUcmdHardwareBufferProbe(apusysFd, label, firstU32, null);
@@ -503,6 +526,13 @@ public final class ApusysIoctlProbe {
 
     private static void runOneUcmdHardwareBufferProbe(int apusysFd, String label,
                                                       int firstU32, String key)
+            throws Exception {
+        runOneUcmdHardwareBufferProbe(apusysFd, label, firstU32, key, false);
+    }
+
+    private static void runOneUcmdHardwareBufferProbe(int apusysFd, String label,
+                                                      int firstU32, String key,
+                                                      boolean dumpPayload)
             throws Exception {
         System.out.println("\n[*] --- ucmd HardwareBuffer case: " + label
             + " first_u32=0x" + Integer.toHexString(firstU32)
@@ -552,7 +582,8 @@ public final class ApusysIoctlProbe {
                 + " format=" + optionalIntMethod(hb, "getFormat")
                 + " layers=" + optionalIntMethod(hb, "getLayers")
                 + " usage=" + optionalLongMethod(hb, "getUsage"));
-            probeHardwareBufferParcel(apusysFd, hb, true, false, "hwb_" + label);
+            probeHardwareBufferParcel(apusysFd, hb, true, false,
+                "hwb_" + label, dumpPayload ? output : null);
         } catch (Throwable t) {
             System.out.println("[-] ucmd HardwareBuffer case " + label
                 + " failed: " + shortThrowable(t));
@@ -758,11 +789,54 @@ public final class ApusysIoctlProbe {
         return null;
     }
 
+    private static void dumpImageBytesIfNeeded(android.media.Image image,
+                                               String label, int maxBytes) {
+        if (image == null) {
+            return;
+        }
+        try {
+            android.media.Image.Plane[] planes = image.getPlanes();
+            if (planes == null || planes.length == 0) {
+                System.out.println("[-] " + label + ": image has no planes");
+                return;
+            }
+            java.nio.ByteBuffer buffer = planes[0].getBuffer();
+            int count = buffer.capacity() < maxBytes ? buffer.capacity() : maxBytes;
+            StringBuilder hex = new StringBuilder();
+            StringBuilder ascii = new StringBuilder();
+            for (int i = 0; i < count; i++) {
+                int value = buffer.get(i) & 0xff;
+                if (i != 0) {
+                    hex.append(' ');
+                }
+                if (value < 0x10) {
+                    hex.append('0');
+                }
+                hex.append(Integer.toHexString(value));
+                ascii.append(value >= 0x20 && value <= 0x7e ? (char) value : '.');
+            }
+            System.out.println("[*] " + label + " first_" + count + "_hex=" + hex);
+            System.out.println("[*] " + label + " first_" + count + "_ascii=" + ascii);
+        } catch (Throwable t) {
+            System.out.println("[-] " + label + " dump failed: " + shortThrowable(t));
+        }
+    }
+
     private static void probeHardwareBufferParcel(int apusysFd,
                                                   android.hardware.HardwareBuffer hb,
                                                   boolean runUcmd,
                                                   boolean runRunCmd,
                                                   String prefix)
+            throws Exception {
+        probeHardwareBufferParcel(apusysFd, hb, runUcmd, runRunCmd, prefix, null);
+    }
+
+    private static void probeHardwareBufferParcel(int apusysFd,
+                                                  android.hardware.HardwareBuffer hb,
+                                                  boolean runUcmd,
+                                                  boolean runRunCmd,
+                                                  String prefix,
+                                                  android.media.Image imageToDump)
             throws Exception {
         android.os.Parcel parcel = android.os.Parcel.obtain();
         try {
@@ -773,7 +847,8 @@ public final class ApusysIoctlProbe {
                 + " describe=0x" + Integer.toHexString(hb.describeContents()));
 
             tryReadAidlHardwareBuffer(apusysFd, parcel);
-            bruteReadParcelFds(apusysFd, parcel, size, runUcmd, runRunCmd, prefix);
+            bruteReadParcelFds(apusysFd, parcel, size, runUcmd, runRunCmd,
+                prefix, imageToDump);
         } finally {
             parcel.recycle();
         }
@@ -819,7 +894,8 @@ public final class ApusysIoctlProbe {
 
     private static void bruteReadParcelFds(int apusysFd, android.os.Parcel parcel,
                                            int size, boolean runUcmd,
-                                           boolean runRunCmd, String prefix)
+                                           boolean runRunCmd, String prefix,
+                                           android.media.Image imageToDump)
             throws Exception {
         boolean found = false;
         int limit = size < 0x1000 ? size : 0x1000;
@@ -840,10 +916,17 @@ public final class ApusysIoctlProbe {
                 boolean mem3Ok = runMemCreateWithFd(apusysFd, mem3Name,
                     APUSYS_CMD_MEM_CREATE3, APUSYS_CMD_MEM_FREE_10, fd, 0x4000);
                 if (runUcmd && (mem2Ok || mem3Ok)) {
+                    String dumpBase = prefix + "_pos" + pos;
+                    dumpImageBytesIfNeeded(imageToDump,
+                        "payload_before_c0_" + dumpBase, 0x40);
                     runUcmdWithFd(apusysFd, "ucmd_" + prefix + "_c0_pos" + pos,
                         3, 0, fd, 0, 0x1000);
+                    dumpImageBytesIfNeeded(imageToDump,
+                        "payload_after_c0_" + dumpBase, 0x40);
                     runUcmdWithFd(apusysFd, "ucmd_" + prefix + "_c1_pos" + pos,
                         3, 1, fd, 0, 0x1000);
+                    dumpImageBytesIfNeeded(imageToDump,
+                        "payload_after_c1_" + dumpBase, 0x40);
                 }
                 if (runRunCmd && (mem2Ok || mem3Ok)) {
                     runRunCmdWithFd(apusysFd,

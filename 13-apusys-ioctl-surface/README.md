@@ -201,7 +201,7 @@ The raw ops tables are named `vpu_normal_algo_ops_raw` at `0xffffffc00979ae70` a
 | Normal/Preload `+0x20` | `0xffffff8008821a64` | `vpu_alg_release` at `0xffffffc0087a1a64` |
 | Normal-only `+0x28` | `0xffffff8008827d40` | `vpu_hw_alg_init` at `0xffffffc0087a7d40` |
 
-For the `ucmd` path, the relevant lookup callback is `vpu_alg_get`. The branch reached from opcode `7` calls it first on the Normal set and then on the Preload set. The observed `-ENOENT` result for empty, `Normal`, `unknown`, and `apu_lib_custom` payloads means the mapped payload passed the `0x8001` gate, reached the algorithm lookup interface, and missed both sets for those keys. The observed `0` result for `apu_lib_apunn` confirms a loaded key on this firmware.
+For the `ucmd` path, the relevant lookup callback is `vpu_alg_get`. The branch reached from opcode `7` calls it first on the Normal set and then on the Preload set. The observed `-ENOENT` result for empty, `Normal`, `unknown`, and `apu_lib_custom` payloads means the mapped payload passed the `0x8001` gate, reached the algorithm lookup interface, and missed both sets for those keys. The observed `0` result for `apu_lib_apunn` confirms a loaded key on this firmware. Static analysis of the success branch shows the hit object is immediately passed to the table `+0x18` callback (`vpu_alg_put`) and the provider then returns success after walking the core list; the opcode-7 path does not visibly populate the mapped user-command buffer.
 
 The userspace `/vendor/lib64/libvpu.so` wrapper independently confirms this payload ABI. `VpuStreamImp::getAlgo(char const *name)` allocates a 0x24-byte user-command buffer, zeroes it, writes `0x8001` at offset `+0x00`, copies `name` to offset `+0x04` with `strncpy(..., 0x1f)`, and sends it through `apusysEngine::sendUserCmdBuf(..., device 3)`. The kernel-side `vpu_alg_get` compares that key with algorithm object names using `strcmp`: the object name starts at object `+0x00`, the list node is at object `+0x1040`, and the refcount is at object `+0x103c`.
 
@@ -235,6 +235,18 @@ The `/system/lib64/libneuron_platform.vpu.so` `XrpVpuStream::kAlgoNames` table g
 ```
 
 This is a material risk change for APUSYS: the PoC no longer stops at a header-gate lookup miss. It now reaches the real Normal/Preload lookup path with a known key and gets a provider success return. The current probe still does not submit a VPU execution request or build a valid APUSYS command buffer.
+
+The follow-up keydump run confirms the userspace-visible payload is unchanged across the success return:
+
+```text
+[*] payload_before_c0_hwb_keydump_apu_lib_apunn_pos388 first_64_hex=01 80 00 00 61 70 75 5f 6c 69 62 5f 61 70 75 6e 6e 00 ...
+[*] ucmd_hwb_keydump_apu_lib_apunn_c0_pos388 cmd=0x4014410e ret=0
+[*] payload_after_c0_hwb_keydump_apu_lib_apunn_pos388 first_64_hex=01 80 00 00 61 70 75 5f 6c 69 62 5f 61 70 75 6e 6e 00 ...
+[*] ucmd_hwb_keydump_apu_lib_apunn_c1_pos388 cmd=0x4014410e ret=0
+[*] payload_after_c1_hwb_keydump_apu_lib_apunn_pos388 first_64_hex=01 80 00 00 61 70 75 5f 6c 69 62 5f 61 70 75 6e 6e 00 ...
+```
+
+The `libvpu.so` ABI uses a 0x24-byte buffer for this command, so the first-64-byte dump covers the command buffer and padding visible through the Java Image plane. The current boundary is a confirmed algorithm lookup/refcount path, not a command submission path or a mapped-buffer writeback primitive.
 
 ### APUSYS run_cmd_async / run_cmd_sync path
 
@@ -427,6 +439,15 @@ CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
 ```
 
 `--ucmd-key=<ascii>` emulates the non-executing `libvpu.so` `VpuStreamImp::getAlgo()` user-command shape: first u32 `0x8001`, up to 31 printable ASCII key bytes at payload offset `+0x04`, then normal VPU `mdw_usr_ucmd` on core `0` and `1`. It only runs after the HardwareBuffer fd first passes APUSYS memory-create. This is a lookup probe, not a VPU execute request.
+
+Optional key lookup plus mapped Image-plane dump:
+
+```sh
+CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe --ucmd-key-dump=apu_lib_apunn
+```
+
+`--ucmd-key-dump=<ascii>` uses the same payload as `--ucmd-key`, then prints the first bytes of the Java-readable Image plane before core `0`, after core `0`, and after core `1`. This mode is for checking visible writeback around the lookup return.
 
 Optional HardwareBuffer-backed `run_cmd_async` parser test:
 
@@ -641,7 +662,7 @@ CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
 [*] ucmd_hwb_key_unknown_c1_pos388 cmd=0x4014410e ret=-2 (ENOENT)
 ```
 
-Interpretation: `apu_lib_apunn` is a real loaded VPU algorithm key on this firmware and produces a provider success return through the same HardwareBuffer-backed `mdw_usr_ucmd` path. This is still a lookup/control primitive, not a submitted VPU workload. The next question is what kernel/user fields are written on success and how the normal APUSYS command-buffer path references the returned algorithm object.
+Interpretation: `apu_lib_apunn` is a real loaded VPU algorithm key on this firmware and produces a provider success return through the same HardwareBuffer-backed `mdw_usr_ucmd` path. IDA maps the success branch to `vpu_alg_get` followed by `vpu_alg_put`; the runtime keydump shows no change in the first 64 bytes of the mapped Image plane before and after core `0` / core `1` success returns. The current question moves to how the normal APUSYS command-buffer path references algorithm state during actual request execution.
 
 Observed optional `--run-cmd-hardwarebuffer` result from the same `system_app` context on 2026-06-14:
 
@@ -687,6 +708,6 @@ Interpretation: APUSYS memory-create is now a mapped and runtime-confirmed impor
 - Use kernel logs, if available from the lab context, to distinguish whether the `ENOMEM` path comes from ION import, cache sync, or IOVA map setup.
 - Keep the `run_cmd` parser probe limited to zero-header / invalid-header inputs until the command-buffer layout is mapped. Command ops `+0x00`, `+0x10`, and `+0x18` are now resolved as `mdw_cmd_create_cmd`, `mdw_cmd_abort_cmd`, and `mdw_cmd_parse_cmd`.
 - For `0x400C4109`, optional follow-up is a small control-value sweep on the live-success providers while watching return codes and kernel logs. The current control value `0` already confirms provider opcode `0` reachability.
-- For `mdw_usr_ucmd`, inspect the success side effects of `--ucmd-key=apu_lib_apunn`: dump the 0x24-byte mapped buffer after ioctl if possible, and continue static analysis around the opcode-7 success branch. The key string ABI is confirmed as `mapped_kva+4`, up to 31 bytes, matching userspace `libvpu.so::getAlgo()`.
+- For `mdw_usr_ucmd`, the `apu_lib_apunn` opcode-7 lookup/writeback check is complete for the visible 0x24-byte `libvpu.so::getAlgo()` command buffer: success returns `0`, then `vpu_alg_put`, with no first-64-byte Image-plane change. Continue by mapping the request/command-buffer layouts that lead into `vpu_execute`.
 - Continue mapping `mdla_run_command_sync`, `vpu_execute`, and `edma_execute` input structures before valid command-buffer experiments.
 - Continue scheduler/queue analysis after command parser targets are known. Valid command-buffer experiments come after that mapping.

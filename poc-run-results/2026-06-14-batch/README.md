@@ -35,6 +35,7 @@ Raw outputs from this run are archived in this directory.
 | `13_apusys_ucmd_hardwarebuffer.txt` | APUSYS normal VPU `ucmd` gate check using ImageWriter-backed HardwareBuffer contents |
 | `13_apusys_ucmd_key_normal.txt` | APUSYS normal VPU `ucmd` lookup check with `0x8001 + "Normal"` payload |
 | `13_apusys_ucmd_key_neuron_algos.txt` | APUSYS normal VPU `ucmd` lookup check with `libneuron_platform.vpu.so` `kAlgoNames` candidates |
+| `13_apusys_ucmd_keydump_apunn.txt` | APUSYS `apu_lib_apunn` success-path keydump before/after core `0` and `1` lookup returns |
 | `13_apusys_run_cmd_hardwarebuffer.txt` | APUSYS `run_cmd_async` parser check using ImageWriter-backed HardwareBuffer contents |
 | `02_vuln_check_jit.txt` | Mali JIT `DONT_NEED` check for CVE-2022-38181 style chain |
 | `02_diag_dont_need.txt` | Mali non-JIT `DONT_NEED` behavior |
@@ -147,6 +148,7 @@ Interpretation:
 - APUSYS memory-create type-2/type-3 is now the highest APUSYS subpath with a working fd source: `app_process64` can create an `android.hardware.HardwareBuffer`, extract a fd-bearing Parcel entry, and import it through both memory-create variants.
 - APUSYS `mdw_usr_ucmd` now has a runtime-confirmed normal VPU opcode-7 content gate: with the HardwareBuffer fd source, offset `0`, nonzero length, device id `3`, and a live core id, first mapped u32 `0` returns `EINVAL`, while first mapped u32 `0x8001` moves into the Normal/Preload key lookup path. Empty, `Normal`, `unknown`, and `apu_lib_custom` keys return `ENOENT`, while `apu_lib_apunn` returns `0` for core `0` and `1`.
 - Userspace `/vendor/lib64/libvpu.so` confirms the lookup payload shape: `VpuStreamImp::getAlgo()` sends `0x8001` plus up to 31 key bytes at payload offset `+4`. `/system/lib64/libneuron_platform.vpu.so::XrpVpuStream::kAlgoNames` provides the tested candidates `unknown`, `apu_lib_apunn`, and `apu_lib_custom`; `apu_lib_apunn` is a loaded algorithm key on this target.
+- The `apu_lib_apunn` keydump run shows the first 64 Image-plane bytes are unchanged before core `0`, after core `0`, and after core `1` success returns. IDA maps the success branch to `vpu_alg_get` followed by `vpu_alg_put`, so the current opcode-7 result is an algorithm lookup/refcount path rather than a visible user-buffer writeback.
 - APUSYS `mdw_usr_run_cmd_async` command ops are now resolved through kallsyms-derived raw-pointer normalization. With the same HardwareBuffer fd source, a zero command buffer reaches memory import and returns `EINVAL` from the parser path before queue insertion.
 - Candidate-fd scanning shows no tested `/dev/dma_heap/*` nodes, `/dev/ashmem` open is denied, and ordinary openable non-dmabuf fds fail memory-create with `ENOMEM`.
 - Normal VPU `ucmd` with offset `0`, nonzero length, and bad fd fails cleanly with `EINVAL` for core `0` and `1`.
@@ -159,7 +161,7 @@ Resulting CVE priority:
 
 | CVE / Area | Post-run Risk | Reason |
 |---|---|---|
-| APUSYS CVE candidates | High research priority | `/dev/apusys` opens with `O_RDWR`; `0x400C4109` provider opcode-0 dispatch is live for MDLA, normal VPU, EDMA, and MDLA RT. HardwareBuffer under `app_process64` provides a usable dmabuf fd, both APUSYS memory-create variants import it successfully, normal VPU `ucmd` reaches the `0x8001 + key` lookup path, `apu_lib_apunn` returns provider success, and `run_cmd_async` reaches the parser path with a zero-header buffer. |
+| APUSYS CVE candidates | High research priority | `/dev/apusys` opens with `O_RDWR`; `0x400C4109` provider opcode-0 dispatch is live for MDLA, normal VPU, EDMA, and MDLA RT. HardwareBuffer under `app_process64` provides a usable dmabuf fd, both APUSYS memory-create variants import it successfully, normal VPU `ucmd` reaches the `0x8001 + key` lookup path, `apu_lib_apunn` returns provider success without visible first-64-byte writeback, and `run_cmd_async` reaches the parser path with a zero-header buffer. |
 | CVE-2023-20768 / ION | Medium-Low for direct system_app node access | Dedicated old-ION path confirms `/dev/ion` open returns `EACCES` from `system_app`. |
 | Mali WRITE_VALUE boundary | Low for kernel LPE | WRITE_VALUE confirmed, but USER_BUFFER/kernel reachability is blocked. |
 
@@ -256,7 +258,7 @@ Resulting CVE priority:
 ## Final Post-Run Order
 
 1. **Display / DRM OOB read/write cluster**: `CVE-2023-32867`, `32868`, then `32865`, `32864`, `32863`, `20775`, `32860`. `32864` and `32865` remain reachable but the first guard probes did not confirm exploitable write paths.
-2. **APUSYS reachable surface**: APUSYS-related CVEs should be mapped next because `/dev/apusys` opens from `system_app`, provider dispatch is live, HardwareBuffer under `app_process64` supplies a dmabuf fd that APUSYS imports successfully, normal VPU `ucmd` reaches the userspace-compatible `0x8001 + key` lookup path, `apu_lib_apunn` returns provider success, and `run_cmd_async` reaches the parser path. The next APUSYS steps are understanding the `ucmd` success side effects and recovering a valid command-buffer layout.
+2. **APUSYS reachable surface**: APUSYS-related CVEs should be mapped next because `/dev/apusys` opens from `system_app`, provider dispatch is live, HardwareBuffer under `app_process64` supplies a dmabuf fd that APUSYS imports successfully, normal VPU `ucmd` reaches the userspace-compatible `0x8001 + key` lookup path, `apu_lib_apunn` returns provider success without visible first-64-byte writeback, and `run_cmd_async` reaches the parser path. The next APUSYS step is recovering the request and command-buffer layouts that lead into provider execution.
 3. **secmem / keyinstall via service paths**: `CVE-2023-32834`, `CVE-2023-32835`; direct secure nodes are blocked, so service PoC needed.
 4. **CMDQ / PQ / MMP indirect paths**: `CVE-2023-32849`, `CVE-2024-20037`, `CVE-2023-32866`; direct nodes blocked.
 5. **ION**: keep as pending until strict open/ioctl reachability is resolved.
