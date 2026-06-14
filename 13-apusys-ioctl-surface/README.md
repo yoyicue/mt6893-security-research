@@ -841,7 +841,7 @@ The runner can call `06-cve-2024-31317-zygote-injection/poc/rebuild_bind_shell.p
 Wrapper request inspection helper:
 
 ```sh
-/opt/homebrew/share/android-commandlinetools/ndk/27.2.12479018/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android29-clang++ \
+/opt/homebrew/share/android-commandlinetools/ndk/27.2.12479018/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android35-clang++ \
   -std=c++17 -Wall -Wextra -O2 -fPIE -pie -static-libstdc++ \
   13-apusys-ioctl-surface/poc/xrp_wrapper_inspect.cpp -ldl \
   -o /tmp/xrp_wrapper_inspect
@@ -850,10 +850,29 @@ adb -s 7FPE0824B0801372 shell chmod 755 /data/local/tmp/xrp_wrapper_inspect
 adb -s 7FPE0824B0801372 shell /data/local/tmp/xrp_wrapper_inspect neuron
 ```
 
-The helper currently works as a shell-domain negative control: it loads
-`/system/lib64/libneuron_platform.vpu.so`, but `XRP_Create()` returns status
-`4`, so follow-up wrapper calls are skipped. The saved result is
-`poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_neuron_shell_latest.txt`.
+The helper now creates a direct Neuron `cXrpOptions` block with size `0x18` and,
+by default, tries to obtain a `libapu_mdw.so` `apusys_session*` for
+`cXrpOptions+0x10`. Static analysis shows the device wrapper requires that
+session pointer before `XrpIntrinsicExecutor::InitDriver()` can create the
+`vpu_xrp` stream and memory manager.
+
+Current direct-Neuron controls:
+
+- `--no-create-apusys-session`: reproduces `XRP_Create status=4`.
+- default session path from shell: loads `/system/lib64/libapu_mdw.so`, but
+  `apusysSession_createInstance()` returns null and `XRP_Create` remains status
+  `4`.
+- Java `app_process64` path: native-call stub works, but direct `dlopen()` of
+  `libapu_mdw.so` returns null from the `system_app` linker namespace; `XRP_Create`
+  remains status `4`.
+
+The current interpretation is that direct `libneuron_platform.vpu.so`
+wrapper-generated request dumping requires a process context that already has a
+valid `libapu_mdw` session, or a hook inside such a process. Result files:
+
+- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_neuron_apu_mdw_session.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_java_neuron_native_dlopen_session_system_app.txt`
 
 The same helper can also target the APUWARE HIDL wrapper:
 
@@ -914,12 +933,12 @@ native-call stub now preserves `LR/X30` around `BLR`; its libc `getpid()`
 self-test returns the expected process id in `uid=1000(system)` /
 `u:r:system_app:s0`.
 
-The current `system_app` result still returns `XRP_Create status=4`, matching
-the shell-domain initialization boundary. The saved result is
-`poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_app_process.txt`.
-The positive comparison still needs a context, option set, or hook point where
-`XRP_Create()` returns `0` and the wrapper's memory manager exists before
-`XRP_CreateCommand()`.
+The current `system_app` result still returns `XRP_Create status=4`. The newer
+run additionally proves that `System.load()` and native `dlopen()` cannot bring
+`libapu_mdw.so` into this app_process linker namespace, so the required
+`cXrpOptions+0x10` session pointer is still missing. The positive comparison
+still needs a context, option set, or hook point where `XRP_Create()` returns
+`0` and the wrapper's memory manager exists before `XRP_CreateCommand()`.
 
 Run from the existing `uid=1000(system)` / `u:r:system_app:s0` dalvikvm context:
 

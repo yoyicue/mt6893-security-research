@@ -655,15 +655,18 @@ adds these wrapper constraints:
 | Wrapper item | Evidence |
 |---|---|
 | `cXrpOptions` | `XrpIntrinsicWrapper::XrpIntrinsicWrapper()` expects option size `0x18`, reads byte `+0x05`, and copies the qword at `+0x10` into internal options |
-| `XrpIntrinsicExecutor::InitDriver()` | Creates the VPU stream instance first; failure returns a nonzero XRP status before memory-manager setup |
+| `cXrpOptions+0x10` | Device wrapper treats this qword as an existing `apusys_session*`; `XrpVpuStream::CreateVpuInstance()` returns status `4` when it is zero |
+| `XrpIntrinsicExecutor::InitDriver()` | Creates the VPU stream instance first with name `vpu_xrp`; failure returns a nonzero XRP status before memory-manager setup |
 | `XrpIntrinsicExecutor::CreateXrpCommand()` | Allocates a `0x68` `xrp_dsp_cmd`/DSP command buffer through the memory manager before command initialization |
+| `XrpVpuStream::kAlgoNames` | The static table contains `apu_lib_apunn` and `apu_lib_custom`; `InitDriver()` tries custom when `debug.vpu.custom.algo.support` is set, otherwise/fallback APUNN |
 
-The shell-domain run is a negative control, not a valid APUNN wrapper ABI
-dump:
+The shell-domain run without an APUSYS session is a negative control, not a
+valid APUNN wrapper ABI dump:
 
 ```text
 context=u:r:shell:s0
 dlopen path=/system/lib64/libneuron_platform.vpu.so
+create_apusys_session=0
 XRP_Create status=4
 XRP_Create did not initialize the wrapper; skip follow-up calls.
 ```
@@ -673,6 +676,20 @@ static path: `XRP_CreateCommand()` reaches
 `XrpMemoryManager::AllocateBuffer(0x68)`, but `InitDriver()` did not create the
 memory manager, so the call locks a null-object mutex at `0x10`. The corrected
 inspector stops after nonzero `XRP_Create`.
+
+The native inspector now has a `libapu_mdw.so` session path for the direct
+Neuron wrapper. It loads `libapu_mdw.so`, calls
+`apusysSession_createInstance()`, and writes the returned pointer to
+`cXrpOptions+0x10` before `XRP_Create()`. From the shell domain, library loading
+succeeds through `/system/lib64/libapu_mdw.so`, but session creation returns
+null, so the wrapper still returns status `4`:
+
+```text
+context=u:r:shell:s0
+dlopen apusys path=/system/lib64/libapu_mdw.so
+apusysSession_createInstance session=0x0
+XRP_Create status=4
+```
 
 The `system_app` `app_process64` route now works as a second negative control.
 `poc/XrpWrapperInspect.java` loads the already-installed
@@ -684,17 +701,22 @@ the blocking point:
 
 ```text
 uid=1000(system) context=u:r:system_app:s0
-native getpid()=610
-XRP_Create status=4 device=0xb400006db9a2af10
+native getpid()=12021
+native dlopen path=/system/lib64/libapu_mdw.so handle=0x0
+native dlopen path=/system/vendor/lib64/libapu_mdw.so handle=0x0
+native dlopen path=/vendor/lib64/libapu_mdw.so handle=0x0
+XRP_Create status=4 device=0xb400006d90f50690
 XRP_Create did not initialize; stop.
 ```
 
 This keeps the wrapper-generated request comparison open, but narrows the
-missing condition. Both shell and direct `system_app` wrapper initialization
-return status `4`; follow-up calls are intentionally skipped because the memory
-manager is not initialized on that path. A useful positive dump still needs a
-context or option set where `XRP_Create()` returns `0`, or a different hook point
-inside an already successful Neuron/VPU client.
+missing condition. Direct `libneuron_platform.vpu.so` wrapper initialization
+needs a real `libapu_mdw` `apusys_session*`. Shell can load `libapu_mdw.so` but
+does not get a session; `app_process64` can call installed wrapper functions but
+cannot load `libapu_mdw.so` from its linker namespace. A useful positive dump
+therefore needs one of: a process context where `libapu_mdw` creates a session,
+a hook point inside an already successful Neuron/VPU client after it has a
+session, or a service-side APUWARE prepared-request dump.
 
 The APUWARE HIDL wrapper gives a separate positive initialization path through
 `/system/system_ext/lib64/libapuwarexrp_v2.mtk.so`. It proxies to

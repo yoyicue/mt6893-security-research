@@ -31,6 +31,8 @@ using XrpGetPreparedRequests = uint32_t (*)(void *device, uint64_t handle,
                                             uint32_t request_count);
 using XrpSyncBuffer = uint32_t (*)(void *device, int32_t direction,
                                    const void *buffer_info);
+using ApusysSessionCreateInstance = void *(*)();
+using ApusysSessionDeleteInstance = int32_t (*)(void *);
 
 template <typename T>
 T load_le(const uint8_t *p) {
@@ -135,6 +137,7 @@ int main(int argc, char **argv) {
     bool sync_buffers = false;
     bool finalize_slot_index = false;
     bool dlopen_lazy = false;
+    bool create_apusys_session = true;
     uint64_t handle = 1;
     uint32_t finalize_count = 1;
     for (int i = 1; i < argc; ++i) {
@@ -152,6 +155,10 @@ int main(int argc, char **argv) {
             finalize_slot_index = true;
         } else if (strcmp(argv[i], "--dlopen-lazy") == 0) {
             dlopen_lazy = true;
+        } else if (strcmp(argv[i], "--create-apusys-session") == 0) {
+            create_apusys_session = true;
+        } else if (strcmp(argv[i], "--no-create-apusys-session") == 0) {
+            create_apusys_session = false;
         } else if (strncmp(argv[i], "--handle=", 9) == 0) {
             handle = parse_u64_arg(argv[i], "--handle=", handle);
         } else if (strncmp(argv[i], "--finalize-count=", 17) == 0) {
@@ -175,13 +182,18 @@ int main(int argc, char **argv) {
     size_t lib_path_count = use_apuware
         ? sizeof(apuware_paths) / sizeof(apuware_paths[0])
         : sizeof(neuron_paths) / sizeof(neuron_paths[0]);
+    if (use_apuware) {
+        create_apusys_session = false;
+    }
 
     printf("mode=%s handle=%" PRIu64
-           " finalize_count=%u sync=%d finalize_index_mode=%s dlopen=%s\n",
+           " finalize_count=%u sync=%d finalize_index_mode=%s dlopen=%s"
+           " create_apusys_session=%d\n",
            use_apuware ? "apuware" : "neuron", handle, finalize_count,
            sync_buffers ? 1 : 0,
            finalize_slot_index ? "slot" : "buffer_info",
-           dlopen_lazy ? "lazy" : "now");
+           dlopen_lazy ? "lazy" : "now",
+           create_apusys_session ? 1 : 0);
     void *lib = nullptr;
     for (size_t i = 0; i < lib_path_count; ++i) {
         const char *path = lib_paths[i];
@@ -220,11 +232,47 @@ int main(int argc, char **argv) {
 
     uint8_t options[0x30] = {};
     store_le<uint32_t>(options + 0x00, 0x18);
+    void *apusys_lib = nullptr;
+    void *apusys_session = nullptr;
+    ApusysSessionDeleteInstance apusys_session_delete = nullptr;
+    if (create_apusys_session) {
+        const char *apusys_paths[] = {
+            "/vendor/lib64/libapu_mdw.so",
+            "/system/vendor/lib64/libapu_mdw.so",
+            "/system/lib64/libapu_mdw.so",
+        };
+        ApusysSessionCreateInstance apusys_session_create = nullptr;
+        for (size_t i = 0; i < sizeof(apusys_paths) / sizeof(apusys_paths[0]); ++i) {
+            apusys_lib = dlopen(apusys_paths[i], RTLD_NOW | RTLD_GLOBAL);
+            if (apusys_lib) {
+                printf("dlopen apusys path=%s\n", apusys_paths[i]);
+                break;
+            }
+            fprintf(stderr, "dlopen apusys failed path=%s error=%s\n",
+                    apusys_paths[i], dlerror());
+        }
+        if (!apusys_lib ||
+            !load_sym(apusys_lib, "apusysSession_createInstance",
+                      &apusys_session_create) ||
+            !load_sym(apusys_lib, "apusysSession_deleteInstance",
+                      &apusys_session_delete)) {
+            printf("APUSYS session helper unavailable; continue with null session.\n");
+        } else {
+            apusys_session = apusys_session_create();
+            printf("apusysSession_createInstance session=%p\n", apusys_session);
+            store_le<uint64_t>(options + 0x10,
+                               reinterpret_cast<uintptr_t>(apusys_session));
+        }
+    }
     void *device = nullptr;
     uint32_t st = xrp_create(options, &device);
     printf("XRP_Create status=%u device=%p\n", st, device);
     if (st != 0 || !device) {
         printf("XRP_Create did not initialize the wrapper; skip follow-up calls.\n");
+        if (apusys_session && apusys_session_delete) {
+            int32_t del_st = apusys_session_delete(apusys_session);
+            printf("apusysSession_deleteInstance status=%d\n", del_st);
+        }
         return 1;
     }
 
@@ -328,5 +376,9 @@ int main(int argc, char **argv) {
     }
 
     xrp_release(&device);
+    if (apusys_session && apusys_session_delete) {
+        int32_t del_st = apusys_session_delete(apusys_session);
+        printf("apusysSession_deleteInstance status=%d\n", del_st);
+    }
     return 0;
 }

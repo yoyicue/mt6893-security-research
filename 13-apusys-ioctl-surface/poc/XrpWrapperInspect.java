@@ -28,6 +28,13 @@ public final class XrpWrapperInspect {
         "/system/system_ext/lib64/libapuwarexrp.mtk.so",
         "/system_ext/lib64/libapuwarexrp.mtk.so",
     };
+    private static final String[] APUSYS_LIB_PATHS = {
+        "/system/lib64/libapu_mdw.so",
+        "/system/vendor/lib64/libapu_mdw.so",
+        "/vendor/lib64/libapu_mdw.so",
+    };
+    private static final String LIBDL_PATH = "/apex/com.android.runtime/lib64/bionic/libdl.so";
+    private static final int RTLD_NOW_GLOBAL = 0x102;
 
     private static final int PROT_READ = DrmTrigger.PROT_READ;
     private static final int PROT_WRITE = DrmTrigger.PROT_WRITE;
@@ -48,10 +55,19 @@ public final class XrpWrapperInspect {
         printContext();
 
         boolean apuwareMode = args.length > 0 && "apuware".equals(args[0]);
+        boolean createApusysSession = !apuwareMode;
+        for (String arg : args) {
+            if ("--no-create-apusys-session".equals(arg)) {
+                createApusysSession = false;
+            } else if ("--create-apusys-session".equals(arg)) {
+                createApusysSession = true;
+            }
+        }
         String libKind = apuwareMode ? "apuware" : "neuron";
         String libPath = loadWrapper(apuwareMode ? APUWARE_LIB_PATHS : NEURON_LIB_PATHS);
         System.out.println("[+] mode=" + libKind);
         System.out.println("[+] loaded=" + libPath);
+        System.out.println("[+] create_apusys_session=" + createApusysSession);
 
         String libcPath = "/apex/com.android.runtime/lib64/bionic/libc.so";
         long libcGetpid = resolve(libcPath, "getpid");
@@ -73,6 +89,21 @@ public final class XrpWrapperInspect {
         System.out.println("[+] inspect_mem=0x" + Long.toHexString(mem));
         clear(mem, 0x4000);
 
+        String apusysLibPath = null;
+        long apusysSessionCreate = 0;
+        long apusysSessionDelete = 0;
+        if (createApusysSession) {
+            long dlopen = resolve(LIBDL_PATH, "dlopen");
+            apusysLibPath = nativeDlopenFirst(APUSYS_LIB_PATHS, dlopen, mem + 0x3000);
+            if (apusysLibPath != null) {
+                System.out.println("[+] apusys_loaded=" + apusysLibPath);
+                apusysSessionCreate = resolve(apusysLibPath, "apusysSession_createInstance");
+                apusysSessionDelete = resolve(apusysLibPath, "apusysSession_deleteInstance");
+            } else {
+                System.out.println("APUSYS native dlopen failed for all candidate paths.");
+            }
+        }
+
         long options = mem;
         long devicePtr = mem + 0x40;
         long codeInfo = mem + 0x80;
@@ -81,6 +112,13 @@ public final class XrpWrapperInspect {
         DrmTrigger.unsafePutInt(options, 0x18);
         initEmptyBufInfo(codeInfo);
         initEmptyBufInfo(outInfo);
+        long apusysSession = 0;
+        if (apusysSessionCreate != 0) {
+            apusysSession = call(apusysSessionCreate, 0, 0, 0, 0, 0);
+            System.out.println("apusysSession_createInstance session=0x"
+                + Long.toHexString(apusysSession));
+            DrmTrigger.unsafePutLong(options + 0x10, apusysSession);
+        }
 
         long st = call(xrpCreate, options, devicePtr, 0, 0, 0);
         long device = DrmTrigger.unsafeGetLong(devicePtr);
@@ -88,6 +126,10 @@ public final class XrpWrapperInspect {
             + " device=0x" + Long.toHexString(device));
         if (u32(st) != 0 || device == 0) {
             System.out.println("XRP_Create did not initialize; stop.");
+            if (apusysSession != 0 && apusysSessionDelete != 0) {
+                long delSt = call(apusysSessionDelete, apusysSession, 0, 0, 0, 0);
+                System.out.println("apusysSession_deleteInstance status=" + u32(delSt));
+            }
             return;
         }
 
@@ -150,6 +192,10 @@ public final class XrpWrapperInspect {
         }
 
         call(xrpRelease, devicePtr, 0, 0, 0, 0);
+        if (apusysSession != 0 && apusysSessionDelete != 0) {
+            long delSt = call(apusysSessionDelete, apusysSession, 0, 0, 0, 0);
+            System.out.println("apusysSession_deleteInstance status=" + u32(delSt));
+        }
     }
 
     private static long call(long fn, long a0, long a1, long a2,
@@ -195,6 +241,20 @@ public final class XrpWrapperInspect {
             }
         }
         throw new RuntimeException("could not load libneuron wrapper", last);
+    }
+
+    private static String nativeDlopenFirst(String[] paths, long dlopen,
+                                            long pathBuf) throws Exception {
+        for (String path : paths) {
+            writeCString(pathBuf, path);
+            long handle = call(dlopen, pathBuf, RTLD_NOW_GLOBAL, 0, 0, 0);
+            System.out.println("native dlopen path=" + path
+                + " handle=0x" + Long.toHexString(handle));
+            if (handle != 0) {
+                return path;
+            }
+        }
+        return null;
     }
 
     private static long resolve(String libPath, String symbol) throws Exception {
@@ -331,6 +391,14 @@ public final class XrpWrapperInspect {
         for (int off = 0; off < size; off++) {
             DrmTrigger.unsafePutByte(addr + off, value);
         }
+    }
+
+    private static void writeCString(long addr, String value) throws Exception {
+        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+        for (int i = 0; i < bytes.length; i++) {
+            DrmTrigger.unsafePutByte(addr + i, bytes[i]);
+        }
+        DrmTrigger.unsafePutByte(addr + bytes.length, (byte) 0);
     }
 
     private static void dumpHex(String label, long addr, int size) throws Exception {
