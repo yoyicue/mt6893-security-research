@@ -9,11 +9,11 @@ crw-rw---- 1 system camera u:object_r:apusys_device:s0 /dev/apusys
 [OPEN] /dev/apusys  fd=5
 ```
 
-The current result is **reachable, with confirmed VPU DMA access to a user-controlled IOVA buffer from `system_app`**. The `--run-cmd-vpu-iova` probe chains `mem_create` (type-2 HardwareBuffer import → IOVA allocation) with `run_cmd_async` (VPU request referencing that IOVA in `sett_ptr` and D2D buffer descriptors). This eliminates the APU DEVAPC hardware barrier that blocked the earlier `--run-cmd-vpu-exec` probe. The VPU core performs a legitimate IOMMU-mapped DMA transaction against the user-supplied buffer, confirmed by `vpu_map_sg_to_iova` in kernel log and the absence of any DEVAPC violation. The VPU execution still times out because the algorithm payload is not meaningful, but the DMA channel from `system_app` → VPU hardware → user-controlled buffer is now open. IDA analysis shows the device is the MTK APUSYS midware character device. Its main ioctl handler is now named `mdw_ioctl` in the IDB at `0xffffffc00878a0ec`.
+The current result is **reachable through APUSYS memory import, normal-VPU algorithm lookup, command parsing, scheduler handoff, and full-size VPU request acceptance from `system_app`**. The VPU request ABI is now tied back to `/vendor/lib64/libvpu.so`: `request+0x35` is `buffer_count`, `request+0x38/+0x40` are settings length/IOVA, and `request+0x50` starts the per-buffer descriptor array. IDA analysis shows the device is the MTK APUSYS midware character device. Its main ioctl handler is now named `mdw_ioctl` in the IDB at `0xffffffc00878a0ec`.
 
 The directory has no CVE number yet. The repository uses CVE-numbered directories when a test is tied to a specific public CVE or confirmed bug class. APUSYS is currently an exposed proprietary ioctl surface with confirmed VPU hardware dispatch reachability from an unprivileged `system_app` context, but no confirmed CVE match or memory corruption primitive.
 
-This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths, negative memory-create cases, optional device-control reachability checks, direct dmabuf-source checks, a candidate-fd scan for the memory import path, HardwareBuffer-backed dmabuf import, controlled `ucmd` gate tests, zero-header / invalid-subcommand `run_cmd_async` parser probes, a normal-VPU valid-type request-size guard probe, a full-size (`0xb70`) VPU execution dispatch probe, and a chained IOVA-import + VPU execution probe. The IOVA chained probe is the deepest path reached: it imports a user-controlled buffer into the APU IOMMU address space, then dispatches VPU hardware execution referencing that IOVA. The VPU DMA engine accesses the buffer without DEVAPC violation. Heap shaping and real execution-path inputs remain separate experiment tracks.
+This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths, negative memory-create cases, optional device-control reachability checks, direct dmabuf-source checks, a candidate-fd scan for the memory import path, HardwareBuffer-backed dmabuf import, controlled `ucmd` gate tests, zero-header / invalid-subcommand `run_cmd_async` parser probes, a normal-VPU valid-type request-size guard probe, a full-size (`0xb70`) VPU execution probe, a chained IOVA-import + VPU request probe, and a no-dispatch IOVA control. The remaining closure work is to finish the `apu_lib_apunn` settings ABI, attribute the `0xb` imported-buffer writeback, and inspect command-buffer copyback / timeout lifecycle behavior.
 
 ## IDA handler map
 
@@ -325,7 +325,7 @@ The optional `--run-cmd-vpu-guard` probe advances one stage further. It uses a v
 
 ### VPU request structure (0xb70 bytes)
 
-The VPU request object is the codebuf contents that `mdw_cmd_sc_set_hnd` copies into a temporary kernel buffer and passes to the provider handler as `provider_arg+0x00`. IDA analysis of `vpu_send_cmd_rt_handler` opcode-4 and `vpu_execute` / `sub_FFFFFFC0087A5B74` yields the following layout:
+The VPU request object is the codebuf contents that `mdw_cmd_sc_set_hnd` copies into a temporary kernel buffer and passes to the provider handler as `provider_arg+0x00`. The userspace source of the same blob is `libvpu.so::VpuRequestImp`: the native request starts at `VpuRequestImp+0x38`, has size `0xb70`, and is copied into APUSYS command memory by `VpuStreamImp::runReq()` / `packRequest()`.
 
 | Offset | Size | Field | Constraint / use |
 |---:|---:|---|---|
@@ -333,15 +333,25 @@ The VPU request object is the codebuf contents that `mdw_cmd_sc_set_hnd` copies 
 | `+0x04` | 31 | `algo_name` | NUL-terminated algorithm key; `vpu_execute` passes `request+4` to `vpu_alg_get` / `vpu_alg_load` for Normal/Preload lookup |
 | `+0x28` | 8 | `flags` (u64) | Must be `< 0x10`; bit 2 selects `vpu_execute_with_slot` over `vpu_execute`; bit 0/2 also gate preload vs normal algo set selection |
 | `+0x34` | 1 | `result_status` | Written by hw completion path; `sub_FFFFFFC0087A5B74` stores completion code here |
-| `+0x35` | 1 | `priority` | Must be `< 0x21`; shifted left 6 and passed as algo-load parameter |
-| `+0x38` | 4 | `exec_param_0` | Written to VPU MMIO region `core+0xA0+0x28C` |
-| `+0x40` | 8 | `exec_param_1` | Written to VPU MMIO region `core+0xA0+0x288` |
-| `+0x50` | varies | algo load context | Passed to `sub_FFFFFFC0087A20E8` as algo-load parameter base |
+| `+0x35` | 1 | `buffer_count` | Must be `< 0x21`; `libvpu.so::addBuffer()` increments this byte, max normal value is 32 |
+| `+0x38` | 4 | `setting_length` | Written by `prepareSettBuf()` from the settings buffer size |
+| `+0x40` | 8 | `setting_iova` | Written by `prepareSettBuf()` from the settings buffer MVA/IOVA |
+| `+0x50 + i*0x40` | 0x40 | buffer descriptor | One descriptor per `buffer_count`; populated by `VpuRequestImp::addBuffer()` |
+| `+0x50 + i*0x40 + 0x00` | 1 | buffer port/tag | From `VpuBuffer+0x40` |
+| `+0x50 + i*0x40 + 0x01` | 1 | buffer kind/direction | From `VpuBuffer+0x34`, clamped by userspace |
+| `+0x50 + i*0x40 + 0x02` | 1 | plane_count | Max 3 in `libvpu.so::addBuffer()` |
+| `+0x50 + i*0x40 + 0x04` | 4 | buffer field 0 | From `VpuBuffer+0x38` |
+| `+0x50 + i*0x40 + 0x08` | 4 | buffer field 1 | From `VpuBuffer+0x3c` |
+| `+0x60 + i*0x40 + p*0x10` | 4 | plane field 0 | From the per-plane descriptor |
+| `+0x64 + i*0x40 + p*0x10` | 4 | plane field 1 / size | Used by userspace memory import |
+| `+0x68 + i*0x40 + p*0x10` | 8 | plane MVA/IOVA | Initialized to `-1`, then filled by `mmapMVA()` after importing the plane fd |
 | `+0xB54` | 4 | debug field | Printed in trace logs |
 | `+0xB5C` | 1 | `core_id` | Written by kernel from `provider_arg+0x2c`; not user-controlled |
 | `+0xB60` | 8 | `exec_time_ns` | Computed post-execution; kernel writes elapsed time in nanoseconds, then divides to microseconds and stores truncated result in `provider_arg+0x28` |
 | `+0xB68` | 4 | `slot_id` | Used by `vpu_execute_with_slot` for slot allocation; read/written throughout the execution path |
 | `+0xB6C` | 4 | `post_exec_state` | Written by `sub_FFFFFFC0087A5B74` post-completion |
+
+`request+0x35` is not priority. Priority/boost state lives outside the native `0xb70` request in `VpuRequestImp` bookkeeping and in the APUSYS command header (`+0x11`) / EARA fields.
 
 `vpu_execute` execution flow after guard checks:
 
@@ -352,13 +362,13 @@ The VPU request object is the codebuf contents that `mdw_cmd_sc_set_hnd` copies 
 5. `sub_FFFFFFC0087A5B74(core, request)` — core execution: loads algorithm, writes MMIO registers through `core+0xA0` mapped region, triggers VPU hardware dispatch via XOS command interface at `core+0x9C`, waits for completion with `1s` timeout
 6. Post-execution: unlock mutex, restore `request+0x28` original flags, call `sub_FFFFFFC0087A1D9C` cleanup
 
-### VPU full-size execution dispatch — runtime confirmed
+### VPU full-size execution request
 
 The optional `--run-cmd-vpu-exec` probe constructs a complete APUSYS command buffer with:
 
 - Top-level header: magic `0x3d2070ece309c231`, version `1`, `num_sc=1`
 - Subcommand: `type=0x03` (normal VPU), `cb_info_size=0xb70`, inline codebuf at offset `0x60`
-- VPU request (codebuf): `+0x04` = `apu_lib_apunn\0`, `+0x28` flags = `0`, `+0x35` priority = `0`, all other fields zeroed
+- VPU request (codebuf): `+0x04` = `apu_lib_apunn\0`, `+0x28` flags = `0`, `+0x35` buffer_count = `0`, all other fields zeroed
 
 Observed from the `system_app` bind shell on 2026-06-14:
 
@@ -369,98 +379,55 @@ command=CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex a
 [*] run_async_reject   cmd=0xc0184107 ret=-22 (EINVAL)
 
 [*] --- run_cmd HardwareBuffer case: vpu_exec_apunn first_u32=0x0 payload_mode=3 ---
-[+] input run_cmd vpu_exec_apunn payload: magic=0x3d2070ece309c231 version=1 num_sc=1 sc0_off=0x30 sc0_type=0x3 cb_info_size=0xb70 cb_info_off=0x60 algo=apu_lib_apunn req_flags=0x0 req_prio=0
+[+] input run_cmd vpu_exec_apunn payload: magic=0x3d2070ece309c231 version=1 num_sc=1 sc0_off=0x30 sc0_type=0x3 cb_info_size=0xb70 cb_info_off=0x60 algo=apu_lib_apunn req_flags=0x0 req_buffer_count=0
 [+] parcel_fd_pos_388 fd=60
 [*] hwb_run_vpu_exec_apunn_mem2_pos388 cmd=0xc0384103 ret=0
 [*] hwb_run_vpu_exec_apunn_mem3_pos388 cmd=0xc038410f ret=0
 [*] run_async_hwb_run_vpu_exec_apunn_pos388 cmd=0xc0184107 ret=0
 ```
 
-Kernel log:
+Interpretation: `run_cmd_async` returned `0` with a valid normal-VPU subcommand and exact `0xb70` request size. The saved filtered kernel log for this run only contains launch-side APUSYS messages, so the worker-side completion/timeout result needs a rerun with a wider kernel filter.
 
-```text
-apusys_devapc_isr: Violation(R): transaction ID:0x2, Addr:0x190193c8, HighAddr: 0, Domain: 0x0
-apusys_devapc_isr: vio_sta device: 50, slave: apu_iommu1_r4
-WARNING: CPU: 0 PID: 523 at apusys_devapc_isr+0x410/0x718
-vpu_dmp_is_alive: debug info05: 7db101e5
-[apusys][error] mdw_sched_trace fail : pid(20515/20515) cmd(0x0/0xffffff8019e5d000-#0/1) dev(3/vpu-#0) mp(0x0/0/1/0x0) sched(0/0/0/0/0/0) mem(0/0/0x0/0x0) boost(0) time(9137346/9160378) ret(-110)
-[apusys][warn] mdw_cmd_done abort, delete c(0xffffff8019e5d000) directly
-```
+### VPU IOVA chained request
 
-Interpretation:
+The `--run-cmd-vpu-iova` probe chains memory import with a VPU request to test whether a pre-mapped IOVA can be used as settings memory and as a request plane:
 
-1. **`run_cmd_async` returns `0`** — the async command was accepted and queued.
-2. **No `vpu_req_check` error** — the `0xb70` request size passes the provider guard.
-3. **APU DEVAPC violation** — the VPU hardware core was dispatched and attempted to read IOMMU address `0x190193c8` through `apu_iommu1_r4`. The read was blocked by the APU Device Access Permission Controller (DEVAPC) hardware, which fired an interrupt and logged the violation. This is MTK's hardware-level access control preventing unauthorized IOMMU transactions.
-4. **`ret(-110)` = `ETIMEDOUT`** — the VPU worker thread `apusys_vpu0` waited for VPU hardware completion but the VPU core could not finish because DEVAPC blocked the IOMMU access. This matches the `vpu%d: XOS lock timeout` error path in IDA (`sub_FFFFFFC0087A5B74`).
-5. **`mdw_cmd_done abort, delete c(...) directly`** — the scheduler cleaned up the timed-out command object.
-6. **Device did not crash** — the timeout and cleanup paths handled the failure gracefully.
-
-This confirms that a `system_app` process can dispatch real VPU hardware execution through the APUSYS ioctl interface. The only barrier preventing the VPU from completing execution is the APU DEVAPC hardware access control, not any software-level permission check. The IOMMU address `0x190193c8` falls within the VPU core register region (`vpu_core0@19030000`); the DEVAPC violation suggests the VPU attempted to access registers or memory that the current IOMMU domain does not map for the requesting context.
-
-### VPU IOVA chained execution — DEVAPC eliminated
-
-The `--run-cmd-vpu-iova` probe chains memory import with VPU execution to test whether a pre-mapped IOVA survives the DEVAPC check:
-
-1. Create a HardwareBuffer (64×64 RGBA), extract dmabuf fd from Parcel offset 388
-2. `mem_create` type-2 import → kernel returns IOVA `0xfd7dc000`, size `0x4000`, mem_id `0x2d`
-3. **Keep the mem_create alive** (do not free — preserve IOMMU mapping)
-4. Create a second HardwareBuffer containing a VPU `0xb70` request with:
-   - `sett_ptr` at `+0x38` = IOVA (`0xfd7dc000`)
-   - `sett_length` at `+0x40` = IOVA size (`0x4000`)
-   - D2D buf descriptor at `+0x50+0x28` = IOVA, `+0x50+0x30` = size
-   - `priority=1` to enable D2D_EXT path and copy 0x40 bytes of D2D descriptors
-5. `mem_create` type-2 for the command buffer itself → IOVA `0xfd7f0000`
-6. `run_cmd_async` dispatches VPU execution referencing the imported IOVA
+1. Create a HardwareBuffer (64x64 RGBA), extract dmabuf fd from Parcel offset 388
+2. `mem_create` type-2 import -> kernel returns an APUSYS IOVA, size `0x4000`, mem_id `0x2d`
+3. Keep that mem_create alive to preserve the IOVA mapping
+4. Create a second HardwareBuffer containing a VPU `0xb70` request with `apu_lib_apunn`, one buffer descriptor, setting length/IOVA, and plane0 MVA set from the imported IOVA
+5. `mem_create` type-2 for the command buffer itself
+6. `run_cmd_async` dispatches the command referencing the imported IOVA
 
 Observed from the `system_app` bind shell on 2026-06-14:
 
 ```text
 command=CLASSPATH=... app_process64 /system/bin ApusysIoctlProbe --run-cmd-vpu-iova
+dex_md5=069383857aa917a63d43d5a03fa4fb00
 
 [+] dmabuf fd=60
 [*] mem_create2_iova cmd=0xc0384103 ret=0
-    mem_create2_iova_desc: [0]=0x0 [4]=0x0 [8]=0xfd7dc000 [12]=0x4000 [16]=0x4000 [20]=0x0 [24]=0x0 [28]=0x0 [32]=0x3c [36]=0x0 [40]=0x2d [44]=0x0 [48]=0x0 [52]=0x0
-[+] IOVA=0xfd7dc000 size=0x4000 mem_id=0x2d
-[+] input run_cmd vpu_iova_apunn payload: magic=0x3d2070ece309c231 version=1 num_sc=1 sc0_off=0x30 sc0_type=0x3 cb_info_size=0xb70 cb_info_off=0x60 algo=apu_lib_apunn req_prio=1 iova=0xfd7dc000 iova_size=0x4000 d2d_buf_iova_at=0xd8 sett_iova_at=0x98
+    mem_create2_iova_desc: [0]=0x0 [4]=0x0 [8]=0xfd784000 [12]=0x4000 [16]=0x4000 ... [40]=0x2d ...
+[+] IOVA=0xfd784000 size=0x4000 mem_id=0x2d
+[+] input run_cmd vpu_iova_apunn payload: magic=0x3d2070ece309c231 version=1 num_sc=1 sc0_off=0x30 sc0_type=0x3 cb_info_size=0xb70 cb_info_off=0x60 algo=apu_lib_apunn req_buffer_count=1 iova=0xfd784000 iova_size=0x4000 setting_len_at=0x98 setting_iova_at=0xa0 plane0_mva_at=0xc8
 [+] cmd dmabuf fd=65
 [*] mem_create2_cmd cmd=0xc0384103 ret=0
 [*] run_async_vpu_iova cmd=0xc0184107 ret=0
-[*] Waiting 3s for VPU execution/timeout...
+[*] Dumping original IOVA buffer post-execution:
+    original_iova_buf: [0]=0xb [4]=0x0 [8]=0x0 [12]=0x0 ...
 ```
 
-Kernel log:
+The matching control run (`--run-cmd-vpu-iova-control`) imports the original buffer and the command buffer, skips only `run_cmd_async`, waits the same 3 seconds, and keeps `original_iova_buf[0]=0x0`. The dispatch run therefore has a reproducible visible writeback signal: the first word of the imported buffer changes from `0` to `0xb` only when the VPU command is submitted.
+
+Filtered kernel evidence from the final run:
 
 ```text
-[apusys][warn] mdw_ioctl not support fw load
-[apusys][error] mdw_usr_run_cmd_async don't support offset(1)
-[apusys][error] mdw_usr_ucmd don't support offset(1)
 vpu 19030000.vpu_core0: vpu_map_sg_to_iova: sg_dma_address: size: 500000, mapped iova: 0x37de00000 (static alloc)
-[apusys][warn] mdw_usr_destroy residual cmd(0xffffff801e325000)
-request (D2D_EXT) timeout, priority: 0, algo: apu_lib_apunn
-[apusys][error] mdw_sched_trace fail : pid(21366/21366) cmd(0x0/0xffffff801e325000-#0/1) dev(3/vpu-#0) ... ret(-110)
-[apusys][warn] mdw_cmd_done abort, delete c(0xffffff801e325000) directly
+vpu_dev_boot_sequence: vpu0: ALTRESETVEC: 0x7da00000
+[apusys][warn] mdw_usr_destroy residual cmd(0xffffff80211a5000)
 ```
 
-Interpretation — comparison with `--run-cmd-vpu-exec` (no IOVA import):
-
-| Aspect | `--run-cmd-vpu-exec` | `--run-cmd-vpu-iova` |
-|---|---|---|
-| DEVAPC violation | Yes — `apu_iommu1_r4` at `0x190193c8` | **None** |
-| `vpu_map_sg_to_iova` | Not observed | **Yes** — 5MB static alloc at `0x37de00000` |
-| Execution mode | D2D | **D2D_EXT** (extended, `sett_ptr` active) |
-| Timeout | `ETIMEDOUT` (-110) | `ETIMEDOUT` (-110) |
-| Cleanup | `mdw_cmd_done abort` | `mdw_cmd_done abort` |
-
-Key findings:
-
-1. **DEVAPC hardware barrier eliminated.** The pre-imported IOVA through `mem_create` provides a legitimate IOMMU mapping that the VPU hardware DMA engine can access without triggering DEVAPC.
-2. **`vpu_map_sg_to_iova` triggered.** The VPU firmware initialization performed a 5MB IOMMU scatter-gather mapping (`0x37de00000`, static alloc region), confirming the VPU core progressed further into its execution sequence.
-3. **D2D_EXT mode.** Setting `priority=1` and `sett_ptr` to the IOVA address activated the extended D2D execution path (MMIO cmd `0x24` instead of `0x22`), which writes `sett_ptr` and related fields to additional MMIO registers at `core+0x290` and `core+0x29C`.
-4. **Timeout is a firmware-level issue, not a hardware access control issue.** The VPU core ran, accessed IOMMU-mapped memory, but the `apu_lib_apunn` algorithm found no meaningful workload in the zeroed buffer content and did not signal completion.
-5. **User-controlled buffer is DMA-accessible.** The `0xfd7dc000` IOVA points to the HardwareBuffer content that `system_app` controls. The VPU hardware DMA engine can read (and potentially write) this buffer.
-
-This establishes the data flow: `system_app` → HardwareBuffer (user-writable) → `mem_create` IOVA import → VPU request `sett_ptr` → VPU hardware DMA → user buffer. The complete software and hardware permission chain from `system_app` to VPU DMA access on a user-controlled buffer is now confirmed open.
+Interpretation: the corrected `libvpu.so` request layout is accepted, the worker reaches the VPU boot/map path, and the imported user buffer receives a small status-like writeback under the VPU dispatch path. This is not yet an arbitrary DMA primitive. The firmware-specific settings payload under `setting_iova` is still unknown, and the saved kernel logs still do not show a normal provider completion record.
 
 ## Ioctl command map
 
@@ -491,14 +458,14 @@ The `0x4004413C/3D` size mismatch is important for testing: the command encoding
 
 ## Current risk ranking
 
-1. **VPU DMA to user-controlled IOVA buffer** (highest): `--run-cmd-vpu-iova` confirms a complete `system_app` → VPU DMA → user buffer data path. The IOVA chained probe imports a HardwareBuffer through `mem_create` to establish an IOMMU mapping, then dispatches VPU execution referencing that IOVA. No DEVAPC violation occurs — the VPU hardware successfully performs DMA through `apu_iommu1` to the user-controlled buffer. The timeout is a firmware-level issue (algorithm finds no meaningful workload), not a hardware access control barrier. Investigation focus: VPU firmware writeback behavior, whether the algorithm processes IOVA buffer content and writes results back, and timeout-path race conditions on the command object lifecycle.
-2. **Timeout-path command object race**: `run_cmd_async` returns immediately while the VPU worker times out ~9 seconds later. During this window the command object `0xffffff801e325000` is live in kernel memory. Concurrent `mdw_usr_destroy` (fd close) overlapping the scheduler timeout cleanup (`mdw_cmd_done abort`) may create a use-after-free. The `mdw_usr_destroy residual cmd(...)` warning in the kernel log confirms the user-context teardown path encounters the still-active command.
-3. **Writeback data leakage**: `mdw_cmd_sc_clr_hnd` (command-ops `+0x48`) copies the temporary handle buffer back to the mapped command KVA after provider returns, including timeout/abort paths. If VPU execution or the timeout cleanup writes kernel addresses or state into the handle buffer, those values propagate to the user-readable HardwareBuffer.
-4. **VPU request MMIO field injection**: The D2D_EXT path writes user-controlled VPU request fields to MMIO registers: `sett_ptr` → `core+0x290`, `sett_length` → `core+0x29C`, `priority` → `core+0x280`, `+0x38` → `core+0x28C`, `+0x40` → `core+0x288`. These MMIO writes happen after the IOMMU map and before VPU firmware dispatch. Some of these registers may influence VPU firmware behavior, DMA targets, or internal state in ways not covered by DEVAPC.
-5. **Command parsing/execution and ucmd paths**: Validated at five depths: zero-header, invalid SC type, request-size guard, VPU dispatch, and IOVA-chained dispatch. The `ucmd` path with `apu_lib_apunn` reaches algorithm lookup with success.
+1. **VPU firmware settings ABI and IOVA-chain validation**: Highest current APUSYS task. `system_app` can import HardwareBuffer dmabufs, get APUSYS IOVA values, and submit full-size normal-VPU requests. The corrected probe writes `setting_length`, `setting_iova`, `buffer_count`, and plane0 MVA according to `libvpu.so`; runtime now shows VPU boot/map activity and a controlled `original_iova_buf[0]` change from `0` to `0xb` that the no-dispatch control does not reproduce.
+2. **Timeout-path command object race**: `run_cmd_async` returns before the worker completes. The guard run already showed `mdw_usr_destroy residual cmd(...)` after worker-side rejection. The same lifetime boundary matters for full VPU timeout/abort paths.
+3. **Writeback attribution and command-buffer copyback**: The imported data buffer has a reproducible first-word change under dispatch, and `mdw_cmd_sc_clr_hnd` can copy temporary handle state back to the mapped command KVA after provider return. The next run should dump the command HardwareBuffer before and after worker completion and identify the exact writer for the `0xb` value.
+4. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` import HardwareBuffer fds through APUSYS type-2/type-3 memory-create and copy out IOVA-like descriptor fields. This is the input path for any VPU request that references user-controlled memory.
+5. **Command parsing/execution and ucmd paths**: Validated at zero-header, invalid SC type, request-size guard, full-size VPU request acceptance, and `apu_lib_apunn` lookup success.
 6. **Device/resource control and secure alloc paths**: `0x4004413C/3D` call `mdw_usr_dev_sec_alloc/free`. These may influence APU power/security state. `0x400C4109` dispatches provider opcode `0`.
 
-The surface is now confirmed beyond software reachability: `system_app` has a complete DMA data channel to VPU hardware through a user-controlled IOVA buffer. The DEVAPC hardware barrier is no longer relevant when the IOVA is pre-mapped. The remaining investigation is whether VPU firmware behavior can be steered to achieve kernel memory read/write through this channel.
+The surface is beyond simple ioctl reachability: `system_app` reaches APUSYS memory import, command parsing, scheduler handoff, and normal-VPU provider code. A kernel read/write primitive or privilege crossing is still not established.
 
 ## Runtime Probes
 
@@ -688,18 +655,22 @@ CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
   app_process64 /system/bin ApusysIoctlProbe --run-cmd-vpu-exec
 ```
 
-`--run-cmd-vpu-exec` writes a valid APUSYS command header, a normal VPU subcommand (`type=0x03`) with `cb_info_size=0xb70` (the exact size `vpu_req_check` requires), and a VPU request containing `apu_lib_apunn` at `+0x04`, flags `0` at `+0x28`, and priority `0` at `+0x35`. This passes all software guard checks and dispatches real VPU hardware execution. On the test device the VPU core triggers an APU DEVAPC violation and times out (`ETIMEDOUT`); the device does not crash.
+`--run-cmd-vpu-exec` writes a valid APUSYS command header, a normal VPU subcommand (`type=0x03`) with `cb_info_size=0xb70` (the exact size `vpu_req_check` requires), and a VPU request containing `apu_lib_apunn` at `+0x04`, flags `0` at `+0x28`, and buffer_count `0` at `+0x35`. This is the minimal full-size request shape.
 
-`--run-cmd-vpu-iova` is the deepest probe. It chains `mem_create` type-2 import (to get an IOVA in the APU IOMMU address space) with VPU execution that references that IOVA in `sett_ptr` (`+0x38`) and D2D buf descriptors (`+0x50`). This eliminates the DEVAPC hardware barrier. The VPU DMA engine accesses the user-controlled IOVA buffer without violation. The probe also dumps buffer contents post-execution to detect writeback. On the test device VPU execution times out (firmware finds no meaningful workload), but the DMA channel is confirmed open.
+`--run-cmd-vpu-iova` chains `mem_create` type-2 import (to get an IOVA in the APU IOMMU address space) with a full-size VPU request that references that IOVA in the `libvpu.so` settings and plane descriptor fields. `--run-cmd-vpu-iova-control` follows the same setup but skips `run_cmd_async`, which isolates the post-dispatch buffer change.
 
 ```sh
-# VPU exec without IOVA import (triggers DEVAPC):
+# VPU exec without IOVA import:
 CLASSPATH=.../apusys_ioctl_probe.dex \
   app_process64 /system/bin ApusysIoctlProbe --run-cmd-vpu-exec
 
-# VPU exec with IOVA import (no DEVAPC, DMA confirmed):
+# VPU request with IOVA import:
 CLASSPATH=.../apusys_ioctl_probe.dex \
   app_process64 /system/bin ApusysIoctlProbe --run-cmd-vpu-iova
+
+# Same import setup, no final run_cmd_async dispatch:
+CLASSPATH=.../apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe --run-cmd-vpu-iova-control
 ```
 
 Automated run:
@@ -711,16 +682,25 @@ python3 13-apusys-ioctl-surface/poc/run_system_app_probe.py \
   --mode=--run-cmd-vpu-exec \
   --result-name 13_apusys_run_cmd_vpu_exec.txt \
   --kernel-result-name 13_apusys_run_cmd_vpu_exec_kernel.txt \
-  --kernel-pattern "apusys|vpu|mdw|vpu_req_check|vpu_execute|timeout|Timeout|TIMEOUT|oops|panic" \
+  --kernel-pattern "apusys|vpu|mdw|xos|devapc|iommu|vpu_req_check|vpu_execute|sched_trace|cmd_done|timeout|Timeout|TIMEOUT|oops|panic" \
   --timeout 180
 
-# --run-cmd-vpu-iova (IOVA chained, no DEVAPC):
+# --run-cmd-vpu-iova:
 python3 13-apusys-ioctl-surface/poc/run_system_app_probe.py \
   -s 7FPE0824B0801372 --local-port 48888 \
   --mode=--run-cmd-vpu-iova \
-  --result-name 13_apusys_run_cmd_vpu_iova.txt \
-  --kernel-result-name 13_apusys_run_cmd_vpu_iova_kernel.txt \
-  --kernel-pattern "apusys|vpu|mdw|devapc|iommu|timeout|Timeout|TIMEOUT" \
+  --result-name 13_apusys_run_cmd_vpu_iova_final.txt \
+  --kernel-result-name 13_apusys_run_cmd_vpu_iova_final_kernel.txt \
+  --kernel-pattern "apusys|vpu|mdw|xos|devapc|iommu|vpu_req_check|vpu_execute|sched_trace|cmd_done|timeout|Timeout|TIMEOUT|oops|panic" \
+  --timeout 180
+
+# --run-cmd-vpu-iova-control:
+python3 13-apusys-ioctl-surface/poc/run_system_app_probe.py \
+  -s 7FPE0824B0801372 --local-port 48888 \
+  --mode=--run-cmd-vpu-iova-control \
+  --result-name 13_apusys_run_cmd_vpu_iova_control.txt \
+  --kernel-result-name 13_apusys_run_cmd_vpu_iova_control_kernel.txt \
+  --kernel-pattern "apusys|vpu|mdw|xos|devapc|iommu|vpu_req_check|vpu_execute|sched_trace|cmd_done|timeout|Timeout|TIMEOUT|oops|panic" \
   --timeout 180
 ```
 
@@ -1011,13 +991,11 @@ Interpretation: APUSYS memory-create is now a mapped and runtime-confirmed impor
 
 ## Next analysis steps
 
-The VPU DMA channel to user-controlled IOVA is now open. DEVAPC is no longer a barrier. The focus shifts to exploiting the DMA channel and the command object lifecycle:
+The remaining APUSYS closure items are:
 
-- **~~DEVAPC / IOMMU mapping investigation~~** ✓ DONE: `--run-cmd-vpu-iova` confirms that pre-importing a HardwareBuffer via `mem_create` provides a valid IOMMU mapping. VPU DMA proceeds without DEVAPC violation.
-- **~~Memory-import-then-execute chained probe~~** ✓ DONE: Implemented as `--run-cmd-vpu-iova`. IOVA `0xfd7dc000` from `mem_create` type-2 is referenced in VPU request `sett_ptr` and D2D descriptors. VPU firmware accesses the mapped buffer.
-- **Writeback / info-leak probe** (priority 1): Dump the command HardwareBuffer content (all 0x4000 bytes) after `run_cmd_async` completes or times out. The `mdw_cmd_sc_clr_hnd` writeback copies the handle buffer back to the mapped KVA. If VPU execution or timeout cleanup writes kernel pointers or state, those leak to userspace. Also dump the IOVA buffer to check for VPU firmware DMA writes. This is low-effort and may give a kernel address leak.
-- **Timeout-path UAF / race** (priority 2): `run_cmd_async` returns immediately while the VPU worker runs for ~9 seconds before timeout. During this window, close the APUSYS fd (triggering `mdw_usr_destroy`) while the scheduler still holds a reference to the command object. The `mdw_usr_destroy residual cmd(...)` warning confirms both paths touch the same object. Concurrent submit + fd-close may create a use-after-free on the `0x60`-byte APUSYS command structure.
-- **VPU firmware writeback via IOVA content** (priority 3): Craft meaningful content in the IOVA buffer that `apu_lib_apunn` can interpret. If the algorithm reads input from `sett_ptr` and writes output to a designated output IOVA, the user controls both the input data and can observe the output. Map the VPU firmware's expected data format from userspace `.so` files (`libneuron_platform.vpu.so`).
-- **MMIO field injection** (priority 4): Map the full set of VPU request fields that reach MMIO writes in `sub_FFFFFFC0087A5B74`. Known: `+0x35` → `core+0x280`, `+0x38` → `core+0x28C`, `+0x40` → `core+0x288`, `+0xB68` → `core+0x27C`/`core+0x284`. The D2D_EXT path adds `core+0x290` and `core+0x29C`. Sweep non-zero values for these fields while monitoring kernel logs and VPU behavior.
-- **Multiple concurrent commands**: Submit many `run_cmd_async` calls in rapid succession to stress the scheduler queue, command object pool, and VPU worker thread. This may expose memory corruption or state confusion in the command lifecycle.
+- Attribute `original_iova_buf[0]=0xb`: identify whether it is firmware status, driver-side cleanup/status writeback, or a specific request-result field.
+- Dump the command HardwareBuffer before and after worker completion; do not use a fresh Image as the post-exec buffer.
+- Finish the settings payload ABI for `apu_lib_apunn`: `libvpu.so` maps where the pointer goes, but the firmware-specific content under `setting_iova` is still unknown.
+- Map `mdw_cmd_sc_clr_hnd` writeback after provider return and timeout/abort.
+- Test timeout lifecycle races around fd close / `mdw_usr_destroy` / scheduler cleanup.
 - Continue `mdla_run_command_sync` and `edma_execute` input structure mapping for non-VPU provider execution paths.

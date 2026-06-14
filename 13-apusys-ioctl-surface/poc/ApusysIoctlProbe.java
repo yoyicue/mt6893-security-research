@@ -66,6 +66,7 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuGuard = false;
         boolean runCmdVpuExec = false;
         boolean runCmdVpuIova = false;
+        boolean runCmdVpuIovaControl = false;
         String ucmdKey = null;
         String ucmdKeyDump = null;
         for (String arg : args) {
@@ -97,6 +98,8 @@ public final class ApusysIoctlProbe {
                 runCmdVpuExec = true;
             } else if ("--run-cmd-vpu-iova".equals(arg)) {
                 runCmdVpuIova = true;
+            } else if ("--run-cmd-vpu-iova-control".equals(arg)) {
+                runCmdVpuIovaControl = true;
             } else if (arg.startsWith("--ucmd-key=")) {
                 ucmdKey = arg.substring("--ucmd-key=".length());
                 validateUcmdKey(ucmdKey);
@@ -112,10 +115,11 @@ public final class ApusysIoctlProbe {
         if (memNegative || devCtrl || memDmabuf || memIon || fdScan
                 || ucmdNegative || hardwareBuffer || ucmdHardwareBuffer
                 || runCmdHardwareBuffer || runCmdInvalidSc || runCmdVpuGuard
-                || runCmdVpuExec || runCmdVpuIova
+                || runCmdVpuExec || runCmdVpuIova || runCmdVpuIovaControl
                 || ucmdKey != null || ucmdKeyDump != null) {
             System.out.println("[*] Mode: optional checks enabled;"
-                + " no secure alloc/free, no real APUSYS workload\n");
+                + " no secure alloc/free; some modes submit controlled"
+                + " provider probes\n");
         } else {
             System.out.println("[*] Mode: reject/query paths only;"
                 + " no memory create/free, no dev-ctrl, no valid cmdbuf\n");
@@ -205,7 +209,11 @@ public final class ApusysIoctlProbe {
             }
 
             if (runCmdVpuIova) {
-                runRunCmdVpuIovaHardwareBufferProbe(fd);
+                runRunCmdVpuIovaHardwareBufferProbe(fd, true);
+            }
+
+            if (runCmdVpuIovaControl) {
+                runRunCmdVpuIovaHardwareBufferProbe(fd, false);
             }
 
             if (ucmdKey != null) {
@@ -684,12 +692,17 @@ public final class ApusysIoctlProbe {
             RUN_CMD_PAYLOAD_VPU_GUARD);
     }
 
-    private static void runRunCmdVpuIovaHardwareBufferProbe(int apusysFd)
+    private static void runRunCmdVpuIovaHardwareBufferProbe(int apusysFd,
+                                                            boolean dispatch)
             throws Exception {
         System.out.println("\n[*] === Optional APUSYS run_cmd VPU IOVA chained probe ===");
         System.out.println("[*] Mode: mem_create imports HardwareBuffer to get IOVA,"
-            + " then VPU request references that IOVA in D2D buf descriptors."
-            + " Tests whether pre-mapped IOVA survives DEVAPC check.");
+            + " then the VPU request references that IOVA in libvpu-style"
+            + " settings and plane descriptors.");
+        if (!dispatch) {
+            System.out.println("[*] Control: command buffer is imported but"
+                + " run_cmd_async is skipped before the original buffer dump.");
+        }
 
         loadRuntimeLibraries();
 
@@ -765,12 +778,9 @@ public final class ApusysIoctlProbe {
                 + " size=0x" + Integer.toHexString(iovaSize)
                 + " mem_id=0x" + Long.toHexString(memId));
 
-            // phase 4: now build a second HardwareBuffer with the VPU+IOVA payload
-            output.close();
-            output = null;
-            hb.close();
-            hb = null;
-
+            // phase 4: now build a second HardwareBuffer with the VPU+IOVA payload.
+            // Keep the first output/hardware buffer alive so its plane can be
+            // dumped after execution; mem_create holds the kernel-side mapping.
             android.media.ImageReader reader2 = createRgbaImageReader(64, 64);
             android.media.ImageWriter writer2
                 = android.media.ImageWriter.newInstance(reader2.getSurface(), 2);
@@ -844,36 +854,29 @@ public final class ApusysIoctlProbe {
             DrmTrigger.zeroMem(runCmd, 0x18);
             DrmTrigger.unsafePutInt(runCmd + 0x08, cmdFd);
             DrmTrigger.unsafePutInt(runCmd + 0x10, 0x4000);
-            long runRet = DrmTrigger.rawIoctl(apusysFd,
-                APUSYS_CMD_RUN_ASYNC, runCmd);
-            System.out.println("[*] run_async_vpu_iova cmd=0x"
-                + Long.toHexString(APUSYS_CMD_RUN_ASYNC)
-                + " ret=" + retText(runRet));
+            if (dispatch) {
+                long runRet = DrmTrigger.rawIoctl(apusysFd,
+                    APUSYS_CMD_RUN_ASYNC, runCmd);
+                System.out.println("[*] run_async_vpu_iova cmd=0x"
+                    + Long.toHexString(APUSYS_CMD_RUN_ASYNC)
+                    + " ret=" + retText(runRet));
+            } else {
+                System.out.println("[*] run_async_vpu_iova skipped by control mode");
+            }
 
             // wait a bit for VPU timeout / completion
-            System.out.println("[*] Waiting 3s for VPU execution/timeout...");
+            System.out.println("[*] Waiting 3s before original buffer dump...");
             Thread.sleep(3000);
 
-            // dump the IOVA buffer to see if VPU wrote anything back
-            // re-read the first HardwareBuffer's dmabuf content via a fresh Image
-            System.out.println("[*] Dumping IOVA buffer post-execution:");
-            android.media.ImageReader reader3 = createRgbaImageReader(64, 64);
-            android.media.ImageWriter writer3
-                = android.media.ImageWriter.newInstance(reader3.getSurface(), 2);
-            android.media.Image input3 = writer3.dequeueInputImage();
-            fillImageHeader(input3, 0x41414141);
-            writer3.queueInputImage(input3);
-            android.media.Image output3 = acquireImage(reader3);
-            if (output3 != null) {
-                android.media.Image.Plane[] planes = output3.getPlanes();
+            // dump the original imported buffer to see if VPU wrote anything back
+            System.out.println("[*] Dumping original IOVA buffer post-execution:");
+            if (output != null) {
+                android.media.Image.Plane[] planes = output.getPlanes();
                 if (planes != null && planes.length > 0) {
                     java.nio.ByteBuffer buf = planes[0].getBuffer();
-                    dumpByteBuffer("post_exec_buf", buf, 0x80);
+                    dumpByteBuffer("original_iova_buf", buf, 0x80);
                 }
-                output3.close();
             }
-            writer3.close();
-            reader3.close();
 
             // cleanup cmd mem
             DrmTrigger.rawIoctl(apusysFd, APUSYS_CMD_MEM_FREE_02, cmdMemDesc);
@@ -903,7 +906,7 @@ public final class ApusysIoctlProbe {
         System.out.println("\n[*] === Optional APUSYS run_cmd VPU full-size exec probe ===");
         System.out.println("[*] Mode: valid APUSYS command header, normal VPU"
             + " subcommand type, 0xb70 codebuf with apu_lib_apunn algo name,"
-            + " flags=0, priority=0. Expects real VPU hw dispatch or timeout.");
+            + " flags=0, buffer_count=0. Expects real VPU hw dispatch or timeout.");
 
         loadRuntimeLibraries();
         dumpClassShape("android.hardware.HardwareBuffer");
@@ -1112,44 +1115,29 @@ public final class ApusysIoctlProbe {
         }
 
         // +0x28: flags = 0 (walk vpu_execute, not vpu_execute_with_slot)
-        // +0x35: priority = 0
+        // +0x35: buffer_count. libvpu::addBuffer() increments this byte and
+        // vpu_req_check bounds it to < 0x21.
+        buffer.put(reqBase + 0x35, (byte) 1);
 
-        // +0x38: sett_ptr — VPU d2d uses this as algo settings IOVA
-        putU32LE(buffer, reqBase + 0x38, iovaAddr);
+        // libvpu::prepareSettBuf() writes setting length at request+0x38
+        // and setting IOVA/MVA at request+0x40. The setting payload content
+        // is still just the imported HardwareBuffer bytes in this probe.
+        putU32LE(buffer, reqBase + 0x38, iovaSize);
+        putU64LE(buffer, reqBase + 0x40, iovaAddr & 0xffffffffL);
 
-        // +0x40: sett_length
-        putU32LE(buffer, reqBase + 0x40, iovaSize);
-
-        // +0x50: D2D buffer descriptor array
-        // The kernel copies +0x50 region (up to priority<<6 bytes) to a slot
-        // descriptor, then passes it to IOMMU map callback.
-        // Each buf descriptor in the VPU D2D region is 0xB0 bytes per slot.
-        // Within the slot descriptor at +0x3E0 in core struct:
-        //   +0x28 = iova address, +0x30 = size (used by iommu map callback)
-        // But the copy is from request+0x50 with length = priority << 6.
-        // With priority=0, length=0 — no D2D buffers.
-        // Set priority=1 to copy 0x40 bytes from +0x50 into the slot desc.
-        buffer.put(reqBase + 0x35, (byte) 1);  // priority = 1
-
-        // D2D buf descriptor at reqBase+0x50, mapped into slot desc structure:
-        // The slot desc used by iommu map callback reads:
-        //   +0x28 = IOVA, +0x30 = size
-        // So we place IOVA at request+0x50+0x28 = request+0x78
-        // and size at request+0x50+0x30 = request+0x80
-        // But first 0x18 bytes of slot are header, so buf array starts at
-        // slot+0x18. Actually, the memcpy source is X2=req+0x50, length = pri<<6.
-        // The dest is core+slot*0xB0+0x3E0. Then sub_FFFFFFC0087A86D0 is
-        // called with X1 = dest area (which is &slot_desc at core+0x3E0).
-        // sub_FFFFFFC0087A86D0 reads [X1+0x28] as IOVA, [X1+0x30] as size.
-        // So the memcpy copies req+0x50..req+0x50+0x40 to the slot desc area.
-        // We need IOVA at offset 0x28 within that copied region,
-        // which is req+0x50+0x28 = req+0x78 (absolute offset from req base).
-        putU32LE(buffer, reqBase + 0x50 + 0x28, iovaAddr);
-        putU32LE(buffer, reqBase + 0x50 + 0x30, iovaSize);
-
-        // Also try the sett_ptr field at +0x38/+0x40 — these get written
-        // to MMIO core+0x288 and core+0x28C by the execution function.
-        // Already set above.
+        // libvpu::addBuffer() uses one 0x40-byte descriptor per buffer at
+        // request+0x50. For each plane, mmapMVA() normally fills +0x68 with
+        // the imported MVA. Because this probe bypasses libvpu, place the
+        // already returned APUSYS IOVA directly in plane0_mva.
+        int buf0 = reqBase + 0x50;
+        buffer.put(buf0 + 0x00, (byte) 0);      // port id / buffer tag
+        buffer.put(buf0 + 0x01, (byte) 0);      // buffer kind/direction
+        buffer.put(buf0 + 0x02, (byte) 1);      // plane_count
+        putU32LE(buffer, buf0 + 0x04, iovaSize);
+        putU32LE(buffer, buf0 + 0x08, 0);
+        putU32LE(buffer, buf0 + 0x10, 0);       // plane0 offset/ptr low
+        putU32LE(buffer, buf0 + 0x14, iovaSize);
+        putU64LE(buffer, buf0 + 0x18, iovaAddr & 0xffffffffL);
 
         image.setTimestamp(System.nanoTime());
         System.out.println("[+] input run_cmd " + label + " payload:"
@@ -1158,11 +1146,12 @@ public final class ApusysIoctlProbe {
             + " cb_info_size=0x" + Integer.toHexString(codebufSize)
             + " cb_info_off=0x" + Integer.toHexString(codebufOffset)
             + " algo=" + algoName
-            + " req_prio=1"
+            + " req_buffer_count=1"
             + " iova=0x" + Integer.toHexString(iovaAddr)
             + " iova_size=0x" + Integer.toHexString(iovaSize)
-            + " d2d_buf_iova_at=0x" + Integer.toHexString(reqBase + 0x50 + 0x28)
-            + " sett_iova_at=0x" + Integer.toHexString(reqBase + 0x38)
+            + " setting_len_at=0x" + Integer.toHexString(reqBase + 0x38)
+            + " setting_iova_at=0x" + Integer.toHexString(reqBase + 0x40)
+            + " plane0_mva_at=0x" + Integer.toHexString(buf0 + 0x18)
             + " plane_count=" + planes.length
             + " cap=" + buffer.capacity()
             + " rowStride=" + planes[0].getRowStride()
@@ -1283,7 +1272,7 @@ public final class ApusysIoctlProbe {
         // VPU request at codebufOffset (0x60): 0xb70 bytes
         // +0x04: algo name (NUL-terminated, up to 0x1f bytes)
         // +0x28: flags (u64), must be < 0x10; bit 2 selects execute_with_slot
-        // +0x35: priority byte, must be < 0x21
+        // +0x35: buffer_count byte, must be < 0x21
         // rest zeroed — minimal request to pass vpu_req_check
         int reqBase = codebufOffset;
         byte[] nameBytes = algoName.getBytes("US-ASCII");
@@ -1292,7 +1281,7 @@ public final class ApusysIoctlProbe {
             buffer.put(reqBase + 0x04 + i, nameBytes[i]);
         }
         // +0x28 flags = 0 (walk vpu_execute, not vpu_execute_with_slot)
-        // +0x35 priority = 0
+        // +0x35 buffer_count = 0
         // all other fields stay zero
 
         image.setTimestamp(System.nanoTime());
@@ -1302,7 +1291,7 @@ public final class ApusysIoctlProbe {
             + " cb_info_size=0x" + Integer.toHexString(codebufSize)
             + " cb_info_off=0x" + Integer.toHexString(codebufOffset)
             + " algo=" + algoName
-            + " req_flags=0x0 req_prio=0"
+            + " req_flags=0x0 req_buffer_count=0"
             + " plane_count=" + planes.length
             + " cap=" + buffer.capacity()
             + " rowStride=" + planes[0].getRowStride()
