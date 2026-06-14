@@ -826,6 +826,14 @@ set. The observed `apu_lib_apunn` requests therefore reach firmware as Preload
 `D2D_EXT` work after a Normal-set miss, not because the Java request directly
 sets the D2D_EXT flag.
 
+If the caller supplies `request+0x28` bit `2` up front, the provider dispatches
+`vpu_execute_with_slot()` instead of `vpu_execute()` directly. That helper
+allocates a slot, stores it at `request+0xb68`, and then calls `vpu_execute()`.
+Inside `vpu_execute()`, the same bit selects the Preload algorithm set for the
+first lookup. This makes bit `2` a kernel execution/lifetime selector as well
+as an input to the D2D_EXT firmware tuple through `request+0xb68` priority/slot
+state.
+
 `sub_FFFFFFC0087A5B74()` is the kernel-to-firmware handoff. Its first step is
 to copy `request+0x50` into the per-priority VPU command buffer:
 
@@ -902,6 +910,13 @@ This gives the current interpretation boundary:
   settings remain `0x5`, output/data descriptor/data payload remain unchanged,
   and code word `0` changes `0x2713 -> 0x271b`. A single ordinary data
   descriptor is also not the missing APUNN completion condition.
+- The `preload_slot` result keeps the same wrapper-one-data request shape but
+  sets native VPU `request+0x28 = 0x4`, causing the kernel to enter the
+  Preload/slot path directly. Dispatch still returns `0`, settings remain
+  `0x5`, output/data descriptor/data payload remain unchanged, and code word
+  `0` changes `0x2713 -> 0x271b`. The command-buffer tail gains a slot-like
+  copyback word (`request_tail[40] = 1`), so bit `2` changes kernel
+  lifetime/slot bookkeeping but is not the missing APUNN completion condition.
 - The missing piece is now narrower: APUNN parses enough of the descriptor and
   first operation entry to modify it, but the command still lacks the
   firmware-side condition that marks settings `(flags & 0x0a) == 0x02` and
@@ -952,6 +967,10 @@ Additional matrix result files:
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_wrapper_data_kernel.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_wrapper_data_control.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_wrapper_data_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_wrapper_data_preload_slot.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_wrapper_data_preload_slot_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_wrapper_data_preload_slot_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_wrapper_data_preload_slot_control_kernel.txt`
 
 ## Evidence map
 
@@ -1015,7 +1034,9 @@ command buffer size `0x68` also leaves the same boundary in place. Setting the
 wrapper-controlled output header flag byte at `output+0x10` to `1` does not
 produce settings completion or APUNN output writeback either. Restoring a
 single ordinary APUNN data descriptor under the wrapper-sized request also
-leaves the same code-first native descriptor writeback boundary.
+leaves the same code-first native descriptor writeback boundary. Directly
+setting native VPU `request+0x28` bit `2` changes kernel slot bookkeeping but
+also leaves the same APUNN settings/output boundary.
 It does not yet prove APUNN data descriptor consumption, APUNN output-section
 writeback, the missing completion parameter, or the full semantic meaning of
 the observed native-buffer writeback. The batch-level devapc warning remains
