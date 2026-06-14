@@ -589,12 +589,45 @@ The ioctl magic byte is `0x41` (`'A'`). The dispatcher uses fixed internal copy 
 
 The `0x4004413C/3D` size mismatch is important for testing: the command encoding advertises 4 bytes, but `mdw_ioctl` actually validates and copies a 0x20-byte user buffer. This is not by itself a vulnerability because the copy length is fixed and guarded, but a PoC that passes only `_IOC_SIZE(cmd)` bytes will exercise the wrong failure mode.
 
+## Kernel-to-firmware D2D handoff
+
+The VPU request is translated once more inside the kernel before `apu_lib_apunn`
+sees it. In the APUSYS VPU 4.0/p1 source path, `vpu_req_check()` requires an
+exact `sizeof(struct vpu_request)`, validates only the known flag mask, and
+bounds `buffer_count`. `vpu_execute_d2d()` then copies
+`req->buffers[0..buffer_count)` into a per-priority command buffer and passes
+that command-buffer IOVA to firmware. The firmware-facing register tuple is:
+
+| Register / input | Meaning |
+|---|---|
+| `XTENSA_INFO01` | `0x22` for `DO_D2D`, `0x24` for `DO_D2D_EXT` |
+| `XTENSA_INFO11` | request priority for preload / D2D_EXT |
+| `XTENSA_INFO12` | `req->buffer_count` |
+| `XTENSA_INFO13` | IOVA of the copied `struct vpu_buffer[]` array |
+| `XTENSA_INFO14` | `req->sett_ptr` |
+| `XTENSA_INFO15` | `req->sett_length` |
+| `XTENSA_INFO16` | preload entry address for D2D_EXT |
+| `XTENSA_INFO19` | preload IRAM MVA for D2D_EXT |
+
+The firmware therefore does not parse the original userland
+`struct vpu_request`. It gets a register tuple, a firmware-readable copy of
+`struct vpu_buffer[]`, and any imported windows reachable through the copied
+plane IOVAs. IDA confirms the kernel execution entry as `vpu_execute` at
+`0xffffffc0087a7974`; the source mirror explains the downstream D2D/D2D_EXT
+register handoff.
+
+This changes the APUNN interpretation model. The two-native-buffer probe is not
+just "two Java buffers"; it is two copied VPU buffer descriptors. Its visible
+`0x2713 -> 0x271b` delta follows copied descriptor `0` when that descriptor's
+plane IOVA is bound to the code/input window. That proves descriptor-following
+inside the VPU path, but not APUNN XRP output consumption.
+
 ## Current risk ranking
 
-1. **VPU firmware settings ABI and IOVA-chain validation**: Highest current APUSYS task. `system_app` can import HardwareBuffer dmabufs, get APUSYS IOVA values, and submit full-size normal-VPU requests. The corrected probe writes `setting_length`, `setting_iova`, `buffer_count`, and plane0 MVA according to `libvpu.so`; runtime shows VPU boot/map activity. The XRP-shaped split-target run keeps settings/output/data-descriptor, APUNN data payload, and command-buffer copyback windows unchanged, while the native VPU plane0 MVA target changes first word from `0x504c4e30` to `0x504c4e31`. The nonzero `code_size=0x1c8` runs for opcodes `10001..10004` and simple output-shape changes are accepted at the dispatch level, but still leave APUNN output/data windows unchanged.
-2. **Timeout behavior under VPU dispatch**: Single-case runs show worker-side timeout (`ret(-110)` and/or `request (D2D_EXT) timeout`) for all six tested internal query/status operation shapes. The batch devapc warning did not reproduce in the isolated single-case logs, so it remains a non-attributed signal.
-3. **Timeout-path command object race**: `run_cmd_async` returns before the worker completes. The guard run already showed `mdw_usr_destroy residual cmd(...)` after worker-side rejection. The same lifetime boundary matters for full VPU timeout/abort paths.
-4. **Writeback attribution and command-buffer copyback**: The XRP-shaped split-target and nonzero-code runs localize the visible imported-buffer delta to native VPU plane0 MVA because command request head/tail and APUNN data descriptor target do not change. The remaining attribution task is the semantic meaning of the `+1` plane-MVA writeback and the APUNN `0x1c8` operation-entry field layout.
+1. **VPU D2D_EXT parameter ABI and IOVA-chain validation**: Highest current APUSYS task. `system_app` can import HardwareBuffer dmabufs, get APUSYS IOVA values, submit full-size normal-VPU requests, and reach `apu_lib_apunn`. Kernel source now confirms the firmware handoff: `vpu_execute_d2d()` passes `buffer_count`, copied `struct vpu_buffer[]` IOVA, `sett_ptr`, and `sett_length` through `XTENSA_INFO12..15`; D2D_EXT also carries preload entry/IRAM through `XTENSA_INFO16/19`. Runtime shows VPU boot/map activity and descriptor-following into imported memory. APUNN output/data consumption is still not proven.
+2. **Firmware completion/output contract under VPU dispatch**: The one-buffer internal query/status shapes timeout in the VPU worker. The two-native-buffer host-wrapper shape changes lifecycle behavior: `run_cmd_async` returns `0`, kernel logs show VPU map/boot activity without the earlier captured `D2D_EXT timeout`, teardown logs residual command state, and the visible writeback moves to copied native buffer descriptor `0`. The missing contract is what makes firmware signal done through `XTENSA_INFO00/02` and what buffer/settings shape causes APUNN output writeback.
+3. **Timeout-path command object lifetime**: `run_cmd_async` returns before the worker completes. Guard and two-buffer runs both show residual command cleanup boundaries. The same lifetime edge matters for fd close, process teardown, timeout, and abort experiments.
+4. **Writeback attribution and command-buffer copyback**: Split-target and two-buffer runs localize the visible imported-buffer deltas to native VPU plane IOVAs reached through copied descriptors. The remaining attribution task is the semantic meaning of the observed `+1` / `+8` style first-word writebacks and whether they are firmware status, request-result fields, or internal command side effects.
 5. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` import HardwareBuffer fds through APUSYS type-2/type-3 memory-create and copy out IOVA-like descriptor fields. This is the input path for any VPU request that references user-controlled memory.
 6. **Command parsing/execution and ucmd paths**: Validated at zero-header, invalid SC type, request-size guard, full-size VPU request acceptance, and `apu_lib_apunn` lookup success.
 7. **Device/resource control and secure alloc paths**: `0x4004413C/3D` call `mdw_usr_dev_sec_alloc/free`. These may influence APU power/security state. `0x400C4109` dispatches provider opcode `0`.
@@ -805,6 +838,14 @@ output operand id `0`. It moves output/data/plane payload windows to
 `--run-cmd-vpu-xrp-ann-version-iova-control` performs the same setup without
 final dispatch.
 
+`--run-cmd-vpu-xrp-internal-ann-version-iova` mirrors the host-wrapper
+`PrepareInternalCommand()` shape: settings still describe the APUNN code/input
+and output sections, while the native VPU request supplies two buffer
+descriptors. Buffer `0` points at the code/input window and buffer `1` points
+at the output window. The matching control,
+`--run-cmd-vpu-xrp-internal-ann-version-iova-control`, performs the same setup
+without final dispatch.
+
 `--run-cmd-vpu-xrp-op-matrix-iova` keeps the same split-target layout and runs
 a fixed matrix of internal query/status operation shapes. Each case has a
 matching before/after dump for settings, code, output, data descriptor,
@@ -862,6 +903,14 @@ CLASSPATH=.../apusys_ioctl_probe.dex \
 # Same nonzero code-section setup, no final run_cmd_async dispatch:
 CLASSPATH=.../apusys_ioctl_probe.dex \
   app_process64 /system/bin ApusysIoctlProbe --run-cmd-vpu-xrp-ann-version-iova-control
+
+# Host-wrapper-style two-native-buffer internal command:
+CLASSPATH=.../apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe --run-cmd-vpu-xrp-internal-ann-version-iova
+
+# Same two-buffer setup, no final run_cmd_async dispatch:
+CLASSPATH=.../apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe --run-cmd-vpu-xrp-internal-ann-version-iova-control
 
 # APUNN/XRP internal query/status opcode and operand matrix:
 CLASSPATH=.../apusys_ioctl_probe.dex \
@@ -1274,9 +1323,11 @@ Interpretation: APUSYS memory-create is now a mapped and runtime-confirmed impor
 
 The remaining APUSYS closure items are:
 
-- Map the VPU/APUNN-side `0x1c8` operation-entry fields. Host/debug helpers expose opcode, stride, operand-list offset, input count, and output count; the device wrapper only routes raw code-section IOVA/size and counts fixed `0x1c8` entries. The minimal `XTENSA_ANN_VERSION` entry leaves output/data windows unchanged.
-- Explain the per-case VPU timeout: all six tested nonzero `0x1c8` query/status shapes reach dispatch and then timeout without APUNN output/data writes. The missing parameter is likely outside the debug-visible opcode/count/operand header.
-- Attribute the native plane0-MVA `+1` writeback semantically: identify whether it is firmware status, driver-side status, or a request-result field.
+- Map how `apu_lib_apunn` consumes the copied `struct vpu_buffer[]`: required `port_id`, `format`, `plane_count`, `stride`, `length`, and plane IOVA semantics for internal input/output buffers.
+- Determine the firmware completion/output contract: which APUNN settings and buffer descriptor fields cause `DS_PREEMPT_DONE` / `DS_ALG_DONE`, `XTENSA_INFO00`, and `XTENSA_INFO02` to be produced, and which path maps to host `WritebackCommand()` output handling.
+- Extend the two-buffer matrix across descriptor metadata, settings size/IOVA, output buffer size, and code/input first-word fields. The current shape proves descriptor-following but still leaves APUNN output/data windows unchanged.
+- Map the VPU/APUNN-side `0x1c8` operation-entry fields. Host/debug helpers expose opcode, stride, operand-list offset, input count, and output count; the device wrapper only routes raw code-section IOVA/size and counts fixed `0x1c8` entries.
+- Attribute the native plane first-word writebacks semantically: identify whether they are firmware status, driver-side status, request-result fields, or internal command side effects.
 - Map `mdw_cmd_sc_clr_hnd` writeback after provider return and timeout/abort.
 - Test timeout lifecycle races around fd close / `mdw_usr_destroy` / scheduler cleanup.
 - Continue `mdla_run_command_sync` and `edma_execute` input structure mapping for non-VPU provider execution paths.

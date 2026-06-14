@@ -47,6 +47,42 @@ then copies `size` bytes from the caller's property buffer into that settings
 memory and cache-syncs it. Therefore `setting_iova` is not a generic image
 plane. It is the firmware-facing settings/property payload.
 
+## Kernel-to-firmware D2D handoff
+
+The APUSYS VPU 4.0 kernel path adds one more important translation layer before
+`apu_lib_apunn` sees the request. In the local kernel source mirror,
+`drivers/misc/mediatek/apusys/vpu/4.0/vpu_main.c::vpu_req_check()` accepts an
+exact `sizeof(struct vpu_request)` request, validates only the known flag bits,
+and bounds `buffer_count` to `VPU_MAX_NUM_PORTS`.
+
+`drivers/misc/mediatek/apusys/vpu/p1/vpu_hw.c::vpu_execute_d2d()` then prepares
+the firmware request:
+
+| Firmware input | Filled from |
+|---|---|
+| D2D command buffer | `memcpy(req->buffers, sizeof(struct vpu_buffer) * req->buffer_count)` into the per-priority kernel command IOVA |
+| `XTENSA_INFO01` | `0x22` (`DO_D2D`) or `0x24` (`DO_D2D_EXT`) |
+| `XTENSA_INFO11` | Request priority for preload/D2D_EXT |
+| `XTENSA_INFO12` | `req->buffer_count` |
+| `XTENSA_INFO13` | IOVA of the copied `struct vpu_buffer[]` command buffer |
+| `XTENSA_INFO14` | `req->sett_ptr` |
+| `XTENSA_INFO15` | `req->sett_length` |
+| `XTENSA_INFO16` | Preload entry address for D2D_EXT |
+| `XTENSA_INFO19` | Preload IRAM MVA for D2D_EXT |
+
+The firmware therefore does not receive the user-provided `struct vpu_request`
+directly. It receives a register tuple plus a firmware-readable copy of
+`struct vpu_buffer[]`. The plane pointers inside those copied descriptors are
+the IOVAs that lead to the imported HardwareBuffer windows used by the probe.
+
+This explains the current writeback boundary: when the two-native-buffer probe
+points native buffer `0` at the APUNN code/input window, the visible
+`0x2713 -> 0x271b` delta follows that buffer's plane IOVA. That is stronger
+than ioctl or scheduler reachability, but it is still not proof that the APUNN
+XRP output section has been consumed. The missing piece is the firmware-side
+meaning of the copied buffer descriptors plus the completion/output contract
+that turns a D2D_EXT command into a finished request.
+
 ## APUNN/XRP settings buffer
 
 `libneuron_platform.vpu.so::XrpCommandInfo` constructs the settings payload.
@@ -339,6 +375,11 @@ VPU request to:
 | settings `+0x04/+0x10` | code/input size `0x1c8`, code/input IOVA |
 | settings `+0x08/+0x20` | output size `0x80`, output IOVA |
 
+At the kernel boundary, those two native buffers are copied as two
+`struct vpu_buffer` descriptors into the per-priority D2D command buffer. The
+actual code/input and output windows are then reached only if firmware follows
+the copied plane IOVAs.
+
 The no-dispatch control leaves every imported-buffer and command-buffer window
 unchanged. The dispatch run returns `run_async_vpu_iova ret=0`, shows VPU
 map/boot activity, and does not show `D2D_EXT timeout` in the captured 20-second
@@ -353,8 +394,8 @@ This is the strongest runtime boundary so far:
 - the two-buffer native VPU shape changes APUNN lifecycle behavior from the
   previous per-case worker timeout to a residual-command teardown without a
   captured `D2D_EXT timeout`;
-- firmware-visible writeback follows native buffer `0` when that descriptor is
-  bound to the code/input IOVA;
+- firmware-visible writeback follows native buffer `0` when the copied
+  `struct vpu_buffer[0]` descriptor points at the code/input IOVA;
 - settings `+0x08/+0x20` plus native buffer `1` are still not enough to observe
   APUNN output-section writeback.
 
@@ -395,14 +436,25 @@ Userland wrapper evidence:
 | `libneuron_platform.so` | `XrpIntrinsic::PrepareInternalCommand` | `0x1728c` | Allocates internal input and output buffers before APUNN dispatch |
 | `libneuron_platform.so` | `XrpIntrinsicExecutor::PrepareInternalCommandBuffer` | `0x1ff48` | Binds first internal buffer to settings code fields and second internal buffer to settings output fields |
 
+Kernel handoff evidence:
+
+| Source | Function | Evidence |
+|---|---|---|
+| `drivers/misc/mediatek/apusys/vpu/4.0/vpu_ioctl.h` | `struct vpu_request` | Defines `algo`, `flags`, `buffer_count`, `sett_length`, `sett_ptr`, `buffers[]`, `status`, and `algo_ret` |
+| `drivers/misc/mediatek/apusys/vpu/4.0/vpu_main.c` | `vpu_req_check()` | Requires exact VPU request size, validates flags, and bounds `buffer_count` |
+| `drivers/misc/mediatek/apusys/vpu/p1/vpu_hw.c` | `vpu_execute_d2d()` | Copies `req->buffers[]` into the D2D command buffer and writes `XTENSA_INFO12..15`; D2D_EXT also writes preload entry/IRAM registers |
+| `drivers/misc/mediatek/apusys/vpu/p1/vpu_hw.h` | register table | Documents `DO_D2D` as INFO12 buffer count, INFO13 buffer-array pointer, INFO14 setting pointer, and INFO15 setting size |
+| IDA `vmlinux.bin` | `vpu_execute` at `0xffffffc0087a7974` | Kernel execution entry that reaches the D2D/D2D_EXT request path |
+
 Runtime evidence so far proves `apu_lib_apunn` lookup, normal VPU request
 acceptance, VPU boot/map activity, XRP-shaped settings header tolerance,
 target-side nonzero code-section tolerance for six internal query/status
 operation shapes, a controlled native VPU buffer writeback, a per-case timeout
 for the earlier one-buffer shape, and a two-native-buffer `XTENSA_ANN_VERSION`
-dispatch where native buffer `0` points at the code/input window and the kernel
-logs residual command state instead of the earlier D2D timeout. It does not yet
-prove APUNN data descriptor consumption, APUNN output-section writeback, the
-missing completion parameter, or the full semantic meaning of the observed
-native-buffer writeback. The batch-level devapc warning remains non-attributed
-because isolated single-case runs did not reproduce it.
+dispatch where copied native buffer descriptor `0` points at the code/input
+window and the kernel logs residual command state instead of the earlier D2D
+timeout. It does not yet prove APUNN data descriptor consumption, APUNN
+output-section writeback, the missing completion parameter, or the full
+semantic meaning of the observed native-buffer writeback. The batch-level
+devapc warning remains non-attributed because isolated single-case runs did not
+reproduce it.
