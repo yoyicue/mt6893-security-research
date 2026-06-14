@@ -389,21 +389,51 @@ read-violation warning. The current parser conclusion is therefore that the
 debug-visible opcode/count/operand fields are sufficient for request acceptance
 but not sufficient for APUNN output/data binding or successful completion.
 
-## Internal command buffer shape
+## Standard wrapper request path
 
-The host-side `/tmp/mtk-apu-artifacts/libneuron_platform.so` has a separate
-internal-command path that explains the timeout boundary in the one-buffer
-runtime probes:
+The host-side `/tmp/mtk-apu-artifacts/libneuron_platform.so` separates the
+ordinary XRP command path from a standalone internal-command helper. The
+ordinary `XRP_CreateCommand` / `XRP_UseInputBuffer` /
+`XRP_UseOutputBuffer` / `XRP_FinalizeCommand` flow does not call
+`PrepareInternalCommand()`.
+
+The standard flow recovered from the same library is:
 
 | Function | Address | Static behavior |
 |---|---:|---|
-| `xrp::XrpIntrinsic::PrepareInternalCommand(unsigned int, unsigned int)` | `0x1728c` | Allocates two internal command buffers, hints buffer `0` as command input, hints buffer `0` as command output, then calls `PrepareInternalCommandBuffer()` |
+| `xrp::XrpIntrinsic::PrepareXrpCommand(unsigned long, long)` | `0x16ac0` | Resolves the supplied command-buffer id through `GetBuffer()`, calls `HintXrpCommandInput()`, `PrepareXtensaCommandBuffer()`, computes/allocates output through `CalculateOutputSize()` and `AllocCmdOutputBuffer()`, then calls `HintXrpCommandOutput()` and `PrepareOutputBuffer()` |
+| `xrp::XrpIntrinsic::FinalizeXrpCommand(unsigned long)` | `0x1789c` | For nonzero handles, calls `PrepareDataBuffer(handle)` and `FinalizeDataBuffer(handle)`, then always calls `CreateVpuRequest(handle)` |
+
+The `PrepareXrpCommand()` calls show how the wrapper interprets request
+parameters before firmware dispatch:
+
+| Call | Firmware-facing effect |
+|---|---|
+| `HintXrpCommandInput(handle, size, host_va, access=3)` | Binds the selected user buffer as the Xtensa/code input for the command |
+| `PrepareXtensaCommandBuffer(handle)` | Writes the settings code size/IOVA fields from that hinted buffer |
+| `AllocCmdOutputBuffer(handle, CalculateOutputSize(handle))` | Allocates the command output backing buffer |
+| `HintXrpCommandOutput(handle, size, host_va, access)` | Binds the output buffer to the command |
+| `PrepareOutputBuffer(handle)` | Writes output size/IOVA and prepares the output header |
+| `PrepareDataBuffer()` / `FinalizeDataBuffer()` | Builds and finalizes the 12-byte data descriptor section before `CreateVpuRequest()` copies the settings payload into the VPU request |
+
+This correction changes the interpretation of the two-native-buffer Java
+experiments below: they are useful descriptor-following probes, but they are not
+a faithful replay of the ordinary wrapper path unless an external service entry
+explicitly invokes `PrepareInternalCommand()`.
+
+## Internal command buffer shape
+
+The host-side library also exports a separate internal-command path:
+
+| Function | Address | Static behavior |
+|---|---:|---|
+| `xrp::XrpIntrinsic::PrepareInternalCommand(unsigned int, unsigned int)` | `0x1728c` | Allocates two internal command buffers using the two size arguments, hints the first as command input and the second as command output, then calls `PrepareInternalCommandBuffer()` |
 | `xrp::XrpIntrinsicExecutor::PrepareInternalCommandBuffer()` | `0x1ff48` | Requires exactly two internal command records, writes first buffer size/IOVA to settings `+0x04/+0x10`, and writes second buffer size/IOVA to settings `+0x08/+0x20` |
 
-That means APUNN internal query/status commands are not represented well by the
-earlier one-native-buffer request. The real wrapper binds an input/code buffer
-and an output buffer at the native VPU layer before the firmware sees the
-settings buffer.
+No direct internal xref from `PrepareXrpCommand()` or `FinalizeXrpCommand()` to
+`PrepareInternalCommand()` is present in this library. If this helper is used on
+the target, it is reached through a separate service-side entry point or another
+library, not through the standard finalize path above.
 
 The new
 `--run-cmd-vpu-xrp-internal-ann-version-iova` mode keeps the same
@@ -461,9 +491,11 @@ tested both deltas against the internal `XTENSA_ANN_VERSION` request:
 
 The next unresolved field is therefore not ordinary VPU descriptor metadata,
 descriptor count, or basic `0x1c8` opcode/count routing. It is the APUNN
-firmware-side completion/output contract: the command flags, settings fields,
-internal input contents, or output-header semantics that make APUNN signal done
-and write to the settings output section.
+firmware-side completion/output contract: the standard wrapper's
+code/output/data buffer contents, command flags, settings fields, or
+output-header semantics that make APUNN signal done and write to the settings
+output section. The internal-command contents remain relevant only if a
+service-side entry point is found that reaches `PrepareInternalCommand()`.
 
 ## Command flags and completion state
 
@@ -826,8 +858,10 @@ Userland wrapper evidence:
 | `libneuron_platform.vpu.so` | `XrpIntrinsicExecutor::WaitRequest` | `0x101e0` | Requires `(settings[0] & 0x0a) == 0x02` after VPU wait before treating the XRP command as completed |
 | `libneuron_platform.vpu.so` | `XrpVpuStream::CreateVpuRequest` | `0x16d54` | Calls `vpuRequest_setProperty()` for the prepared settings payload |
 | `libneuron_platform.so` | `XrpCommandInfo::PrepareOutputHeader` | `0x129bc` | Writes the output header qword, result size `4`, output size, and output sync/header flag byte |
-| `libneuron_platform.so` | `XrpIntrinsic::PrepareInternalCommand` | `0x1728c` | Allocates internal input and output buffers before APUNN dispatch |
-| `libneuron_platform.so` | `XrpIntrinsicExecutor::PrepareInternalCommandBuffer` | `0x1ff48` | Binds first internal buffer to settings code fields and second internal buffer to settings output fields |
+| `libneuron_platform.so` | `XrpIntrinsic::PrepareXrpCommand` | `0x16ac0` | Standard path: binds input/code, prepares Xtensa command fields, allocates/binds output, and prepares output fields |
+| `libneuron_platform.so` | `XrpIntrinsic::FinalizeXrpCommand` | `0x1789c` | Standard path: prepares/finalizes data descriptors, then creates the VPU request |
+| `libneuron_platform.so` | `XrpIntrinsic::PrepareInternalCommand` | `0x1728c` | Separate exported path; no direct xref from standard prepare/finalize flow in this library |
+| `libneuron_platform.so` | `XrpIntrinsicExecutor::PrepareInternalCommandBuffer` | `0x1ff48` | Separate internal path: binds first internal buffer to settings code fields and second internal buffer to settings output fields |
 | `libneuron_platform.so` | `XrpIntrinsicExecutor::WritebackCommand` | `0x22660` | Host wrapper requires the same completion-flag predicate and records the first output word as command status |
 | `libneuron_platform.so` | `XrpVpuStream::DefaultCreateVpuRequest` | `0x2ad64` | Creates libvpu-style descriptors with `port_id=1`, `height=1`, and `stride=size`; default path calls `addBuffer()` five times |
 
