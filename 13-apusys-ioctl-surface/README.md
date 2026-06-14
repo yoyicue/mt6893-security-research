@@ -306,9 +306,20 @@ The recovered top-level command header is:
 
 For inline code-buffer info, parser verifies `cmd_base + ofs_cb_info + cb_info_size <= cmd_base + mapped_length`. It also validates SCR/PDR-derived dependency state before queue insertion; invalid dependency bitmaps return through the parser failure path and release the command object.
 
-For normal VPU execution, the later provider opcode-4 check is still stricter than the generic APUSYS parser. The normal VPU handler expects its provider argument `+0x00` to point at a VPU request object and provider argument `+0x0c` to equal `0xb70`. It then requires request field `+0x28 < 0x10` and byte `+0x35 < 0x21`, clears request `+0xb68`, stores the APUSYS core id into request `+0xb5c`, and dispatches `vpu_execute` unless request `+0x28` bit `2` selects `vpu_execute_with_slot`. `vpu_execute` treats request `+0x04` as the algorithm name string and request `+0x28` as flags, matching the separate `ucmd` evidence that algorithm state is name-keyed.
+The queued execution path is now mapped through the provider handoff:
 
-The optional `--run-cmd-invalid-sc` probe uses the same fd source but writes a non-executing command buffer that satisfies the top-level magic/version/count/offset gates and deliberately sets the first subcommand type to `0x20`. Runtime and kernel-log evidence show this reaches `mdw_cmd_sc_valid` and fails at `invalid type(32)`, then returns through `mdw_usr_par_apu_cmd parse cmd fail(-22)`. That closes the parser-depth check without constructing a provider request. The remaining run-command work is mapping the provider-specific code-buffer info and VPU/MDLA/EDMA request layouts before any valid command-buffer experiment.
+1. `mdw_cmd_parse_cmd` stores the parsed code-buffer KVA at `sc+0x20` and the code-buffer size at `sc+0x28`.
+2. `mdw_queue_task_start` queues the subcommand; provider handlers are not called in the ioctl thread.
+3. `mdw_sched_routine` pops the subcommand, computes the usable core count, and dispatches the normal case through `sub_FFFFFFC00879550C`.
+4. The normal dispatcher calls `mdw_rsc_get_dev`, then `mdw_rsc_dev_exec` (`core+0x68`), which stores the `sc` at `core+0xc0` and wakes `mdw_sched_dev_routine`.
+5. `mdw_sched_dev_routine` calls command-ops `+0x40`, which is `mdw_cmd_sc_set_hnd(sc, core_id, &provider_arg)`.
+6. `mdw_cmd_sc_set_hnd` fills the provider argument object, allocates a temporary kernel buffer of `sc+0x28` bytes, copies from the selected code-buffer source KVA, stores the copied buffer pointer at `provider_arg+0x00`, stores the size at `provider_arg+0x0c`, stores the original source KVA at `provider_arg+0x38`, and stores the APUSYS core id at `provider_arg+0x2c`.
+7. The worker calls the provider descriptor handler at `provider_desc+0x18` as `{W0 = 4, X1 = &provider_arg, X2 = provider_desc}`.
+8. After the provider returns, command-ops `+0x48` (`mdw_cmd_sc_clr_hnd`) copies the temporary handle buffer back to the source KVA and releases the temporary allocation.
+
+For normal VPU execution, the provider opcode-4 check consumes that copied handle buffer. The normal VPU handler expects provider argument `+0x00` to point at a VPU request object and provider argument `+0x0c` to equal `0xb70`. It then requires request field `+0x28 < 0x10` and byte `+0x35 < 0x21`, clears request `+0xb68`, stores the APUSYS core id into request `+0xb5c`, and dispatches `vpu_execute` unless request `+0x28` bit `2` selects `vpu_execute_with_slot`. `vpu_execute` treats request `+0x04` as the algorithm name string and request `+0x28` as flags, matching the separate `ucmd` evidence that algorithm state is name-keyed.
+
+The optional `--run-cmd-invalid-sc` probe uses the same fd source but writes a non-executing command buffer that satisfies the top-level magic/version/count/offset gates and deliberately sets the first subcommand type to `0x20`. Runtime and kernel-log evidence show this reaches `mdw_cmd_sc_valid` and fails at `invalid type(32)`, then returns through `mdw_usr_par_apu_cmd parse cmd fail(-22)`. That closes the parser-depth check without constructing a provider request. The remaining run-command work is a non-executing valid-type probe that reaches a provider request guard, such as the normal VPU `provider_arg+0x0c == 0xb70` / request-field checks, before any experiment that can submit real work.
 
 ## Ioctl command map
 
