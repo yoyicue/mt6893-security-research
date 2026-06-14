@@ -2,21 +2,29 @@
 
 This file tracks the current model for how `apu_lib_apunn` receives request
 parameters. It separates the kernel APUSYS command wrapper, the native
-`libvpu.so` VPU request, and the `libneuron_platform.vpu.so` XRP command buffer
-that is passed behind `request+0x40` (`setting_iova`).
+`libvpu5.so` VPU request, and the `libneuron_platform.vpu.so` XRP command
+buffer used by the direct settings-property experiments.
 
 ## Layering
 
-Normal execution uses three nested formats:
+The direct ioctl experiments use three nested formats:
 
 1. APUSYS `run_cmd_async` command buffer: top-level APUSYS header, one normal
    VPU subcommand (`type=0x03`), and an inline code buffer.
 2. Native VPU request: the inline code buffer is exactly `0xb70` bytes and
-   matches `libvpu.so::VpuRequestImp+0x38`.
-3. APUNN/XRP settings buffer: `request+0x38/+0x40` point to a separately
-   allocated settings/property buffer. For `apu_lib_apunn`, `libneuron` fills
-   this buffer with an XRP command descriptor that points to code, output, and
-   data sections.
+   matches the target `libvpu5.so::VpuRequestImp+0x48` native request.
+3. Optional APUNN/XRP settings buffer: the libvpu property path can make
+   `request+0x38/+0x40` point to a separately allocated settings/property
+   buffer. The direct ioctl probes fill this slot with an XRP command
+   descriptor that points to code, output, and data sections.
+
+Target-side static analysis currently separates this direct-probe layout from
+`libneuron_platform.vpu.so::XrpVpuStream::CreateVpuRequest()`: that function
+creates/acquires a libvpu request and calls `vpuRequest_addBuffer()` five times,
+with no visible `vpuRequest_setProperty()` call in the same function. This means
+the firmware-facing `request+0x38/+0x40` tuple is still a real kernel input and
+a valid libvpu property-path shape, but it is not proven to be how this target
+wrapper normally submits APUNN.
 
 The current `--run-cmd-vpu-iova` probe validates layer 2 and dispatch
 reachability. It intentionally uses a minimal malformed settings payload by
@@ -27,7 +35,7 @@ data-payload, and native VPU plane-MVA writeback.
 
 ## Native VPU request link
 
-`libvpu.so::VpuRequestImp` owns a native request at object offset `+0x38`.
+`libvpu5.so::VpuRequestImp` owns a native request at object offset `+0x48`.
 `VpuStreamImp::runReq()` and `packRequest()` copy exactly `0xb70` bytes from
 that native request into APUSYS command memory before dispatch. Relevant fields:
 
@@ -45,7 +53,9 @@ that native request into APUSYS command memory before dispatch. Relevant fields:
 `request+0x38/+0x40` from the allocated memory object. `setProperty(ptr, size)`
 then copies `size` bytes from the caller's property buffer into that settings
 memory and cache-syncs it. Therefore `setting_iova` is not a generic image
-plane. It is the firmware-facing settings/property payload.
+plane when this property path is used. The unresolved target-wrapper question is
+whether the normal APUNN service path reaches this setter or relies on copied
+native buffer descriptors only.
 
 ## Kernel-to-firmware D2D handoff
 
@@ -96,11 +106,16 @@ The caller-visible flow is:
 2. `InitCodeSection()`, `InitOutputSection()`, and `InitDataSection()` write
    section sizes and low 32-bit IOVA values into the main command buffer.
 3. `PrepareDataSection()` builds 12-byte data descriptors.
-4. `XrpIntrinsicExecutor::CreateVpuRequest()` passes the main XRP command
-   buffer size and VA to `XrpVpuStream::CreateVpuRequest()`.
-5. `XrpVpuStream::CreateVpuRequest()` calls `vpuRequest_setProperty()` with
-   the prepared property object, causing `libvpu.so` to allocate/copy/sync the
-   settings buffer and write `request+0x38/+0x40`.
+4. `XrpIntrinsicExecutor::CreateVpuRequest()` passes a tuple derived from
+   `XrpCommandInfo+0x28/+0x38` to `XrpVpuStream::CreateVpuRequest()`.
+5. On this target, `XrpVpuStream::CreateVpuRequest()` creates a libvpu request
+   and calls the `stream+0x88` function pointer five times. The
+   `VpuStreamLibManager` constructor resolves `stream+0x88` to
+   `vpuRequest_addBuffer`. No `stream+0x90` / `vpuRequest_setProperty` call is
+   visible in this function. Therefore the direct ioctl probe's
+   `request+0x38/+0x40` settings payload is a kernel/firmware-facing
+   experiment and a valid libvpu property-path shape, but it is not yet proven
+   to be emitted by the target wrapper's `CreateVpuRequest()` path.
 
 Main XRP command buffer fields recovered from userland wrappers:
 
@@ -465,17 +480,18 @@ The relevant standard-wrapper field interpretation is now:
 
 | Field / step | Interpretation |
 |---|---|
-| `XrpBufferDesc+0x08` | Buffer size copied into the settings section-size fields |
+| `XrpBufferDesc+0x10` | Section size copied into settings section-size fields by the target `Init*Section()` helpers |
 | `XrpBufferDesc+0x18` | Host VA used for header initialization and optional data copies |
-| `XrpBufferDesc+0x20` | Access flags; copied into data descriptor entry `+0x00` |
-| `XrpBufferDesc+0x24..+0x38` | Physical/import metadata populated by allocation/import; the low 32-bit IOVA fields are used for settings/data entries |
+| `XrpBufferDesc+0x20` | Access/descriptor metadata; the data finalizer uses this class of metadata for descriptor entry `+0x00` |
+| `XrpBufferDesc+0x28` | Device VA / IOVA field copied into settings code/output/data IOVA slots by the target `Init*Section()` helpers |
+| `XrpCommandInfo+0x28/+0x38` | Tuple later consumed by target `XrpVpuStream::CreateVpuRequest()` to build the repeated libvpu buffer descriptor |
 | `PrepareXtensaCommandBuffer()` | Writes settings `+0x04 = code_size`, `+0x10 = code_iova_low32` |
 | `CalculateOutputSize()` | Returns `0x40` in the default wrapper mode; when the wrapper output-sizing option is set, it computes `0x40 + 4 * (code_size / first_entry_stride)` |
 | `PrepareOutputBuffer()` | Writes settings `+0x08 = output_size`, `+0x20 = output_iova_low32`, then prepares the output header |
 | `PrepareOutputHeader(bool)` | Writes output `+0x00/+0x04 = 0xffffffff/0x40`, `+0x08 = 4`, `+0x0c = output_size`, `+0x10 = bool flag` |
 | `PrepareDataBuffer()` | Allocates a data-descriptor section sized as `data_buffer_count * 0x0c`; the zero-data-buffer path is valid and leaves no data section to consume |
 | `FinalizeDataBuffer()` | Fills each 12-byte data descriptor as `{access_flags, buffer_size, iova_low32}` from registered data buffers |
-| `CreateVpuRequest()` | Creates the VPU request from the prepared command/settings buffer; this is where the settings payload becomes `request+0x38/+0x40` |
+| `CreateVpuRequest()` | Creates the target VPU request. Static target-side evidence currently shows repeated `vpuRequest_addBuffer()` calls; a matching `vpuRequest_setProperty()` call has not been found in this function |
 
 This correction changes the interpretation of the two-native-buffer Java
 experiments below: they are useful descriptor-following probes, but they are not
@@ -554,7 +570,7 @@ This is the strongest runtime boundary so far:
   APUNN output-section writeback.
 
 Follow-up static analysis narrowed the normal `struct vpu_buffer` metadata:
-`libvpu.so::VpuRequestImp::addBuffer()` writes `port_id`, DATA format,
+the target `libvpu5.so::VpuRequestImp::addBuffer()` writes `port_id`, DATA format,
 `plane_count`, width, height, stride, length, and the final plane MVA into the
 same raw kernel descriptor layout. The host wrapper
 `xrp::XrpVpuStream::DefaultCreateVpuRequest()` builds a libvpu-style descriptor
@@ -739,6 +755,38 @@ The same `libvpu5.so` pass pins the native request builder used behind
 This supports the Java request layout already used by the direct ioctl probe:
 the remaining APUNN gap is not an off-by-base error in the `0xb70` request
 size, settings pointer, or descriptor-array start.
+
+The target `libneuron_platform.vpu.so` binding table also resolves the
+`XrpVpuStream` function-pointer slots used by request construction:
+
+| Slot | Resolved symbol | Use in `XrpVpuStream::CreateVpuRequest()` |
+|---:|---|---|
+| `stream+0x20` | `vpuStream_acquire` | Creates/acquires the libvpu request object for the selected algorithm |
+| `stream+0x88` | `vpuRequest_addBuffer` | Called five consecutive times with the same stack `VpuBuffer` object |
+| `stream+0x90` | `vpuRequest_setProperty` | Resolved by the constructor, but no call is visible in `CreateVpuRequest()` |
+
+`libvpu5.so::VpuRequestImp::addBuffer()` maps that stack `VpuBuffer` into the
+firmware-visible `struct vpu_buffer` slots as follows:
+
+| Source field | Native request field |
+|---:|---:|
+| `VpuBuffer+0x8c` | descriptor `+0x00` / request `+0x50` port id |
+| `VpuBuffer+0x80` | descriptor `+0x01` / request `+0x51` format or direction |
+| `VpuBuffer+0x00` | descriptor `+0x02` / request `+0x52` plane count |
+| `VpuBuffer+0x84` | descriptor `+0x04` / request `+0x54` width/size-like field |
+| `VpuBuffer+0x88` | descriptor `+0x08` / request `+0x58` height-like field |
+| `VpuBuffer+0x10/+0x14` | plane `+0x00/+0x04` / request `+0x60/+0x64` |
+| `mmapMVA()` result | plane `+0x08` / request `+0x68` MVA/IOVA |
+
+For the target `CreateVpuRequest()` stack object, the static values are
+`plane_count=1`, descriptor port id `1`, descriptor format/direction `0`, and
+the size-like fields are populated from the two 32-bit halves of
+`XrpCommandInfo+0x28` plus the `XrpCommandInfo+0x38` backing pointer. That is
+why the `code5` Java variant is the closest direct-ioctl replay so far: it
+sets `buffer_count=5` and repeats one libvpu-style descriptor pointing at the
+code/input window. The missing proof is whether any service-side wrapper path
+also sets `request+0x38/+0x40`, or whether `apu_lib_apunn` on this build relies
+primarily on the copied descriptor array.
 
 The shell-domain run without an APUSYS session is a negative control, not a
 valid APUNN wrapper ABI dump:
@@ -1029,8 +1077,8 @@ This gives the current interpretation boundary:
   dispatch, while output/data stay unchanged and code word `0` still changes
   `0x2713 -> 0x271b`. The settings flags word is therefore not a standalone
   APUNN completion trigger in this direct request shape.
-- Static wrapper analysis of `XrpVpuStream::CreateVpuRequest()` shows the
-  standard request builder adds the same native VPU buffer descriptor five
+- Static wrapper analysis of the target `XrpVpuStream::CreateVpuRequest()` shows
+  this request builder adds the same native VPU buffer descriptor five
   times. The `wrapper_one_data_code5` result keeps `settings_len=0x68`,
   wrapper send-state flags, wrapper-default output size `0x40`, and one
   standard APUNN data descriptor, but sets `buffer_count=5` with all five
@@ -1150,7 +1198,7 @@ Userland wrapper evidence:
 | `libneuron_platform.vpu.so` | `XrpIntrinsicExecutor::PrepareDataSection` | `0xfacc` | Builds 12-byte data entries |
 | `libneuron_platform.vpu.so` | `XrpIntrinsicExecutor::SendRequest` | `0x10044` | Transitions command flags from initialize state toward send state by clearing `0x2` and setting `0x1` |
 | `libneuron_platform.vpu.so` | `XrpIntrinsicExecutor::WaitRequest` | `0x101e0` | Requires `(settings[0] & 0x0a) == 0x02` after VPU wait before treating the XRP command as completed |
-| `libneuron_platform.vpu.so` | `XrpVpuStream::CreateVpuRequest` | `0x16d54` | Calls `vpuRequest_setProperty()` for the prepared settings payload |
+| `libneuron_platform.vpu.so` | `XrpVpuStream::CreateVpuRequest` | `0x16d54` | Calls `vpuStream_acquire`, then `vpuRequest_addBuffer()` five times through `stream+0x88`; no `vpuRequest_setProperty()` call is visible in this function |
 | `libneuron_platform.so` | `XrpCommandInfo::PrepareOutputHeader` | `0x129bc` | Writes the output header qword, result size `4`, output size, and output sync/header flag byte |
 | `libneuron_platform.so` | `XrpDebugger::PrintXtensaOperations` | `0x13664` | Confirms the debug-visible Xtensa operation fields: stride at code `+0x04`, opcode at entry `+0x00`, operand-list offset at `+0x08`, input count at `+0x0c`, output count at `+0x10`, and operand ids at `entry+0x48+operand_off` |
 | `libneuron_platform.so` | `XrpIntrinsic::PrepareXrpCommand` | `0x16ac0` | Standard path: binds input/code, prepares Xtensa command fields, allocates/binds output, and prepares output fields |

@@ -9,11 +9,11 @@ crw-rw---- 1 system camera u:object_r:apusys_device:s0 /dev/apusys
 [OPEN] /dev/apusys  fd=5
 ```
 
-The current result is **reachable through APUSYS memory import, normal-VPU algorithm lookup, command parsing, scheduler handoff, and full-size VPU request acceptance from `system_app`**. The VPU request ABI is now tied back to `/vendor/lib64/libvpu.so`: `request+0x35` is `buffer_count`, `request+0x38/+0x40` are settings length/IOVA, and `request+0x50` starts the per-buffer descriptor array. The settings payload behind `setting_iova` is tied back to the `libneuron_platform.vpu.so` XRP command-buffer layout; see [`APUNN_SETTINGS_ABI.md`](APUNN_SETTINGS_ABI.md). IDA analysis shows the device is the MTK APUSYS midware character device. Its main ioctl handler is now named `mdw_ioctl` in the IDB at `0xffffffc00878a0ec`.
+The current result is **reachable through APUSYS memory import, normal-VPU algorithm lookup, command parsing, scheduler handoff, and full-size VPU request acceptance from `system_app`**. The VPU request ABI is now tied back to the target wrapper's preferred `/system/lib64/libvpu5.so`: `request+0x35` is `buffer_count`, `request+0x38/+0x40` are settings length/IOVA when the libvpu property path is used, and `request+0x50` starts the per-buffer descriptor array. The direct ioctl probes deliberately fill `setting_iova` with the recovered `libneuron_platform.vpu.so` XRP command-buffer layout, but current target-side static evidence shows `XrpVpuStream::CreateVpuRequest()` itself builds the request through five `vpuRequest_addBuffer()` calls and does not visibly call `vpuRequest_setProperty()` in that function; see [`APUNN_SETTINGS_ABI.md`](APUNN_SETTINGS_ABI.md). IDA analysis shows the device is the MTK APUSYS midware character device. Its main ioctl handler is now named `mdw_ioctl` in the IDB at `0xffffffc00878a0ec`.
 
 The directory has no CVE number yet. The repository uses CVE-numbered directories when a test is tied to a specific public CVE or confirmed bug class. APUSYS is currently an exposed proprietary ioctl surface with confirmed VPU hardware dispatch reachability from an unprivileged `system_app` context, but no confirmed CVE match or memory corruption primitive.
 
-This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths, negative memory-create cases, optional device-control reachability checks, direct dmabuf-source checks, a candidate-fd scan for the memory import path, HardwareBuffer-backed dmabuf import, controlled `ucmd` gate tests, zero-header / invalid-subcommand `run_cmd_async` parser probes, a normal-VPU valid-type request-size guard probe, a full-size (`0xb70`) VPU execution probe, a chained IOVA-import + VPU request probe, an XRP-shaped APUNN settings probe, no-dispatch IOVA controls, a small APUNN/XRP opcode/operand matrix mode, and two-native-buffer internal-command-shaped modes with minimal/libvpu-style descriptor metadata, wrapper send-state command flags, output-first descriptor order, wrapper-sized settings, output-ready header state, one standard APUNN data descriptor, and an Xtensa operation operand-list offset matrix. The remaining closure work is to align the Java request with the standard wrapper code/output/data contract and recover the firmware output/completion contract.
+This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths, negative memory-create cases, optional device-control reachability checks, direct dmabuf-source checks, a candidate-fd scan for the memory import path, HardwareBuffer-backed dmabuf import, controlled `ucmd` gate tests, zero-header / invalid-subcommand `run_cmd_async` parser probes, a normal-VPU valid-type request-size guard probe, a full-size (`0xb70`) VPU execution probe, a chained IOVA-import + VPU request probe, an XRP-shaped APUNN settings probe, no-dispatch IOVA controls, a small APUNN/XRP opcode/operand matrix mode, and two-native-buffer internal-command-shaped modes with minimal/libvpu-style descriptor metadata, wrapper send-state command flags, output-first descriptor order, wrapper-sized settings, output-ready header state, one standard APUNN data descriptor, and an Xtensa operation operand-list offset matrix. The remaining closure work is to align the Java request with the target wrapper's five-descriptor request builder and recover the firmware output/completion contract.
 
 ## IDA handler map
 
@@ -325,7 +325,7 @@ The optional `--run-cmd-vpu-guard` probe advances one stage further. It uses a v
 
 ### VPU request structure (0xb70 bytes)
 
-The VPU request object is the codebuf contents that `mdw_cmd_sc_set_hnd` copies into a temporary kernel buffer and passes to the provider handler as `provider_arg+0x00`. The userspace source of the same blob is `libvpu.so::VpuRequestImp`: the native request starts at `VpuRequestImp+0x38`, has size `0xb70`, and is copied into APUSYS command memory by `VpuStreamImp::runReq()` / `packRequest()`.
+The VPU request object is the codebuf contents that `mdw_cmd_sc_set_hnd` copies into a temporary kernel buffer and passes to the provider handler as `provider_arg+0x00`. The userspace source of the same blob on this target is `libvpu5.so::VpuRequestImp`: the native request starts at `VpuRequestImp+0x48`, has size `0xb70`, and is copied into APUSYS command memory by `VpuStreamImp::runReq()` / `packRequest()`. The older `libvpu.so` implementation has the same raw request layout but a different object base offset.
 
 | Offset | Size | Field | Constraint / use |
 |---:|---:|---|---|
@@ -353,7 +353,7 @@ The VPU request object is the codebuf contents that `mdw_cmd_sc_set_hnd` copies 
 
 `request+0x35` is not priority. Priority/boost state lives outside the native `0xb70` request in `VpuRequestImp` bookkeeping and in the APUSYS command header (`+0x11`) / EARA fields.
 
-The `request+0x38/+0x40` settings pointer is an APUNN/XRP command buffer, not a generic image plane. `libvpu.so::prepareSettBuf()` allocates and records the settings memory, `vpuRequest_setProperty()` copies the caller property bytes into it, and `libneuron_platform.vpu.so::XrpCommandInfo` initializes the payload with command flags, code/output/data section sizes, section IOVAs, a 16-byte magic, an output header, and 12-byte data descriptors. The recovered wrapper layout and current XRP-shaped runtime probe are documented in [`APUNN_SETTINGS_ABI.md`](APUNN_SETTINGS_ABI.md).
+When the libvpu property path is used, `request+0x38/+0x40` is the settings length/IOVA pair rather than a generic image plane. `libvpu5.so::prepareSettBuf()` allocates and records that settings memory, and `vpuRequest_setProperty()` copies the caller property bytes into it. The direct ioctl probes fill this slot with the recovered `libneuron_platform.vpu.so` XRP command-buffer layout: command flags, code/output/data section sizes, section IOVAs, a 16-byte magic, an output header, and 12-byte data descriptors. Current target-side static evidence has not found a `vpuRequest_setProperty()` call inside `XrpVpuStream::CreateVpuRequest()` itself; that function builds the request through five `vpuRequest_addBuffer()` calls. The recovered layout and this target-wrapper caveat are documented in [`APUNN_SETTINGS_ABI.md`](APUNN_SETTINGS_ABI.md).
 
 `vpu_execute` execution flow after guard checks:
 
@@ -749,7 +749,7 @@ output/data descriptor/data payload remain unchanged, and code word `0`
 changes `0x2713 -> 0x271b`. The wrapper dynamic-output size/header shape is
 therefore not the missing APUNN completion condition.
 
-Static analysis of `XrpVpuStream::CreateVpuRequest()` shows the standard
+Static analysis of the target `XrpVpuStream::CreateVpuRequest()` shows this
 request builder adds the same native VPU buffer descriptor five times. The
 `wrapper-data-code5` variant keeps `settings_len=0x68`, wrapper send-state
 flags, wrapper-default output size `0x40`, and one standard data descriptor,
@@ -1147,7 +1147,7 @@ without final dispatch.
 
 `--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc` keeps the same
 two-buffer internal-command shape but fills the copied `struct vpu_buffer`
-metadata the way `libvpu.so::VpuRequestImp::addBuffer()` does:
+metadata the way the target `libvpu5.so::VpuRequestImp::addBuffer()` does:
 `port_id=1`, DATA format, `plane_count=1`, `height=1`, `stride=size`, and
 `length=size`. The matching `-control` mode skips dispatch. The
 `--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-settings68`
