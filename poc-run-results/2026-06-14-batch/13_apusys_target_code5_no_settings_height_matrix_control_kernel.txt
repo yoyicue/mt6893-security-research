@@ -1,0 +1,3 @@
+pattern=apusys|vpu|mdw|vpu_req_check
+source=adb logcat -b kernel or dmesg fallback
+

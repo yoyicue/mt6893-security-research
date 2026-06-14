@@ -766,6 +766,27 @@ Result files:
 - `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_plane_count_matrix_repeat.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_plane_count_matrix_repeat_kernel.txt`
 
+The descriptor-height matrix keeps the same target-wrapper-shaped request,
+`buffer_count=5`, and first word `0x2713`, but varies descriptor word `+0x08`
+through `0,1,2,3,0x40,0xffffffff`. Control preserves the requested word and
+leaves APUNN windows unchanged. Dispatch plus wait returns `0` for every tested
+height and leaves APUNN settings/output/data windows unchanged. The first
+dispatch run writes `0x2713 -> 0x271b` for every tested height. The two repeat
+runs miss visible descriptor-0 writeback for different subsets, so height is not
+a hard writeback gate and the first-word writeback is not a stable completion
+oracle.
+
+Result files:
+
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_height_matrix_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_height_matrix_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_height_matrix.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_height_matrix_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_height_matrix_repeat.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_height_matrix_repeat_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_height_matrix_repeat2.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_height_matrix_repeat2_kernel.txt`
+
 This rules out the presence of a direct settings-property tuple as the cause of
 the current incomplete boundary. The target-wrapper-shaped no-settings request
 is accepted by APUSYS/VPU and can be waited successfully when at least one native
@@ -773,8 +794,8 @@ descriptor is advertised, but firmware still does not transition settings flags
 to `(settings[0] & 0x0a) == 0x02` or write the APUNN output/data windows. The
 next unresolved field is therefore not ordinary VPU descriptor metadata,
 nonzero descriptor count, `request+0x38/+0x40` presence, native descriptor
-payload size, request priority/slot, descriptor port/format/plane-count bytes, or
-basic `0x1c8` opcode/count routing. It is the APUNN firmware-side
+payload size, request priority/slot, descriptor port/format/plane-count bytes,
+descriptor height, or basic `0x1c8` opcode/count routing. It is the APUNN firmware-side
 completion/output contract: the standard wrapper's
 code/output/data buffer contents, command flags, or output-header semantics that
 make APUNN signal done and write to the settings output section.
@@ -1379,6 +1400,14 @@ This gives the current interpretation boundary:
   run wrote `0x2713 -> 0x271b` for every tested value. Descriptor plane count is
   therefore not the liveness gate for this state writeback and is not the APUNN
   completion/output condition.
+- The `target_code5_no_settings_height_matrix` result keeps the same
+  five-descriptor/no-settings request shape and `buffer_count=5`, but varies
+  descriptor word `+0x08` through `0,1,2,3,0x40,0xffffffff`. No-dispatch controls
+  preserve `0x2713` and APUNN windows. Dispatch plus wait returns `0` for every
+  tested value and never changes APUNN settings/output/data. The first dispatch
+  writes `0x2713 -> 0x271b` for every tested height; the repeats miss visible
+  state writeback for different subsets. Descriptor height is therefore accepted
+  ordinary metadata, not the APUNN completion/output condition.
 - The `wrapper_one_data_output44` result follows the host wrapper's dynamic
   output-size formula for one `0x1c8` Xtensa operation: output size
   `0x40 + 4 * 1 = 0x44`, output header flag `1`, `settings_len=0x68`,
@@ -1548,8 +1577,11 @@ byte `+0x00` is not the missing role gate either. The descriptor-format matrix
 accepts the same value set at byte `+0x01` with the same boundary. The
 descriptor-plane-count matrix accepts the same value set at byte `+0x02` and
 shows that descriptor plane count is not the state-write liveness gate either.
-Libvpu-style descriptor metadata, a five-descriptor alias shape, and the wrapper
-send-state command flag value `0x5` do not change that boundary.
+The descriptor-height matrix accepts `0,1,2,3,0x40,0xffffffff` with the same
+completion/output boundary; its cross-run no-write cases reinforce that the
+descriptor-0 state write is not a reliable completion oracle. Libvpu-style
+descriptor metadata, a five-descriptor alias shape, and the wrapper send-state
+command flag value `0x5` do not change that boundary.
 Changing the firmware-visible settings length from `0x100` to the wrapper DSP
 command buffer size `0x68` also leaves the same boundary in place. Setting the
 wrapper-controlled output header flag byte at `output+0x10` to `1` does not
