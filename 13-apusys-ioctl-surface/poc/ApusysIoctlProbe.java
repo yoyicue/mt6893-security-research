@@ -42,6 +42,10 @@ public final class ApusysIoctlProbe {
     private static final int OFF_ION_SHARE   = 0x440;
     private static final int OFF_ION_FREE    = 0x460;
 
+    private static final int RUN_CMD_PAYLOAD_ZERO = 0;
+    private static final int RUN_CMD_PAYLOAD_INVALID_SC = 1;
+    private static final int RUN_CMD_PAYLOAD_VPU_GUARD = 2;
+
     private ApusysIoctlProbe() {
     }
 
@@ -57,6 +61,7 @@ public final class ApusysIoctlProbe {
         boolean ucmdHardwareBuffer = false;
         boolean runCmdHardwareBuffer = false;
         boolean runCmdInvalidSc = false;
+        boolean runCmdVpuGuard = false;
         String ucmdKey = null;
         String ucmdKeyDump = null;
         for (String arg : args) {
@@ -82,6 +87,8 @@ public final class ApusysIoctlProbe {
                 runCmdHardwareBuffer = true;
             } else if ("--run-cmd-invalid-sc".equals(arg)) {
                 runCmdInvalidSc = true;
+            } else if ("--run-cmd-vpu-guard".equals(arg)) {
+                runCmdVpuGuard = true;
             } else if (arg.startsWith("--ucmd-key=")) {
                 ucmdKey = arg.substring("--ucmd-key=".length());
                 validateUcmdKey(ucmdKey);
@@ -96,10 +103,10 @@ public final class ApusysIoctlProbe {
         System.out.println("[*] === APUSYS ioctl probe ===");
         if (memNegative || devCtrl || memDmabuf || memIon || fdScan
                 || ucmdNegative || hardwareBuffer || ucmdHardwareBuffer
-                || runCmdHardwareBuffer || runCmdInvalidSc
+                || runCmdHardwareBuffer || runCmdInvalidSc || runCmdVpuGuard
                 || ucmdKey != null || ucmdKeyDump != null) {
             System.out.println("[*] Mode: optional checks enabled;"
-                + " no secure alloc/free, no valid run_cmd cmdbuf\n");
+                + " no secure alloc/free, no real APUSYS workload\n");
         } else {
             System.out.println("[*] Mode: reject/query paths only;"
                 + " no memory create/free, no dev-ctrl, no valid cmdbuf\n");
@@ -178,6 +185,10 @@ public final class ApusysIoctlProbe {
 
             if (runCmdInvalidSc) {
                 runRunCmdInvalidScHardwareBufferProbe(fd);
+            }
+
+            if (runCmdVpuGuard) {
+                runRunCmdVpuGuardHardwareBufferProbe(fd);
             }
 
             if (ucmdKey != null) {
@@ -637,21 +648,38 @@ public final class ApusysIoctlProbe {
         dumpClassShape("android.media.ImageReader");
         dumpClassShape("android.media.ImageWriter");
 
-        runOneRunCmdHardwareBufferProbe(apusysFd, "invalid_sc_type20", 0, true);
+        runOneRunCmdHardwareBufferProbe(apusysFd, "invalid_sc_type20", 0,
+            RUN_CMD_PAYLOAD_INVALID_SC);
+    }
+
+    private static void runRunCmdVpuGuardHardwareBufferProbe(int apusysFd)
+            throws Exception {
+        System.out.println("\n[*] === Optional APUSYS run_cmd VPU request-guard probe ===");
+        System.out.println("[*] Mode: valid APUSYS command header, normal VPU"
+            + " subcommand type, intentionally short codebuf size, no VPU execute");
+
+        loadRuntimeLibraries();
+        dumpClassShape("android.hardware.HardwareBuffer");
+        dumpClassShape("android.media.ImageReader");
+        dumpClassShape("android.media.ImageWriter");
+
+        runOneRunCmdHardwareBufferProbe(apusysFd, "vpu_guard_size20", 0,
+            RUN_CMD_PAYLOAD_VPU_GUARD);
     }
 
     private static void runOneRunCmdHardwareBufferProbe(int apusysFd, String label,
                                                         int firstU32) throws Exception {
-        runOneRunCmdHardwareBufferProbe(apusysFd, label, firstU32, false);
+        runOneRunCmdHardwareBufferProbe(apusysFd, label, firstU32,
+            RUN_CMD_PAYLOAD_ZERO);
     }
 
     private static void runOneRunCmdHardwareBufferProbe(int apusysFd, String label,
                                                         int firstU32,
-                                                        boolean invalidSc)
+                                                        int payloadMode)
             throws Exception {
         System.out.println("\n[*] --- run_cmd HardwareBuffer case: " + label
             + " first_u32=0x" + Integer.toHexString(firstU32)
-            + (invalidSc ? " invalid_sc=true" : "")
+            + " payload_mode=" + payloadMode
             + " ---");
 
         android.media.ImageReader reader = null;
@@ -675,8 +703,12 @@ public final class ApusysIoctlProbe {
                 + " usage=0x" + Long.toHexString(writer.getUsage()));
 
             input = writer.dequeueInputImage();
-            if (invalidSc) {
-                fillRunCmdInvalidSc(input);
+            if (payloadMode == RUN_CMD_PAYLOAD_INVALID_SC) {
+                fillRunCmdSubcommand(input, 0x20, 0, 0x60,
+                    "invalid_sc_type20");
+            } else if (payloadMode == RUN_CMD_PAYLOAD_VPU_GUARD) {
+                fillRunCmdSubcommand(input, 0x03, 0x20, 0x60,
+                    "vpu_guard_type3_size20");
             } else {
                 fillImageHeader(input, firstU32);
             }
@@ -777,7 +809,11 @@ public final class ApusysIoctlProbe {
             + " pixelStride=" + planes[0].getPixelStride());
     }
 
-    private static void fillRunCmdInvalidSc(android.media.Image image) throws Exception {
+    private static void fillRunCmdSubcommand(android.media.Image image,
+                                             int scType,
+                                             int codebufSize,
+                                             int codebufOffset,
+                                             String label) throws Exception {
         android.media.Image.Plane[] planes = image.getPlanes();
         if (planes == null || planes.length == 0) {
             throw new IllegalStateException("input image has no planes");
@@ -796,22 +832,25 @@ public final class ApusysIoctlProbe {
         buffer.put(0x11, (byte) 0);       // priority
         putU64LE(buffer, 0x18, 0);        // flags
         putU32LE(buffer, 0x20, 1);        // num_sc
-        putU32LE(buffer, 0x24, 0x58);     // ofs_scr_list
-        putU32LE(buffer, 0x28, 0x54);     // ofs_pdr_cnt_list
+        putU32LE(buffer, 0x24, 0x5c);     // ofs_scr_list
+        putU32LE(buffer, 0x28, 0x58);     // ofs_pdr_cnt_list
         putU32LE(buffer, 0x2c, 0x30);     // sc0 offset
 
-        putU32LE(buffer, 0x30, 0x20);     // invalid type: >= 0x20
+        putU32LE(buffer, 0x30, scType);   // subcommand type
         buffer.put(0x1a + 0x30, (byte) 0); // pack_id
         putU32LE(buffer, 0x1c + 0x30, 0); // mem_ctx
-        putU32LE(buffer, 0x20 + 0x30, 0); // cb_info_size
-        putU32LE(buffer, 0x24 + 0x30, 0x60); // ofs_cb_info
-        putU32LE(buffer, 0x54, 0);        // pdr_cnt_list[0]
+        putU32LE(buffer, 0x20 + 0x30, codebufSize); // cb_info_size
+        putU32LE(buffer, 0x24 + 0x30, codebufOffset); // ofs_cb_info
+        putU32LE(buffer, 0x58, 0);        // pdr_cnt_list[0]
+        putU32LE(buffer, 0x5c, 0);        // scr_list[0]
 
         image.setTimestamp(System.nanoTime());
-        System.out.println("[+] input run_cmd invalid_sc payload:"
+        System.out.println("[+] input run_cmd " + label + " payload:"
             + " magic=0x3d2070ece309c231 version=1 num_sc=1"
-            + " sc0_off=0x30 sc0_type=0x20"
-            + " pdr_cnt_off=0x54 scr_off=0x58 cb_info_off=0x60"
+            + " sc0_off=0x30 sc0_type=0x" + Integer.toHexString(scType)
+            + " cb_info_size=0x" + Integer.toHexString(codebufSize)
+            + " pdr_cnt_off=0x58 scr_off=0x5c"
+            + " cb_info_off=0x" + Integer.toHexString(codebufOffset)
             + " plane_count=" + planes.length
             + " cap=" + buffer.capacity()
             + " rowStride=" + planes[0].getRowStride()

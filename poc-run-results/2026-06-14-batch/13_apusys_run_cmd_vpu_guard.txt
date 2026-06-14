@@ -1,4 +1,4 @@
-command=CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex app_process64 /system/bin ApusysIoctlProbe --run-cmd-invalid-sc
+command=CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex app_process64 /system/bin ApusysIoctlProbe --run-cmd-vpu-guard
 dex_md5=135ab9a6f6671439697133f96a0962cb
 dex_sha256=d47369ef8ad4cc23931c3e4abd64b5da9cef71a9b366ce14b93e27184dee83a1
 remote_dex=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex
@@ -11,17 +11,17 @@ u:r:system_app:s0
 [*] === APUSYS ioctl probe ===
 [*] Mode: optional checks enabled; no secure alloc/free, no real APUSYS workload
 
-[+] Scratch buffer at 0x7adaf5a000
+[+] Scratch buffer at 0x74a9fae000
 [*] Trying anonymous PROT_RWX mmap...
-[+] Anonymous RWX page at 0x7adaf31000
+[+] Anonymous RWX page at 0x74a9f82000
 [+] Wrote syscall stub: JNI@+0x00 (36B); entry_point left untouched
-[*] ArtMethod for nativeSyscall at 0x7ad43bc9f0
+[*] ArtMethod for nativeSyscall at 0x74a15349f0
     access_flags = 0x10000108 [NATIVE]
-    data (JNI ptr) = 0x7825a1a2c0
-    entry_point    = 0x103800087723c3f0
-[*] Patching data_ (JNI) → 0x7adaf31000
-    data_       = 0x7adaf31000 ✓
-    entry_point = 0x103800087723c3f0 (unchanged)
+    data (JNI ptr) = 0x71ee01a2c0
+    entry_point    = 0x103800080167c3f0
+[*] Patching data_ (JNI) → 0x74a9f82000
+    data_       = 0x74a9f82000 ✓
+    entry_point = 0x103800080167c3f0 (unchanged)
 [+] ArtMethod patched
 [+] Syscall infrastructure ready
 
@@ -34,8 +34,8 @@ u:r:system_app:s0
 [*] run_sync_reject    cmd=0x40184106 ret=-22 (EINVAL)
 [*] ucmd_reject        cmd=0x4014410e ret=-22 (EINVAL)
 
-[*] === Optional APUSYS run_cmd invalid-subcommand parser probe ===
-[*] Mode: valid APUSYS command header, one invalid subcommand type, no provider request
+[*] === Optional APUSYS run_cmd VPU request-guard probe ===
+[*] Mode: valid APUSYS command header, normal VPU subcommand type, intentionally short codebuf size, no VPU execute
 [+] loaded /apex/com.android.art/lib64/libnativehelper.so
 [-] load /system/lib64/libhidlbase.so failed: java.lang.UnsatisfiedLinkError: dlopen failed: library "libdl_android.so" needed or dlopened by "/system/lib64/libvndksupport.so" is not accessible for the namespace "classloader-namespace"
 [+] loaded /system/lib64/libhidltransport.so
@@ -119,43 +119,43 @@ u:r:system_app:s0
     method private boolean android.media.ImageWriter.isImageOwnedByMe(android.media.Image)
     method private native int android.media.ImageWriter.nativeAttachAndQueueGraphicBuffer(long,android.graphics.GraphicBuffer,int,long,int,int,int,int,int,int,int)
 
-[*] --- run_cmd HardwareBuffer case: invalid_sc_type20 first_u32=0x0 payload_mode=1 ---
+[*] --- run_cmd HardwareBuffer case: vpu_guard_size20 first_u32=0x0 payload_mode=2 ---
 [+] ImageReader created: width=64 height=64 format=1 hbFormat=1 usage=0x133
 [+] ImageWriter created: width=64 height=64 format=1 hbFormat=34 usage=0x30
-[+] input run_cmd invalid_sc_type20 payload: magic=0x3d2070ece309c231 version=1 num_sc=1 sc0_off=0x30 sc0_type=0x20 cb_info_size=0x0 pdr_cnt_off=0x58 scr_off=0x5c cb_info_off=0x60 plane_count=1 cap=16384 rowStride=256 pixelStride=4
-[+] acquired image: width=64 height=64 format=1 timestamp=156936396087043
+[+] input run_cmd vpu_guard_type3_size20 payload: magic=0x3d2070ece309c231 version=1 num_sc=1 sc0_off=0x30 sc0_type=0x3 cb_info_size=0x20 pdr_cnt_off=0x58 scr_off=0x5c cb_info_off=0x60 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=156942435413197
 [+] Output HardwareBuffer: width=64 height=64 format=1 layers=1 usage=0x133
 [*] HardwareBuffer parcel: dataSize=436 hasFd=true describe=0x1
 [+] AIDL HardwareBuffer readFromParcel succeeded
     aidl_hardware_buffer class=android.hardware.graphics.common.HardwareBuffer
-    aidl_hardware_buffer.description=android.hardware.graphics.common.HardwareBufferDescription@1403226
+    aidl_hardware_buffer.description=android.hardware.graphics.common.HardwareBufferDescription@4329e64
     aidl_hardware_buffer.description class=android.hardware.graphics.common.HardwareBufferDescription
     aidl_hardware_buffer.description.format=1
     aidl_hardware_buffer.description.height=64
     aidl_hardware_buffer.description.layers=64
-    aidl_hardware_buffer.description.stride=19111
+    aidl_hardware_buffer.description.stride=19250
     aidl_hardware_buffer.description.usage=1318554959873
     aidl_hardware_buffer.description.width=64
-    aidl_hardware_buffer.description.CREATOR=android.hardware.graphics.common.HardwareBufferDescription$1@7011e67
+    aidl_hardware_buffer.description.CREATOR=android.hardware.graphics.common.HardwareBufferDescription$1@b2818cd
     aidl_hardware_buffer.description.CREATOR class=android.hardware.graphics.common.HardwareBufferDescription$1
     aidl_hardware_buffer.handle=null
-    aidl_hardware_buffer.CREATOR=android.hardware.graphics.common.HardwareBuffer$1@d678414
+    aidl_hardware_buffer.CREATOR=android.hardware.graphics.common.HardwareBuffer$1@32f3582
     aidl_hardware_buffer.CREATOR class=android.hardware.graphics.common.HardwareBuffer$1
 [+] parcel_fd_pos_364 fd=61
-[*] hwb_run_invalid_sc_type20_mem2_pos364 cmd=0xc0384103 ret=-12 (ENOMEM)
-[*] hwb_run_invalid_sc_type20_mem3_pos364 cmd=0xc038410f ret=-12 (ENOMEM)
+[*] hwb_run_vpu_guard_size20_mem2_pos364 cmd=0xc0384103 ret=-12 (ENOMEM)
+[*] hwb_run_vpu_guard_size20_mem3_pos364 cmd=0xc038410f ret=-12 (ENOMEM)
 [+] parcel_fd_pos_388 fd=61
-[*] hwb_run_invalid_sc_type20_mem2_pos388 cmd=0xc0384103 ret=0
-    hwb_run_invalid_sc_type20_mem2_pos388_desc: [0]=0x0 [4]=0x0 [8]=0xfd7bc000 [12]=0x1000 [16]=0x4000 [20]=0x0 [24]=0x0 [28]=0x0 [32]=0x3d [36]=0x0 [40]=0x2d [44]=0x0 [48]=0x0 [52]=0x0
-[+] hwb_run_invalid_sc_type20_mem2_pos388 succeeded; id=0x2d, cleaning up
-[*] hwb_run_invalid_sc_type20_mem2_pos388_cleanup cmd=0xc0384102 ret=0
-[*] hwb_run_invalid_sc_type20_mem3_pos388 cmd=0xc038410f ret=0
-    hwb_run_invalid_sc_type20_mem3_pos388_desc: [0]=0x0 [4]=0x0 [8]=0xfd7bc000 [12]=0x1000 [16]=0x4000 [20]=0x0 [24]=0x0 [28]=0x0 [32]=0x3d [36]=0x0 [40]=0x2d [44]=0x0 [48]=0x0 [52]=0x0
-[+] hwb_run_invalid_sc_type20_mem3_pos388 succeeded; id=0x2d, cleaning up
-[*] hwb_run_invalid_sc_type20_mem3_pos388_cleanup cmd=0xc0384110 ret=0
-[*] run_async_hwb_run_invalid_sc_type20_pos388 cmd=0xc0184107 ret=-22 (EINVAL)
+[*] hwb_run_vpu_guard_size20_mem2_pos388 cmd=0xc0384103 ret=0
+    hwb_run_vpu_guard_size20_mem2_pos388_desc: [0]=0x0 [4]=0x0 [8]=0xfd7b8000 [12]=0x1000 [16]=0x4000 [20]=0x0 [24]=0x0 [28]=0x0 [32]=0x3d [36]=0x0 [40]=0x2d [44]=0x0 [48]=0x0 [52]=0x0
+[+] hwb_run_vpu_guard_size20_mem2_pos388 succeeded; id=0x2d, cleaning up
+[*] hwb_run_vpu_guard_size20_mem2_pos388_cleanup cmd=0xc0384102 ret=0
+[*] hwb_run_vpu_guard_size20_mem3_pos388 cmd=0xc038410f ret=0
+    hwb_run_vpu_guard_size20_mem3_pos388_desc: [0]=0x0 [4]=0x0 [8]=0xfd7b8000 [12]=0x1000 [16]=0x4000 [20]=0x0 [24]=0x0 [28]=0x0 [32]=0x3d [36]=0x0 [40]=0x2d [44]=0x0 [48]=0x0 [52]=0x0
+[+] hwb_run_vpu_guard_size20_mem3_pos388 succeeded; id=0x2d, cleaning up
+[*] hwb_run_vpu_guard_size20_mem3_pos388_cleanup cmd=0xc0384110 ret=0
+[*] run_async_hwb_run_vpu_guard_size20_pos388 cmd=0xc0184107 ret=0
 [+] parcel_fd_pos_412 fd=61
-[*] hwb_run_invalid_sc_type20_mem2_pos412 cmd=0xc0384103 ret=-12 (ENOMEM)
-[*] hwb_run_invalid_sc_type20_mem3_pos412 cmd=0xc038410f ret=-12 (ENOMEM)
+[*] hwb_run_vpu_guard_size20_mem2_pos412 cmd=0xc0384103 ret=-12 (ENOMEM)
+[*] hwb_run_vpu_guard_size20_mem3_pos412 cmd=0xc038410f ret=-12 (ENOMEM)
 
 [+] Probe completed. Interpret results as handler reachability only.

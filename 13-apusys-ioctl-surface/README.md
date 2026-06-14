@@ -9,11 +9,11 @@ crw-rw---- 1 system camera u:object_r:apusys_device:s0 /dev/apusys
 [OPEN] /dev/apusys  fd=5
 ```
 
-The current result is **reachable, with a confirmed VPU algorithm lookup hit, but not yet mapped to a confirmed vulnerability**. IDA analysis shows the device is the MTK APUSYS midware character device. Its main ioctl handler is now named `mdw_ioctl` in the IDB at `0xffffffc00878a0ec`.
+The current result is **reachable, with a confirmed VPU algorithm lookup hit and a confirmed normal-VPU `run_cmd_async` request-size guard hit, but not yet mapped to a confirmed vulnerability**. IDA analysis shows the device is the MTK APUSYS midware character device. Its main ioctl handler is now named `mdw_ioctl` in the IDB at `0xffffffc00878a0ec`.
 
 The directory has no CVE number yet. The repository uses CVE-numbered directories when a test is tied to a specific public CVE or confirmed bug class. APUSYS is currently an exposed proprietary ioctl surface with handler-level mapping and runtime reachability evidence, but no confirmed CVE match or vulnerability primitive.
 
-This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths, negative memory-create cases, optional device-control reachability checks, direct dmabuf-source checks, a candidate-fd scan for the memory import path, HardwareBuffer-backed dmabuf import, controlled `ucmd` gate tests, and zero-header / invalid-subcommand `run_cmd_async` parser probes. Valid APUSYS command buffers, heap shaping, and execution-path inputs remain separate experiment tracks.
+This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths, negative memory-create cases, optional device-control reachability checks, direct dmabuf-source checks, a candidate-fd scan for the memory import path, HardwareBuffer-backed dmabuf import, controlled `ucmd` gate tests, zero-header / invalid-subcommand `run_cmd_async` parser probes, and a normal-VPU valid-type request-size guard probe. Heap shaping and real execution-path inputs remain separate experiment tracks.
 
 ## IDA handler map
 
@@ -319,7 +319,9 @@ The queued execution path is now mapped through the provider handoff:
 
 For normal VPU execution, the provider opcode-4 check consumes that copied handle buffer. The normal VPU handler expects provider argument `+0x00` to point at a VPU request object and provider argument `+0x0c` to equal `0xb70`. It then requires request field `+0x28 < 0x10` and byte `+0x35 < 0x21`, clears request `+0xb68`, stores the APUSYS core id into request `+0xb5c`, and dispatches `vpu_execute` unless request `+0x28` bit `2` selects `vpu_execute_with_slot`. `vpu_execute` treats request `+0x04` as the algorithm name string and request `+0x28` as flags, matching the separate `ucmd` evidence that algorithm state is name-keyed.
 
-The optional `--run-cmd-invalid-sc` probe uses the same fd source but writes a non-executing command buffer that satisfies the top-level magic/version/count/offset gates and deliberately sets the first subcommand type to `0x20`. Runtime and kernel-log evidence show this reaches `mdw_cmd_sc_valid` and fails at `invalid type(32)`, then returns through `mdw_usr_par_apu_cmd parse cmd fail(-22)`. That closes the parser-depth check without constructing a provider request. The remaining run-command work is a non-executing valid-type probe that reaches a provider request guard, such as the normal VPU `provider_arg+0x0c == 0xb70` / request-field checks, before any experiment that can submit real work.
+The optional `--run-cmd-invalid-sc` probe uses the same fd source but writes a non-executing command buffer that satisfies the top-level magic/version/count/offset gates and deliberately sets the first subcommand type to `0x20`. Runtime and kernel-log evidence show this reaches `mdw_cmd_sc_valid` and fails at `invalid type(32)`, then returns through `mdw_usr_par_apu_cmd parse cmd fail(-22)`.
+
+The optional `--run-cmd-vpu-guard` probe advances one stage further. It uses a valid normal VPU subcommand type (`type=0x03`) and an inline code buffer of only `0x20` bytes. Runtime evidence shows `run_cmd_async` returns `0`, the scheduler queues the command, `apusys_vpu0` reaches `vpu_req_check: invalid size of vpu request`, and the scheduler trace records `dev(3/vpu-#0)` with `ret(-22)`. This validates the static provider handoff and stops at the intended request-size guard before `vpu_execute`.
 
 ## Ioctl command map
 
@@ -351,7 +353,7 @@ The `0x4004413C/3D` size mismatch is important for testing: the command encoding
 ## Current risk ranking
 
 1. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` lead to `mdw_usr_mem_create`, then into APUSYS ION KVA/IOVA callbacks. Negative tests confirm that type-2 and type-3 descriptors reach deeper than the initial user-copy guard without creating an object or crashing. Direct node sources remain constrained: no `/dev/dma_heap/*` nodes on this device, DRM dumb buffer creation succeeds but PRIME fd export returns `EACCES`, direct `/dev/ion` open returns `EACCES`, `/dev/ashmem` open returns `EACCES`, and ordinary openable fds such as `/dev/dri/card0`, `/dev/mali0`, `/dev/zero`, `/dev/null`, and `/dev/apusys` all fail APUSYS memory-create with `ENOMEM`. The usable fd source is now the framework path: running the probe through `app_process64` can create an `android.hardware.HardwareBuffer`, read a fd-bearing Parcel entry, and import that fd successfully through both APUSYS type-2 and type-3 memory-create. This is the highest APUSYS priority.
-2. **Command parsing/execution and ucmd paths**: `0xC0184107` and `0x40184106` reach `mdw_usr_run_cmd_async`. Static analysis resolves the command ops callbacks: clearing user `+0x0c` calls `mdw_cmd_create_cmd`, then `mdw_cmd_parse_cmd`, and only then queues the object and writes a handle to user `+0x00`. Runtime now confirms the HardwareBuffer fd source can reach this parser path: a zero-header ImageWriter-backed buffer imports successfully and `run_async_hwb_run_zero_pos388` returns `EINVAL`, matching parser rejection before queue insertion. `0x4014410E` reaches `mdw_usr_ucmd`; with `+0x0c == 0` it imports the fd as APUSYS memory, maps KVA/IOVA, bounds-checks the requested length, then calls `mdw_rsc_ucmd_dispatch` at `core+0x98`. The normal VPU opcode-7 `0x8001` mapped-buffer gate is runtime-confirmed, and `--ucmd-key=apu_lib_apunn` now returns `0` for core `0` and `1`. Empty, `Normal`, `unknown`, and `apu_lib_custom` payloads still return `EINVAL` or `ENOENT` as expected. EDMA and MDLA do not show the same opcode-7 command path.
+2. **Command parsing/execution and ucmd paths**: `0xC0184107` and `0x40184106` reach `mdw_usr_run_cmd_async`. Static analysis resolves the command ops callbacks: clearing user `+0x0c` calls `mdw_cmd_create_cmd`, then `mdw_cmd_parse_cmd`, and only then queues the object and writes a handle to user `+0x00`. Runtime now confirms the HardwareBuffer fd source can reach this path at three depths: a zero-header ImageWriter-backed buffer imports successfully and returns parser `EINVAL`; a valid header with invalid `type=0x20` reaches `mdw_cmd_sc_valid`; and a valid normal VPU `type=0x03` subcommand with a short inline code buffer queues successfully, reaches `apusys_vpu0`, and stops at `vpu_req_check: invalid size of vpu request`. `0x4014410E` reaches `mdw_usr_ucmd`; with `+0x0c == 0` it imports the fd as APUSYS memory, maps KVA/IOVA, bounds-checks the requested length, then calls `mdw_rsc_ucmd_dispatch` at `core+0x98`. The normal VPU opcode-7 `0x8001` mapped-buffer gate is runtime-confirmed, and `--ucmd-key=apu_lib_apunn` now returns `0` for core `0` and `1`. Empty, `Normal`, `unknown`, and `apu_lib_custom` payloads still return `EINVAL` or `ENOENT` as expected. EDMA and MDLA do not show the same opcode-7 command path.
 3. **Device/resource control paths**: `0x4004413C/3D` call `mdw_usr_dev_sec_alloc/free`, and `0x400C4109` calls `mdw_usr_dev_ctrl_4109`. The free path has an id `< 0x40` guard; the `0x400C4109` path looks up a device/core and dispatches provider opcode `0` through `mdw_rsc_dev_op0_ctrl` with only a 0x0c user input. Static mapping shows MDLA/EDMA opcode `0` reaches power-on paths, normal VPU opcode `0` reaches control bookkeeping, and VPU RT opcode `0` returns early.
 4. **Handshake/wait/simple rejection paths**: useful for reachability, lower standalone risk.
 
@@ -380,6 +382,15 @@ javac -source 8 -target 8 -cp "$ANDROID_JAR" -d /tmp/apusys-build \
 d8 --min-api 29 --output /tmp/apusys-dex /tmp/apusys-build/*.class
 adb push /tmp/apusys-dex/classes.dex /data/local/tmp/apusys_ioctl_probe.dex
 ```
+
+One-command rebuild/upload/run from an existing `system_app` bind shell:
+
+```sh
+python3 13-apusys-ioctl-surface/poc/run_system_app_probe.py \
+  -s 7FPE0824B0801372 --local-port 48888
+```
+
+The runner builds the dex, uploads it through the `uid=1000(system)` shell into `/data/data/com.android.settings/cache/apusys_ioctl_probe.dex`, verifies the remote md5, runs `app_process64`, and saves stdout plus filtered kernel logs under `poc-run-results/2026-06-14-batch/`.
 
 Run from the existing `uid=1000(system)` / `u:r:system_app:s0` dalvikvm context:
 
@@ -512,6 +523,15 @@ CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
 ```
 
 `--run-cmd-invalid-sc` writes a valid top-level APUSYS command header plus one invalid 0x28-byte subcommand header with `type=0x20`. The expected result is still `EINVAL`, but kernel logs should identify the deeper guard as `mdw_cmd_sc_valid ... invalid type(32)`.
+
+Optional valid-type provider request-size guard check:
+
+```sh
+CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe --run-cmd-vpu-guard
+```
+
+`--run-cmd-vpu-guard` writes a valid top-level command header plus a normal VPU subcommand (`type=0x03`) with inline `cb_info_size=0x20`. It is intentionally too short for a real VPU request (`0xb70`), so the queued worker should stop at the normal VPU provider opcode-4 size guard before `vpu_execute`.
 
 [`poc/apusys_ioctl_probe.c`](poc/apusys_ioctl_probe.c) is a native version of the same reject checks for root/permissive lab contexts. It compiles successfully, but on the current device direct `adb shell` execution returns `open(/dev/apusys) failed: EACCES` because shell is not `system` or `camera`, and `system_app` cannot execute native ELF files from app data under SELinux enforcing.
 
@@ -738,8 +758,8 @@ Interpretation: the same HardwareBuffer fd source can also reach the `run_cmd_as
 Observed optional `--run-cmd-invalid-sc` result from the same `system_app` context on 2026-06-14:
 
 ```text
-[*] --- run_cmd HardwareBuffer case: invalid_sc_type20 first_u32=0x0 invalid_sc=true ---
-[+] input run_cmd invalid_sc payload: magic=0x3d2070ece309c231 version=1 num_sc=1 sc0_off=0x30 sc0_type=0x20 pdr_cnt_off=0x54 scr_off=0x58 cb_info_off=0x60 ...
+[*] --- run_cmd HardwareBuffer case: invalid_sc_type20 first_u32=0x0 payload_mode=1 ---
+[+] input run_cmd invalid_sc_type20 payload: magic=0x3d2070ece309c231 version=1 num_sc=1 sc0_off=0x30 sc0_type=0x20 cb_info_size=0x0 pdr_cnt_off=0x58 scr_off=0x5c cb_info_off=0x60 ...
 [*] hwb_run_invalid_sc_type20_mem2_pos388 cmd=0xc0384103 ret=0
 [*] hwb_run_invalid_sc_type20_mem3_pos388 cmd=0xc038410f ret=0
 [*] run_async_hwb_run_invalid_sc_type20_pos388 cmd=0xc0184107 ret=-22 (EINVAL)
@@ -753,6 +773,29 @@ Kernel log excerpt:
 ```
 
 Interpretation: the command buffer is no longer rejected only at the zero-header gate. It reaches the recovered top-level command-header parser, selects subcommand `#0`, copies the 0x28-byte subcommand header, reaches `mdw_cmd_sc_valid`, and fails at the deliberate invalid `type=0x20` guard. This still does not queue a command or enter VPU/MDLA/EDMA provider execution.
+
+Observed optional `--run-cmd-vpu-guard` result from the same `system_app` context on 2026-06-14:
+
+```text
+command=CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex app_process64 /system/bin ApusysIoctlProbe --run-cmd-vpu-guard
+dex_md5=135ab9a6f6671439697133f96a0962cb
+...
+[*] --- run_cmd HardwareBuffer case: vpu_guard_size20 first_u32=0x0 payload_mode=2 ---
+[+] input run_cmd vpu_guard_type3_size20 payload: magic=0x3d2070ece309c231 version=1 num_sc=1 sc0_off=0x30 sc0_type=0x3 cb_info_size=0x20 pdr_cnt_off=0x58 scr_off=0x5c cb_info_off=0x60 ...
+[*] hwb_run_vpu_guard_size20_mem2_pos388 cmd=0xc0384103 ret=0
+[*] hwb_run_vpu_guard_size20_mem3_pos388 cmd=0xc038410f ret=0
+[*] run_async_hwb_run_vpu_guard_size20_pos388 cmd=0xc0184107 ret=0
+```
+
+Kernel log excerpt:
+
+```text
+vpu_req_check: invalid size of vpu request
+[apusys][error] mdw_sched_trace fail : pid(.../...) cmd(...-#0/1) dev(3/vpu-#0) ... ret(-22)
+[apusys][warn] mdw_usr_destroy residual cmd(...)
+```
+
+Interpretation: the command reaches the queued normal VPU provider path and stops at the request-size guard. The ioctl thread returns success because the async command was accepted before the worker rejects the provider request. This is provider reachability and guard validation, not a VPU execution request.
 
 Plain `dalvikvm64` is a negative control for this mode:
 
@@ -780,8 +823,8 @@ Interpretation: APUSYS memory-create is now a mapped and runtime-confirmed impor
 - Keep the current Java probe scoped to reject/query/negative-memory/device-control, fd-source scans, HardwareBuffer fd import, and controlled `ucmd` gate tests.
 - Use the `app_process64` HardwareBuffer path as the baseline fd source. Direct `/dev/ion`, `/dev/ashmem`, dma-heap device nodes, and DRM PRIME export remain blocked or unavailable in the current context.
 - Use kernel logs, if available from the lab context, to distinguish whether the `ENOMEM` path comes from ION import, cache sync, or IOVA map setup.
-- Keep the `run_cmd` parser probe limited to zero-header / invalid-subcommand inputs while provider-specific code-buffer info and request layouts are mapped. Command ops `+0x00`, `+0x10`, and `+0x18` are resolved as `mdw_cmd_create_cmd`, `mdw_cmd_abort_cmd`, and `mdw_cmd_parse_cmd`; top-level and 0x28-byte subcommand headers are now runtime-confirmed through the `mdw_cmd_sc_valid invalid type(32)` guard.
+- Keep the `run_cmd` experiments at non-executing guard probes until provider request structures are mapped. Command ops `+0x00`, `+0x10`, and `+0x18` are resolved as `mdw_cmd_create_cmd`, `mdw_cmd_abort_cmd`, and `mdw_cmd_parse_cmd`; top-level and 0x28-byte subcommand headers are runtime-confirmed through the `mdw_cmd_sc_valid invalid type(32)` guard, and the normal VPU provider handoff is runtime-confirmed through `vpu_req_check: invalid size of vpu request`.
 - For `0x400C4109`, optional follow-up is a small control-value sweep on the live-success providers while watching return codes and kernel logs. The current control value `0` already confirms provider opcode `0` reachability.
 - For `mdw_usr_ucmd`, the `apu_lib_apunn` opcode-7 lookup/writeback check is complete for the visible 0x24-byte `libvpu.so::getAlgo()` command buffer: success returns `0`, then `vpu_alg_put`, with no first-64-byte Image-plane change.
-- Continue mapping `mdla_run_command_sync`, `vpu_execute`, and `edma_execute` input structures before valid command-buffer experiments.
-- Continue scheduler/queue analysis after command parser targets are known. Valid command-buffer experiments come after that mapping.
+- Continue mapping `mdla_run_command_sync`, `vpu_execute`, and `edma_execute` input structures before any request that can submit real work.
+- Continue scheduler/queue analysis around command lifetime and cleanup, including the observed async residual-command warning after the worker rejects the short VPU request.
