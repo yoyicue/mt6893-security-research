@@ -107,7 +107,7 @@ The current CVE-2023-32836 checks disprove both tested direct paths on this firm
 ## Recommended Next Triage
 
 1. Display/display-drm: enumerate ioctls and symbol paths for CVE-2023-20775 and CVE-2023-32860/32867/32868. For CVE-2023-32863, CVE-2023-32864, and CVE-2023-32865, prioritize locating the exact `ALPS07326314` / `ALPS07292187` / `ALPS07363456` patched handlers because the first probes did not confirm exploitable paths.
-2. APUSYS: resolve the raw VPU algo ops address form after the HardwareBuffer-backed `0x8001` gate, then confirm the candidate `payload+4` lookup ABI before any matching-key runtime test.
+2. APUSYS: recover the actual relocated VPU algo ops callbacks after the HardwareBuffer-backed `0x8001` gate; the flat Image raw table values do not currently resolve to valid function starts, so defer any matching-key runtime test.
 3. secmem/keyinstall: identify runtime entry points, likely trusted execution / key management interfaces, then test reachability from `system_app`.
 4. CMDQ/PQ/MMP: map device nodes, binder services, and ioctl numbers; prioritize any path accessible from `system_app`.
 5. DA/AEE/LK: determine whether the advisory entry point exists at runtime or only during update/boot flows.

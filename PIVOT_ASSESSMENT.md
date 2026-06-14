@@ -97,7 +97,7 @@ Confirmed open from system_app. IDA now maps the main midware ioctl dispatcher: 
 
 **Risk**: Medium-high research priority, with a working framework fd source for memory import and a runtime-confirmed normal VPU `ucmd` content gate. The dispatcher uses fixed `copy_from_user` sizes and several early validation gates, but `app_process64` can create a HardwareBuffer dmabuf, both APUSYS type-2/type-3 memory-create paths import it successfully, and changing the mapped buffer's first u32 from `0` to `0x8001` changes normal VPU `ucmd` from `EINVAL` to `ENOENT`. Static analysis now maps that `ENOENT` to Normal and Preload lookup callbacks returning no object for the provided payload. The most interesting paths are now the lookup payload ABI after `mdw_usr_ucmd`, `mdw_usr_run_cmd_async`/`mdw_usr_run_cmd_sync`, and provider dispatch reached after memory mapping.
 
-**Action**: Continue from [`13-apusys-ioctl-surface/README.md`](13-apusys-ioctl-surface/README.md). Resolve the raw VPU algo ops table address form and confirm the candidate `payload+4` cooling-device lookup ABI before running any matching-key test.
+**Action**: Continue from [`13-apusys-ioctl-surface/README.md`](13-apusys-ioctl-surface/README.md). Recover the actual relocated VPU algo ops callback entrypoints before claiming any concrete `payload+4` lookup ABI or running a matching-key test.
 
 #### E. Binder service-mediated kernel bugs
 
@@ -138,7 +138,7 @@ The IDA-based risk ranking from the handoff identified SET_SLD_PARAM (0x57) and 
 - Provider opcode-0 dispatch is live
 - HardwareBuffer under `app_process64` supplies a usable dmabuf fd; APUSYS type-2/type-3 memory-create both import it and cleanup succeeds
 - Direct DRM PRIME, direct ION, direct ashmem, and tested dma-heap paths are blocked or unavailable
-- Normal VPU opcode-7 `ucmd` reaches beyond the `0x8001` mapped-buffer gate and returns `ENOENT`; current static analysis interprets this as a Normal/Preload lookup miss, with raw VPU algo ops table entry semantics still needing final address-form resolution
+- Normal VPU opcode-7 `ucmd` reaches beyond the `0x8001` mapped-buffer gate and returns `ENOENT`; current static analysis interprets this as a Normal/Preload lookup miss, but the raw VPU algo ops table entries in the flat Image do not resolve to valid function starts without better relocation/runtime evidence
 
 **Priority 3: ION CVEs via non-direct paths**
 - Direct `/dev/ion` open is `EACCES` from `system_app`
@@ -152,4 +152,4 @@ The IDA-based risk ranking from the handoff identified SET_SLD_PARAM (0x57) and 
 
 ## Decision
 
-Next target remains **CVE-2023-33200** for Mali-specific work. For APUSYS, the immediate branch is now resolving the normal VPU opcode-7 lookup ABI after the HardwareBuffer-backed `0x8001` gate. Direct `/dev/ion` and `/dev/ashmem` reachability have now been checked and are blocked from `system_app`; tested `/dev/dma_heap/*` nodes are absent.
+Next target remains **CVE-2023-33200** for Mali-specific work. For APUSYS, the immediate branch is now recovering the actual normal VPU opcode-7 callback entrypoints after the HardwareBuffer-backed `0x8001` gate. Direct `/dev/ion` and `/dev/ashmem` reachability have now been checked and are blocked from `system_app`; tested `/dev/dma_heap/*` nodes are absent.

@@ -162,17 +162,20 @@ After the `0x8001` check, normal VPU uses `mapped_kva + 4` as the payload pointe
 | Normal | name at `core+0x2c0`, list head at `core+0x2e8`, ops pointer at `core+0x308` | Populated from firmware/bin normal-algo metadata |
 | Preload | name at `core+0x310`, list head at `core+0x338`, ops pointer at `core+0x358` | Populated from firmware/bin preload-entry metadata |
 
-The raw ops tables are named `vpu_normal_algo_ops_raw` at `0xffffffc00979ae70` and `vpu_preload_algo_ops_raw` at `0xffffffc00979aeb0` in IDA. Their entries are stored in the kernel runtime address form (`0xffffff80...`), while this IDB is loaded under `0xffffffc0...`. A simple address normalization lands several entries inside larger IDA functions, so the exact callback entry semantics remain a follow-up item.
+The raw ops tables are named `vpu_normal_algo_ops_raw` at `0xffffffc00979ae70` and `vpu_preload_algo_ops_raw` at `0xffffffc00979aeb0` in IDA. Their entries are stored in the flat Image's compile-time address form (`0xffffff80...`), while this IDB is loaded under `0xffffffc0...`. A follow-up pass shows that the simple `+0x4000000000` normalization is not a valid function-entry resolution for these tables:
 
-The strongest current candidate for the lookup ABI is:
+| Table entry | Raw value | Normalized landing point |
+|---:|---:|---|
+| Normal/Preload `+0x00` | `0xffffff8008821758` | `sub_FFFFFFC0088216D4+0x84` |
+| Normal/Preload `+0x08` | `0xffffff8008821858` | `sub_FFFFFFC008821834+0x24` |
+| Normal/Preload `+0x10` | `0xffffff80088218a4` | `sub_FFFFFFC008821834+0x70` |
+| Normal/Preload `+0x18` | `0xffffff80088219e0` | `sub_FFFFFFC008821994+0x4c` |
+| Normal/Preload `+0x20` | `0xffffff8008821a64` | `sub_FFFFFFC008821994+0xd0` |
+| Normal-only `+0x28` | `0xffffff8008827d40` | `sub_FFFFFFC008827CF4+0x4c` |
 
-| Mapped offset | Meaning |
-|---:|---|
-| `+0x00` | opcode-7 header word, must be `0x8001` |
-| `+0x04` | provider payload pointer passed to Normal/Preload algo callbacks |
-| `+0x08` | candidate NUL-terminated lookup string, compared by callbacks as `payload+4` |
+Those normalized landing points are instruction labels inside existing functions, not prologue/BTI-style function starts, and several would use callee-saved registers that the `BLR` call sites do not initialize. Treat them as unresolved flat-Image relocation artifacts, not as APUSYS callback entrypoints.
 
-Candidate callbacks around the normalized ops entries compare `payload+4` against thermal cooling-device names such as `mtk-cl-bcct02`, `mtk-cl-bcct01`, and `mtk-cl-bcct00`, then against seven runtime/BSS string slots at `0xffffffc00a1c6308`, `0xffffffc00a1c631c`, `0xffffffc00a1c6330`, `0xffffffc00a1c6344`, `0xffffffc00a1c6358`, `0xffffffc00a1c636c`, and `0xffffffc00a1c6380`. The follow-up helpers reference `mtk_thermal_zone_bind_cooling_device_wrapper` and list-removal state, so a runtime test that supplies a matching string is not just a parser probe; it may bind or unbind thermal cooling-device state. Keep the current Java test at the no-match `ENOENT` boundary until the raw ops entrypoints and side effects are pinned down.
+The thermal/battery cooling-device cluster around `0xffffffc0088216d4` still matters as a nearby static clue: it compares configured strings such as `mtk-cl-bcct02`, `mtk-cl-bcct01`, and `mtk-cl-bcct00`, plus runtime/BSS slots at `0xffffffc00a1c6308` through `0xffffffc00a1c6380`, and references `mtk_thermal_zone_bind_cooling_device_wrapper` plus list-removal helpers. However, this cluster is no longer treated as the confirmed normal VPU opcode-7 ABI. Do not add a matching-key runtime test until the actual relocated ops callbacks are recovered from a better-symbolized kernel image, runtime table dump, or kallsyms-equivalent evidence.
 
 ## Ioctl command map
 
@@ -520,7 +523,7 @@ Interpretation: APUSYS memory-create is now a mapped and runtime-confirmed impor
 - Use kernel logs, if available from the lab context, to distinguish whether the `ENOMEM` path comes from ION import, cache sync, or IOVA map setup.
 - Keep `mdw_usr_get_cmd_ops` / `0xffffffc00a188e58` marked unresolved. Leave the `run_cmd` `+0x0c` early-reject field set while resolving the indirect call targets.
 - For `0x400C4109`, optional follow-up is a small control-value sweep on the live-success providers while watching return codes and kernel logs. The current control value `0` already confirms provider opcode `0` reachability.
-- For `mdw_usr_ucmd`, finish resolving the raw VPU algo ops table address form before treating the candidate `payload+4` cooling-device-name comparisons as the final opcode-7 payload ABI.
-- If a matching-key runtime test is added, keep it separate from the default safe probe and document that it may alter thermal cooling-device bind/unbind state.
+- For `mdw_usr_ucmd`, recover the actual relocated `vpu_normal_algo_ops_raw` / `vpu_preload_algo_ops_raw` callback entrypoints before claiming a concrete payload-key ABI.
+- Do not add a matching-key runtime test until the real callback targets are resolved. The nearby thermal cooling-device string cluster may be state-changing if it ever proves connected.
 - Continue mapping `mdla_run_command_sync`, `vpu_execute`, and `edma_execute` input structures before valid command-buffer experiments.
 - Continue scheduler/queue analysis after command parser targets are known. Valid command-buffer experiments come after that mapping.

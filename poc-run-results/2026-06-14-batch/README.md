@@ -244,7 +244,7 @@ Resulting CVE priority:
 ## Final Post-Run Order
 
 1. **Display / DRM OOB read/write cluster**: `CVE-2023-32867`, `32868`, then `32865`, `32864`, `32863`, `20775`, `32860`. `32864` and `32865` remain reachable but the first guard probes did not confirm exploitable write paths.
-2. **APUSYS reachable surface**: APUSYS-related CVEs should be mapped next because `/dev/apusys` opens from `system_app`, provider dispatch is live, HardwareBuffer under `app_process64` supplies a dmabuf fd that APUSYS imports successfully, and normal VPU `ucmd` now reaches beyond the `0x8001` gate. The next APUSYS step is resolving the raw VPU algo ops address form and confirming the candidate `payload+4` lookup ABI.
+2. **APUSYS reachable surface**: APUSYS-related CVEs should be mapped next because `/dev/apusys` opens from `system_app`, provider dispatch is live, HardwareBuffer under `app_process64` supplies a dmabuf fd that APUSYS imports successfully, and normal VPU `ucmd` now reaches beyond the `0x8001` gate. The next APUSYS step is recovering the actual relocated VPU algo ops callbacks; the flat Image raw table values do not currently resolve to valid function starts.
 3. **secmem / keyinstall via service paths**: `CVE-2023-32834`, `CVE-2023-32835`; direct secure nodes are blocked, so service PoC needed.
 4. **CMDQ / PQ / MMP indirect paths**: `CVE-2023-32849`, `CVE-2024-20037`, `CVE-2023-32866`; direct nodes blocked.
 5. **ION**: keep as pending until strict open/ioctl reachability is resolved.
