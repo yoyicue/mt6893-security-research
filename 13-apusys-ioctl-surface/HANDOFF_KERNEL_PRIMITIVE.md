@@ -44,45 +44,43 @@ operation bindings.
 
 ## Priority 1 — command buffer copyback pointer scan
 
-Current probes already dump the APUSYS command header plus the VPU request
-head/tail from the dmabuf-backed command buffer. In completed
-`settings5/no-settings` runs, the request head and summary are stable, while
-the copied-back tail gains a nonzero word around `request+0xb60`; `request+0xb68`
-usually remains zero in the normal completed shape. This is not yet a full
-`0xb70` diff or pointer classification pass.
+The first full `0xb70` request diff is now implemented in
+`--run-cmd-vpu-xrp-target-settings5-no-settings-cmd-copyback-diff-iova`.
+It snapshots the dmabuf-backed VPU request before dispatch, waits for the
+completed shape, then prints changed dwords/qwords with simple IOVA/pointer
+classification. The mode runs both the normal request and the request-flag
+`0x4` preload-slot variant. The matching control mode skips dispatch and proves
+the diff is execution-induced.
+
+Observed copyback:
+
+| Shape | Dispatch/wait | Full request diff | Interpretation |
+|---|---|---|---|
+| control, flags `0` | no dispatch | no changed dwords/qwords | Snapshot/diff is stable without provider execution |
+| control, flags `0x4` | no dispatch | no changed dwords/qwords | Preload flag alone does not mutate the command buffer |
+| completed `settings5/no-settings`, flags `0` | `run_async=0`, `wait=0` | only `request+0xb60: 0 -> 0xd965d` | Low-32 scalar tail status/provider state; no pointer-shaped value |
+| completed `settings5/no-settings`, flags `0x4` | `run_async=0`, `wait=0` | `request+0xb60: 0 -> 0x1411eb`, `request+0xb68: 0 -> 1` | Low-32 scalar tail state plus slot-like word; no pointer-shaped value |
+
+The current full-diff result does **not** show a kernel heap pointer, slab
+address, imported-buffer IOVA, or other direct info leak in the VPU request
+copyback. It confirms that `mdw_cmd_sc_clr_hnd` returns small provider/tail
+state words to user-mapped command memory, with `request+0xb68` reflecting the
+preload-slot path.
 
 `mdw_cmd_sc_clr_hnd` (IDA: `0xffffffc008791ab0`) copies a provider-updated
 temporary kernel buffer back to the command buffer KVA after provider opcode 4
 returns. The command buffer is user-mapped through the dmabuf fd passed in
 `run_cmd` user arg `+0x08`, so Java can read the full `0xb70` region back.
 
-### What to do
+Result files:
 
-Add a full command-buffer diff mode for the completed `settings5/no-settings`
-shape:
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_cmd_copyback_diff.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_cmd_copyback_diff_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_cmd_copyback_diff_control.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_cmd_copyback_diff_control_kernel.txt`
 
-1. Before `run_cmd_async`: dump the full `0xb70` request region from the
-   command buffer, not only the current head/tail windows.
-2. After `wait_cmd` returns `0`: dump the same region again.
-3. Print changed dwords/qwords with offsets and classify:
-   - low 32-bit IOVA-like values in the imported HardwareBuffer range
-   - kernel-pointer-shaped values
-   - provider result/status fields
-   - slot/core/priority words around `request+0xb5c..0xb70`
-4. Repeat once with the preload-slot request flag that previously produced a
-   tail word at `request+0xb68`, because that path may expose different slot
-   state.
-
-If the copyback region contains a kernel heap pointer or a slab address, that
-is a direct info leak reachable from `system_app`.
-
-Current known command-buffer copyback evidence:
-
-- completed `settings5/no-settings` runs: request head and summary stay stable;
-  tail word at `request+0xb60` becomes nonzero; `request+0xb68` stays zero
-- preload-slot variant: tail gains a slot-like copyback word at `request+0xb68`
-- older same-target XRP run: request head/tail unchanged, which separates
-  command-buffer copyback from imported-buffer descriptor writeback
+Next copyback work should target timeout/abort paths, because normal completed
+provider return currently copies back only scalar state.
 
 ### IDA reference
 

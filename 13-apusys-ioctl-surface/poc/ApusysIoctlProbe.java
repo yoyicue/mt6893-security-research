@@ -93,6 +93,8 @@ public final class ApusysIoctlProbe {
     private static final int XRP_PLANE_PAYLOAD_OFF = 0x600;
     private static final int XRP_NZ_PLANE_PAYLOAD_OFF = 0x700;
     private static final int XRP_PLANE_PAYLOAD_SIZE = 0x80;
+    private static final int VPU_REQUEST_OFF = 0x60;
+    private static final int VPU_REQUEST_SIZE = 0xb70;
     private static final byte[] XRP_CMD_MAGIC = new byte[] {
         (byte) 0xde, 0x63, (byte) 0xdb, (byte) 0xbe,
         0x4a, (byte) 0x99, 0x48, (byte) 0x89,
@@ -345,6 +347,8 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpTargetSettings5NoSettingsDataTargetMatrixIovaControl = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsDataPayloadMatrixIova = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsDataPayloadMatrixIovaControl = false;
+        boolean runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIova = false;
+        boolean runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIovaControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlotControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix = false;
@@ -554,6 +558,10 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpTargetSettings5NoSettingsDataPayloadMatrixIova = true;
             } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-data-payload-matrix-iova-control".equals(arg)) {
                 runCmdVpuXrpTargetSettings5NoSettingsDataPayloadMatrixIovaControl = true;
+            } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-cmd-copyback-diff-iova".equals(arg)) {
+                runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIova = true;
+            } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-cmd-copyback-diff-iova-control".equals(arg)) {
+                runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIovaControl = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot".equals(arg)) {
                 runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot-control".equals(arg)) {
@@ -685,6 +693,8 @@ public final class ApusysIoctlProbe {
                 || runCmdVpuXrpTargetSettings5NoSettingsDataTargetMatrixIovaControl
                 || runCmdVpuXrpTargetSettings5NoSettingsDataPayloadMatrixIova
                 || runCmdVpuXrpTargetSettings5NoSettingsDataPayloadMatrixIovaControl
+                || runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIova
+                || runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIovaControl
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrixControl
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescOperandOffsetMatrix
@@ -1231,6 +1241,16 @@ public final class ApusysIoctlProbe {
 
             if (runCmdVpuXrpTargetSettings5NoSettingsDataPayloadMatrixIovaControl) {
                 runRunCmdVpuXrpTargetSettings5NoSettingsDataPayloadMatrixProbe(
+                    fd, false);
+            }
+
+            if (runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIova) {
+                runRunCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffProbe(
+                    fd, true);
+            }
+
+            if (runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIovaControl) {
+                runRunCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffProbe(
                     fd, false);
             }
 
@@ -2089,6 +2109,47 @@ public final class ApusysIoctlProbe {
                                                             Integer dataPayloadWordBaseOverride,
                                                             XrpDataDescEntry[] dataDescEntriesOverride)
             throws Exception {
+        runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, xrpSettings,
+            splitTargets, xrpOp, waitMs, twoVpuBuffers, descriptorMode,
+            cmdFlags, descriptorOrder, settingsLen, outputHeaderFlag,
+            settingsShape, waitAfterAsync, requestFlags, includeSettingsProperty,
+            codeFirstWordOverride, descriptorPayloadSizeOverride,
+            requestPriorityOverride, requestBufferCountOverride,
+            descriptorPortIdOverride, descriptorFormatOverride,
+            descriptorPlaneCountOverride, descriptorHeightOverride,
+            outerCodebufSizeOverride, dataPayloadWordBaseOverride,
+            dataDescEntriesOverride, false);
+    }
+
+    private static void runRunCmdVpuIovaHardwareBufferProbe(int apusysFd,
+                                                            boolean dispatch,
+                                                            boolean xrpSettings,
+                                                            boolean splitTargets,
+                                                            XrpOpSpec xrpOp,
+                                                            int waitMs,
+                                                            boolean twoVpuBuffers,
+                                                            int descriptorMode,
+                                                            int cmdFlags,
+                                                            int descriptorOrder,
+                                                            int settingsLen,
+                                                            int outputHeaderFlag,
+                                                            XrpSettingsShape settingsShape,
+                                                            boolean waitAfterAsync,
+                                                            int requestFlags,
+                                                            boolean includeSettingsProperty,
+                                                            Integer codeFirstWordOverride,
+                                                            Integer descriptorPayloadSizeOverride,
+                                                            Integer requestPriorityOverride,
+                                                            Integer requestBufferCountOverride,
+                                                            Integer descriptorPortIdOverride,
+                                                            Integer descriptorFormatOverride,
+                                                            Integer descriptorPlaneCountOverride,
+                                                            Integer descriptorHeightOverride,
+                                                            Integer outerCodebufSizeOverride,
+                                                            Integer dataPayloadWordBaseOverride,
+                                                            XrpDataDescEntry[] dataDescEntriesOverride,
+                                                            boolean fullCommandCopybackDiff)
+            throws Exception {
         System.out.println("\n[*] === Optional APUSYS run_cmd VPU IOVA chained probe ===");
         if (xrpSettings) {
             System.out.println("[*] Mode: mem_create imports HardwareBuffer to get IOVA,"
@@ -2219,6 +2280,11 @@ public final class ApusysIoctlProbe {
                 System.out.println("[*] XRP data descriptor entries override: "
                     + dataDescEntriesText(dataDescEntriesOverride));
             }
+            if (fullCommandCopybackDiff) {
+                System.out.println("[*] Full command-buffer copyback diff:"
+                    + " snapshot request[0..0xb70) before dispatch and"
+                    + " classify changed dwords/qwords after wait.");
+            }
         } else {
             System.out.println("[*] Mode: mem_create imports HardwareBuffer to get IOVA,"
                 + " then the VPU request references that IOVA in libvpu-style"
@@ -2238,6 +2304,7 @@ public final class ApusysIoctlProbe {
         android.hardware.HardwareBuffer hb = null;
         long memDesc = 0;
         boolean memImported = false;
+        byte[] commandRequestBefore = null;
         try {
             reader = createRgbaImageReader(64, 64);
             writer = android.media.ImageWriter.newInstance(reader.getSurface(), 2);
@@ -2477,7 +2544,12 @@ public final class ApusysIoctlProbe {
             if (xrpSettings) {
                 android.media.Image.Plane[] cmdPlanes = output2.getPlanes();
                 if (cmdPlanes != null && cmdPlanes.length > 0) {
-                    dumpVpuCommandWindows("before", cmdPlanes[0].getBuffer());
+                    java.nio.ByteBuffer cmdBuf = cmdPlanes[0].getBuffer();
+                    dumpVpuCommandWindows("before", cmdBuf);
+                    if (fullCommandCopybackDiff) {
+                        commandRequestBefore = snapshotByteBufferRange(
+                            cmdBuf, VPU_REQUEST_OFF, VPU_REQUEST_SIZE);
+                    }
                 }
             }
 
@@ -2529,7 +2601,14 @@ public final class ApusysIoctlProbe {
                 android.media.Image.Plane[] cmdPlanes = output2.getPlanes();
                 if (cmdPlanes != null && cmdPlanes.length > 0) {
                     System.out.println("[*] Dumping command buffer post-execution:");
-                    dumpVpuCommandWindows("after", cmdPlanes[0].getBuffer());
+                    java.nio.ByteBuffer cmdBuf = cmdPlanes[0].getBuffer();
+                    dumpVpuCommandWindows("after", cmdBuf);
+                    if (fullCommandCopybackDiff
+                            && commandRequestBefore != null) {
+                        dumpVpuCommandRequestDiff(
+                            "vpu_cmd_request_copyback_diff",
+                            commandRequestBefore, cmdBuf, iovaLow, iovaSize);
+                    }
                 }
             }
 
@@ -3581,6 +3660,28 @@ public final class ApusysIoctlProbe {
         }
     }
 
+    private static void runRunCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffProbe(
+            int apusysFd, boolean dispatch) throws Exception {
+        int[] requestFlags = {
+            VPU_REQUEST_FLAGS_DEFAULT,
+            VPU_REQUEST_FLAGS_PRELOAD_SLOT,
+        };
+        for (int flags : requestFlags) {
+            System.out.println("\n[*] === target-settings5/no-settings"
+                + " command-copyback-diff request_flags=0x"
+                + Integer.toHexString(flags) + " dispatch="
+                + (dispatch ? 1 : 0) + " ===");
+            int waitMs = flags == VPU_REQUEST_FLAGS_PRELOAD_SLOT ? 20000 : 1000;
+            runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, true, true,
+                XRP_OP_ANN_VERSION, waitMs, true, VPU_DESC_LIBVPU_SETTINGS5,
+                XRP_CMD_FLAGS_SEND, VPU_DESC_ORDER_CODE_OUTPUT,
+                XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
+                XrpSettingsShape.WRAPPER_ONE_DATA, dispatch, flags, false,
+                null, null, null, null, null, null, null, null, null, null,
+                null, true);
+        }
+    }
+
     private static void runRunCmdVpuXrpTargetCode5NoSettingsDescriptorLayoutMatrixProbe(
             int apusysFd, boolean dispatch) throws Exception {
         int[] descriptorModes = {
@@ -4435,16 +4536,124 @@ public final class ApusysIoctlProbe {
         dumpByteBufferRange("vpu_cmd_" + phase + "_apusys_header",
             buf, 0x00, 0x80);
         dumpByteBufferRange("vpu_cmd_" + phase + "_request_head",
-            buf, 0x60, 0xc0);
+            buf, VPU_REQUEST_OFF, 0xc0);
         dumpVpuRequestSummary("vpu_cmd_" + phase + "_request_summary", buf);
         dumpByteBufferRange("vpu_cmd_" + phase + "_request_tail",
-            buf, 0x60 + 0xb40, 0x30);
+            buf, VPU_REQUEST_OFF + 0xb40, 0x30);
+    }
+
+    private static byte[] snapshotByteBufferRange(java.nio.ByteBuffer buf,
+                                                  int off,
+                                                  int len) {
+        int start = off < 0 ? 0 : off;
+        int end = start + len;
+        if (end < start || end > buf.capacity()) {
+            end = buf.capacity();
+        }
+        byte[] out = new byte[end - start];
+        for (int i = 0; i < out.length; i++) {
+            out[i] = buf.get(start + i);
+        }
+        return out;
+    }
+
+    private static void dumpVpuCommandRequestDiff(String name,
+                                                  byte[] before,
+                                                  java.nio.ByteBuffer after,
+                                                  int iovaLow,
+                                                  int iovaSize) {
+        if (before == null) {
+            System.out.println("    " + name + ": unavailable before snapshot");
+            return;
+        }
+        if (after.capacity() < VPU_REQUEST_OFF + before.length) {
+            System.out.println("    " + name + ": unavailable cap="
+                + after.capacity() + " before_len=0x"
+                + Integer.toHexString(before.length));
+            return;
+        }
+
+        int dwordChanges = 0;
+        System.out.println("    " + name + "_dwords:");
+        for (int off = 0; off + 3 < before.length; off += 4) {
+            int oldVal = getU32LE(before, off);
+            int newVal = getU32LE(after, VPU_REQUEST_OFF + off);
+            if (oldVal != newVal) {
+                dwordChanges++;
+                System.out.println("      +0x" + Integer.toHexString(off)
+                    + ": 0x" + Integer.toHexString(oldVal)
+                    + " -> 0x" + Integer.toHexString(newVal)
+                    + " [" + classifyCopybackDword(
+                        off, newVal, iovaLow, iovaSize) + "]");
+            }
+        }
+        if (dwordChanges == 0) {
+            System.out.println("      no changed dwords");
+        }
+
+        int qwordChanges = 0;
+        System.out.println("    " + name + "_qwords:");
+        for (int off = 0; off + 7 < before.length; off += 8) {
+            long oldVal = getU64LE(before, off);
+            long newVal = getU64LE(after, VPU_REQUEST_OFF + off);
+            if (oldVal != newVal) {
+                qwordChanges++;
+                System.out.println("      +0x" + Integer.toHexString(off)
+                    + ": 0x" + Long.toHexString(oldVal)
+                    + " -> 0x" + Long.toHexString(newVal)
+                    + " [" + classifyCopybackQword(newVal) + "]");
+            }
+        }
+        if (qwordChanges == 0) {
+            System.out.println("      no changed qwords");
+        }
+        System.out.println("    " + name + "_summary: dword_changes="
+            + dwordChanges + " qword_changes=" + qwordChanges);
+    }
+
+    private static String classifyCopybackDword(int off, int value,
+                                                int iovaLow,
+                                                int iovaSize) {
+        long unsigned = value & 0xffffffffL;
+        long start = iovaLow & 0xffffffffL;
+        long end = start + (iovaSize & 0xffffffffL);
+        if (iovaSize > 0 && unsigned >= start && unsigned < end) {
+            return "imported-iova+0x" + Long.toHexString(unsigned - start);
+        }
+        if (off == 0x34) {
+            return "request-result-status";
+        }
+        if (off == 0xb60 || off == 0xb64 || off == 0xb68 || off == 0xb6c) {
+            return "tail-status-slot-or-provider-ret";
+        }
+        if ((unsigned & 0xffff0000L) == 0xffffff00L
+                || (unsigned & 0xff000000L) == 0xc0000000L) {
+            return "pointer-like-low32";
+        }
+        if (value == 0) {
+            return "zero";
+        }
+        return "scalar";
+    }
+
+    private static String classifyCopybackQword(long value) {
+        if (value == 0) {
+            return "zero";
+        }
+        if ((value & 0xffff000000000000L) == 0xffff000000000000L
+                || (value & 0xffffff0000000000L) == 0xffffff0000000000L) {
+            return "kernel-pointer-like";
+        }
+        if ((value >>> 32) == 0) {
+            return "low32-scalar";
+        }
+        return "scalar-or-packed";
     }
 
     private static void dumpVpuRequestSummary(String name,
                                               java.nio.ByteBuffer buf) {
-        final int reqBase = 0x60;
-        final int reqSize = 0xb70;
+        final int reqBase = VPU_REQUEST_OFF;
+        final int reqSize = VPU_REQUEST_SIZE;
         if (buf.capacity() < reqBase + reqSize) {
             System.out.println("    " + name + ": unavailable cap="
                 + buf.capacity());
@@ -4644,10 +4853,25 @@ public final class ApusysIoctlProbe {
             | ((buffer.get(off + 3) & 0xff) << 24);
     }
 
+    private static int getU32LE(byte[] buffer, int off) {
+        return (buffer[off] & 0xff)
+            | ((buffer[off + 1] & 0xff) << 8)
+            | ((buffer[off + 2] & 0xff) << 16)
+            | ((buffer[off + 3] & 0xff) << 24);
+    }
+
     private static long getU64LE(java.nio.ByteBuffer buffer, int off) {
         long value = 0;
         for (int i = 0; i < 8; i++) {
             value |= ((long) buffer.get(off + i) & 0xffL) << (8 * i);
+        }
+        return value;
+    }
+
+    private static long getU64LE(byte[] buffer, int off) {
+        long value = 0;
+        for (int i = 0; i < 8; i++) {
+            value |= ((long) buffer[off + i] & 0xffL) << (8 * i);
         }
         return value;
     }
