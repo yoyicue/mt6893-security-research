@@ -348,6 +348,14 @@ entry's stride from `code_base+0x04`; `XrpDebugger::PrintXtensaOperations()` at
 | `+0x10` | 4 | Output operand count |
 | `+0x48 + operand_off` | 2 each | Input operand ids followed by output operand ids |
 
+The completed `settings5/no-settings` runtime matrix now accepts operand-list
+offsets `0/0x10/0x40/0x100/0x17e/0x180` under `XTENSA_ANN_VERSION`. Offset
+`0x17e` ends exactly at the advertised `0x1c8` operation entry boundary, while
+`0x180` places the operand word just outside that entry. Both still reach the
+same APUNN completion state, so this field is not a visible completion or bounds
+gate for the current opcode/oracle. It is still not proven as a source-sensitive
+operand-list dereference.
+
 The target-side `/tmp/mtk-apu-artifacts/device/libneuron_platform.vpu.so`
 wrapper does not use this host/debug stride rule in
 `XrpCommandInfo::GetNumXtensaOPs()` at `0xcd18`. It derives the number of
@@ -680,6 +688,8 @@ longer points at them through the settings tuple:
 | `target_settings5_no_settings_opcode_matrix` | Same settings-backed request, opcodes `10001..10009`, followed by `mdw_usr_wait_cmd` | Every case returns `0` from dispatch and wait, changes settings `0x5 -> 0x7`, clears settings `+0x30`, leaves the code/opcode window unchanged, and writes output; `10004` writes through output offset `0x3c`, while the other tested opcodes write through offset `0x40` |
 | `target_settings5_no_settings_operand_id_matrix` control | Same settings-backed request, opcode `10003`, output operand ids `0/1/2/3/0xffff`, no dispatch | Every case preserves settings `0x5`, settings `+0x30`, code/operand-list words, and initialized output/data windows |
 | `target_settings5_no_settings_operand_id_matrix` | Same settings-backed request, output operand ids `0/1/2/3/0xffff`, followed by `mdw_usr_wait_cmd` | Every case returns `0` from dispatch and wait, changes settings `0x5 -> 0x7`, clears settings `+0x30`, and leaves the code/operand-list words unchanged; data descriptor and data payload remain unchanged; output tail varies across repeats and is not operand-id-stable |
+| `target_settings5_no_settings_operand_offset_matrix` control | Same settings-backed request, opcode `10003`, one output operand id `0`, operand-list offsets `0/0x10/0x40/0x100/0x17e/0x180`, no dispatch | Every case preserves settings `0x5`, settings `+0x30`, requested offset words, and initialized output/data windows |
+| `target_settings5_no_settings_operand_offset_matrix` | Same settings-backed request, tested operand-list offsets, followed by `mdw_usr_wait_cmd` | Every case returns `0` from dispatch and wait, changes settings `0x5 -> 0x7`, clears settings `+0x30`, leaves the code window unchanged, and writes output through offset `0x40`; `0x180` places the operand outside the advertised op entry and still completes |
 | `target_settings5_no_settings_op_shape_matrix` control | Same settings-backed request, opcode `10003`, input/output counts `0/0`, `0/1`, `0/2`, `1/0`, `1/1`, and `2/1`, no dispatch | Every case preserves settings `0x5`, settings `+0x30`, code/count/operand-list words, and initialized output/data windows |
 | `target_settings5_no_settings_op_shape_matrix` | Same settings-backed request, tested input/output count combinations, followed by `mdw_usr_wait_cmd` | Every case returns `0` from dispatch and wait, changes settings `0x5 -> 0x7`, clears settings `+0x30`, and leaves the code window unchanged; data descriptor and data payload remain unchanged; output tail varies across repeats and is not count-stable |
 | `target_settings5_no_settings_code_size_matrix` control | Same settings-backed request, opcode `10003`, code sizes `0/4/0x48/0x1c7/0x1c8/0x1c9/0x390`, no dispatch | Every case preserves the initialized code-size field, settings `0x5`, settings `+0x30`, and output/data windows |
@@ -723,6 +733,12 @@ Result files:
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_id_matrix_control_kernel.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_id_matrix_repeat.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_id_matrix_repeat_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_offset_matrix.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_offset_matrix_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_offset_matrix_control.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_offset_matrix_control_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_offset_matrix_repeat.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_offset_matrix_repeat_kernel.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix_kernel.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix_control.txt`
@@ -1799,6 +1815,15 @@ This gives the current interpretation boundary:
   tail length is not stable per operand id across the dispatch and repeat runs,
   so operand id is accepted metadata but not yet a stable output-semantics
   selector.
+- The `target_settings5_no_settings_operand_offset_matrix` result keeps the
+  completed settings-backed shape, keeps opcode `10003`, and varies the
+  operand-list offset through `0`, `0x10`, `0x40`, `0x100`, `0x17e`, and
+  `0x180`. The no-dispatch control preserves the requested offset words. Every
+  dispatch and repeat case returns `0`, changes settings `0x5 -> 0x7`, clears
+  settings `+0x30`, leaves the code window unchanged, and writes output through
+  offset `0x40`. Offset `0x180` places the operand just outside the advertised
+  `0x1c8` operation entry and still completes, so this field is not a visible
+  completion or bounds gate for this opcode/oracle.
 - The `target_settings5_no_settings_op_shape_matrix` result keeps the completed
   settings-backed shape, keeps opcode `10003`, and varies input/output counts
   across `0/0`, `0/1`, `0/2`, `1/0`, `1/1`, and `2/1` with matching operand
@@ -2113,8 +2138,11 @@ five native descriptors point at the DSP command/settings buffer,
 `request+0x38/+0x40` are clear, dispatch and wait both return `0`, settings
 flags change `0x5 -> 0x7`, settings `+0x30` is cleared, and the code/input
 window is unchanged. The completed-shape opcode matrix shows `10001..10009` all
-complete. The completed-shape output-operand-id and operation-count matrices
-show operand ids `0/1/2/3/0xffff` and tested count combinations also complete.
+complete. The completed-shape output-operand-id, operand-offset, and
+operation-count matrices show operand ids `0/1/2/3/0xffff`, operand-list
+offsets `0/0x10/0x40/0x100/0x17e/0x180`, and tested count combinations also
+complete. The `0x180` offset places the operand just outside the advertised
+operation entry and is still accepted under this completion oracle.
 The completed-shape code-size matrices show `settings+0x04` is a code-section
 acceptance gate: sizes `0/4/8/0xc/0x10` fail with `-EIO`, `0x11` is the smallest
 tested completed size, and clean/success-only reruns complete all selected valid

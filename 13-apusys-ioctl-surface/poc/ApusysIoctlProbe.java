@@ -119,6 +119,12 @@ public final class ApusysIoctlProbe {
             new XrpOpSpec("ann_version_operand_off100_out0",
                 "XTENSA_ANN_VERSION", XRP_OPCODE_XTENSA_ANN_VERSION,
                 0, 1, new int[] { 0 }, 0x100),
+            new XrpOpSpec("ann_version_operand_off17e_out0",
+                "XTENSA_ANN_VERSION", XRP_OPCODE_XTENSA_ANN_VERSION,
+                0, 1, new int[] { 0 }, 0x17e),
+            new XrpOpSpec("ann_version_operand_off180_out0_oob",
+                "XTENSA_ANN_VERSION", XRP_OPCODE_XTENSA_ANN_VERSION,
+                0, 1, new int[] { 0 }, 0x180, true),
         };
     private static final XrpOpSpec[] XRP_OP_MATRIX = new XrpOpSpec[] {
         new XrpOpSpec("get_algo_info_out0", "GET_ALGO_INFO",
@@ -156,12 +162,19 @@ public final class ApusysIoctlProbe {
 
         XrpOpSpec(String label, String name, int opcode, int inputCount,
                   int outputCount, int[] operandIds, int operandListOffset) {
+            this(label, name, opcode, inputCount, outputCount, operandIds,
+                operandListOffset, false);
+        }
+
+        XrpOpSpec(String label, String name, int opcode, int inputCount,
+                  int outputCount, int[] operandIds, int operandListOffset,
+                  boolean allowOutOfBoundsOperandList) {
             if (operandIds.length != inputCount + outputCount) {
                 throw new IllegalArgumentException("operand count mismatch");
             }
-            if (operandListOffset < 0
+            if (!allowOutOfBoundsOperandList && (operandListOffset < 0
                     || 0x48 + operandListOffset + operandIds.length * 2
-                    > XRP_CODE_OP_SIZE) {
+                    > XRP_CODE_OP_SIZE)) {
                 throw new IllegalArgumentException("operand list out of entry");
             }
             this.label = label;
@@ -312,6 +325,8 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpTargetSettings5NoSettingsOpcodeMatrixIovaControl = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsOperandIdMatrixIova = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsOperandIdMatrixIovaControl = false;
+        boolean runCmdVpuXrpTargetSettings5NoSettingsOperandOffsetMatrixIova = false;
+        boolean runCmdVpuXrpTargetSettings5NoSettingsOperandOffsetMatrixIovaControl = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsOpShapeMatrixIova = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsOpShapeMatrixIovaControl = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsCodeSizeMatrixIova = false;
@@ -499,6 +514,10 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpTargetSettings5NoSettingsOperandIdMatrixIova = true;
             } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-operand-id-matrix-iova-control".equals(arg)) {
                 runCmdVpuXrpTargetSettings5NoSettingsOperandIdMatrixIovaControl = true;
+            } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-operand-offset-matrix-iova".equals(arg)) {
+                runCmdVpuXrpTargetSettings5NoSettingsOperandOffsetMatrixIova = true;
+            } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-operand-offset-matrix-iova-control".equals(arg)) {
+                runCmdVpuXrpTargetSettings5NoSettingsOperandOffsetMatrixIovaControl = true;
             } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-op-shape-matrix-iova".equals(arg)) {
                 runCmdVpuXrpTargetSettings5NoSettingsOpShapeMatrixIova = true;
             } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-op-shape-matrix-iova-control".equals(arg)) {
@@ -646,6 +665,8 @@ public final class ApusysIoctlProbe {
                 || runCmdVpuXrpTargetSettings5NoSettingsOpcodeMatrixIovaControl
                 || runCmdVpuXrpTargetSettings5NoSettingsOperandIdMatrixIova
                 || runCmdVpuXrpTargetSettings5NoSettingsOperandIdMatrixIovaControl
+                || runCmdVpuXrpTargetSettings5NoSettingsOperandOffsetMatrixIova
+                || runCmdVpuXrpTargetSettings5NoSettingsOperandOffsetMatrixIovaControl
                 || runCmdVpuXrpTargetSettings5NoSettingsOpShapeMatrixIova
                 || runCmdVpuXrpTargetSettings5NoSettingsOpShapeMatrixIovaControl
                 || runCmdVpuXrpTargetSettings5NoSettingsCodeSizeMatrixIova
@@ -1110,6 +1131,16 @@ public final class ApusysIoctlProbe {
 
             if (runCmdVpuXrpTargetSettings5NoSettingsOperandIdMatrixIovaControl) {
                 runRunCmdVpuXrpTargetSettings5NoSettingsOperandIdMatrixProbe(
+                    fd, false);
+            }
+
+            if (runCmdVpuXrpTargetSettings5NoSettingsOperandOffsetMatrixIova) {
+                runRunCmdVpuXrpTargetSettings5NoSettingsOperandOffsetMatrixProbe(
+                    fd, true);
+            }
+
+            if (runCmdVpuXrpTargetSettings5NoSettingsOperandOffsetMatrixIovaControl) {
+                runRunCmdVpuXrpTargetSettings5NoSettingsOperandOffsetMatrixProbe(
                     fd, false);
             }
 
@@ -3153,6 +3184,22 @@ public final class ApusysIoctlProbe {
             System.out.println("\n[*] === target-settings5/no-settings"
                 + " output-operand-id case 0x"
                 + Integer.toHexString(operandId) + " dispatch="
+                + (dispatch ? 1 : 0) + " ===");
+            runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, true, true,
+                op, 1000, true, VPU_DESC_LIBVPU_SETTINGS5,
+                XRP_CMD_FLAGS_SEND, VPU_DESC_ORDER_CODE_OUTPUT,
+                XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
+                XrpSettingsShape.WRAPPER_ONE_DATA, dispatch,
+                VPU_REQUEST_FLAGS_DEFAULT, false, XRP_OPCODE_XTENSA_ANN_VERSION,
+                null, null, null, null, null, null, null);
+        }
+    }
+
+    private static void runRunCmdVpuXrpTargetSettings5NoSettingsOperandOffsetMatrixProbe(
+            int apusysFd, boolean dispatch) throws Exception {
+        for (XrpOpSpec op : XRP_OP_OPERAND_OFFSET_MATRIX) {
+            System.out.println("\n[*] === target-settings5/no-settings"
+                + " operand-offset case " + op.label + " dispatch="
                 + (dispatch ? 1 : 0) + " ===");
             runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, true, true,
                 op, 1000, true, VPU_DESC_LIBVPU_SETTINGS5,
