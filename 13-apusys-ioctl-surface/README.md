@@ -13,7 +13,7 @@ The current result is **reachable but not yet mapped to a confirmed vulnerabilit
 
 The directory has no CVE number yet. The repository uses CVE-numbered directories when a test is tied to a specific public CVE or confirmed bug class. APUSYS is currently an exposed proprietary ioctl surface with handler-level mapping and runtime reachability evidence, but no confirmed CVE match or vulnerability primitive.
 
-This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths, negative memory-create cases, optional device-control reachability checks, and two dmabuf-source checks for the memory import path. Valid command buffers, usable dmabuf descriptors, heap shaping, and execution-path inputs are separate experiment tracks.
+This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths, negative memory-create cases, optional device-control reachability checks, direct dmabuf-source checks, a candidate-fd scan for the memory import path, and controlled `ucmd` negative tests. Valid command buffers, usable dmabuf descriptors, heap shaping, and execution-path inputs are separate experiment tracks.
 
 ## IDA handler map
 
@@ -191,7 +191,7 @@ The `0x4004413C/3D` size mismatch is important for testing: the command encoding
 
 ## Current risk ranking
 
-1. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` lead to `mdw_usr_mem_create`, then into APUSYS ION KVA/IOVA callbacks. Negative tests confirm that type-2 and type-3 descriptors reach deeper than the initial user-copy guard without creating an object or crashing. Two direct dmabuf-source checks have now been tried from `system_app`: DRM dumb buffer creation succeeds but PRIME fd export returns `EACCES`, and direct `/dev/ion` open returns `EACCES`. This remains the highest APUSYS priority, but the current blocker is obtaining a usable dmabuf fd in this context.
+1. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` lead to `mdw_usr_mem_create`, then into APUSYS ION KVA/IOVA callbacks. Negative tests confirm that type-2 and type-3 descriptors reach deeper than the initial user-copy guard without creating an object or crashing. Direct dmabuf-source checks from `system_app` now show: no `/dev/dma_heap/*` nodes on this device, DRM dumb buffer creation succeeds but PRIME fd export returns `EACCES`, direct `/dev/ion` open returns `EACCES`, `/dev/ashmem` open returns `EACCES`, and ordinary openable fds such as `/dev/dri/card0`, `/dev/mali0`, `/dev/zero`, `/dev/null`, and `/dev/apusys` all fail APUSYS memory-create with `ENOMEM`. This remains the highest APUSYS priority, but the current blocker is obtaining a usable dmabuf fd in this context.
 2. **Command parsing/execution and ucmd paths**: `0xC0184107` and `0x40184106` reach `mdw_usr_run_cmd_async`. The current probe sets the user field at `+0x0c` to `1`, which makes this function return early before the indirect ops calls. `0x4014410E` reaches `mdw_usr_ucmd`; with `+0x0c == 0` it imports the fd as APUSYS memory, maps KVA/IOVA, bounds-checks the requested length, then calls `mdw_rsc_ucmd_dispatch` at `core+0x98`. The provider opcode `7` path is now narrowed: normal VPU has a concrete `0x8001` mapped-buffer gate and walks per-core Normal/Preload algorithm sets, while EDMA and MDLA do not show the same opcode-7 command path.
 3. **Device/resource control paths**: `0x4004413C/3D` call `mdw_usr_dev_sec_alloc/free`, and `0x400C4109` calls `mdw_usr_dev_ctrl_4109`. The free path has an id `< 0x40` guard; the `0x400C4109` path looks up a device/core and dispatches provider opcode `0` through `mdw_rsc_dev_op0_ctrl` with only a 0x0c user input. Static mapping shows MDLA/EDMA opcode `0` reaches power-on paths, normal VPU opcode `0` reaches control bookkeeping, and VPU RT opcode `0` returns early.
 4. **Handshake/wait/simple rejection paths**: useful for reachability, lower standalone risk.
@@ -284,6 +284,22 @@ dalvikvm64 -cp /data/data/com.android.settings/cache/apusys_ioctl_probe.dex Apus
 
 `--mem-ion` uses the old ION ABI observed in IDA: `ION_IOC_ALLOC = 0xc0204900`, `ION_IOC_SHARE = 0xc0084904`, and `ION_IOC_FREE = 0xc0044901`. It starts with heap mask `0x4`, matching an internal MTK ION allocation helper in this kernel, then tries a small set of common masks. On the current target, `/dev/ion` open from `system_app` returns `EACCES`, so APUSYS memory import is not reached through this source either.
 
+Optional candidate-fd scan:
+
+```sh
+dalvikvm64 -cp /data/data/com.android.settings/cache/apusys_ioctl_probe.dex ApusysIoctlProbe --fd-scan
+```
+
+`--fd-scan` opens a fixed list of candidate paths and feeds each open fd into APUSYS type-2 and type-3 memory-create descriptors. It does not call `mdw_usr_ucmd`. This mode is for ruling out accidental non-dmabuf fd acceptance and checking whether dma-heap nodes exist in the current device context.
+
+Optional `ucmd` negative test:
+
+```sh
+dalvikvm64 -cp /data/data/com.android.settings/cache/apusys_ioctl_probe.dex ApusysIoctlProbe --ucmd-negative
+```
+
+`--ucmd-negative` sends normal VPU `mdw_usr_ucmd` arguments for device id `3`, core `0` and `1`, bad fd `-1`, offset `0`, and nonzero length `0x1000`. It does not provide a valid mapped command buffer. This verifies the controlled failure mode after clearing the `+0x0c` early-reject field.
+
 [`poc/apusys_ioctl_probe.c`](poc/apusys_ioctl_probe.c) is a native version of the same reject checks for root/permissive lab contexts. It compiles successfully, but on the current device direct `adb shell` execution returns `open(/dev/apusys) failed: EACCES` because shell is not `system` or `camera`, and `system_app` cannot execute native ELF files from app data under SELinux enforcing.
 
 Current local negative-control result:
@@ -367,12 +383,47 @@ Observed optional `--mem-ion` result from the same `system_app` context on 2026-
 [-] open /dev/ion failed: open(/dev/ion) failed: errno=13
 ```
 
-Interpretation: APUSYS memory-create remains a mapped high-interest path, but these two direct fd sources do not currently supply a valid dmabuf from `system_app`. DRM can allocate a dumb buffer but cannot export a PRIME fd. Direct old-ION allocation cannot start because `/dev/ion` open is denied in this SELinux context. A later memory-import experiment needs a different dmabuf source, a framework-mediated allocation path, or a lab context that can provide a benign dmabuf fd.
+Observed optional `--fd-scan` result from the same `system_app` context on 2026-06-14:
+
+```text
+[-] fdscan_open_dma_heap_system failed: open(/dev/dma_heap/system) failed: errno=2
+[-] fdscan_open_dma_heap_system_uncached failed: open(/dev/dma_heap/system-uncached) failed: errno=2
+[-] fdscan_open_dma_heap_mtk_mm failed: open(/dev/dma_heap/mtk_mm) failed: errno=2
+[-] fdscan_open_dma_heap_mtk_mm_uncached failed: open(/dev/dma_heap/mtk_mm-uncached) failed: errno=2
+[+] fdscan_open_dri_card0 fd=7
+[*] fdscan2_dri_card0  cmd=0xc0384103 ret=-12 (ENOMEM)
+[*] fdscan3_dri_card0  cmd=0xc038410f ret=-12 (ENOMEM)
+[+] fdscan_open_mali0 fd=7
+[*] fdscan2_mali0      cmd=0xc0384103 ret=-12 (ENOMEM)
+[*] fdscan3_mali0      cmd=0xc038410f ret=-12 (ENOMEM)
+[-] fdscan_open_ashmem failed: open(/dev/ashmem) failed: errno=13
+[+] fdscan_open_zero fd=7
+[*] fdscan2_zero       cmd=0xc0384103 ret=-12 (ENOMEM)
+[*] fdscan3_zero       cmd=0xc038410f ret=-12 (ENOMEM)
+[+] fdscan_open_null fd=7
+[*] fdscan2_null       cmd=0xc0384103 ret=-12 (ENOMEM)
+[*] fdscan3_null       cmd=0xc038410f ret=-12 (ENOMEM)
+[+] fdscan_open_apusys fd=7
+[*] fdscan2_apusys     cmd=0xc0384103 ret=-12 (ENOMEM)
+[*] fdscan3_apusys     cmd=0xc038410f ret=-12 (ENOMEM)
+[-] fdscan_open_ion failed: open(/dev/ion) failed: errno=13
+```
+
+Observed optional `--ucmd-negative` result from the same `system_app` context on 2026-06-14:
+
+```text
+[*] === Optional APUSYS ucmd negative tests ===
+[*] Mode: normal VPU device id 3, core 0/1, bad fd, offset 0, nonzero length
+[*] ucmd_vpu_c0_badfd  cmd=0x4014410e ret=-22 (EINVAL)
+[*] ucmd_vpu_c1_badfd  cmd=0x4014410e ret=-22 (EINVAL)
+```
+
+Interpretation: APUSYS memory-create remains a mapped high-interest path, but current direct fd sources do not supply a valid dmabuf from `system_app`. DRM can allocate a dumb buffer but cannot export a PRIME fd. Direct old-ION allocation cannot start because `/dev/ion` open is denied in this SELinux context. This device also does not expose the tested `/dev/dma_heap/*` nodes, `/dev/ashmem` open is denied, and ordinary non-dmabuf fds fail APUSYS memory-create with `ENOMEM`. The `ucmd` negative test confirms that normal VPU arguments with offset `0` and nonzero length fail cleanly with a bad fd before any valid opcode-7 payload is possible. A later memory-import or VPU `ucmd` experiment needs a framework-mediated dmabuf allocation path or a lab context that can provide a benign dmabuf fd.
 
 ## Next analysis steps
 
-- Keep the current Java probe scoped to reject/query/negative-memory/device-control and fd-source checks. A valid dmabuf-backed descriptor is still the next step for real ION/APUSYS mapping behavior.
-- Look for a `system_app`-reachable framework or HAL path that returns a dmabuf-backed object. Direct `/dev/ion` and DRM PRIME export are both blocked in the current context.
+- Keep the current Java probe scoped to reject/query/negative-memory/device-control, fd-source scans, and controlled `ucmd` negatives. A valid dmabuf-backed descriptor is still the next step for real ION/APUSYS mapping behavior.
+- Look for a `system_app`-reachable framework or HAL path that returns a dmabuf-backed object. Direct `/dev/ion`, `/dev/ashmem`, dma-heap device nodes, and DRM PRIME export are blocked or unavailable in the current context.
 - Use kernel logs, if available from the lab context, to distinguish whether the `ENOMEM` path comes from ION import, cache sync, or IOVA map setup.
 - Keep `mdw_usr_get_cmd_ops` / `0xffffffc00a188e58` marked unresolved. Leave the `run_cmd` `+0x0c` early-reject field set while resolving the indirect call targets.
 - For `0x400C4109`, optional follow-up is a small control-value sweep on the live-success providers while watching return codes and kernel logs. The current control value `0` already confirms provider opcode `0` reachability.

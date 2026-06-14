@@ -28,6 +28,8 @@ Raw outputs from this run are archived in this directory.
 | `13_apusys_dev_ctrl.txt` | APUSYS `0x400C4109` provider opcode-0 reachability from system_app |
 | `13_apusys_mem_dmabuf.txt` | APUSYS memory-create fd-source check using DRM dumb buffer plus PRIME export |
 | `13_apusys_mem_ion.txt` | APUSYS memory-create fd-source check using old ION allocation/share path |
+| `13_apusys_fd_scan.txt` | APUSYS memory-create candidate-fd scan for dma-heap and ordinary openable fds |
+| `13_apusys_ucmd_negative.txt` | APUSYS normal VPU `ucmd` negative with offset 0, nonzero length, and bad fd |
 | `02_vuln_check_jit.txt` | Mali JIT `DONT_NEED` check for CVE-2022-38181 style chain |
 | `02_diag_dont_need.txt` | Mali non-JIT `DONT_NEED` behavior |
 | `03_diag_refcount.txt` | CVE-2022-36449 page refcount diagnostic |
@@ -100,6 +102,10 @@ Evidence:
 [*] drm_create_dumb   cmd=0xc02064b2 ret=0
 [*] drm_prime_to_fd   cmd=0xc00c642d ret=-13 (EACCES)
 [-] open /dev/ion failed: open(/dev/ion) failed: errno=13
+[-] fdscan_open_dma_heap_system failed: open(/dev/dma_heap/system) failed: errno=2
+[-] fdscan_open_ashmem failed: open(/dev/ashmem) failed: errno=13
+[*] fdscan2_dri_card0  cmd=0xc0384103 ret=-12 (ENOMEM)
+[*] ucmd_vpu_c0_badfd  cmd=0x4014410e ret=-22 (EINVAL)
 ```
 
 `systemapp_service_probe.txt` shows `/dev/ion` exists and is world-readable/writable at DAC level:
@@ -116,6 +122,8 @@ Interpretation:
 - APUSYS device-control ioctl `0x400C4109` reaches live provider opcode-0 paths for MDLA, normal VPU, EDMA, and MDLA RT. VPU RT returns `EACCES` on the same opcode.
 - APUSYS memory-create type-2/type-3 remains the highest APUSYS subpath, but the current experiment lacks a valid dmabuf fd source in this context.
 - APUSYS `mdw_usr_ucmd` now has a concrete normal VPU opcode-7 gate: a valid dmabuf-backed mapping, offset `0`, nonzero length, device id `3`, a live core id, and first mapped u32 `0x8001`.
+- Candidate-fd scanning shows no tested `/dev/dma_heap/*` nodes, `/dev/ashmem` open is denied, and ordinary openable non-dmabuf fds fail memory-create with `ENOMEM`.
+- Normal VPU `ucmd` with offset `0`, nonzero length, and bad fd fails cleanly with `EINVAL` for core `0` and `1`.
 - DRM dumb buffer creation works from `system_app`, but PRIME fd export returns `EACCES`.
 - Direct `/dev/ion` allocation/share is blocked at open with `EACCES` despite permissive-looking DAC bits on the node.
 - Mali WRITE_VALUE works, but it was already reachable from uid=2000 shell and remains bounded to GPU-mapped userspace VA. It does not become a kernel primitive from uid=1000 alone.
@@ -124,7 +132,7 @@ Resulting CVE priority:
 
 | CVE / Area | Post-run Risk | Reason |
 |---|---|---|
-| APUSYS CVE candidates | Medium-High | `/dev/apusys` opens with `O_RDWR`; `0x400C4109` provider opcode-0 dispatch is live for MDLA, normal VPU, EDMA, and MDLA RT. Memory-create and normal VPU opcode-7 `ucmd` are mapped but still need a usable dmabuf fd source. |
+| APUSYS CVE candidates | Medium-High | `/dev/apusys` opens with `O_RDWR`; `0x400C4109` provider opcode-0 dispatch is live for MDLA, normal VPU, EDMA, and MDLA RT. Memory-create and normal VPU opcode-7 `ucmd` are mapped, but direct fd-source tests did not find a usable dmabuf fd. |
 | CVE-2023-20768 / ION | Medium-Low for direct system_app node access | Dedicated old-ION path confirms `/dev/ion` open returns `EACCES` from `system_app`. |
 | Mali WRITE_VALUE boundary | Low for kernel LPE | WRITE_VALUE confirmed, but USER_BUFFER/kernel reachability is blocked. |
 
@@ -221,7 +229,7 @@ Resulting CVE priority:
 ## Final Post-Run Order
 
 1. **Display / DRM OOB read/write cluster**: `CVE-2023-32867`, `32868`, then `32865`, `32864`, `32863`, `20775`, `32860`. `32864` and `32865` remain reachable but the first guard probes did not confirm exploitable write paths.
-2. **APUSYS reachable surface**: APUSYS-related CVEs should be mapped next because `/dev/apusys` opens from `system_app`; the immediate experiment blocker is a usable dmabuf fd for memory-create and normal VPU `ucmd`.
+2. **APUSYS reachable surface**: APUSYS-related CVEs should be mapped next because `/dev/apusys` opens from `system_app`; the immediate experiment blocker is a framework/HAL or lab-context dmabuf fd for memory-create and normal VPU `ucmd`.
 3. **secmem / keyinstall via service paths**: `CVE-2023-32834`, `CVE-2023-32835`; direct secure nodes are blocked, so service PoC needed.
 4. **CMDQ / PQ / MMP indirect paths**: `CVE-2023-32849`, `CVE-2024-20037`, `CVE-2023-32866`; direct nodes blocked.
 5. **ION**: keep as pending until strict open/ioctl reachability is resolved.

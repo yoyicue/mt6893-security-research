@@ -40,6 +40,7 @@ Visible but direct-open denied from `system_app`:
 
 ```text
 /dev/ion
+/dev/ashmem
 ```
 
 Important permissions observed on device:
@@ -47,6 +48,7 @@ Important permissions observed on device:
 ```text
 /dev/dri/card0  crw-rw---- system system  u:object_r:dri_device:s0
 /dev/ion        crw-rw-rw- system graphics u:object_r:ion_device:s0
+/dev/ashmem     crw-rw-rw- root   root     u:object_r:ashmem_device:s0
 /dev/mali0      crw-rw-rw- root   root     u:object_r:gpu_device:s0
 /dev/apusys     crw-rw---- system camera   u:object_r:apusys_device:s0
 ```
@@ -90,6 +92,7 @@ The current CVE-2023-32836 checks disprove both tested direct paths on this firm
 | CVE-2023-20761 ril | Increased, likely service path | MT6893/MT8797/Android 13 affected; likely binder/socket/service rather than direct device-node ioctl. |
 | CVE-2023-20766 gps | Increased, likely service path | MT6893/MT8797/Android 13 affected; likely service path. |
 | CVE-2023-20768 ion | Lower for direct node access | `/dev/ion` is visible and DAC-permissive, but dedicated old-ION probing from `system_app` returns `EACCES` at open. Revisit only through framework/HAL dmabuf paths or another lab context. |
+| APUSYS ioctl surface | Medium-high research priority | `/dev/apusys` opens from `system_app`; provider opcode-0 dispatch, memory-create, and normal VPU opcode-7 `ucmd` are mapped. Direct fd-source tests did not find a usable dmabuf fd: DRM PRIME is denied, `/dev/ion` and `/dev/ashmem` open are denied, tested `/dev/dma_heap/*` nodes are absent, and ordinary fds fail memory-create with `ENOMEM`. |
 
 ## Not Significantly Changed
 
@@ -104,10 +107,11 @@ The current CVE-2023-32836 checks disprove both tested direct paths on this firm
 ## Recommended Next Triage
 
 1. Display/display-drm: enumerate ioctls and symbol paths for CVE-2023-20775 and CVE-2023-32860/32867/32868. For CVE-2023-32863, CVE-2023-32864, and CVE-2023-32865, prioritize locating the exact `ALPS07326314` / `ALPS07292187` / `ALPS07363456` patched handlers because the first probes did not confirm exploitable paths.
-2. secmem/keyinstall: identify runtime entry points, likely trusted execution / key management interfaces, then test reachability from `system_app`.
-3. CMDQ/PQ/MMP: map device nodes, binder services, and ioctl numbers; prioritize any path accessible from `system_app`.
-4. DA/AEE/LK: determine whether the advisory entry point exists at runtime or only during update/boot flows.
-5. RIL/GPS: check binder/socket/service permissions under `system_app`, not just device nodes.
+2. APUSYS: continue from the mapped ioctl surface by finding a framework/HAL-mediated or lab-context dmabuf fd, then test memory-create and normal VPU `ucmd` with first mapped u32 `0x8001`.
+3. secmem/keyinstall: identify runtime entry points, likely trusted execution / key management interfaces, then test reachability from `system_app`.
+4. CMDQ/PQ/MMP: map device nodes, binder services, and ioctl numbers; prioritize any path accessible from `system_app`.
+5. DA/AEE/LK: determine whether the advisory entry point exists at runtime or only during update/boot flows.
+6. RIL/GPS: check binder/socket/service permissions under `system_app`, not just device nodes.
 
 ## Sources
 

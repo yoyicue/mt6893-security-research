@@ -7,7 +7,7 @@ Updated: 2026-06-14
 - uid=1000 system_app bind shell (CVE-2024-31317) ✅
 - ART ArtMethod syscall primitive (arbitrary ioctl from pure Java) ✅
 - Accessible devices: `/dev/binder`, `/dev/hwbinder`, `/dev/mali0`, `/dev/dri/card0`, `/dev/apusys`, `/dev/aw_smartpa`
-- Visible but direct-open denied from `system_app`: `/dev/ion`
+- Visible but direct-open denied from `system_app`: `/dev/ion`, `/dev/ashmem`
 - SPL: 2023-06-05
 
 ## Exhausted / Dead-End Paths
@@ -31,7 +31,7 @@ This ranking assumes the current post-CVE-2024-31317 position: `uid=1000(system)
 | Rank | Surface | Current risk | Why |
 |---:|---|---|---|
 | 1 | `/dev/mali0` CVE-2023-33200 | **Highest confirmed** | Required ioctls are reachable, the path is not JIT-based, and IDA confirms the soft-event `vmap` vs sticky-resource USER_BUF unmap race shape. |
-| 2 | `/dev/apusys` | **Medium-high research priority** | Confirmed open proprietary MTK ioctl surface; provider opcode-0 dispatch is live for MDLA, normal VPU, EDMA, and MDLA RT. Memory-create and normal VPU ucmd are mapped; both need a usable dmabuf fd source for the next real input experiment. |
+| 2 | `/dev/apusys` | **Medium-high research priority** | Confirmed open proprietary MTK ioctl surface; provider opcode-0 dispatch is live for MDLA, normal VPU, EDMA, and MDLA RT. Memory-create and normal VPU ucmd are mapped; direct fd-source tests did not find a usable dmabuf fd. |
 | 3 | `/dev/ion` MTK heap/ioctl family | **Medium-low for direct system_app node access** | DAC bits look permissive, but dedicated old-ION probing confirms direct `/dev/ion` open returns `EACCES` from `system_app`. |
 | 4 | Display DRM `SET_PQPARAM` / adjacent PQ-AAL-SLD paths | **Medium** | `/dev/dri/card0` and many MTK private ioctls are reachable. The strongest current bug shape is display-state/MMIO-oriented, with no confirmed kernel-memory write primitive. |
 | 5 | Display DRM register and GEM paths | **Low** | `WRITE_REG`/`READ_REG` have visible validation, and CVE-2023-32836 `CREATE_DUMB` reaches the MTK 64-bit size path rather than the vulnerable generic 32-bit multiply path. |
@@ -97,7 +97,7 @@ Confirmed open from system_app. IDA now maps the main midware ioctl dispatcher: 
 
 **Risk**: Medium-high research priority, but not yet a confirmed vulnerability. The dispatcher uses fixed `copy_from_user` sizes and several early validation gates. The most interesting paths are `mdw_usr_run_cmd_async`/`mdw_usr_run_cmd_sync`, `mdw_usr_ucmd`, and `mdw_usr_mem_create`.
 
-**Action**: Continue from [`13-apusys-ioctl-surface/README.md`](13-apusys-ioctl-surface/README.md). Current APUSYS work is to find a `system_app`-reachable dmabuf fd source. That unlocks both memory-create behavior and the normal VPU opcode-7 `ucmd` experiment, whose mapped buffer must start with u32 `0x8001`.
+**Action**: Continue from [`13-apusys-ioctl-surface/README.md`](13-apusys-ioctl-surface/README.md). Current APUSYS work is to find a framework/HAL-mediated or lab-context dmabuf fd source. That unlocks both memory-create behavior and the normal VPU opcode-7 `ucmd` experiment, whose mapped buffer must start with u32 `0x8001`.
 
 #### E. Binder service-mediated kernel bugs
 
@@ -136,7 +136,7 @@ The IDA-based risk ranking from the handoff identified SET_SLD_PARAM (0x57) and 
 **Priority 2: `/dev/apusys` memory import / ucmd mapping**
 - `/dev/apusys` opens from `system_app`
 - Provider opcode-0 dispatch is live
-- Memory import needs a usable dmabuf fd source; direct DRM PRIME and direct ION are blocked
+- Memory import needs a usable dmabuf fd source; direct DRM PRIME, direct ION, direct ashmem, and tested dma-heap paths are blocked or unavailable
 - Normal VPU opcode-7 `ucmd` is now narrowed to a dmabuf-backed mapped buffer with first u32 `0x8001`; raw VPU algo ops table entry semantics still need final address-form resolution
 
 **Priority 3: ION CVEs via non-direct paths**
@@ -151,4 +151,4 @@ The IDA-based risk ranking from the handoff identified SET_SLD_PARAM (0x57) and 
 
 ## Decision
 
-Next target remains **CVE-2023-33200** for Mali-specific work. For APUSYS, the immediate branch is dmabuf-source discovery, then a normal VPU opcode-7 `ucmd` probe with mapped command id `0x8001`. Direct `/dev/ion` reachability has now been checked and is blocked from `system_app`.
+Next target remains **CVE-2023-33200** for Mali-specific work. For APUSYS, the immediate branch is a framework/HAL-mediated or lab-context dmabuf fd source, then a normal VPU opcode-7 `ucmd` probe with mapped command id `0x8001`. Direct `/dev/ion` and `/dev/ashmem` reachability have now been checked and are blocked from `system_app`; tested `/dev/dma_heap/*` nodes are absent.

@@ -51,6 +51,8 @@ public final class ApusysIoctlProbe {
         boolean devCtrl = false;
         boolean memDmabuf = false;
         boolean memIon = false;
+        boolean fdScan = false;
+        boolean ucmdNegative = false;
         for (String arg : args) {
             if ("--query".equals(arg)) {
                 query = true;
@@ -62,13 +64,17 @@ public final class ApusysIoctlProbe {
                 memDmabuf = true;
             } else if ("--mem-ion".equals(arg)) {
                 memIon = true;
+            } else if ("--fd-scan".equals(arg)) {
+                fdScan = true;
+            } else if ("--ucmd-negative".equals(arg)) {
+                ucmdNegative = true;
             } else {
                 throw new IllegalArgumentException("unknown option: " + arg);
             }
         }
 
         System.out.println("[*] === APUSYS ioctl probe ===");
-        if (memNegative || devCtrl || memDmabuf || memIon) {
+        if (memNegative || devCtrl || memDmabuf || memIon || fdScan || ucmdNegative) {
             System.out.println("[*] Mode: optional checks enabled;"
                 + " no secure alloc/free, no valid cmdbuf\n");
         } else {
@@ -125,6 +131,14 @@ public final class ApusysIoctlProbe {
 
             if (memIon) {
                 runMemIon(fd);
+            }
+
+            if (fdScan) {
+                runFdScan(fd);
+            }
+
+            if (ucmdNegative) {
+                runUcmdNegative(fd);
             }
 
             System.out.println("\n[+] Probe completed. Interpret results as handler reachability only.");
@@ -316,6 +330,73 @@ public final class ApusysIoctlProbe {
         }
     }
 
+    private static void runFdScan(int apusysFd) throws Exception {
+        System.out.println("\n[*] === Optional APUSYS fd-source scan ===");
+        System.out.println("[*] Mode: open candidate fds and feed memory-create only;"
+            + " no ucmd execution");
+
+        String[] candidates = {
+            "/dev/dma_heap/system",
+            "/dev/dma_heap/system-uncached",
+            "/dev/dma_heap/mtk_mm",
+            "/dev/dma_heap/mtk_mm-uncached",
+            "/dev/dri/card0",
+            "/dev/mali0",
+            "/dev/ashmem",
+            "/dev/zero",
+            "/dev/null",
+            "/dev/apusys",
+            "/dev/ion"
+        };
+
+        for (int i = 0; i < candidates.length; i++) {
+            String path = candidates[i];
+            int fd = -1;
+            String label = fdLabel(path);
+            try {
+                try {
+                    fd = DrmTrigger.openDev(path);
+                    System.out.println("[+] fdscan_open_" + label + " fd=" + fd);
+                } catch (RuntimeException e) {
+                    System.out.println("[-] fdscan_open_" + label + " failed: "
+                        + e.getMessage());
+                    continue;
+                }
+
+                runMemCreateWithFd(apusysFd, "fdscan2_" + label,
+                    APUSYS_CMD_MEM_CREATE2, APUSYS_CMD_MEM_FREE_02, fd, 0x1000);
+                runMemCreateWithFd(apusysFd, "fdscan3_" + label,
+                    APUSYS_CMD_MEM_CREATE3, APUSYS_CMD_MEM_FREE_10, fd, 0x1000);
+            } finally {
+                if (fd >= 0) {
+                    DrmTrigger.closeFd(fd);
+                }
+            }
+        }
+    }
+
+    private static void runUcmdNegative(int apusysFd) throws Exception {
+        System.out.println("\n[*] === Optional APUSYS ucmd negative tests ===");
+        System.out.println("[*] Mode: normal VPU device id 3, core 0/1,"
+            + " bad fd, offset 0, nonzero length");
+
+        runUcmdWithFd(apusysFd, "ucmd_vpu_c0_badfd", 3, 0, -1, 0, 0x1000);
+        runUcmdWithFd(apusysFd, "ucmd_vpu_c1_badfd", 3, 1, -1, 0, 0x1000);
+    }
+
+    private static long runUcmdWithFd(int apusysFd, String name, int devId,
+                                      int coreId, int fd, int offset, int length)
+            throws Exception {
+        long ucmd = DrmTrigger.sScratchBuf + OFF_UCMD;
+        DrmTrigger.zeroMem(ucmd, 0x14);
+        DrmTrigger.unsafePutInt(ucmd + 0x00, devId);
+        DrmTrigger.unsafePutInt(ucmd + 0x04, coreId);
+        DrmTrigger.unsafePutInt(ucmd + 0x08, fd);
+        DrmTrigger.unsafePutInt(ucmd + 0x0c, offset);
+        DrmTrigger.unsafePutInt(ucmd + 0x10, length);
+        return ioctlAndPrint(apusysFd, name, APUSYS_CMD_UCMD, ucmd);
+    }
+
     private static int ionAlloc(int ionFd, int heapMask, int size) throws Exception {
         long alloc = DrmTrigger.sScratchBuf + OFF_ION_ALLOC;
         DrmTrigger.zeroMem(alloc, 0x20);
@@ -432,6 +513,14 @@ public final class ApusysIoctlProbe {
         if (errno == 95) return "EOPNOTSUPP";
         if (errno == 110) return "ETIMEDOUT";
         return "errno=" + errno;
+    }
+
+    private static String fdLabel(String path) {
+        String s = path;
+        if (s.startsWith("/dev/")) {
+            s = s.substring(5);
+        }
+        return s.replace('/', '_').replace('-', '_').replace('.', '_');
     }
 
     private static String pad(String s, int width) {
