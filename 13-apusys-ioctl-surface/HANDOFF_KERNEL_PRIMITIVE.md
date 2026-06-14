@@ -87,6 +87,37 @@ copied descriptor-array IOVA and settings tuple to VPU MMIO, and dispatches
 | Output/data descriptor sections | APUNN settings fields inside the descriptor-backed DSP buffer | `settings+0x08` bounds output fill; tested data payloads, data targets, and plane windows do not flow into source-sensitive output |
 | APUSYS command-buffer copyback | `mdw_cmd_sc_clr_hnd()` copies the provider-updated temporary `0xb70` request back to user-mapped command memory | Completed copies currently expose only scalar tail state (`request+0xb60`, preload slot in `request+0xb68`), not kernel pointers or imported-buffer IOVAs |
 
+## Current APUNN request interpretation model
+
+This is the strongest model available before recovering the raw
+`apu_lib_apunn` firmware body. It combines kernel handoff, wrapper static
+analysis, and direct runtime matrices; fields not listed here are not proven
+firmware semantics yet.
+
+| Layer | Field / structure | Current interpretation |
+|---|---|---|
+| Native VPU request | `request+0x04` algo string | Kernel lookup key. `apu_lib_apunn` misses the Normal set and is retried through the Preload set; firmware receives the selected Preload entry/IRAM registers, not the original string as parser input. |
+| Native VPU request | `request+0x28` flags | Kernel execution selector. Bit `2` selects the Preload/slot path and changes `request+0xb68` copyback, but the tested direct trigger also reaches Preload after Normal lookup miss with flags `0`. |
+| Native VPU request | `request+0x35` `buffer_count` | Firmware-visible liveness input through `INFO12`. `0` suppresses descriptor-following state writeback and returns `-EIO`; nonzero tested counts reach the descriptor path. The stable wrapper replay uses `5`. |
+| Native VPU request | `request+0x38/+0x40` settings length/IOVA | Firmware-visible through `INFO15/INFO14` when libvpu property mode is used. The target wrapper replay completes with both clear, so the required APUNN command/settings buffer is carried by native descriptors instead. |
+| Native VPU request | `request+0x50 + i*0x40` `struct vpu_buffer[]` | Firmware-visible copied descriptor array through `INFO13`. In incomplete shapes, descriptor slot `0` determines the visible status/writeback target. The completed target shape points all five descriptors at the same DSP command/settings buffer. |
+| Native descriptor | `port_id`, `format`, `plane_count`, `height` | Accepted metadata in the tested matrices, not hard role or completion gates for the current oracle. |
+| Native descriptor | plane MVA/IOVA | Actual firmware-accessible target window. Descriptor-slot ordering, not the settings output pointer, explains the earlier code/output/plane first-word writebacks. |
+| DSP settings buffer | `settings+0x00` flags | Completion state. The completed replay changes `0x5 -> 0x7`, satisfying the host predicate `(flags & 0x0a) == 0x02`; pre-seeding flags alone does not trigger completion. |
+| DSP settings buffer | `settings+0x04` code size | Real APUNN code-section acceptance gate. Sizes `0/4/8/0xc/0x10` fail; `0x11` is the smallest tested completed size. |
+| DSP settings buffer | `settings+0x08` output size | Maximum output-fill bound. Larger values allow longer completion-style output fill; small values leave initialized output-header words intact. |
+| DSP settings buffer | `settings+0x0c/+0x30` data descriptor size/pointer | Data-descriptor section contract. Standard one-entry size `0x0c` is consumed and clears `settings+0x30`; larger/two-entry cases remain target/order-sensitive and do not copy tested payload bytes into output. |
+| Xtensa code section | operation entry fields | Wrapper debug/static evidence maps stride at code `+0x04`, opcode at entry `+0x00`, operand-list offset at `+0x08`, input/output counts at `+0x0c/+0x10`, and operand ids at `entry+0x48+operand_off`. Runtime confirms these fields are accepted by the completed parser. |
+| Xtensa code section | opcodes `10001..10009` | In the completed settings-backed shape, all tested opcodes complete. `10004` fills output through `0x3c`; the others fill through `0x40`. The earlier `10005..10007` timeout/error class was descriptor-target dependent, not the completed opcode contract. |
+| Xtensa code section | operand ids / operand offsets / op counts | Accepted metadata under the current oracle. Tested operand ids `0/1/2/3/0xffff`, offsets `0/0x10/0x40/0x100/0x17e/0x180`, and count tuples all complete; offset `0x180` is just outside the advertised `0x1c8` operation entry and is not a visible bounds gate here. |
+| Output/data windows | output fill and data payloads | Output currently looks like deterministic completion data with tail variability. Tested data payload patterns and target windows are preserved and do not produce source-sensitive output. |
+| Command copyback | `request+0x34`, `+0xb60`, `+0xb68`, `+0xb6c` | Provider/kernel completion state copied back by midware. Current completed diffs expose scalar status/timing/slot-like words only, not kernel pointers or imported-buffer IOVAs. |
+
+The raw firmware is still required for the exact internal parser: opcode switch
+targets, per-opcode output schemas, true operand bounds checks, descriptor
+cleanup state machine, and any source-buffer binding paths not exercised by the
+current `XTENSA_ANN_VERSION`-style replay.
+
 The primitive interpretation is therefore narrow. APUNN is a stable firmware
 executor and completion oracle, but the demonstrated mutable channels are
 bounded output, settings state, descriptor-following status words, and APUSYS
