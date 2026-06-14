@@ -612,13 +612,13 @@ the copied plane IOVAs.
 The no-dispatch control leaves every imported-buffer and command-buffer window
 unchanged. The dispatch run returns `run_async_vpu_iova ret=0`, shows VPU
 map/boot activity, and does not show `D2D_EXT timeout` in the captured 20-second
-window. At process teardown, the kernel logs `mdw_usr_destroy residual cmd`,
-so the command is still not proven complete. The visible data delta moves with
-native buffer `0`: `code+0x00` changes from `0x2713` to `0x271b`. The XRP
-output header, data descriptor, data payload, and unused plane-payload sentinel
-remain unchanged.
+window. At process teardown, the kernel logs `mdw_usr_destroy residual cmd`, so
+this older shape did not prove completion. The visible data delta moves with
+native buffer `0`: `code+0x00` changes from `0x2713` to `0x271b`. The XRP output
+header, data descriptor, data payload, and unused plane-payload sentinel remain
+unchanged.
 
-This is the strongest runtime boundary so far:
+This older boundary established:
 
 - the two-buffer native VPU shape changes APUNN lifecycle behavior from the
   previous per-case worker timeout to a residual-command teardown without a
@@ -656,6 +656,8 @@ longer points at them through the settings tuple:
 | `target_code5_no_settings` dispatch | Same request, with async submit | `run_async_vpu_iova ret=0`; VPU boot/map logs present; settings/output/data windows unchanged; code/input first word changes `0x2713 -> 0x271b`; teardown logs residual command |
 | `target_code5_no_settings_wait` | Same request, followed by `mdw_usr_wait_cmd` | `run_async_vpu_iova ret=0`; `wait_vpu_iova ret=0`; settings/output/data windows unchanged; code/input first word changes `0x2713 -> 0x271b`; no residual command warning in the captured kernel log |
 | `target_code5_no_settings_wait_summary` | Same wait variant with semantic request-field dumps | Before and after dispatch: `result_status=0`, `slot_b68=0`, `algo_ret_b6c=0`, `buffer_count=5`, and `settings_len/settings_iova=0`; code/input first word still changes `0x2713 -> 0x271b` |
+| `target_settings5_no_settings_wait` control | `buffer_count=5`, all five descriptors point at the DSP command/settings buffer, `request+0x38 = 0`, `request+0x40 = 0`, no dispatch | Settings stay `0x5`, settings `+0x30` keeps the data-descriptor pointer, output keeps its initialized header, and code/input stays unchanged |
+| `target_settings5_no_settings_wait` | Same settings-backed request, followed by `mdw_usr_wait_cmd` | `run_async_vpu_iova ret=0`; `wait_vpu_iova ret=0`; settings change `0x5 -> 0x7`; settings `+0x30` is cleared; code/input is unchanged; output words through offset `0x40` become `0xffffffff` |
 
 Result files:
 
@@ -667,12 +669,18 @@ Result files:
 - `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_wait_kernel.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_code5_no_settings_wait_summary.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_code5_no_settings_wait_summary_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_wait_repeat.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_wait_repeat_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_wait_control_repeat.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_wait_control_repeat_kernel.txt`
 
-The summary rerun shows that the copied-back native request fields
+The code5 summary rerun shows that the copied-back native request fields
 `result_status` (`+0x34`), slot (`+0xb68`), and `algo_ret` (`+0xb6c`) remain zero
-in the successful wait case. Those fields therefore do not carry the observed
-descriptor-0 `0x2713 -> 0x271b` state write or APUNN output completion in this
-request shape.
+in that successful wait case. Those fields therefore do not carry the observed
+descriptor-0 `0x2713 -> 0x271b` state write. The settings5 rerun is the
+completed wrapper-shaped case: firmware acts on the DSP command/settings buffer
+descriptor, not on the code/input descriptor, and produces the wrapper-visible
+settings/output completion state.
 
 The follow-up descriptor-0 first-word matrix keeps the same
 target-wrapper-shaped request and varies only code/input word `0`.
@@ -1040,12 +1048,13 @@ Result files:
 - `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_codebuf_size_matrix_repeat_kernel.txt`
 
 This rules out the presence of a direct settings-property tuple as the cause of
-the current incomplete boundary. The target-wrapper-shaped no-settings request
-is accepted by APUSYS/VPU and can be waited successfully when at least one native
-descriptor is advertised, but firmware still does not transition settings flags
-to `(settings[0] & 0x0a) == 0x02` or write the APUNN output/data windows. The
-next unresolved field is therefore not the outer APUSYS `cb_info_size`, ordinary
-VPU descriptor metadata,
+the code-first diagnostic boundary. The code5 no-settings request is accepted by
+APUSYS/VPU and can be waited successfully when at least one native descriptor is
+advertised, but it remains a descriptor-0 status/writeback shape. The later
+settings5 no-settings replay shows the completion condition is the native
+descriptor target: descriptor slot `0` must point at the wrapper DSP
+command/settings buffer. The next unresolved field is therefore not the outer
+APUSYS `cb_info_size`, ordinary VPU descriptor metadata,
 nonzero descriptor count, `request+0x38/+0x40` presence, native descriptor
 payload size, submitted `request+0xb68`, descriptor port/format/plane-count bytes,
 descriptor height, output operand id, tested input/output count combinations,
@@ -1242,14 +1251,22 @@ firmware-visible `struct vpu_buffer` slots as follows:
 | `mmapMVA()` result | plane `+0x08` / request `+0x68` MVA/IOVA |
 
 For the target `CreateVpuRequest()` stack object, the static values are
-`plane_count=1`, descriptor port id `1`, descriptor format/direction `0`, and
-the size-like fields are populated from the two 32-bit halves of
-`XrpCommandInfo+0x28` plus the `XrpCommandInfo+0x38` backing pointer. That is
-why the `code5` Java variant is the closest direct-ioctl replay so far: it
-sets `buffer_count=5` and repeats one libvpu-style descriptor pointing at the
-code/input window. The missing proof is whether any service-side wrapper path
-also sets `request+0x38/+0x40`, or whether `apu_lib_apunn` on this build relies
-primarily on the copied descriptor array.
+`plane_count=1`, descriptor port id `1`, and descriptor format/direction `0`.
+`XrpIntrinsicExecutor::Initialize()` records the main DSP command/settings
+buffer in the command-info object, and
+`XrpIntrinsicExecutor::CreateVpuRequest()` loads that command-info entry before
+calling `XrpVpuStream::CreateVpuRequest(session, size, sharedFd, hostVa)`.
+Because the unordered-map node stores the `XrpCommandInfo` at `node+0x18`, the
+loads from `node+0x28`, `node+0x2c`, and `node+0x38` are the command/settings
+buffer size, shared-fd-like word, and host VA. They are not code-section
+fields.
+
+The direct-ioctl consequence is that `code5` is only a useful diagnostic for
+descriptor-0 status attribution. The closest replay of the ordinary target
+wrapper path is `settings5/no-settings`: five repeated libvpu-style descriptors
+pointing at the wrapper DSP command/settings buffer, with
+`request+0x38/+0x40` cleared because the resolved `vpuRequest_setProperty()`
+slot is unused by this `CreateVpuRequest()` path.
 
 The shell-domain run without an APUSYS session is a negative control, not a
 valid APUNN wrapper ABI dump:
@@ -1643,6 +1660,18 @@ This gives the current interpretation boundary:
   leaves APUNN settings/output/data unchanged. The settings-property tuple is
   therefore not required for the descriptor-0 writeback and is not the missing
   APUNN completion condition.
+- The `target_settings5_no_settings` result is the closer direct replay of the
+  target wrapper: all five native descriptors point at the DSP
+  command/settings buffer at base `+0`, descriptor size `0x68`, and the native
+  settings tuple is cleared. Dispatch returns `0`, the explicit wait returns
+  `0`, and the no-dispatch control leaves all APUNN windows unchanged. The
+  dispatch run changes settings flags `0x5 -> 0x7`, satisfying
+  `(settings[0] & 0x0a) == 0x02`, clears the standard data-descriptor pointer
+  at settings `+0x30`, leaves the code/input window unchanged, and fills output
+  words through offset `0x40` with `0xffffffff`. This proves the normal
+  APUNN settings/output completion contract for the tested
+  `XTENSA_ANN_VERSION` request shape. It does not prove a source-sensitive
+  leak or timeout lifetime misuse.
 - The `target_code5_no_settings_word_matrix` result keeps the same request shape
   and varies only descriptor-0 word `0`. No-dispatch controls preserve every
   input. Dispatch plus wait maps ordinary words through `old | 0xb`, while the
@@ -1749,10 +1778,11 @@ This gives the current interpretation boundary:
   `0` changes `0x2713 -> 0x271b`. The command-buffer tail gains a slot-like
   copyback word (`request_tail[40] = 1`), so bit `2` changes kernel
   lifetime/slot bookkeeping but is not the missing APUNN completion condition.
-- The missing piece is now narrower: APUNN parses enough of the descriptor and
-  first operation entry to modify it, but the command still lacks the
-  firmware-side condition that marks settings `(flags & 0x0a) == 0x02` and
-  writes the output section.
+- The missing piece has moved: descriptor slot `0` pointing at the DSP
+  command/settings buffer is enough for APUNN to mark settings
+  `(flags & 0x0a) == 0x02` and write the output section. Remaining work is to
+  map opcode/output semantics across this completed shape and to test
+  service-wrapper lifetime/slot behavior directly.
 
 `ApusysIoctlProbe.java` includes the single-case label
 `ann_version_status_bit3_out0` for this pre-seeded operation-word check.
@@ -1882,76 +1912,32 @@ Kernel handoff evidence:
 | IDA `vmlinux.bin` | `vpu_get_d2d_buffer_array_iova` at `0xffffffc0087a20c8` | Returns the firmware-visible copied descriptor-array IOVA from `core + slot * 0xb0 + 0x400` |
 | IDA `vmlinux.bin` | `vpu_copy_req_buffers_to_d2d_inner` at `0xffffffc0087a20f8` | Copies `buffer_count * 0x40` bytes from `request+0x50` into `*(core + slot * 0xb0 + 0x3f8)` |
 
-Runtime evidence so far proves `apu_lib_apunn` lookup, normal VPU request
+Runtime evidence now proves `apu_lib_apunn` lookup, normal VPU request
 acceptance, exact outer `cb_info_size == 0xb70` enforcement, VPU boot/map
-activity, XRP-shaped settings header tolerance, target-side nonzero code-section
-tolerance for six internal query/status operation shapes, a controlled native VPU
-buffer writeback, a per-case timeout for the earlier one-buffer shape, and a
-two-native-buffer `XTENSA_ANN_VERSION` dispatch where copied native buffer
-descriptor `0` points at the code/input window and the kernel logs residual
-command state instead of the earlier D2D timeout. The target-wrapper-shaped
-five-code-descriptor/no-settings-property request is accepted too, and its
-explicit wait variant returns `0` while preserving the same code/input
-writeback-only boundary. The 2026-06-15 summary rerun shows the copied-back
-request status, slot, and `algo_ret` fields stay zero in that successful wait
-case, so `+0x34`, `+0xb68`, and `+0xb6c` are not the missing APUNN output signal
-for this shape. The summary first-word rerun adds that `+0x34` becomes `0x2`
-only in the all-ones `-EIO` case while `+0xb6c` still stays zero. Non-exact outer
-sizes `0x20`, `0x90`, `0x1c8`, `0xb6c`,
-and `0xb80` fail without the descriptor-0 state writeback. The descriptor-0
-first-word matrix shows ordinary inputs becoming `old | 0xb`, and the all-ones
-input entering a timeout/error path as `0xffffffff -> 0xfffffffd` with wait
-`-EIO`. The descriptor-size matrix accepts every tested size and repeats the
-same `0x2713 -> 0x271b` state write even when the native descriptor advertises
-payload size `0`, so native descriptor length is not a hard gate for that
-writeback. The request-priority matrix submits `request+0xb68` values
-`0,1,2,3,0xffffffff`, but IDA shows the default provider rewrites the executed
-slot to `0`; the matrix clears the command-buffer slot word after dispatch and
-repeats the same state write in the second run, so the submitted slot word is not
-the missing completion/output condition. The request-buffer-count matrix
-shows `request+0x35 = 0` suppresses the state write and makes wait return
-`-EIO`, while `1,2,3,4,5,0x20` all produce the same `0x2713 -> 0x271b` state
-write without APUNN output completion. The descriptor-port-id matrix accepts
-`0,1,2,3,4,0xff` and repeats the same descriptor-0 state write, so descriptor
-byte `+0x00` is not the missing role gate either. The descriptor-format matrix
-accepts the same value set at byte `+0x01` with the same boundary. The
-descriptor-plane-count matrix accepts the same value set at byte `+0x02` and
-shows that descriptor plane count is not the state-write liveness gate either.
-The descriptor-height matrix accepts `0,1,2,3,0x40,0xffffffff` with the same
-completion/output boundary; its cross-run no-write cases reinforce that the
-descriptor-0 state write is not a reliable completion oracle. The output
-operand-id matrix accepts `0,1,2,3,0xffff` with the same boundary and no APUNN
-settings/output/data changes. The operation-shape matrix accepts input/output
-count tuples `0/0`, `0/1`, `0/2`, `1/0`, `1/1`, and `2/1` with the same
-boundary. The opcode matrix is the exception among operation-entry metadata:
-`10005..10007` select timeout/error behavior and `10006/10007` normalize to
-`10005`, but no opcode in `10001..10009` produces APUNN output completion.
-Libvpu-style descriptor metadata, a five-descriptor alias shape, and the wrapper
-send-state command flag value `0x5` do not change that completion boundary.
-Changing the firmware-visible settings length from `0x100` to the wrapper DSP
-command buffer size `0x68` also leaves the same boundary in place. Setting the
-wrapper-controlled output header flag byte at `output+0x10` to `1` does not
-produce settings completion or APUNN output writeback either. Restoring a
-single ordinary APUNN data descriptor under the wrapper-sized request also
-leaves the same code-first native descriptor writeback boundary. Combining that
-one-data shape with the wrapper dynamic output size `0x44` and output header
-flag `1` leaves the same boundary. Repeating the code/input native descriptor
-five times also leaves the same boundary. Directly setting native VPU
-`request+0x28` bit `2` changes kernel slot bookkeeping but also leaves the same
-APUNN settings/output boundary. Moving the operation operand-list offset through
-`0`, `0x10`, `0x40`, and `0x100` in the same wrapper-one-data shape is accepted
-but still leaves the same code-first native descriptor writeback boundary.
-Changing the single output operand id through `0`, `1`, `2`, `3`, and `0xffff`
-also leaves the same boundary.
-Changing `XTENSA_ANN_VERSION` input/output counts through `0/0`, `0/1`, `0/2`,
-`1/0`, `1/1`, and `2/1` also leaves the same boundary.
-Changing opcode through the recovered `10001..10009` APUNN table does alter
-firmware status/timeout behavior, but still leaves settings/output/data
-unchanged in the current request shape.
-Clearing `request+0x38/+0x40` rules out the direct settings-property tuple as
-the cause of the writeback or of the incomplete boundary. The current semantic
-clue is status/flags behavior on native descriptor `0`, not a leak. It does not
-yet prove APUNN data descriptor consumption, APUNN output-section writeback, the
-missing completion parameter, or the exact owner of the observed native-buffer
-writeback. The batch-level devapc warning remains non-attributed because
-isolated single-case runs did not reproduce it.
+activity, XRP-shaped settings header tolerance, target-side nonzero
+code-section tolerance for internal query/status operation shapes, controlled
+descriptor-0 status writeback, firmware opcode-class behavior, and APUNN
+settings/output completion for the wrapper-shaped `settings5/no-settings`
+request. In the completed shape, all five native descriptors point at the DSP
+command/settings buffer, `request+0x38/+0x40` are clear, dispatch and wait both
+return `0`, settings flags change `0x5 -> 0x7`, settings `+0x30` is cleared,
+the code/input window is unchanged, and the output section is filled through
+offset `0x40`.
+
+The earlier code-first, output-first, descriptor-size, priority, buffer-count,
+port-id, format, plane-count, height, output-operand-id, operation-shape, and
+opcode matrices remain useful diagnostics. They show descriptor slot `0` is the
+active status/writeback target in incomplete shapes, `buffer_count=0` suppresses
+that state write, and `10005..10007` select timeout/error classes with
+`10006/10007` normalizing to `10005`. Those diagnostics do not establish a
+source-sensitive leak. The completed output writeback currently looks like
+deterministic APUNN completion data, not disclosure of unrelated firmware or
+kernel memory.
+
+Timeout and teardown experiments map a real command lifetime edge, but UAF is
+not demonstrated. Wait consumes the command id, async teardown can leave
+residual command cleanup, and timeout/error opcodes can drive `-EIO` paths. The
+missing evidence for UAF remains stale command reuse, corrupted object access,
+refcount imbalance, or a crash tied to fd close/process teardown/abort timing.
+The batch-level devapc warning remains non-attributed because isolated
+single-case runs did not reproduce it.
