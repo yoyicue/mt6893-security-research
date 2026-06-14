@@ -416,10 +416,46 @@ parameters before firmware dispatch:
 | `PrepareOutputBuffer(handle)` | Writes output size/IOVA and prepares the output header |
 | `PrepareDataBuffer()` / `FinalizeDataBuffer()` | Builds and finalizes the 12-byte data descriptor section before `CreateVpuRequest()` copies the settings payload into the VPU request |
 
+The relevant standard-wrapper field interpretation is now:
+
+| Field / step | Interpretation |
+|---|---|
+| `XrpBufferDesc+0x08` | Buffer size copied into the settings section-size fields |
+| `XrpBufferDesc+0x18` | Host VA used for header initialization and optional data copies |
+| `XrpBufferDesc+0x20` | Access flags; copied into data descriptor entry `+0x00` |
+| `XrpBufferDesc+0x24..+0x38` | Physical/import metadata populated by allocation/import; the low 32-bit IOVA fields are used for settings/data entries |
+| `PrepareXtensaCommandBuffer()` | Writes settings `+0x04 = code_size`, `+0x10 = code_iova_low32` |
+| `CalculateOutputSize()` | Returns `0x40` in the default wrapper mode; when the wrapper output-sizing option is set, it derives a larger output size from the code/input layout and adds the same `0x40` header base |
+| `PrepareOutputBuffer()` | Writes settings `+0x08 = output_size`, `+0x20 = output_iova_low32`, then prepares the output header |
+| `PrepareOutputHeader(bool)` | Writes output `+0x00/+0x04 = 0xffffffff/0x40`, `+0x08 = 4`, `+0x0c = output_size`, `+0x10 = bool flag` |
+| `PrepareDataBuffer()` | Allocates a data-descriptor section sized as `data_buffer_count * 0x0c`; the zero-data-buffer path is valid and leaves no data section to consume |
+| `FinalizeDataBuffer()` | Fills each 12-byte data descriptor as `{access_flags, buffer_size, iova_low32}` from registered data buffers |
+| `CreateVpuRequest()` | Creates the VPU request from the prepared command/settings buffer; this is where the settings payload becomes `request+0x38/+0x40` |
+
 This correction changes the interpretation of the two-native-buffer Java
 experiments below: they are useful descriptor-following probes, but they are not
 a faithful replay of the ordinary wrapper path unless an external service entry
 explicitly invokes `PrepareInternalCommand()`.
+
+The 2026-06-14 `--run-cmd-vpu-xrp-ann-version-wrapper-zero-data-iova` probe
+tested the default-output/zero-data part of this contract against the direct
+ioctl path:
+
+| Settings field | Value |
+|---:|---|
+| `+0x04` code size | `0x1c8` |
+| `+0x08` output size | `0x40` |
+| `+0x0c` data descriptor size | `0` |
+| `+0x10` code IOVA | `base+0x100` |
+| `+0x20` output IOVA | `base+0x300` |
+| `+0x30` data descriptor IOVA | `0` |
+
+The dispatch run still returns `run_async_vpu_iova ret=0`, logs a
+`request (D2D_EXT) timeout`, leaves settings/code/output/data windows unchanged,
+and changes only native descriptor `0`'s plane payload word from `0x504c4e30` to
+`0x504c4e31`. The no-dispatch control is unchanged. Therefore the previous
+non-completion is not explained by using output size `0x80` or by always
+providing one APUNN data descriptor.
 
 ## Internal command buffer shape
 

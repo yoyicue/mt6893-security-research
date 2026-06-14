@@ -562,6 +562,26 @@ The earlier 10s `ann_version_no_output` and `ann_version_out1` single-case
 captures are retained in the result directory, but the `_20s` reruns supersede
 them for timeout attribution.
 
+The `--run-cmd-vpu-xrp-ann-version-wrapper-zero-data-iova` mode tests the
+standard-wrapper default-output/zero-data shape against the same direct ioctl
+path. It keeps the `0x1c8` `XTENSA_ANN_VERSION` code section, but writes
+settings `+0x08 = 0x40`, settings `+0x0c = 0`, and settings `+0x30 = 0`; no
+12-byte APUNN data descriptor is emitted. The no-dispatch control is unchanged.
+The dispatch run still returns `run_async_vpu_iova ret=0`, logs
+`request (D2D_EXT) timeout` / `ret(-110)`, leaves settings/code/output/data
+windows unchanged, and changes only native descriptor `0`'s plane payload word
+`0x504c4e30 -> 0x504c4e31`. The command-buffer copyback additionally changes
+`request+0x34` from `0` to `2` in the dispatch run, while `request+0x35`
+remains the submitted `buffer_count=1`. Treat that as driver/request-status
+copyback, not APUNN output-section completion.
+
+Additional wrapper-default result files:
+
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_wrapper_zero_data_iova.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_wrapper_zero_data_iova_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_wrapper_zero_data_iova_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_wrapper_zero_data_iova_control_kernel.txt`
+
 The internal `XTENSA_ANN_VERSION` follow-up switches from one native VPU buffer
 to host-wrapper-style input/output descriptors. The minimal two-buffer run and
 the libvpu metadata variants all return `run_async_vpu_iova ret=0`, leave
@@ -701,8 +721,8 @@ missing APUNN completion condition.
 
 ## Current risk ranking
 
-1. **VPU D2D_EXT parameter ABI and IOVA-chain validation**: Highest current APUSYS task. `system_app` can import HardwareBuffer dmabufs, get APUSYS IOVA values, submit full-size normal-VPU requests, and reach `apu_lib_apunn`. Kernel source now confirms the firmware handoff: `vpu_execute_d2d()` passes `buffer_count`, copied `struct vpu_buffer[]` IOVA, `sett_ptr`, and `sett_length` through `XTENSA_INFO12..15`; D2D_EXT also carries preload entry/IRAM through `XTENSA_INFO16/19`. Runtime shows VPU boot/map activity and descriptor-following into imported memory. APUNN output/data consumption is still not proven.
-2. **Firmware completion/output contract under VPU dispatch**: The one-buffer internal query/status shapes timeout in the VPU worker. The two-native-buffer internal-command-shaped probe changes lifecycle behavior: `run_cmd_async` returns `0`, teardown logs residual command state, and the visible writeback follows copied native buffer descriptor `0`. Libvpu-style descriptor metadata (`port_id=1`, `height=1`, `stride=size`), a five-descriptor alias shape, wrapper send-state settings `+0x00 = 0x5`, output-first descriptor order, `request+0x38 = 0x68`, and output header `+0x10 = 1` do not change the boundary. Static wrapper analysis now separates this probe shape from the ordinary `PrepareXrpCommand()` / `FinalizeXrpCommand()` path. The missing contract is what makes firmware signal done through `XTENSA_INFO00/02`, make settings flags satisfy `(settings[0] & 0x0a) == 0x02`, and cause APUNN output writeback through the wrapper's normal output path.
+1. **VPU D2D_EXT parameter ABI and IOVA-chain validation**: Highest current APUSYS task. `system_app` can import HardwareBuffer dmabufs, get APUSYS IOVA values, submit full-size normal-VPU requests, and reach `apu_lib_apunn`. IDA confirms the firmware handoff in `vpu_execute_d2d_handoff`: `request+0x50` is copied as `buffer_count * 0x40` bytes into the per-priority D2D buffer, then firmware receives `buffer_count`, the copied `struct vpu_buffer[]` IOVA, `sett_ptr`, and `sett_length` through `XTENSA_INFO12..15`; D2D_EXT also carries preload entry/IRAM through `XTENSA_INFO16/19`. Runtime shows VPU boot/map activity and descriptor-following into imported memory. APUNN output/data consumption is still not proven.
+2. **Firmware completion/output contract under VPU dispatch**: The one-buffer internal query/status shapes timeout in the VPU worker. The two-native-buffer internal-command-shaped probe changes lifecycle behavior: `run_cmd_async` returns `0`, teardown logs residual command state, and the visible writeback follows copied native buffer descriptor `0`. Libvpu-style descriptor metadata (`port_id=1`, `height=1`, `stride=size`), a five-descriptor alias shape, wrapper send-state settings `+0x00 = 0x5`, output-first descriptor order, `request+0x38 = 0x68`, output header `+0x10 = 1`, wrapper-default output size `0x40`, and zero APUNN data descriptors do not change the boundary. Static wrapper analysis now separates this probe shape from the ordinary `PrepareXrpCommand()` / `FinalizeXrpCommand()` path. The remaining contract is what makes firmware signal done through `XTENSA_INFO00/02`, make settings flags satisfy `(settings[0] & 0x0a) == 0x02`, and cause APUNN output writeback through the wrapper's normal output path.
 3. **Timeout-path command object lifetime**: `run_cmd_async` returns before the worker completes. Guard and two-buffer runs both show residual command cleanup boundaries. The same lifetime edge matters for fd close, process teardown, timeout, and abort experiments.
 4. **Writeback attribution and command-buffer copyback**: Split-target, two-buffer, and output-first runs localize the visible imported-buffer deltas to native VPU plane IOVAs reached through copied descriptors. The `ann_version_status_bit3_out0` run separates the earlier apparent `+8` operation-word write from the stable descriptor `0` writeback, and the output-first run shows that moving descriptor `0` to output moves the delta to the output header. The remaining attribution task is the semantic meaning of the descriptor-backed first-word change and whether it is firmware status, request-result state, or an internal command side effect.
 5. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` import HardwareBuffer fds through APUSYS type-2/type-3 memory-create and copy out IOVA-like descriptor fields. This is the input path for any VPU request that references user-controlled memory.
@@ -807,14 +827,17 @@ that `apu_lib_apunn` rejected the command. The native helper now supports
 `--finalize-slot-index` to rewrite that field to vector slot `0` before
 finalize, plus `--dlopen-lazy` to isolate loader behavior. Current reruns stop
 inside `dlopen(libapuwarexrp_v2.mtk.so)` before the helper reaches the wrapper
-calls, so the corrected finalize vector still needs a clean APUWARE runtime
-rerun.
+calls. The saved logcat for the latest rerun contains only a binder ioctl
+`-EINVAL` from the helper process and no VPU/APUNN worker activity, so this is a
+wrapper/HIDL initialization boundary rather than firmware request parsing.
 
 - `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_shell.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_matrix.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_buffer_id_retry.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_finalize_slot_index.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_finalize_slot_index_lazy.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_finalize_slot_index_rerun.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_finalize_slot_index_rerun_logcat.txt`
 
 The pure Java `app_process64` inspector is `poc/XrpWrapperInspect.java`. It
 loads the installed system wrapper, resolves exported function addresses from

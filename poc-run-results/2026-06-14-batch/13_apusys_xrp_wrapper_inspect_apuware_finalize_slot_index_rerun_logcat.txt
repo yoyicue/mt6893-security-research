@@ -1,0 +1,46 @@
+06-14 21:28:29.375  7012  7012 I (5)[7012:xrp_wrapper_ins]binder: 7012:7012 ioctl 40046210 7fe4faa8c4 returned -22
+06-14 21:28:29.689  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:28:30.484   814   814 I (0)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=4320/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=811499, RxOK=2279753, FcsErr=0
+06-14 21:28:30.713  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:28:31.737  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:28:32.761  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:28:33.785  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:28:34.809  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:28:35.833  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:28:36.536   814   814 I (0)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=4320/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=811501, RxOK=2279771, FcsErr=0
+06-14 21:28:36.857  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:28:37.881  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:28:39.929  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:28:40.953  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:28:41.977  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:28:44.025  1345  1345 I (3)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:28:45.049  1345  1345 I (3)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:28:45.638   814   814 I (1)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=3600/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=811507, RxOK=2279797, FcsErr=2
+06-14 21:28:46.073  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:28:48.121  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:28:48.672   814   814 I (1)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=4320/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=811507, RxOK=2279800, FcsErr=0
+06-14 21:28:49.145  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:28:51.193  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:28:52.217  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:28:54.265  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:28:54.718   814   814 I (3)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=3600/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=811509, RxOK=2279814, FcsErr=0
+06-14 21:28:55.289  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:28:56.313  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:29:00.409  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:29:00.784   814   814 I (2)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=4320/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=811559, RxOK=2279875, FcsErr=4
+06-14 21:29:02.457  1345  1345 I (3)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:29:07.387   592  7034 I resolv  : get_timeout: using timeout of 5000 msec
+06-14 21:29:05.529  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:29:06.553  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:29:06.832   814   814 I (2)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=3600/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=811574, RxOK=2279890, FcsErr=0
+06-14 21:29:07.577  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:29:08.601  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:29:12.391   592  7034 I resolv  : retrying_poll: 45 retrying_poll timeout
+06-14 21:29:12.392   592  7034 I resolv  : get_timeout: using timeout of 2500 msec
+06-14 21:29:09.625  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:29:10.649  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:29:11.673  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:29:12.697  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:29:12.882   814   814 I (2)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=3600/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=811589, RxOK=2279909, FcsErr=0
+06-14 21:29:13.721  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 21:29:15.769  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
