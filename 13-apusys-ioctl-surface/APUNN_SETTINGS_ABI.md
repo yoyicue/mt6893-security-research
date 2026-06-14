@@ -310,12 +310,69 @@ read-violation warning. The current parser conclusion is therefore that the
 debug-visible opcode/count/operand fields are sufficient for request acceptance
 but not sufficient for APUNN output/data binding or successful completion.
 
+## Internal command buffer shape
+
+The host-side `/tmp/mtk-apu-artifacts/libneuron_platform.so` has a separate
+internal-command path that explains the timeout boundary in the one-buffer
+runtime probes:
+
+| Function | Address | Static behavior |
+|---|---:|---|
+| `xrp::XrpIntrinsic::PrepareInternalCommand(unsigned int, unsigned int)` | `0x1728c` | Allocates two internal command buffers, hints buffer `0` as command input, hints buffer `0` as command output, then calls `PrepareInternalCommandBuffer()` |
+| `xrp::XrpIntrinsicExecutor::PrepareInternalCommandBuffer()` | `0x1ff48` | Requires exactly two internal command records, writes first buffer size/IOVA to settings `+0x04/+0x10`, and writes second buffer size/IOVA to settings `+0x08/+0x20` |
+
+That means APUNN internal query/status commands are not represented well by the
+earlier one-native-buffer request. The real wrapper binds an input/code buffer
+and an output buffer at the native VPU layer before the firmware sees the
+settings buffer.
+
+The new
+`--run-cmd-vpu-xrp-internal-ann-version-iova` mode keeps the same
+`XTENSA_ANN_VERSION` XRP settings/code/data descriptor, but changes the native
+VPU request to:
+
+| Native request field | Value |
+|---|---|
+| `request+0x35` | `2` buffers |
+| buffer `0` plane MVA | XRP code/input window (`base+0x100`) |
+| buffer `1` plane MVA | XRP output window (`base+0x300`) |
+| settings `+0x04/+0x10` | code/input size `0x1c8`, code/input IOVA |
+| settings `+0x08/+0x20` | output size `0x80`, output IOVA |
+
+The no-dispatch control leaves every imported-buffer and command-buffer window
+unchanged. The dispatch run returns `run_async_vpu_iova ret=0`, shows VPU
+map/boot activity, and does not show `D2D_EXT timeout` in the captured 20-second
+window. At process teardown, the kernel logs `mdw_usr_destroy residual cmd`,
+so the command is still not proven complete. The visible data delta moves with
+native buffer `0`: `code+0x00` changes from `0x2713` to `0x271b`. The XRP
+output header, data descriptor, data payload, and unused plane-payload sentinel
+remain unchanged.
+
+This is the strongest runtime boundary so far:
+
+- the two-buffer native VPU shape changes APUNN lifecycle behavior from the
+  previous per-case worker timeout to a residual-command teardown without a
+  captured `D2D_EXT timeout`;
+- firmware-visible writeback follows native buffer `0` when that descriptor is
+  bound to the code/input IOVA;
+- settings `+0x08/+0x20` plus native buffer `1` are still not enough to observe
+  APUNN output-section writeback.
+
+The next unresolved field is therefore not basic `0x1c8` opcode/count routing.
+It is the firmware-side meaning of the internal input buffer contents and the
+completion/output contract that makes APUNN write to the settings output
+section.
+
 Additional matrix result files:
 
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_matrix_iova.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_matrix_iova_kernel.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_matrix_iova_control.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_matrix_iova_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_control_kernel.txt`
 
 ## Evidence map
 
@@ -335,13 +392,17 @@ Userland wrapper evidence:
 | `libneuron_platform.vpu.so` | `XrpCommandInfo::InitDataSection` | `0xcaa0` | Writes data descriptor size/IOVA |
 | `libneuron_platform.vpu.so` | `XrpIntrinsicExecutor::PrepareDataSection` | `0xfacc` | Builds 12-byte data entries |
 | `libneuron_platform.vpu.so` | `XrpVpuStream::CreateVpuRequest` | `0x16d54` | Calls `vpuRequest_setProperty()` for the prepared settings payload |
+| `libneuron_platform.so` | `XrpIntrinsic::PrepareInternalCommand` | `0x1728c` | Allocates internal input and output buffers before APUNN dispatch |
+| `libneuron_platform.so` | `XrpIntrinsicExecutor::PrepareInternalCommandBuffer` | `0x1ff48` | Binds first internal buffer to settings code fields and second internal buffer to settings output fields |
 
 Runtime evidence so far proves `apu_lib_apunn` lookup, normal VPU request
 acceptance, VPU boot/map activity, XRP-shaped settings header tolerance,
 target-side nonzero code-section tolerance for six internal query/status
-operation shapes, a controlled native VPU plane0-MVA writeback, and a
-per-case VPU timeout under single-operation dispatch. It does not yet prove
-APUNN data descriptor consumption, successful APUNN code-section operation
-execution, the missing completion parameter, or the semantic meaning of the
-observed `+1` plane-MVA change. The batch-level devapc warning remains
-non-attributed because isolated single-case runs did not reproduce it.
+operation shapes, a controlled native VPU buffer writeback, a per-case timeout
+for the earlier one-buffer shape, and a two-native-buffer `XTENSA_ANN_VERSION`
+dispatch where native buffer `0` points at the code/input window and the kernel
+logs residual command state instead of the earlier D2D timeout. It does not yet
+prove APUNN data descriptor consumption, APUNN output-section writeback, the
+missing completion parameter, or the full semantic meaning of the observed
+native-buffer writeback. The batch-level devapc warning remains non-attributed
+because isolated single-case runs did not reproduce it.

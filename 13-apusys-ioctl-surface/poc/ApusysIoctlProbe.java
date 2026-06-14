@@ -148,6 +148,8 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpSplitIovaControl = false;
         boolean runCmdVpuXrpAnnVersionIova = false;
         boolean runCmdVpuXrpAnnVersionIovaControl = false;
+        boolean runCmdVpuXrpInternalAnnVersionIova = false;
+        boolean runCmdVpuXrpInternalAnnVersionIovaControl = false;
         boolean runCmdVpuXrpOpMatrixIova = false;
         boolean runCmdVpuXrpOpMatrixIovaControl = false;
         XrpOpSpec runCmdVpuXrpOpCaseIova = null;
@@ -197,6 +199,10 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpAnnVersionIova = true;
             } else if ("--run-cmd-vpu-xrp-ann-version-iova-control".equals(arg)) {
                 runCmdVpuXrpAnnVersionIovaControl = true;
+            } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova".equals(arg)) {
+                runCmdVpuXrpInternalAnnVersionIova = true;
+            } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-control".equals(arg)) {
+                runCmdVpuXrpInternalAnnVersionIovaControl = true;
             } else if ("--run-cmd-vpu-xrp-op-matrix-iova".equals(arg)) {
                 runCmdVpuXrpOpMatrixIova = true;
             } else if ("--run-cmd-vpu-xrp-op-matrix-iova-control".equals(arg)) {
@@ -228,6 +234,8 @@ public final class ApusysIoctlProbe {
                 || runCmdVpuXrpIova || runCmdVpuXrpIovaControl
                 || runCmdVpuXrpSplitIova || runCmdVpuXrpSplitIovaControl
                 || runCmdVpuXrpAnnVersionIova || runCmdVpuXrpAnnVersionIovaControl
+                || runCmdVpuXrpInternalAnnVersionIova
+                || runCmdVpuXrpInternalAnnVersionIovaControl
                 || runCmdVpuXrpOpMatrixIova || runCmdVpuXrpOpMatrixIovaControl
                 || runCmdVpuXrpOpCaseIova != null
                 || runCmdVpuXrpOpCaseIovaControl != null
@@ -361,6 +369,14 @@ public final class ApusysIoctlProbe {
             if (runCmdVpuXrpAnnVersionIovaControl) {
                 runRunCmdVpuIovaHardwareBufferProbe(fd, false, true, true,
                     XRP_OP_ANN_VERSION);
+            }
+
+            if (runCmdVpuXrpInternalAnnVersionIova) {
+                runRunCmdVpuXrpInternalAnnVersionHardwareBufferProbe(fd, true);
+            }
+
+            if (runCmdVpuXrpInternalAnnVersionIovaControl) {
+                runRunCmdVpuXrpInternalAnnVersionHardwareBufferProbe(fd, false);
             }
 
             if (runCmdVpuXrpOpMatrixIova) {
@@ -874,6 +890,18 @@ public final class ApusysIoctlProbe {
                                                             XrpOpSpec xrpOp,
                                                             int waitMs)
             throws Exception {
+        runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, xrpSettings,
+            splitTargets, xrpOp, waitMs, false);
+    }
+
+    private static void runRunCmdVpuIovaHardwareBufferProbe(int apusysFd,
+                                                            boolean dispatch,
+                                                            boolean xrpSettings,
+                                                            boolean splitTargets,
+                                                            XrpOpSpec xrpOp,
+                                                            int waitMs,
+                                                            boolean twoVpuBuffers)
+            throws Exception {
         System.out.println("\n[*] === Optional APUSYS run_cmd VPU IOVA chained probe ===");
         if (xrpSettings) {
             System.out.println("[*] Mode: mem_create imports HardwareBuffer to get IOVA,"
@@ -891,6 +919,11 @@ public final class ApusysIoctlProbe {
                     + " inputs=" + xrpOp.inputCount
                     + " outputs=" + xrpOp.outputCount
                     + " operands=" + xrpOperandListText(xrpOp));
+            }
+            if (twoVpuBuffers) {
+                System.out.println("[*] Native VPU descriptor mode:"
+                    + " buffer_count=2, buf0 plane points to XRP code/input,"
+                    + " buf1 plane points to XRP output.");
             }
         } else {
             System.out.println("[*] Mode: mem_create imports HardwareBuffer to get IOVA,"
@@ -997,13 +1030,15 @@ public final class ApusysIoctlProbe {
             if (xrpSettings) {
                 String label;
                 if (xrpOp.hasCode()) {
-                    label = "vpu_xrp_" + xrpOp.label + "_iova_apunn";
+                    label = twoVpuBuffers
+                        ? "vpu_xrp_internal_" + xrpOp.label + "_iova_apunn"
+                        : "vpu_xrp_" + xrpOp.label + "_iova_apunn";
                 } else {
                     label = splitTargets ? "vpu_xrp_split_iova_apunn"
                         : "vpu_xrp_iova_apunn";
                 }
                 fillRunCmdVpuXrpIova(input2, "apu_lib_apunn", label,
-                    iovaLow, iovaSize, splitTargets, xrpOp);
+                    iovaLow, iovaSize, splitTargets, xrpOp, twoVpuBuffers);
             } else {
                 fillRunCmdVpuIova(input2, "apu_lib_apunn", "vpu_iova_apunn",
                     iovaLow, iovaSize);
@@ -1138,6 +1173,21 @@ public final class ApusysIoctlProbe {
             if (writer != null) writer.close();
             if (reader != null) reader.close();
         }
+    }
+
+    private static void runRunCmdVpuXrpInternalAnnVersionHardwareBufferProbe(
+            int apusysFd, boolean dispatch) throws Exception {
+        System.out.println("\n[*] === APUSYS run_cmd VPU APUNN/XRP internal-buffer probe ===");
+        System.out.println("[*] Mode: split-target ANN_VERSION request with"
+            + " two native VPU buffer descriptors, matching the host"
+            + " PrepareInternalCommandBuffer() code/output binding shape.");
+        if (!dispatch) {
+            System.out.println("[*] Control: imports the buffers but skips"
+                + " run_cmd_async.");
+        }
+        printXrpCaseBanner("internal two-buffer case", XRP_OP_ANN_VERSION);
+        runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, true, true,
+            XRP_OP_ANN_VERSION, 20000, true);
     }
 
     private static void runRunCmdVpuXrpOpMatrixHardwareBufferProbe(int apusysFd,
@@ -1449,7 +1499,8 @@ public final class ApusysIoctlProbe {
                                              int iovaAddr,
                                              int iovaSize,
                                              boolean splitTargets,
-                                             XrpOpSpec xrpOp) throws Exception {
+                                             XrpOpSpec xrpOp,
+                                             boolean twoVpuBuffers) throws Exception {
         android.media.Image.Plane[] planes = image.getPlanes();
         if (planes == null || planes.length == 0) {
             throw new IllegalStateException("input image has no planes");
@@ -1502,7 +1553,8 @@ public final class ApusysIoctlProbe {
             buffer.put(reqBase + 0x04 + i, nameBytes[i]);
         }
 
-        buffer.put(reqBase + 0x35, (byte) 1);
+        int reqBufferCount = twoVpuBuffers ? 2 : 1;
+        buffer.put(reqBase + 0x35, (byte) reqBufferCount);
         putU32LE(buffer, reqBase + 0x38, XRP_SETTINGS_LEN);
         putU64LE(buffer, reqBase + 0x40, iovaLow32(iovaAddr, XRP_SETTINGS_OFF));
 
@@ -1510,12 +1562,28 @@ public final class ApusysIoctlProbe {
         buffer.put(buf0 + 0x00, (byte) 0);
         buffer.put(buf0 + 0x01, (byte) 0);
         buffer.put(buf0 + 0x02, (byte) 1);
-        putU32LE(buffer, buf0 + 0x04, XRP_DATA_PAYLOAD_SIZE);
+        int buf0PayloadOff = twoVpuBuffers ? XRP_CODE_OFF : planePayloadOff;
+        int buf0PayloadSize = twoVpuBuffers
+            ? (xrpOp.hasCode() ? XRP_CODE_OP_SIZE : XRP_SETTINGS_LEN)
+            : (splitTargets ? XRP_PLANE_PAYLOAD_SIZE : XRP_DATA_PAYLOAD_SIZE);
+        putU32LE(buffer, buf0 + 0x04, buf0PayloadSize);
         putU32LE(buffer, buf0 + 0x08, 0);
         putU32LE(buffer, buf0 + 0x10, 0);
-        putU32LE(buffer, buf0 + 0x14, splitTargets
-            ? XRP_PLANE_PAYLOAD_SIZE : XRP_DATA_PAYLOAD_SIZE);
-        putU64LE(buffer, buf0 + 0x18, iovaLow32(iovaAddr, planePayloadOff));
+        putU32LE(buffer, buf0 + 0x14, buf0PayloadSize);
+        putU64LE(buffer, buf0 + 0x18, iovaLow32(iovaAddr, buf0PayloadOff));
+
+        if (twoVpuBuffers) {
+            int buf1 = reqBase + 0x90;
+            buffer.put(buf1 + 0x00, (byte) 0);
+            buffer.put(buf1 + 0x01, (byte) 0);
+            buffer.put(buf1 + 0x02, (byte) 1);
+            putU32LE(buffer, buf1 + 0x04, XRP_OUTPUT_SIZE);
+            putU32LE(buffer, buf1 + 0x08, 0);
+            putU32LE(buffer, buf1 + 0x10, 0);
+            putU32LE(buffer, buf1 + 0x14, XRP_OUTPUT_SIZE);
+            putU64LE(buffer, buf1 + 0x18,
+                iovaLow32(iovaAddr, xrpOutputOff(xrpOp)));
+        }
 
         image.setTimestamp(System.nanoTime());
         System.out.println("[+] input run_cmd " + label + " payload:"
@@ -1524,7 +1592,7 @@ public final class ApusysIoctlProbe {
             + " cb_info_size=0x" + Integer.toHexString(codebufSize)
             + " cb_info_off=0x" + Integer.toHexString(codebufOffset)
             + " algo=" + algoName
-            + " req_buffer_count=1"
+            + " req_buffer_count=" + reqBufferCount
             + " settings_iova=0x"
             + Long.toHexString(iovaLow32(iovaAddr, XRP_SETTINGS_OFF))
             + " settings_len=0x" + Integer.toHexString(XRP_SETTINGS_LEN)
@@ -1535,8 +1603,11 @@ public final class ApusysIoctlProbe {
             + " data_payload_iova=0x"
             + Long.toHexString(iovaLow32(iovaAddr, dataPayloadOff))
             + " plane0_mva=0x"
-            + Long.toHexString(iovaLow32(iovaAddr, planePayloadOff))
+            + Long.toHexString(iovaLow32(iovaAddr, buf0PayloadOff))
+            + (twoVpuBuffers ? " plane1_mva=0x"
+                + Long.toHexString(iovaLow32(iovaAddr, xrpOutputOff(xrpOp))) : "")
             + " split_targets=" + splitTargets
+            + " two_vpu_buffers=" + twoVpuBuffers
             + " xrp_opcode=" + xrpOp.opcode
             + " xrp_name=" + xrpOp.name
             + " xrp_inputs=" + xrpOp.inputCount
