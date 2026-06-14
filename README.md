@@ -4,6 +4,8 @@ Security research findings from a privilege escalation study on a MediaTek MT689
 
 The target device (kernel 4.19.191, Mali Valhall r32p1, SPL 2023-06-05, SELinux enforcing) resisted the tested kernel and Mali escalation paths from `uid=2000`. These writeups document the specific technical reasons why those paths fail, plus later framework-level triage where applicable.
 
+Current experiment closure status is summarized in [EXPERIMENT_CLOSURE.md](EXPERIMENT_CLOSURE.md).
+
 ## Device
 
 | Item | Value |
@@ -52,6 +54,7 @@ The 01-05 kernel/Mali PoCs are diagnostic/verification tools. Later directories 
 ```
 mt6893-security-research/
 ├── README.md
+├── EXPERIMENT_CLOSURE.md
 ├── LICENSE
 ├── common/
 │   ├── mali.h              # Minimal Mali UAPI definitions
