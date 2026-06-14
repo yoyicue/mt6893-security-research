@@ -162,6 +162,10 @@ After the `0x8001` check, normal VPU uses `mapped_kva + 4` as the payload pointe
 | Normal | name at `core+0x2c0`, list head at `core+0x2e8`, ops pointer at `core+0x308` | Populated from firmware/bin normal-algo metadata |
 | Preload | name at `core+0x310`, list head at `core+0x338`, ops pointer at `core+0x358` | Populated from firmware/bin preload-entry metadata |
 
+The same `ops+0x10` lookup interface is also used while building Preload entries in `vpu_init_dev_algo_sets`. In that path, the call at `0xffffffc0087a556c` passes `X0 = core+0x310`, `X1 = X26`, and `X2 = 0`; `X26` points at the Preload firmware entry's name/key field, while the entry metadata lives in the preceding 0x20 bytes and each entry advances by `0x40`. If lookup misses, the code allocates a new algorithm object and copies up to `0x1f` bytes from `X26` into that object.
+
+That gives a stronger lower-bound ABI for `mdw_usr_ucmd`: after the header word, `mapped_kva+4` is the provider payload pointer and likely starts with the algorithm lookup key itself. The all-zero HardwareBuffer case therefore supplies an empty key after a valid `0x8001` header, which is consistent with the observed lookup miss. The exact callback implementation and any fields after the key remain unresolved.
+
 The raw ops tables are named `vpu_normal_algo_ops_raw` at `0xffffffc00979ae70` and `vpu_preload_algo_ops_raw` at `0xffffffc00979aeb0` in IDA. Their entries are stored in the flat Image's compile-time address form (`0xffffff80...`), while this IDB is loaded under `0xffffffc0...`. A follow-up pass shows that the simple `+0x4000000000` normalization is not a valid function-entry resolution for these tables:
 
 | Table entry | Raw value | Normalized landing point |
@@ -523,7 +527,7 @@ Interpretation: APUSYS memory-create is now a mapped and runtime-confirmed impor
 - Use kernel logs, if available from the lab context, to distinguish whether the `ENOMEM` path comes from ION import, cache sync, or IOVA map setup.
 - Keep `mdw_usr_get_cmd_ops` / `0xffffffc00a188e58` marked unresolved. Leave the `run_cmd` `+0x0c` early-reject field set while resolving the indirect call targets.
 - For `0x400C4109`, optional follow-up is a small control-value sweep on the live-success providers while watching return codes and kernel logs. The current control value `0` already confirms provider opcode `0` reachability.
-- For `mdw_usr_ucmd`, recover the actual relocated `vpu_normal_algo_ops_raw` / `vpu_preload_algo_ops_raw` callback entrypoints before claiming a concrete payload-key ABI.
+- For `mdw_usr_ucmd`, recover the actual relocated `vpu_normal_algo_ops_raw` / `vpu_preload_algo_ops_raw` callback entrypoints before claiming fields beyond the likely key at `mapped_kva+4`.
 - Do not add a matching-key runtime test until the real callback targets are resolved. The nearby thermal cooling-device string cluster may be state-changing if it ever proves connected.
 - Continue mapping `mdla_run_command_sync`, `vpu_execute`, and `edma_execute` input structures before valid command-buffer experiments.
 - Continue scheduler/queue analysis after command parser targets are known. Valid command-buffer experiments come after that mapping.
