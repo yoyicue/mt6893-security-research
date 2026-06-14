@@ -270,6 +270,35 @@ section can be submitted without a user-visible crash, but the unchanged
 output/data windows mean the expected output operand and remaining `0x1c8` entry
 fields are still unmapped.
 
+The fixed matrix mode (`--run-cmd-vpu-xrp-op-matrix-iova`) now has one dispatch
+run and one no-dispatch control. It keeps the same split-target layout and
+varies only the internal query/status opcode and simple output operand shape:
+
+| Case label | Opcode | Name | Inputs | Outputs | Operand ids | Dispatch-visible delta |
+|---|---:|---|---:|---:|---|---|
+| `get_algo_info_out0` | `10001` | `GET_ALGO_INFO` | `0` | `1` | `[0]` | only native `plane_payload[0]`: `0x504c4e30 -> 0x504c4e31` |
+| `local_mem_info_out0` | `10002` | `LOCAL_MEM_INFO` | `0` | `1` | `[0]` | only native `plane_payload[0]`: `0x504c4e30 -> 0x504c4e31` |
+| `ann_version_out0` | `10003` | `XTENSA_ANN_VERSION` | `0` | `1` | `[0]` | only native `plane_payload[0]`: `0x504c4e30 -> 0x504c4e31` |
+| `detailed_op_info_out0` | `10004` | `GET_DETAILED_OP_INFO` | `0` | `1` | `[0]` | only native `plane_payload[0]`: `0x504c4e30 -> 0x504c4e31` |
+| `ann_version_no_output` | `10003` | `XTENSA_ANN_VERSION` | `0` | `0` | `[]` | only native `plane_payload[0]`: `0x504c4e30 -> 0x504c4e31` |
+| `ann_version_out1` | `10003` | `XTENSA_ANN_VERSION` | `0` | `1` | `[1]` | only native `plane_payload[0]`: `0x504c4e30 -> 0x504c4e31` |
+
+The no-dispatch control leaves every window unchanged. In the dispatch run, all
+six cases return `run_async_vpu_iova ret=0`, and all APUNN-facing windows stay
+unchanged: code, output, data descriptor, APUNN data payload, and command
+request head/tail. The batch kernel log records VPU map/boot activity,
+`mdw_sched_trace ... ret(-110)`, `request (D2D_EXT) timeout, priority: 0,
+algo: apu_lib_apunn`, and APUSYS devapc read-violation warnings. The current
+log shape is enough to classify the data windows, but not enough to attribute
+the timeout/devapc sequence to an individual matrix case.
+
+Additional matrix result files:
+
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_matrix_iova.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_matrix_iova_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_matrix_iova_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_matrix_iova_control_kernel.txt`
+
 ## Evidence map
 
 Userland wrapper evidence:
@@ -291,7 +320,9 @@ Userland wrapper evidence:
 
 Runtime evidence so far proves `apu_lib_apunn` lookup, normal VPU request
 acceptance, VPU boot/map activity, XRP-shaped settings header tolerance,
-target-side nonzero code-section tolerance for a minimal `0x1c8` entry, and a
-controlled native VPU plane0-MVA writeback. It does not yet prove APUNN data
-descriptor consumption, APUNN code-section operation execution, or the semantic
-meaning of the observed `+1` plane-MVA change.
+target-side nonzero code-section tolerance for six internal query/status
+operation shapes, a controlled native VPU plane0-MVA writeback, and a
+batch-level VPU timeout/devapc warning signal under matrix dispatch. It does
+not yet prove APUNN data descriptor consumption, APUNN code-section operation
+execution, per-op timeout attribution, or the semantic meaning of the observed
+`+1` plane-MVA change.
