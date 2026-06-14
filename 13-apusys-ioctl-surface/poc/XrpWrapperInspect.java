@@ -61,11 +61,23 @@ public final class XrpWrapperInspect {
 
         boolean apuwareMode = args.length > 0 && "apuware".equals(args[0]);
         boolean createApusysSession = !apuwareMode;
+        boolean forceAfterCreate = false;
+        boolean skipFinalize = false;
+        boolean forceGetPrepared = false;
+        boolean finalizeSlotIndex = false;
         for (String arg : args) {
             if ("--no-create-apusys-session".equals(arg)) {
                 createApusysSession = false;
             } else if ("--create-apusys-session".equals(arg)) {
                 createApusysSession = true;
+            } else if ("--force-after-create".equals(arg)) {
+                forceAfterCreate = true;
+            } else if ("--skip-finalize".equals(arg)) {
+                skipFinalize = true;
+            } else if ("--force-get-prepared".equals(arg)) {
+                forceGetPrepared = true;
+            } else if ("--finalize-slot-index".equals(arg)) {
+                finalizeSlotIndex = true;
             }
         }
         String libKind = apuwareMode ? "apuware" : "neuron";
@@ -139,13 +151,18 @@ public final class XrpWrapperInspect {
         long device = DrmTrigger.unsafeGetLong(devicePtr);
         System.out.println("XRP_Create status=" + u32(st)
             + " device=0x" + Long.toHexString(device));
-        if (u32(st) != 0 || device == 0) {
+        if ((u32(st) != 0 || device == 0)
+                && !(forceAfterCreate && device != 0)) {
             System.out.println("XRP_Create did not initialize; stop.");
             if (apusysSession != 0 && apusysSessionDelete != 0) {
                 long delSt = call(apusysSessionDelete, apusysSession, 0, 0, 0, 0);
                 System.out.println("apusysSession_deleteInstance status=" + u32(delSt));
             }
             return;
+        }
+        if (u32(st) != 0) {
+            System.out.println("[*] Continuing after nonzero XRP_Create status"
+                + " because --force-after-create was requested.");
         }
 
         long handle = 1;
@@ -181,8 +198,32 @@ public final class XrpWrapperInspect {
         st = call(xrpUseOutputBuffer, device, handle, outInfo, 0, 0);
         System.out.println("XRP_UseOutputBuffer status=" + u32(st));
 
-        st = call(xrpFinalizeCommand, device, handle, outInfo, 1, 0);
-        System.out.println("XRP_FinalizeCommand status=" + u32(st));
+        if (!skipFinalize) {
+            long finalizeInfo = outInfo;
+            if (finalizeSlotIndex) {
+                finalizeInfo = mem + 0x180;
+                copyBytes(outInfo, finalizeInfo, BUF_INFO_SIZE);
+                DrmTrigger.unsafePutLong(finalizeInfo + 0x08, 0);
+                dumpBufInfo("finalize_info_slot0", finalizeInfo);
+            }
+            st = call(xrpFinalizeCommand, device, handle, finalizeInfo, 1, 0);
+            System.out.println("XRP_FinalizeCommand status=" + u32(st));
+            if (u32(st) != 0 && !forceGetPrepared) {
+                System.out.println("XRP_FinalizeCommand did not complete;"
+                    + " skip GetPreparedRequests.");
+                if (outVa != 0) {
+                    dumpHex("out_host_final", outVa, OUTPUT_SIZE);
+                }
+                call(xrpRelease, devicePtr, 0, 0, 0, 0);
+                if (apusysSession != 0 && apusysSessionDelete != 0) {
+                    long delSt = call(apusysSessionDelete, apusysSession, 0, 0, 0, 0);
+                    System.out.println("apusysSession_deleteInstance status=" + u32(delSt));
+                }
+                return;
+            }
+        } else {
+            System.out.println("XRP_FinalizeCommand skipped by option.");
+        }
 
         st = call(xrpGetPreparedRequests, device, handle, requests, 4, 0);
         System.out.println("XRP_GetPreparedRequests status=" + u32(st));
@@ -436,6 +477,12 @@ public final class XrpWrapperInspect {
     private static void clear(long addr, int size) throws Exception {
         for (int off = 0; off < size; off += 8) {
             DrmTrigger.unsafePutLong(addr + off, 0);
+        }
+    }
+
+    private static void copyBytes(long src, long dst, int size) throws Exception {
+        for (int off = 0; off < size; off++) {
+            DrmTrigger.unsafePutByte(dst + off, DrmTrigger.unsafeGetByte(src + off));
         }
     }
 

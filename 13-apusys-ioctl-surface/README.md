@@ -1177,7 +1177,7 @@ python3 13-apusys-ioctl-surface/poc/run_system_app_probe.py \
   -s 7FPE0824B0801372 --local-port 48888 --rebuild-shell
 ```
 
-The runner can call `06-cve-2024-31317-zygote-injection/poc/rebuild_bind_shell.py`, then builds the APUSYS dex, uploads it through the `uid=1000(system)` shell into `/data/data/com.android.settings/cache/apusys_ioctl_probe.dex`, verifies the remote md5, runs `app_process64`, and saves stdout plus filtered kernel logs under `poc-run-results/2026-06-14-batch/`. Use `--rebuild-if-needed` instead of `--rebuild-shell` when the existing shell should be reused if it is still valid.
+The runner can call `06-cve-2024-31317-zygote-injection/poc/rebuild_bind_shell.py`, then builds the selected Java probe dex, uploads it through the `uid=1000(system)` shell, verifies the remote md5, runs `app_process64`, and saves stdout plus filtered kernel logs under `poc-run-results/`. Use `--rebuild-if-needed` instead of `--rebuild-shell` when the existing shell should be reused if it is still valid. `--probe=apusys` is the default and runs `ApusysIoctlProbe`; `--probe=xrp-wrapper` builds and runs `XrpWrapperInspect`.
 
 Wrapper request inspection helper:
 
@@ -1297,12 +1297,35 @@ native-call stub now preserves `LR/X30` around `BLR`; its libc `getpid()`
 self-test returns the expected process id in `uid=1000(system)` /
 `u:r:system_app:s0`.
 
-The current `system_app` result still returns `XRP_Create status=4`. The newer
-run additionally proves that `System.load()` and native `dlopen()` cannot bring
-`libapu_mdw.so` into this app_process linker namespace, so the required
-`cXrpOptions+0x10` session pointer is still missing. The positive comparison
-still needs a context, option set, or hook point where `XRP_Create()` returns
-`0` and the wrapper's memory manager exists before `XRP_CreateCommand()`.
+The current `system_app` result still returns `XRP_Create status=4`. The 2026-06-15
+rerun additionally proves that `System.load()` and native `dlopen()` cannot bring
+`libapu_mdw.so` into this app_process linker namespace, and loading `libvpu5.so`
+as a dependency carrier fails for the same `libvndksupport.so` /
+`libdl_android.so` namespace reason. The wrapper logs `libvpu5.so does not
+exist`, `null apusys session`, and `Failed to create vpu stream instance`; the
+required `cXrpOptions+0x10` session pointer is still missing.
+
+The no-session run is a useful negative control: `XRP_Create` returns status `4`
+but stores a nonzero device pointer. Forcing past that status with
+`--force-after-create` is not safe or useful: the next wrapper call crashes in
+`xrp::memory::XrpMemoryManager::AllocateBuffer()` while servicing
+`XRP_CreateCommand`, with a null-pointer fault at `0x10`. That means the device
+object is only partially constructed and its command/map state is absent. The
+positive comparison therefore still needs a context, option set, or hook point
+where `XRP_Create()` returns `0` and the wrapper's memory manager exists before
+`XRP_CreateCommand()`.
+
+Additional Java wrapper result files:
+
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_java.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_java_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_force_skip_finalize_java.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_force_skip_finalize_java_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_force_skip_finalize_java_repeat.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_force_skip_finalize_java_repeat_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_force_skip_finalize_java_repeat_logcat.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_create_session_java.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_create_session_java_kernel.txt`
 
 Run from the existing `uid=1000(system)` / `u:r:system_app:s0` dalvikvm context:
 

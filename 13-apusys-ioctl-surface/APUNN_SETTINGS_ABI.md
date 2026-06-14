@@ -1359,6 +1359,31 @@ the timeout rerun is a binder ioctl returning `-EINVAL` from the helper process.
 This moves the current APUWARE blocker before finalize and before firmware
 request parsing.
 
+The Java `app_process64` inspector now has a separate Neuron-wrapper negative
+control. With `--no-create-apusys-session`, `XRP_Create()` returns status `4`
+and logs the same initialization reason as the native path: `libvpu5.so does not
+exist`, `null apusys session`, and failure to create the VPU stream instance.
+It still stores a nonzero device pointer, but forcing execution past that status
+with `--force-after-create --skip-finalize --force-get-prepared` crashes on the
+next exported wrapper call. The saved repeat logcat backtrace is
+`XrpMemoryManager::AllocateBuffer()` ->
+`XrpIntrinsicExecutor::CreateXrpCommand()` ->
+`XrpIntrinsicWrapper::CreateCommand()` -> `XRP_CreateCommand`, with a
+null-pointer fault at `0x10`. That makes the partial device pointer unsuitable
+for dumping prepared requests: the command map / memory-manager side of the
+wrapper has not been initialized.
+
+The `--create-apusys-session` Java rerun confirms why `system_app` cannot build
+the positive wrapper request today. `System.load()` of `libapu_mdw.so` and
+`libvpu5.so` fails in the app_process classloader namespace because
+`libvndksupport.so` needs inaccessible `libdl_android.so`; direct `dlopen()`
+through the ART native-call stub returns `0` for the same candidate
+`libapu_mdw.so` paths. This leaves `cXrpOptions+0x10` at zero and keeps
+`XRP_Create status=4`. Therefore the missing positive `XRP_GetPreparedRequests`
+dump requires either a process that already owns a valid `apusys_session`, a
+linker namespace that can load `libapu_mdw/libvpu5`, or a hook inside an
+initialized wrapper process.
+
 Wrapper-inspection result files:
 
 - `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_shell.txt`
@@ -1374,6 +1399,15 @@ Wrapper-inspection result files:
 - `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_dlopen_lazy_rerun.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_apuware_dlopen_timeout.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_apuware_dlopen_timeout_logcat.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_java.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_java_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_force_skip_finalize_java.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_force_skip_finalize_java_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_force_skip_finalize_java_repeat.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_force_skip_finalize_java_repeat_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_force_skip_finalize_java_repeat_logcat.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_create_session_java.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_create_session_java_kernel.txt`
 
 ## Firmware-visible request model
 
