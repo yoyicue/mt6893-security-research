@@ -146,6 +146,9 @@ public final class ApusysIoctlProbe {
             "current", XRP_OUTPUT_SIZE, XRP_DATA_DESC_SIZE, true);
         static final XrpSettingsShape WRAPPER_ZERO_DATA = new XrpSettingsShape(
             "wrapper_zero_data", XRP_OUTPUT_SIZE_WRAPPER_DEFAULT, 0, false);
+        static final XrpSettingsShape WRAPPER_ONE_DATA = new XrpSettingsShape(
+            "wrapper_one_data", XRP_OUTPUT_SIZE_WRAPPER_DEFAULT,
+            XRP_DATA_DESC_SIZE, true);
 
         final String label;
         final int outputSize;
@@ -197,6 +200,8 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsSettings68 = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsSettings68Control = false;
+        boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperData = false;
+        boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsOutputReady = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsOutputReadyControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsOutputFirst = false;
@@ -274,6 +279,10 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsSettings68 = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-settings68-control".equals(arg)) {
                 runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsSettings68Control = true;
+            } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data".equals(arg)) {
+                runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperData = true;
+            } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-control".equals(arg)) {
+                runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataControl = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-output-ready".equals(arg)) {
                 runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsOutputReady = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-output-ready-control".equals(arg)) {
@@ -328,6 +337,8 @@ public final class ApusysIoctlProbe {
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsControl
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsSettings68
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsSettings68Control
+                || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperData
+                || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataControl
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsOutputReady
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsOutputReadyControl
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsOutputFirst
@@ -533,6 +544,22 @@ public final class ApusysIoctlProbe {
                 runRunCmdVpuXrpInternalAnnVersionHardwareBufferProbe(fd, false,
                     VPU_DESC_LIBVPU, XRP_CMD_FLAGS_SEND,
                     VPU_DESC_ORDER_CODE_OUTPUT, XRP_SETTINGS_LEN_WRAPPER);
+            }
+
+            if (runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperData) {
+                runRunCmdVpuIovaHardwareBufferProbe(fd, true, true, true,
+                    XRP_OP_ANN_VERSION, 20000, true, VPU_DESC_LIBVPU,
+                    XRP_CMD_FLAGS_SEND, VPU_DESC_ORDER_CODE_OUTPUT,
+                    XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
+                    XrpSettingsShape.WRAPPER_ONE_DATA);
+            }
+
+            if (runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataControl) {
+                runRunCmdVpuIovaHardwareBufferProbe(fd, false, true, true,
+                    XRP_OP_ANN_VERSION, 20000, true, VPU_DESC_LIBVPU,
+                    XRP_CMD_FLAGS_SEND, VPU_DESC_ORDER_CODE_OUTPUT,
+                    XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
+                    XrpSettingsShape.WRAPPER_ONE_DATA);
             }
 
             if (runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsOutputReady) {

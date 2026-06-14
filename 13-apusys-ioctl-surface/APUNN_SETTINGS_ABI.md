@@ -106,7 +106,7 @@ Main XRP command buffer fields recovered from userland wrappers:
 
 | Offset | Size | Meaning |
 |---:|---:|---|
-| `+0x00` | 4 | Command flags; initialized to `4` |
+| `+0x00` | 4 | Command flags; `Initialize()` writes `4`, then `CreateXrpCommand()` sets bit `0x1`, so the normal pre-dispatch value is `5` |
 | `+0x04` | 4 | Code section size |
 | `+0x08` | 4 | Output section size |
 | `+0x0c` | 4 | Data descriptor section size |
@@ -127,6 +127,12 @@ normal path:
 | `+0x0c` | Output buffer size |
 | `+0x10` | Low bit of the wrapper flag argument |
 
+If `InitOutputSection()` is asked to write this header and the output buffer is
+smaller than `0x40`, it returns status `2` before the VPU request is built. In
+the host-side standard path, `PrepareOutputBuffer()` writes settings
+`+0x08/+0x20` from the allocated output buffer and calls
+`PrepareOutputHeader()` for nonzero command handles.
+
 The data descriptor section is an array of 12-byte entries:
 
 | Entry offset | Meaning |
@@ -134,6 +140,21 @@ The data descriptor section is an array of 12-byte entries:
 | `+0x00` | Kind/type, observed as `3` |
 | `+0x04` | Buffer size |
 | `+0x08` | Low 32 bits of buffer IOVA |
+
+The device wrapper's `PrepareDataSection()` allocates `12 * vector_length`
+bytes for this section, zeroes it, then fills valid `cXrpBufferInfo` records by
+their `+0x08` slot index. For each valid slot it writes `3` at entry `+0x00`,
+`cXrpBufferInfo+0x10` at entry `+0x04`, and `cXrpBufferInfo+0x20` at entry
+`+0x08`. `XrpCommandInfo::UpdateDataBuffer()` uses the same slot index and
+updates only the size/IOVA words after checking that the slot is below
+`data_desc_size / 12`.
+
+The host-side standard path matches this layout. `PrepareDataBuffer()` writes
+settings `+0x0c` and `+0x30` from an allocated descriptor buffer sized as
+`12 * data_buffer_count`; `FinalizeDataBuffer()` then fills each entry from the
+registered data buffer object as kind/type, size, and low IOVA. This means a
+zero-data probe is a useful control, but it does not exercise the standard data
+descriptor population path.
 
 ## Current probe shape
 
@@ -537,12 +558,13 @@ service-side entry point is found that reaches `PrepareInternalCommand()`.
 
 ## Command flags and completion state
 
-Target-side `libneuron_platform.vpu.so` adds one wrapper state transition that
-the direct ioctl probe originally skipped. `XrpIntrinsicExecutor::SendRequest()`
-at `0x10044` finds the command info, clears bit `0x2`, sets bit `0x1`, and then
-calls `XrpVpuStream::RunRequest()`. A normally sent command therefore enters
-the kernel/VPU path with settings `+0x00 == 0x5`, not the post-initialize value
-`0x4`.
+Target-side `libneuron_platform.vpu.so` adds wrapper state transitions that the
+direct ioctl probe originally skipped. `XrpCommandInfo::Initialize()` writes
+settings `+0x00 == 0x4`; `XrpIntrinsicExecutor::CreateXrpCommand()` then sets
+bit `0x1`, making the standard pre-request value `0x5`.
+`XrpIntrinsicExecutor::SendRequest()` at `0x10044` clears bit `0x2`, sets bit
+`0x1`, and then calls `XrpVpuStream::RunRequest()`. For the current direct
+probe shape this keeps the pre-dispatch flags at `0x5`.
 
 `XrpIntrinsicExecutor::WaitRequest()` at `0x101e0` calls
 `XrpVpuStream::WaitRequest()` and then reads the same command flags. Its success

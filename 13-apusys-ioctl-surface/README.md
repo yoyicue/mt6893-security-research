@@ -13,7 +13,7 @@ The current result is **reachable through APUSYS memory import, normal-VPU algor
 
 The directory has no CVE number yet. The repository uses CVE-numbered directories when a test is tied to a specific public CVE or confirmed bug class. APUSYS is currently an exposed proprietary ioctl surface with confirmed VPU hardware dispatch reachability from an unprivileged `system_app` context, but no confirmed CVE match or memory corruption primitive.
 
-This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths, negative memory-create cases, optional device-control reachability checks, direct dmabuf-source checks, a candidate-fd scan for the memory import path, HardwareBuffer-backed dmabuf import, controlled `ucmd` gate tests, zero-header / invalid-subcommand `run_cmd_async` parser probes, a normal-VPU valid-type request-size guard probe, a full-size (`0xb70`) VPU execution probe, a chained IOVA-import + VPU request probe, an XRP-shaped APUNN settings probe, no-dispatch IOVA controls, a small APUNN/XRP opcode/operand matrix mode, and two-native-buffer internal-command-shaped modes with minimal/libvpu-style descriptor metadata, wrapper send-state command flags, and output-first descriptor order. The remaining closure work is to align the Java request with the standard wrapper code/output/data contract and recover the firmware output/completion contract.
+This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths, negative memory-create cases, optional device-control reachability checks, direct dmabuf-source checks, a candidate-fd scan for the memory import path, HardwareBuffer-backed dmabuf import, controlled `ucmd` gate tests, zero-header / invalid-subcommand `run_cmd_async` parser probes, a normal-VPU valid-type request-size guard probe, a full-size (`0xb70`) VPU execution probe, a chained IOVA-import + VPU request probe, an XRP-shaped APUNN settings probe, no-dispatch IOVA controls, a small APUNN/XRP opcode/operand matrix mode, and two-native-buffer internal-command-shaped modes with minimal/libvpu-style descriptor metadata, wrapper send-state command flags, output-first descriptor order, and a pending wrapper-size/one-data-descriptor variant. The remaining closure work is to align the Java request with the standard wrapper code/output/data contract and recover the firmware output/completion contract.
 
 ## IDA handler map
 
@@ -725,6 +725,15 @@ command cleanup, settings remain `0x5`, output remains `0xffffffff`, and code
 word `0` changes `0x2713 -> 0x271b`. The firmware-visible settings length is
 not the missing APUNN completion condition.
 
+Static analysis after this run recovered the standard data descriptor writer:
+the descriptor section is `12 * data_buffer_count` bytes, and each entry is
+`{kind/type, size, iova_low32}`. The new
+`--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data`
+mode keeps the `settings68` request shape but restores one 12-byte data
+descriptor (`type=3`, size `0x80`, IOVA = APUNN data payload). Its control
+variant skips dispatch. These modes are prepared for the next runtime pass and
+do not yet have captured results.
+
 The `output_ready` two-buffer variant keeps the same code-first request and
 sets only the wrapper-controlled output header byte at `output+0x10` from `0`
 to `1`, matching `XrpCommandInfo::PrepareOutputHeader(true)`. Dispatch still
@@ -1063,6 +1072,10 @@ metadata the way `libvpu.so::VpuRequestImp::addBuffer()` does:
 variant keeps the code-first descriptor order and wrapper send-state flags but
 sets the firmware-visible VPU request settings length to `0x68`; its
 `-control` variant skips dispatch. The
+`--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data`
+variant combines that `0x68` settings length with wrapper-default output size
+`0x40` and one standard 12-byte APUNN data descriptor; its `-control` variant
+skips dispatch. The
 `--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-output-ready`
 variant keeps the same request but sets the output header flag byte at
 `output+0x10` to `1`; its `-control` variant skips dispatch. The
@@ -1592,7 +1605,7 @@ The remaining APUSYS closure items are:
   wrapper step is to recover that service/library initialization state, rerun
   APUWARE with `--finalize-slot-index`, and then dump
   `XRP_GetPreparedRequests()`.
-- Map how `apu_lib_apunn` uses the copied `struct vpu_buffer[]` beyond ordinary libvpu metadata. `port_id=1`, DATA format, `plane_count=1`, `height=1`, `stride=size`, `length=size`, `buffer_count=5` aliases, wrapper send-state settings `+0x00 = 0x5`, output-first descriptor order, `request+0x38 = 0x68`, and output header `+0x10 = 1` have been tested without producing normal completion behavior.
+- Map how `apu_lib_apunn` uses the copied `struct vpu_buffer[]` beyond ordinary libvpu metadata. `port_id=1`, DATA format, `plane_count=1`, `height=1`, `stride=size`, `length=size`, `buffer_count=5` aliases, wrapper send-state settings `+0x00 = 0x5`, output-first descriptor order, `request+0x38 = 0x68`, and output header `+0x10 = 1` have been tested without producing normal completion behavior. The next prepared runtime control is the wrapper-size/one-data-descriptor mode, which restores the standard `{type=3, size, iova}` data descriptor under `settings_len=0x68`.
 - Determine the firmware completion/output contract: which APUNN settings and buffer descriptor fields cause `DS_PREEMPT_DONE` / `DS_ALG_DONE`, `XTENSA_INFO00`, and `XTENSA_INFO02` to be produced, which run changes settings flags to satisfy `(settings[0] & 0x0a) == 0x02`, and which path maps to host `WritebackCommand()` output handling. The `ann_version_status_bit3_out0` op-word experiment has ruled out pre-setting bit `3` in opcode `10003` as the missing completion condition.
 - Shift the next matrix toward the standard wrapper path recovered from `libneuron_platform.so`: command-buffer id input binding, `PrepareXtensaCommandBuffer()`, output allocation/binding, `PrepareOutputBuffer()`, and `PrepareDataBuffer()` / `FinalizeDataBuffer()`. Additional command-flag values are control cases now that the wrapper send-state value `0x5` has been tested. The current descriptor shapes prove descriptor-following; the `0x68` settings-length run and `output+0x10 = 1` run rule out two wrapper-visible candidates as the missing completion condition, but settings still do not satisfy `(settings[0] & 0x0a) == 0x02` or produce the wrapper's normal APUNN output writeback.
 - Map the remaining VPU/APUNN-side `0x1c8` operation-entry semantics. Host/debug helpers now statically pin opcode, stride, operand-list offset, input count, output count, operand-id layout, and the `10003` / `XTENSA_ANN_VERSION` mapping; the device wrapper still only routes raw code-section IOVA/size and counts fixed `0x1c8` entries.
