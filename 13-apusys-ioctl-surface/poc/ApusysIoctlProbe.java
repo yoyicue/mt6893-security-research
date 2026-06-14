@@ -11,6 +11,10 @@ public final class ApusysIoctlProbe {
     private static final String APUSYS_DEV = "/dev/apusys";
 
     private static final long APUSYS_CMD_HANDSHAKE   = 0xC0284100L;
+    private static final long APUSYS_CMD_MEM_FREE_02 = 0xC0384102L;
+    private static final long APUSYS_CMD_MEM_CREATE2 = 0xC0384103L;
+    private static final long APUSYS_CMD_MEM_CREATE3 = 0xC038410FL;
+    private static final long APUSYS_CMD_MEM_FREE_10 = 0xC0384110L;
     private static final long APUSYS_CMD_RUN_SYNC    = 0x40184106L;
     private static final long APUSYS_CMD_RUN_ASYNC   = 0xC0184107L;
     private static final long APUSYS_CMD_UCMD        = 0x4014410EL;
@@ -21,15 +25,32 @@ public final class ApusysIoctlProbe {
     private static final int OFF_HANDSHAKE = 0x100;
     private static final int OFF_RUN_CMD   = 0x140;
     private static final int OFF_UCMD      = 0x180;
+    private static final int OFF_MEM_A     = 0x1c0;
+    private static final int OFF_MEM_B     = 0x220;
 
     private ApusysIoctlProbe() {
     }
 
     public static void main(String[] args) throws Exception {
-        boolean query = args.length > 0 && "--query".equals(args[0]);
+        boolean query = false;
+        boolean memNegative = false;
+        for (String arg : args) {
+            if ("--query".equals(arg)) {
+                query = true;
+            } else if ("--mem-negative".equals(arg)) {
+                memNegative = true;
+            } else {
+                throw new IllegalArgumentException("unknown option: " + arg);
+            }
+        }
 
         System.out.println("[*] === APUSYS ioctl reject-only probe ===");
-        System.out.println("[*] Mode: no memory create/free, no secure alloc/free, no valid cmdbuf\n");
+        if (memNegative) {
+            System.out.println("[*] Mode: includes optional bad-fd memory negative tests;"
+                + " no secure alloc/free, no valid cmdbuf\n");
+        } else {
+            System.out.println("[*] Mode: no memory create/free, no secure alloc/free, no valid cmdbuf\n");
+        }
 
         DrmTrigger.initSyscall();
 
@@ -66,12 +87,48 @@ public final class ApusysIoctlProbe {
                 }
             }
 
+            if (memNegative) {
+                runMemNegative(fd);
+            }
+
             System.out.println("\n[+] Probe completed. Interpret results as handler reachability only.");
         } finally {
             if (fd >= 0) {
                 DrmTrigger.closeFd(fd);
             }
         }
+    }
+
+    private static void runMemNegative(int fd) throws Exception {
+        System.out.println("\n[*] === Optional APUSYS memory negative tests ===");
+        System.out.println("[*] Mode: NULL user pointer and bad fd/zero-size only; no valid dmabuf");
+
+        ioctlAndPrint(fd, "mem_create2_null", APUSYS_CMD_MEM_CREATE2, 0);
+        ioctlAndPrint(fd, "mem_create3_null", APUSYS_CMD_MEM_CREATE3, 0);
+
+        long memA = DrmTrigger.sScratchBuf + OFF_MEM_A;
+        DrmTrigger.zeroMem(memA, 0x38);
+        DrmTrigger.unsafePutLong(memA + 0x00, -1L);
+        long ret = ioctlAndPrint(fd, "mem_create2_badfd", APUSYS_CMD_MEM_CREATE2, memA);
+        cleanupUnexpectedMemSuccess(fd, "mem_create2", APUSYS_CMD_MEM_FREE_02, memA, ret);
+
+        long memB = DrmTrigger.sScratchBuf + OFF_MEM_B;
+        DrmTrigger.zeroMem(memB, 0x38);
+        DrmTrigger.unsafePutLong(memB + 0x00, -1L);
+        ret = ioctlAndPrint(fd, "mem_create3_badfd", APUSYS_CMD_MEM_CREATE3, memB);
+        cleanupUnexpectedMemSuccess(fd, "mem_create3", APUSYS_CMD_MEM_FREE_10, memB, ret);
+    }
+
+    private static void cleanupUnexpectedMemSuccess(int fd, String name, long freeCmd,
+                                                    long mem, long ret) throws Exception {
+        if (ret < 0) {
+            return;
+        }
+
+        long id = DrmTrigger.unsafeGetLong(mem + 0x28);
+        System.out.println("[!] " + name + " unexpectedly succeeded; id=0x"
+            + Long.toHexString(id) + ", attempting cleanup");
+        ioctlAndPrint(fd, name + "_cleanup", freeCmd, mem);
     }
 
     private static long ioctlAndPrint(int fd, String name, long cmd, long arg)

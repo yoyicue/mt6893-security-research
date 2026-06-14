@@ -29,7 +29,7 @@ The kernel image under analysis is `07-cve-2023-32836-display-overflow/vmlinux.b
 | `mdw_usr_dev_sec_free` | `0xffffffc00878c418` | Secure-device free path, includes an id `< 0x40` guard |
 | `mdw_usr_ucmd` | `0xffffffc00878c6ac` | User-command control path |
 | `mdw_usr_run_cmd_async` | `0xffffffc00878c7f8` | Parses and queues an APUSYS command |
-| `mdw_usr_get_cmd_ops` | `0xffffffc008791b04` | Returns the ops table stored at `0xffffffc00a188e58` |
+| `mdw_usr_get_cmd_ops` | `0xffffffc008791b04` | Returns a static object stored at `0xffffffc00a188e58`; **not yet confirmed as the user command parser ops** |
 | `mdw_wait_cmd` | `0xffffffc00878ca68` | Internal wait helper |
 | `mdw_usr_wait_cmd` | `0xffffffc00878cd50` | User wait-command path |
 | `mdw_usr_run_cmd_sync` | `0xffffffc00878ce18` | `run_cmd_async` followed by wait |
@@ -37,6 +37,25 @@ The kernel image under analysis is `07-cve-2023-32836-display-overflow/vmlinux.b
 | `mdw_usr_destroy` | `0xffffffc00878cfc4` | APUSYS user teardown |
 
 Hex-Rays did not decompile the main APUSYS functions cleanly, so this mapping comes from disassembly, string xrefs, ioctl constants, and call targets.
+
+Additional functions named during the APUSYS follow-up pass:
+
+| Function | Address | Role |
+|---|---:|---|
+| `mdw_mem_copy_user_desc` | `0xffffffc0087961b4` | Copies the 0x38 user memory descriptor into a 0x60 kernel object |
+| `mdw_mem_import_type2` | `0xffffffc00879658c` | Type-2 memory import wrapper, calls registered midware memory ops at `+0x30` |
+| `mdw_mem_import_type3` | `0xffffffc0087966a0` | Type-3 memory import wrapper, calls memory ops at `+0x20` and `+0x30` |
+| `mdw_mem_mgr_init` | `0xffffffc00879698c` | Initializes APUSYS memory manager state and stores the registered midware driver pointer at `0xffffffc00a189078` |
+| `apusys_mem_query_kva` | `0xffffffc008796a44` | Looks up imported memory by KVA range |
+| `apusys_mem_query_iova` | `0xffffffc008796b88` | Looks up imported memory by IOVA range |
+| `mdw_queue_init` | `0xffffffc008793b14` | Initializes APUSYS command queue state |
+| `mdw_queue_insert` | `0xffffffc008793834` | Queue insertion helper |
+| `mdw_queue_pop` | `0xffffffc00879376c` | Queue pop helper |
+| `mdw_sched_init` | `0xffffffc008792e9c` | Initializes scheduler state and scheduler thread |
+| `mdw_sched_routine` | `0xffffffc008792f9c` | Main APUSYS scheduler thread routine |
+| `mdw_sched_dev_routine` | `0xffffffc0087920ec` | Per-device scheduler routine |
+
+Important correction: reading the static object returned by `mdw_usr_get_cmd_ops` as 64-bit pointers produces `0xffffff800881...` values. After normalizing them to the IDB base, they land around `0xffffffc00881....`, but the referenced locations do not look like normal APUSYS parser function entries and include unrelated MMDVFS/clock strings. Treat `mdw_usr_get_cmd_ops` as unresolved until its runtime registration/use is proven. Do not use it as proof of a command parser target.
 
 ## Ioctl command map
 
@@ -67,8 +86,8 @@ The `0x4004413C/3D` size mismatch is important for testing: the command encoding
 
 ## Current risk ranking
 
-1. **Command parsing/execution path**: `0xC0184107` and `0x40184106` reach `mdw_usr_run_cmd_async`, which allocates an internal command object, calls an ops-table parser, and queues work. Related strings include `mdw_usr_par_apu_cmd`, `vpu_ucmd_handle`, `edma_execute`, `mdla_*`, and `reviser_*`.
-2. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` lead to `mdw_usr_mem_create`. Related strings include `mdw_mem_ion_map_iova`, `vpu_map_sg_to_iova`, `reviser_get_iova`, and `prepare_dmabuf`.
+1. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` lead to `mdw_usr_mem_create`. This path now has the clearest safe next experiment: bad-fd / zero-size negative tests against type-2 and type-3 import wrappers. Related functions include `mdw_mem_import_type2`, `mdw_mem_import_type3`, `apusys_mem_query_kva`, and `apusys_mem_query_iova`.
+2. **Command parsing/execution path**: `0xC0184107` and `0x40184106` reach `mdw_usr_run_cmd_async`. The current safe probe sets the user field at `+0x0c` to `1`, which makes this function return early before the indirect ops calls. Clearing `+0x0c` enters unresolved indirect calls through `0xffffffc00a188e58`; this is currently a crash-risk test, not a useful vulnerability proof.
 3. **Secure device allocation path**: `0x4004413C/3D` call `mdw_usr_dev_sec_alloc/free`. The free path has an id `< 0x40` guard, but the alloc path still needs deeper review.
 4. **Handshake/wait/simple control paths**: useful for reachability, lower standalone risk.
 
@@ -112,6 +131,19 @@ dalvikvm64 -cp /data/data/com.android.settings/cache/apusys_ioctl_probe.dex Apus
 
 `--query` sets the handshake mode field at offset `+0x0c` to `1` and prints the returned 0x28-byte buffer. It should remain non-destructive, but it is not needed for basic handler reachability.
 
+Optional memory negative tests:
+
+```sh
+dalvikvm64 -cp /data/data/com.android.settings/cache/apusys_ioctl_probe.dex ApusysIoctlProbe --mem-negative
+```
+
+`--mem-negative` is intentionally not the default. It sends:
+
+- `mem_create2_null` / `mem_create3_null` with a NULL user pointer, expected to fail before import.
+- `mem_create2_badfd` / `mem_create3_badfd` with a 0x38 descriptor whose first 64-bit field is `-1` and all size/metadata fields are zero.
+
+It does not pass a valid dmabuf, does not create command buffers, and does not request APUSYS execution. If a memory-create call unexpectedly succeeds, the probe attempts cleanup with the matching memory-free ioctl using the returned descriptor.
+
 [`poc/apusys_ioctl_probe.c`](poc/apusys_ioctl_probe.c) is a native version of the same reject-only checks for root/permissive lab contexts. It compiles successfully, but on the current device direct `adb shell` execution returns `open(/dev/apusys) failed: EACCES` because shell is not `system` or `camera`, and `system_app` cannot execute native ELF files from app data under SELinux enforcing.
 
 Current local negative-control result:
@@ -147,11 +179,20 @@ Optional `--query` handshake result:
                [32]=0x1d800000 [36]=0x100000
 ```
 
-Interpretation: `/dev/apusys` ioctl is confirmed reachable from `system_app`, generic invalid commands and disabled paths return controlled `EINVAL`, and handshake mode `1` returns structured data. The next useful experiments are not broader ioctl fuzzing; they are targeted tests against `mdw_usr_mem_create` and the command parser after the parser ops table is fully named.
+Observed optional `--mem-negative` result from the same `system_app` context on 2026-06-14:
+
+```text
+[*] mem_create2_null   cmd=0xc0384103 ret=-22 (EINVAL)
+[*] mem_create3_null   cmd=0xc038410f ret=-22 (EINVAL)
+[*] mem_create2_badfd  cmd=0xc0384103 ret=-12 (ENOMEM)
+[*] mem_create3_badfd  cmd=0xc038410f ret=-12 (ENOMEM)
+```
+
+Interpretation: `/dev/apusys` ioctl is confirmed reachable from `system_app`, generic invalid commands and disabled paths return controlled `EINVAL`, and handshake mode `1` returns structured data. The memory-create negative tests did not create an object or crash the device. The `ENOMEM` result for bad-fd/zero-size descriptors suggests the import wrappers may reach resource preparation before returning a generic allocation-style failure, so the next useful work is deeper static analysis of `mdw_mem_import_type2` / `mdw_mem_import_type3` and the registered memory ops behind `0xffffffc00a189078`.
 
 ## Next analysis steps
 
-- Follow the APUSYS parser ops table returned by `mdw_usr_get_cmd_ops` and stored at `0xffffffc00a188e58` from `mdw_usr_init`.
-- Name and inspect the parser function that logs `mdw_usr_par_apu_cmd`.
-- Map `vpu_ucmd_handle` and EDMA/MDLA command validators before attempting any valid command-buffer experiment.
-- Only after the parser bounds are understood, add a "no cmdbuf" or invalid-device command probe that is expected to fail before hardware execution.
+- Run `ApusysIoctlProbe --mem-negative` from the existing `uid=1000(system)` / `u:r:system_app:s0` context and record the exact errno results.
+- Treat `mdw_usr_get_cmd_ops` / `0xffffffc00a188e58` as unresolved. Do not clear the `run_cmd` `+0x0c` early-reject field until the indirect call targets are confirmed.
+- Continue static analysis from `mdw_mem_import_type2`, `mdw_mem_import_type3`, and the registered midware memory ops behind `0xffffffc00a189078`.
+- Map `vpu_ucmd_handle`, EDMA/MDLA validators, and the scheduler queue only after command parser targets are known. No valid command-buffer experiment should be added before that.
