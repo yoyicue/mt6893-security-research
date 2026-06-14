@@ -31,6 +31,16 @@ probes set `request+0x38/+0x40` to the XRP settings buffer. The target-wrapper
 replay sets `buffer_count=5`, repeats the code/input descriptor five times, and
 zeros `request+0x38/+0x40` to match the no-visible-`setProperty()` path.
 
+The outer APUSYS subcommand layer is now pinned too. `mdw_cmd_parse_cmd` copies
+subcommand `+0x20` into `sc+0x28` as `cb_info_size` and records the selected
+code-buffer KVA at `sc+0x20`. `mdw_cmd_sc_set_hnd` allocates a temporary provider
+buffer of exactly `sc+0x28` bytes, copies from that KVA, and passes the temporary
+buffer to the VPU provider as `provider_arg+0x00` with size `provider_arg+0x0c`.
+After provider return, `mdw_cmd_sc_clr_hnd` copies the same temporary buffer back
+to the original KVA and frees it. Runtime now confirms that this size must be
+exactly `0xb70` for the VPU request path; non-exact sizes fail before the current
+visible descriptor writeback.
+
 The current `--run-cmd-vpu-iova` probe validates layer 2 and dispatch
 reachability. It intentionally uses a minimal malformed settings payload by
 pointing `setting_iova` at the imported HardwareBuffer base. The newer
@@ -924,12 +934,47 @@ Result files:
 - `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_output_first_opcode_matrix_repeat.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_output_first_opcode_matrix_repeat_kernel.txt`
 
+## Outer APUSYS codebuf-size matrix
+
+The 2026-06-15 `--run-cmd-vpu-xrp-target-code5-no-settings-codebuf-size-matrix-iova`
+run varies only the APUSYS subcommand `cb_info_size` (`sc+0x20` in the printed
+probe output, stored by the kernel at `sc+0x28`). The command memory still
+contains the full `0xb70` target-wrapper-shaped request, so this isolates the
+midware/provider copy size from the request contents.
+
+| Outer `cb_info_size` | Dispatch wait | Code/input word | Request-tail copyback | Interpretation |
+|---:|---|---|---|---|
+| `0x20` | `-EIO` | unchanged `0x2713` | none | Too short; rejected before visible provider state write |
+| `0x90` | `-EIO` | unchanged `0x2713` | none | Too short; `vpu_req_check` logs invalid request size |
+| `0x1c8` | `-EIO` | unchanged `0x2713` | none | Too short; `vpu_req_check` logs invalid request size |
+| `0xb6c` | `-EIO` | unchanged `0x2713` | none | Covers `request+0xb68`, but still not an accepted request |
+| `0xb70` | `0` | `0x2713 -> 0x271b` | nonzero word at tail `+0x20` | Exact accepted request size |
+| `0xb80` | `-EIO` | unchanged `0x2713` | none | Oversize request rejected |
+
+The repeat run reproduces the same boundary. The exact `0xb70` case writes a
+different nonzero tail word in each run (`0xb3980`, then `0xbda8f`), which is
+consistent with a post-provider copyback value rather than a fixed userland
+constant. The no-dispatch control leaves all command/request windows unchanged.
+This means the observed request-tail deltas are mediated by
+`mdw_cmd_sc_clr_hnd`, while the native descriptor first-word deltas require both
+an accepted exact-size request and provider/firmware execution.
+
+Result files:
+
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_codebuf_size_matrix_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_codebuf_size_matrix_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_codebuf_size_matrix.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_codebuf_size_matrix_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_codebuf_size_matrix_repeat.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_codebuf_size_matrix_repeat_kernel.txt`
+
 This rules out the presence of a direct settings-property tuple as the cause of
 the current incomplete boundary. The target-wrapper-shaped no-settings request
 is accepted by APUSYS/VPU and can be waited successfully when at least one native
 descriptor is advertised, but firmware still does not transition settings flags
 to `(settings[0] & 0x0a) == 0x02` or write the APUNN output/data windows. The
-next unresolved field is therefore not ordinary VPU descriptor metadata,
+next unresolved field is therefore not the outer APUSYS `cb_info_size`, ordinary
+VPU descriptor metadata,
 nonzero descriptor count, `request+0x38/+0x40` presence, native descriptor
 payload size, request priority/slot, descriptor port/format/plane-count bytes,
 descriptor height, output operand id, tested input/output count combinations,
@@ -1707,6 +1752,9 @@ Kernel handoff evidence:
 
 | Source | Function | Evidence |
 |---|---|---|
+| IDA `vmlinux.bin` | `mdw_cmd_parse_cmd` at `0xffffffc008790938` | Parses the 0x28-byte APUSYS subcommand header, including `cb_info_size` and `ofs_cb_info`, and records the selected code-buffer KVA/size in the subcommand object |
+| IDA `vmlinux.bin` | `mdw_cmd_sc_set_hnd` at `0xffffffc00879163c` | Allocates the temporary provider buffer of `cb_info_size` bytes, copies the selected code buffer into it, and passes it to the provider as `provider_arg+0x00/+0x0c` |
+| IDA `vmlinux.bin` | `mdw_cmd_sc_clr_hnd` at `0xffffffc008791ab0` | Copies the temporary provider buffer back to the original code-buffer KVA after provider return and frees the temporary allocation |
 | `drivers/misc/mediatek/apusys/vpu/4.0/vpu_ioctl.h` | `struct vpu_request` | Defines `algo`, `flags`, `buffer_count`, `sett_length`, `sett_ptr`, `buffers[]`, `status`, and `algo_ret` |
 | `drivers/misc/mediatek/apusys/vpu/4.0/vpu_main.c` | `vpu_req_check()` | Requires exact VPU request size, validates flags, and bounds `buffer_count` |
 | `drivers/misc/mediatek/apusys/vpu/p1/vpu_hw.c` | `vpu_execute_d2d()` | Copies `req->buffers[]` into the D2D command buffer and writes `XTENSA_INFO12..15`; D2D_EXT also writes preload entry/IRAM registers |
@@ -1718,15 +1766,17 @@ Kernel handoff evidence:
 | IDA `vmlinux.bin` | `vpu_copy_req_buffers_to_d2d_inner` at `0xffffffc0087a20f8` | Copies `buffer_count * 0x40` bytes from `request+0x50` into `*(core + priority * 0xb0 + 0x3f8)` |
 
 Runtime evidence so far proves `apu_lib_apunn` lookup, normal VPU request
-acceptance, VPU boot/map activity, XRP-shaped settings header tolerance,
-target-side nonzero code-section tolerance for six internal query/status
-operation shapes, a controlled native VPU buffer writeback, a per-case timeout
-for the earlier one-buffer shape, and a two-native-buffer `XTENSA_ANN_VERSION`
-dispatch where copied native buffer descriptor `0` points at the code/input
-window and the kernel logs residual command state instead of the earlier D2D
-timeout. The target-wrapper-shaped five-code-descriptor/no-settings-property
-request is accepted too, and its explicit wait variant returns `0` while
-preserving the same code/input writeback-only boundary. The descriptor-0
+acceptance, exact outer `cb_info_size == 0xb70` enforcement, VPU boot/map
+activity, XRP-shaped settings header tolerance, target-side nonzero code-section
+tolerance for six internal query/status operation shapes, a controlled native VPU
+buffer writeback, a per-case timeout for the earlier one-buffer shape, and a
+two-native-buffer `XTENSA_ANN_VERSION` dispatch where copied native buffer
+descriptor `0` points at the code/input window and the kernel logs residual
+command state instead of the earlier D2D timeout. The target-wrapper-shaped
+five-code-descriptor/no-settings-property request is accepted too, and its
+explicit wait variant returns `0` while preserving the same code/input
+writeback-only boundary. Non-exact outer sizes `0x20`, `0x90`, `0x1c8`, `0xb6c`,
+and `0xb80` fail without the descriptor-0 state writeback. The descriptor-0
 first-word matrix shows ordinary inputs becoming `old | 0xb`, and the all-ones
 input entering a timeout/error path as `0xffffffff -> 0xfffffffd` with wait
 `-EIO`. The descriptor-size matrix accepts every tested size and repeats the

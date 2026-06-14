@@ -274,6 +274,8 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpTargetCode5NoSettingsDescriptorLayoutMatrixIovaControl = false;
         boolean runCmdVpuXrpTargetCode5NoSettingsOutputFirstOpcodeMatrixIova = false;
         boolean runCmdVpuXrpTargetCode5NoSettingsOutputFirstOpcodeMatrixIovaControl = false;
+        boolean runCmdVpuXrpTargetCode5NoSettingsCodebufSizeMatrixIova = false;
+        boolean runCmdVpuXrpTargetCode5NoSettingsCodebufSizeMatrixIovaControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlotControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix = false;
@@ -427,6 +429,10 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpTargetCode5NoSettingsOutputFirstOpcodeMatrixIova = true;
             } else if ("--run-cmd-vpu-xrp-target-code5-no-settings-output-first-opcode-matrix-iova-control".equals(arg)) {
                 runCmdVpuXrpTargetCode5NoSettingsOutputFirstOpcodeMatrixIovaControl = true;
+            } else if ("--run-cmd-vpu-xrp-target-code5-no-settings-codebuf-size-matrix-iova".equals(arg)) {
+                runCmdVpuXrpTargetCode5NoSettingsCodebufSizeMatrixIova = true;
+            } else if ("--run-cmd-vpu-xrp-target-code5-no-settings-codebuf-size-matrix-iova-control".equals(arg)) {
+                runCmdVpuXrpTargetCode5NoSettingsCodebufSizeMatrixIovaControl = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot".equals(arg)) {
                 runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot-control".equals(arg)) {
@@ -530,6 +536,8 @@ public final class ApusysIoctlProbe {
                 || runCmdVpuXrpTargetCode5NoSettingsDescriptorLayoutMatrixIovaControl
                 || runCmdVpuXrpTargetCode5NoSettingsOutputFirstOpcodeMatrixIova
                 || runCmdVpuXrpTargetCode5NoSettingsOutputFirstOpcodeMatrixIovaControl
+                || runCmdVpuXrpTargetCode5NoSettingsCodebufSizeMatrixIova
+                || runCmdVpuXrpTargetCode5NoSettingsCodebufSizeMatrixIovaControl
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrixControl
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescOperandOffsetMatrix
@@ -926,6 +934,16 @@ public final class ApusysIoctlProbe {
 
             if (runCmdVpuXrpTargetCode5NoSettingsOutputFirstOpcodeMatrixIovaControl) {
                 runRunCmdVpuXrpTargetCode5NoSettingsOutputFirstOpcodeMatrixProbe(
+                    fd, false);
+            }
+
+            if (runCmdVpuXrpTargetCode5NoSettingsCodebufSizeMatrixIova) {
+                runRunCmdVpuXrpTargetCode5NoSettingsCodebufSizeMatrixProbe(
+                    fd, true);
+            }
+
+            if (runCmdVpuXrpTargetCode5NoSettingsCodebufSizeMatrixIovaControl) {
+                runRunCmdVpuXrpTargetCode5NoSettingsCodebufSizeMatrixProbe(
                     fd, false);
             }
 
@@ -1745,6 +1763,42 @@ public final class ApusysIoctlProbe {
                                                             Integer descriptorPlaneCountOverride,
                                                             Integer descriptorHeightOverride)
             throws Exception {
+        runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, xrpSettings,
+            splitTargets, xrpOp, waitMs, twoVpuBuffers, descriptorMode,
+            cmdFlags, descriptorOrder, settingsLen, outputHeaderFlag,
+            settingsShape, waitAfterAsync, requestFlags, includeSettingsProperty,
+            codeFirstWordOverride, descriptorPayloadSizeOverride,
+            requestPriorityOverride, requestBufferCountOverride,
+            descriptorPortIdOverride, descriptorFormatOverride,
+            descriptorPlaneCountOverride, descriptorHeightOverride, null);
+    }
+
+    private static void runRunCmdVpuIovaHardwareBufferProbe(int apusysFd,
+                                                            boolean dispatch,
+                                                            boolean xrpSettings,
+                                                            boolean splitTargets,
+                                                            XrpOpSpec xrpOp,
+                                                            int waitMs,
+                                                            boolean twoVpuBuffers,
+                                                            int descriptorMode,
+                                                            int cmdFlags,
+                                                            int descriptorOrder,
+                                                            int settingsLen,
+                                                            int outputHeaderFlag,
+                                                            XrpSettingsShape settingsShape,
+                                                            boolean waitAfterAsync,
+                                                            int requestFlags,
+                                                            boolean includeSettingsProperty,
+                                                            Integer codeFirstWordOverride,
+                                                            Integer descriptorPayloadSizeOverride,
+                                                            Integer requestPriorityOverride,
+                                                            Integer requestBufferCountOverride,
+                                                            Integer descriptorPortIdOverride,
+                                                            Integer descriptorFormatOverride,
+                                                            Integer descriptorPlaneCountOverride,
+                                                            Integer descriptorHeightOverride,
+                                                            Integer outerCodebufSizeOverride)
+            throws Exception {
         System.out.println("\n[*] === Optional APUSYS run_cmd VPU IOVA chained probe ===");
         if (xrpSettings) {
             System.out.println("[*] Mode: mem_create imports HardwareBuffer to get IOVA,"
@@ -1857,6 +1911,13 @@ public final class ApusysIoctlProbe {
                     + " descriptor+0x08=0x"
                     + Integer.toHexString(descriptorHeightOverride)
                     + " for every emitted descriptor.");
+            }
+            if (outerCodebufSizeOverride != null) {
+                System.out.println("[*] APUSYS subcommand codebuf-size override:"
+                    + " sc+0x20=0x"
+                    + Integer.toHexString(outerCodebufSizeOverride)
+                    + " (mdw copies only this many request bytes into the"
+                    + " provider buffer and back out after provider return).");
             }
         } else {
             System.out.println("[*] Mode: mem_create imports HardwareBuffer to get IOVA,"
@@ -2031,6 +2092,10 @@ public final class ApusysIoctlProbe {
                     label = label + "_height_"
                         + Integer.toHexString(descriptorHeightOverride);
                 }
+                if (outerCodebufSizeOverride != null) {
+                    label = label + "_codebufsize_"
+                        + Integer.toHexString(outerCodebufSizeOverride);
+                }
                 fillRunCmdVpuXrpIova(input2, "apu_lib_apunn", label,
                     iovaLow, iovaSize, splitTargets, xrpOp, twoVpuBuffers,
                     descriptorMode, cmdFlags, descriptorOrder, settingsLen,
@@ -2038,7 +2103,7 @@ public final class ApusysIoctlProbe {
                     descriptorPayloadSizeOverride, requestPriorityOverride,
                     requestBufferCountOverride, descriptorPortIdOverride,
                     descriptorFormatOverride, descriptorPlaneCountOverride,
-                    descriptorHeightOverride);
+                    descriptorHeightOverride, outerCodebufSizeOverride);
             } else {
                 fillRunCmdVpuIova(input2, "apu_lib_apunn", "vpu_iova_apunn",
                     iovaLow, iovaSize);
@@ -2818,6 +2883,24 @@ public final class ApusysIoctlProbe {
         }
     }
 
+    private static void runRunCmdVpuXrpTargetCode5NoSettingsCodebufSizeMatrixProbe(
+            int apusysFd, boolean dispatch) throws Exception {
+        int[] sizes = { 0x20, 0x90, 0x1c8, 0xb6c, 0xb70, 0xb80 };
+        for (int size : sizes) {
+            System.out.println("\n[*] === target-code5/no-settings"
+                + " outer codebuf-size case size=0x"
+                + Integer.toHexString(size) + " dispatch="
+                + (dispatch ? 1 : 0) + " ===");
+            runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, true, true,
+                XRP_OP_ANN_VERSION, 1000, true, VPU_DESC_LIBVPU_CODE5,
+                XRP_CMD_FLAGS_SEND, VPU_DESC_ORDER_CODE_OUTPUT,
+                XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
+                XrpSettingsShape.WRAPPER_ONE_DATA, dispatch,
+                VPU_REQUEST_FLAGS_DEFAULT, false, XRP_OP_ANN_VERSION.opcode,
+                null, null, null, null, null, null, null, size);
+        }
+    }
+
     private static android.media.ImageReader createRgbaImageReader(int width, int height) {
         long usage = android.hardware.HardwareBuffer.USAGE_CPU_READ_OFTEN
             | android.hardware.HardwareBuffer.USAGE_CPU_WRITE_OFTEN
@@ -2988,7 +3071,8 @@ public final class ApusysIoctlProbe {
                                              Integer descriptorPortIdOverride,
                                              Integer descriptorFormatOverride,
                                              Integer descriptorPlaneCountOverride,
-                                             Integer descriptorHeightOverride)
+                                             Integer descriptorHeightOverride,
+                                             Integer outerCodebufSizeOverride)
             throws Exception {
         android.media.Image.Plane[] planes = image.getPlanes();
         if (planes == null || planes.length == 0) {
@@ -3011,8 +3095,11 @@ public final class ApusysIoctlProbe {
         }
 
         int codebufOffset = 0x60;
-        int codebufSize = 0xb70;
-        int totalNeeded = codebufOffset + codebufSize;
+        int requestFootprint = 0xb70;
+        int codebufSize = outerCodebufSizeOverride != null
+            ? outerCodebufSizeOverride : requestFootprint;
+        int totalNeeded = codebufOffset
+            + (codebufSize > requestFootprint ? codebufSize : requestFootprint);
         if (buffer.capacity() < totalNeeded) {
             throw new IllegalStateException("input image too small: need 0x"
                 + Integer.toHexString(totalNeeded) + " have "
@@ -3171,6 +3258,9 @@ public final class ApusysIoctlProbe {
             + " cb_info_off=0x" + Integer.toHexString(codebufOffset)
             + " algo=" + algoName
             + " request_flags=0x" + Integer.toHexString(requestFlags)
+            + (outerCodebufSizeOverride != null
+                ? " outer_codebuf_size_override=0x"
+                + Integer.toHexString(outerCodebufSizeOverride) : "")
             + (requestPriorityOverride != null
                 ? " request_priority_override=0x"
                 + Integer.toHexString(requestPriorityOverride) : "")

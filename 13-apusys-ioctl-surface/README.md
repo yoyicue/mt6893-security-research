@@ -9,11 +9,11 @@ crw-rw---- 1 system camera u:object_r:apusys_device:s0 /dev/apusys
 [OPEN] /dev/apusys  fd=5
 ```
 
-The current result is **reachable through APUSYS memory import, normal-VPU algorithm lookup, command parsing, scheduler handoff, and full-size VPU request acceptance from `system_app`**. The VPU request ABI is now tied back to the target wrapper's preferred `/system/lib64/libvpu5.so`: `request+0x35` is `buffer_count`, `request+0x38/+0x40` are settings length/IOVA when the libvpu property path is used, and `request+0x50` starts the per-buffer descriptor array. Runtime now proves a controlled descriptor-0 state writeback boundary, but not APUNN output completion, leak behavior, or timeout lifetime misuse. The direct ioctl probes deliberately fill `setting_iova` with the recovered `libneuron_platform.vpu.so` XRP command-buffer layout, but current target-side static evidence shows `XrpVpuStream::CreateVpuRequest()` itself builds the request through five `vpuRequest_addBuffer()` calls and does not visibly call `vpuRequest_setProperty()` in that function; see [`APUNN_SETTINGS_ABI.md`](APUNN_SETTINGS_ABI.md). IDA analysis shows the device is the MTK APUSYS midware character device. Its main ioctl handler is now named `mdw_ioctl` in the IDB at `0xffffffc00878a0ec`.
+The current result is **reachable through APUSYS memory import, normal-VPU algorithm lookup, command parsing, scheduler handoff, and exact-size VPU request acceptance from `system_app`**. The VPU request ABI is now tied back to the target wrapper's preferred `/system/lib64/libvpu5.so`: `request+0x35` is `buffer_count`, `request+0x38/+0x40` are settings length/IOVA when the libvpu property path is used, `request+0x50` starts the per-buffer descriptor array, and the outer APUSYS subcommand `cb_info_size` must be exactly `0xb70` for this provider path. Runtime now proves a controlled descriptor-0 state writeback boundary and the midware set/clear copyback mechanism, but not an information leak, APUNN output completion, or timeout lifetime misuse. The direct ioctl probes deliberately fill `setting_iova` with the recovered `libneuron_platform.vpu.so` XRP command-buffer layout, but current target-side static evidence shows `XrpVpuStream::CreateVpuRequest()` itself builds the request through five `vpuRequest_addBuffer()` calls and does not visibly call `vpuRequest_setProperty()` in that function; see [`APUNN_SETTINGS_ABI.md`](APUNN_SETTINGS_ABI.md). IDA analysis shows the device is the MTK APUSYS midware character device. Its main ioctl handler is now named `mdw_ioctl` in the IDB at `0xffffffc00878a0ec`.
 
 The directory has no CVE number yet. The repository uses CVE-numbered directories when a test is tied to a specific public CVE or confirmed bug class. APUSYS is currently an exposed proprietary ioctl surface with confirmed VPU hardware dispatch reachability from an unprivileged `system_app` context, but no confirmed CVE match or memory corruption primitive.
 
-This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths, negative memory-create cases, optional device-control reachability checks, direct dmabuf-source checks, a candidate-fd scan for the memory import path, HardwareBuffer-backed dmabuf import, controlled `ucmd` gate tests, zero-header / invalid-subcommand `run_cmd_async` parser probes, a normal-VPU valid-type request-size guard probe, a full-size (`0xb70`) VPU execution probe, a chained IOVA-import + VPU request probe, an XRP-shaped APUNN settings probe, no-dispatch IOVA controls, a small APUNN/XRP opcode/operand matrix mode, and two-native-buffer internal-command-shaped modes with minimal/libvpu-style descriptor metadata, wrapper send-state command flags, output-first descriptor order, wrapper-sized settings, output-ready header state, one standard APUNN data descriptor, an Xtensa operation operand-list offset matrix, and a target-wrapper-shaped five-descriptor/no-settings-property replay with explicit wait, descriptor-0 first-word, descriptor-size, request-priority, request-buffer-count, descriptor-port-id, descriptor-format, descriptor-plane-count, descriptor-height, XRP output-operand-id, XRP input/output-count, and XRP opcode matrix variants. The remaining closure work is to recover the firmware output/completion contract and test timeout lifetime handling directly.
+This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths, negative memory-create cases, optional device-control reachability checks, direct dmabuf-source checks, a candidate-fd scan for the memory import path, HardwareBuffer-backed dmabuf import, controlled `ucmd` gate tests, zero-header / invalid-subcommand `run_cmd_async` parser probes, a normal-VPU valid-type request-size guard probe, a full-size (`0xb70`) VPU execution probe, a chained IOVA-import + VPU request probe, an XRP-shaped APUNN settings probe, no-dispatch IOVA controls, a small APUNN/XRP opcode/operand matrix mode, and two-native-buffer internal-command-shaped modes with minimal/libvpu-style descriptor metadata, wrapper send-state command flags, output-first descriptor order, wrapper-sized settings, output-ready header state, one standard APUNN data descriptor, an Xtensa operation operand-list offset matrix, and a target-wrapper-shaped five-descriptor/no-settings-property replay with explicit wait, descriptor-0 first-word, descriptor-size, request-priority, request-buffer-count, descriptor-port-id, descriptor-format, descriptor-plane-count, descriptor-height, XRP output-operand-id, XRP input/output-count, XRP opcode, and outer APUSYS `cb_info_size` matrix variants. The remaining closure work is to recover the firmware output/completion contract and test timeout lifetime handling directly.
 
 ## IDA handler map
 
@@ -318,6 +318,34 @@ The queued execution path is now mapped through the provider handoff:
 8. After the provider returns, command-ops `+0x48` (`mdw_cmd_sc_clr_hnd`) copies the temporary handle buffer back to the source KVA and releases the temporary allocation.
 
 For normal VPU execution, the provider opcode-4 check consumes that copied handle buffer. The normal VPU handler expects provider argument `+0x00` to point at a VPU request object and provider argument `+0x0c` to equal `0xb70`. It then requires request field `+0x28 < 0x10` and byte `+0x35 < 0x21`, clears request `+0xb68`, stores the APUSYS core id into request `+0xb5c`, and dispatches `vpu_execute` unless request `+0x28` bit `2` selects `vpu_execute_with_slot`. `vpu_execute` treats request `+0x04` as the algorithm name string and request `+0x28` as flags, matching the separate `ucmd` evidence that algorithm state is name-keyed.
+
+The outer APUSYS `cb_info_size` is an exact request-size contract for this path,
+not just a copyback length. The
+`--run-cmd-vpu-xrp-target-code5-no-settings-codebuf-size-matrix-iova` probe keeps
+the same target-wrapper-shaped five-descriptor request body in command memory and
+varies only subcommand `+0x20`:
+
+| `cb_info_size` | Wait result | Visible state |
+|---:|---|---|
+| `0x20` | `-EIO` | code word unchanged; no request-tail copyback |
+| `0x90` | `-EIO` | code word unchanged; no request-tail copyback |
+| `0x1c8` | `-EIO` | code word unchanged; no request-tail copyback |
+| `0xb6c` | `-EIO` | code word unchanged; no request-tail copyback |
+| `0xb70` | `0` | code word `0x2713 -> 0x271b`; request-tail copyback word appears |
+| `0xb80` | `-EIO` | code word unchanged; no request-tail copyback |
+
+The `0xb6c` case covers `request+0xb68` but still fails, while `0xb80` fails as
+an oversize request. That pins the accepted outer copy size to exactly `0xb70`.
+The matching no-dispatch control leaves all cases unchanged.
+
+Result files:
+
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_codebuf_size_matrix_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_codebuf_size_matrix_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_codebuf_size_matrix.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_codebuf_size_matrix_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_codebuf_size_matrix_repeat.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_codebuf_size_matrix_repeat_kernel.txt`
 
 The optional `--run-cmd-invalid-sc` probe uses the same fd source but writes a non-executing command buffer that satisfies the top-level magic/version/count/offset gates and deliberately sets the first subcommand type to `0x20`. Runtime and kernel-log evidence show this reaches `mdw_cmd_sc_valid` and fails at `invalid type(32)`, then returns through `mdw_usr_par_apu_cmd parse cmd fail(-22)`.
 
@@ -1487,6 +1515,11 @@ variant skips dispatch, and `--run-cmd-vpu-xrp-target-code5-no-settings-wait-iov
 adds an immediate `mdw_usr_wait_cmd` call after async submit. The saved wait run
 returns `0` from both async and wait, changes only code/input word `0`
 `0x2713 -> 0x271b`, and leaves settings/output/data unchanged. The
+`--run-cmd-vpu-xrp-target-code5-no-settings-codebuf-size-matrix-iova` and
+`-control` variants keep that same request body but vary only the outer APUSYS
+subcommand `cb_info_size` across `0x20`, `0x90`, `0x1c8`, `0xb6c`, `0xb70`, and
+`0xb80`. Dispatch succeeds only at exact `0xb70`; the other sizes return `-EIO`
+from wait and leave the request/code windows unchanged. The
 `--run-cmd-vpu-xrp-target-code5-no-settings-word-matrix-iova` and `-control`
 variants keep the same target request shape and vary only code/input word `0`.
 Control preserves every word. Dispatch plus wait produces `old | 0xb` for
@@ -1692,6 +1725,16 @@ CLASSPATH=.../apusys_ioctl_probe.dex \
 CLASSPATH=.../apusys_ioctl_probe.dex \
   app_process64 /system/bin ApusysIoctlProbe \
   --run-cmd-vpu-xrp-target-code5-no-settings-output-first-opcode-matrix-iova-control
+
+# Target-wrapper outer APUSYS codebuf-size matrix:
+CLASSPATH=.../apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe \
+  --run-cmd-vpu-xrp-target-code5-no-settings-codebuf-size-matrix-iova
+
+# Same outer codebuf-size matrix, no final run_cmd_async dispatch:
+CLASSPATH=.../apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe \
+  --run-cmd-vpu-xrp-target-code5-no-settings-codebuf-size-matrix-iova-control
 
 # APUNN/XRP internal query/status opcode and operand matrix:
 CLASSPATH=.../apusys_ioctl_probe.dex \
@@ -2114,11 +2157,11 @@ The remaining APUSYS closure items are:
   wrapper step is to recover that service/library initialization state, rerun
   APUWARE with `--finalize-slot-index`, and then dump
   `XRP_GetPreparedRequests()`.
-- Map how `apu_lib_apunn` uses the copied `struct vpu_buffer[]` beyond ordinary libvpu metadata. `port_id=1`, DATA format, `plane_count=1`, `height=1`, `stride=size`, `length=size`, `buffer_count=5` aliases, five identical code/input descriptors, target-wrapper no-settings-property descriptors, five-descriptor layouts split as code/output/data-desc/data/plane with both code-first and output-first slot `0`, wrapper send-state settings `+0x00 = 0x5`, pre-seeded completion-like settings `+0x00 = 0x2/0x3`, output-first descriptor order, output-first descriptor layout across opcodes `10001..10009`, `request+0x38 = 0x68`, `request+0x38/+0x40 = 0/0`, output header `+0x10 = 1`, wrapper dynamic output size `0x44`, the standard `{type=3, size, iova}` data descriptor under `settings_len=0x68`, direct `request+0x28` bit `2` Preload/slot selection, zero-output operand-list offsets `0/0x10/0x40/0x100`, output operand ids `0/1/2/3/0xffff`, input/output count combinations `0/0`, `0/1`, `0/2`, `1/0`, `1/1`, and `2/1`, opcodes `10001..10009`, descriptor-0 first-word values `0/0x2713/0x271b/0x504c4e30/0xffffffff`, descriptor payload sizes `0..9/0xc/0x10/0x20/0x40/0x1c8`, request buffer counts `0/1/2/3/4/5/0x20`, descriptor port ids `0/1/2/3/4/0xff`, descriptor format bytes `0/1/2/3/4/0xff`, descriptor plane counts `0/1/2/3/4/0xff`, and descriptor heights `0/1/2/3/0x40/0xffffffff` have been tested without producing normal completion behavior.
+- Map how `apu_lib_apunn` uses the copied `struct vpu_buffer[]` beyond ordinary libvpu metadata. The outer APUSYS `cb_info_size` gate is now reduced to exact `0xb70`; tested non-exact sizes `0x20/0x90/0x1c8/0xb6c/0xb80` fail before the visible descriptor state writeback. `port_id=1`, DATA format, `plane_count=1`, `height=1`, `stride=size`, `length=size`, `buffer_count=5` aliases, five identical code/input descriptors, target-wrapper no-settings-property descriptors, five-descriptor layouts split as code/output/data-desc/data/plane with both code-first and output-first slot `0`, wrapper send-state settings `+0x00 = 0x5`, pre-seeded completion-like settings `+0x00 = 0x2/0x3`, output-first descriptor order, output-first descriptor layout across opcodes `10001..10009`, `request+0x38 = 0x68`, `request+0x38/+0x40 = 0/0`, output header `+0x10 = 1`, wrapper dynamic output size `0x44`, the standard `{type=3, size, iova}` data descriptor under `settings_len=0x68`, direct `request+0x28` bit `2` Preload/slot selection, zero-output operand-list offsets `0/0x10/0x40/0x100`, output operand ids `0/1/2/3/0xffff`, input/output count combinations `0/0`, `0/1`, `0/2`, `1/0`, `1/1`, and `2/1`, opcodes `10001..10009`, descriptor-0 first-word values `0/0x2713/0x271b/0x504c4e30/0xffffffff`, descriptor payload sizes `0..9/0xc/0x10/0x20/0x40/0x1c8`, request buffer counts `0/1/2/3/4/5/0x20`, descriptor port ids `0/1/2/3/4/0xff`, descriptor format bytes `0/1/2/3/4/0xff`, descriptor plane counts `0/1/2/3/4/0xff`, and descriptor heights `0/1/2/3/0x40/0xffffffff` have been tested without producing normal completion behavior.
 - Determine the firmware completion/output contract: which APUNN settings and buffer descriptor fields cause `DS_PREEMPT_DONE` / `DS_ALG_DONE`, `XTENSA_INFO00`, and `XTENSA_INFO02` to be produced, which run changes settings flags to satisfy `(settings[0] & 0x0a) == 0x02`, and which path maps to host `WritebackCommand()` output handling. The `ann_version_status_bit3_out0` op-word experiment has ruled out pre-setting bit `3` in opcode `10003` as the missing completion condition. The target-wrapper opcode matrix proves `10001..10009` are parsed differently, and the output-first opcode matrix proves those opcode classes do not cause APUNN output completion when descriptor slot `0` points at output.
 - Shift the next matrix toward the standard wrapper path recovered from `libneuron_platform.so`: command-buffer id input binding, `PrepareXtensaCommandBuffer()`, output allocation/binding, `PrepareOutputBuffer()`, and `PrepareDataBuffer()` / `FinalizeDataBuffer()`. The current descriptor shapes prove descriptor-following; the `0x68` settings-length run, `output+0x10 = 1` run, wrapper dynamic output size `0x44` run, and flags matrix rule out several wrapper-visible candidates as the missing completion condition. Firmware still does not actively transition settings to `(settings[0] & 0x0a) == 0x02` or produce the wrapper's normal APUNN output writeback.
 - Map the remaining completion-dependent VPU/APUNN-side operation-entry semantics. Host/debug helpers now statically pin opcode, stride, operand-list offset, input count, output count, operand-id layout, and the `10003` / `XTENSA_ANN_VERSION` mapping; runtime now also proves opcode-class differences for `10001..10009`. What remains is how a normal completed request binds those operation entries to APUNN output/data writes.
 - Attribute the native plane first-word writebacks semantically: the matrix points to a status/flags word, but the owner is still unresolved between firmware status, driver-side status, request-result fields, and internal command side effects.
-- Map `mdw_cmd_sc_clr_hnd` writeback after provider return and timeout/abort.
+- Test `mdw_cmd_sc_clr_hnd` copyback behavior specifically on timeout/abort paths. The normal provider-return copyback mechanism is mapped; the lifetime/race behavior around delayed failure is not.
 - Test timeout lifecycle races around fd close / `mdw_usr_destroy` / scheduler cleanup.
 - Continue `mdla_run_command_sync` and `edma_execute` input structure mapping for non-VPU provider execution paths.
