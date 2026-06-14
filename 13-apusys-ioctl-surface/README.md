@@ -32,7 +32,7 @@ The kernel image under analysis is `07-cve-2023-32836-display-overflow/vmlinux.b
 | `mdw_usr_ucmd` | `0xffffffc00878c6ac` | User-command control path |
 | `mdw_usr_dev_ctrl_4109` | `0xffffffc00878c7b4` | Handler for ioctl `0x400C4109`; looks up a device/core and calls `mdw_rsc_dev_op0_ctrl` at `+0x70` with timeout `0xbb8` |
 | `mdw_usr_run_cmd_async` | `0xffffffc00878c7f8` | Parses and queues an APUSYS command |
-| `mdw_usr_get_cmd_ops` | `0xffffffc008791b04` | Returns a static object stored at `0xffffffc00a188e58`; **not yet confirmed as the user command parser ops** |
+| `mdw_usr_get_cmd_ops` | `0xffffffc008791b04` | Returns the static command-ops table at `0xffffffc0097966b8`; `mdw_usr_init` stores it into runtime global `0xffffffc00a188e58` |
 | `mdw_wait_cmd` | `0xffffffc00878ca68` | Internal wait helper |
 | `mdw_usr_wait_cmd` | `0xffffffc00878cd50` | User wait-command path |
 | `mdw_usr_run_cmd_sync` | `0xffffffc00878ce18` | `run_cmd_async` followed by wait |
@@ -79,7 +79,7 @@ Additional functions named during the APUSYS follow-up pass:
 | `vpu_init_dev_algo_sets` | `0xffffffc0087a5214` | Initializes per-VPU-core Normal and Preload algorithm sets from firmware/bin metadata |
 | `vpu_exit_dev_algo_sets` | `0xffffffc0087a56f0` | Tears down the Normal and Preload algorithm lists |
 
-Important correction: reading the static object returned by `mdw_usr_get_cmd_ops` as 64-bit pointers produces `0xffffff800881...` values. After normalizing them to the IDB base, they land around `0xffffffc00881....`, but the referenced locations do not look like normal APUSYS parser function entries and include unrelated MMDVFS/clock strings. `mdw_usr_get_cmd_ops` remains unresolved until its runtime registration/use is proven; parser-target attribution requires independent registration/use evidence.
+Command-ops correction: `mdw_usr_get_cmd_ops` returns rodata table `0xffffffc0097966b8`; `mdw_usr_init` stores that pointer into runtime global `0xffffffc00a188e58`, and `mdw_usr_run_cmd_async`, `mdw_wait_cmd`, and `mdw_usr_destroy` all dispatch through that global. The table is therefore confirmed as the APUSYS user-command ops table. Its entries still have the same flat-Image address-form problem as the VPU algo ops table: simple `+0x4000000000` normalization lands inside unrelated-looking function bodies around `0xffffffc00880....`, so exact callback entry attribution remains unresolved.
 
 Memory-ops correction: the APUSYS memory ops behind `0xffffffc00a189078` are now resolved. `mdw_mem_mgr_init` stores the object returned by `apusys_midware_register_driver`; that registration path creates the `"apusys midware"` ION client and installs the `mdw_mem_ion_*` callbacks above. The type-2 create path calls the registered `+0x30` IOVA map op. The type-3 create path calls `+0x20` KVA map first, then `+0x30` IOVA map, and unwinds KVA on IOVA failure.
 
@@ -181,6 +181,27 @@ Those normalized landing points are instruction labels inside existing functions
 
 The thermal/battery cooling-device cluster around `0xffffffc0088216d4` still matters as a nearby static clue: it compares configured strings such as `mtk-cl-bcct02`, `mtk-cl-bcct01`, and `mtk-cl-bcct00`, plus runtime/BSS slots at `0xffffffc00a1c6308` through `0xffffffc00a1c6380`, and references `mtk_thermal_zone_bind_cooling_device_wrapper` plus list-removal helpers. However, this cluster is no longer treated as the confirmed normal VPU opcode-7 ABI. Do not add a matching-key runtime test until the actual relocated ops callbacks are recovered from a better-symbolized kernel image, runtime table dump, or kallsyms-equivalent evidence.
 
+### APUSYS run_cmd_async / run_cmd_sync path
+
+`0xC0184107` / `mdw_usr_run_cmd_async` and `0x40184106` / `mdw_usr_run_cmd_sync` use a 0x18-byte user argument. The minimum verified layout is:
+
+| Offset | Use |
+|---:|---|
+| `+0x00` | command handle/output id; async writes the queued command id here on success, and wait/sync uses it as the lookup key |
+| `+0x08` | first input to command-ops `+0x00`, loaded as `W0` |
+| `+0x0c` | early gate; must be zero or `mdw_usr_run_cmd_async` returns `EINVAL` before command-ops dispatch |
+| `+0x10` | second input to command-ops `+0x00`, loaded as `W1` |
+
+The run path is:
+
+1. `mdw_usr_run_cmd_async` rejects immediately if user `+0x0c` is nonzero. The current default Java probe intentionally uses this reject path.
+2. If `+0x0c == 0`, it loads command ops from runtime global `0xffffffc00a188e58`, calls ops `+0x00` with `{W0 = user+0x08, W1 = user+0x10, X3 = user context}`, and expects a command object pointer back.
+3. It calls ops `+0x18` with `{X0 = command object, X1 = stack scratch}` to parse/populate the command. On parse failure it logs `mdw_usr_par_apu_cmd` and calls ops `+0x10` to release the object.
+4. On parse success, it inserts the command object into the per-user command tree/list rooted at user-context `+0x60`, stores the resulting positive id in command object `+0x24`, and copies that id back to user argument `+0x00`.
+5. `mdw_usr_run_cmd_sync` calls async first, then `mdw_usr_wait_cmd`; `mdw_usr_wait_cmd` reads user argument `+0x00`, looks up the command object in the same per-user tree/list, and calls `mdw_wait_cmd`.
+
+This means the next safe run-command experiment is not just clearing `+0x0c`: ops `+0x00` needs coherent values at `+0x08` and `+0x10`, and ops `+0x18` needs a valid APUSYS command object format. Keep the default probe on the early reject path until the command-ops callbacks are resolved.
+
 ## Ioctl command map
 
 The ioctl magic byte is `0x41` (`'A'`). The dispatcher uses fixed internal copy sizes before calling sub-handlers; it does not trust arbitrary user sizes.
@@ -211,7 +232,7 @@ The `0x4004413C/3D` size mismatch is important for testing: the command encoding
 ## Current risk ranking
 
 1. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` lead to `mdw_usr_mem_create`, then into APUSYS ION KVA/IOVA callbacks. Negative tests confirm that type-2 and type-3 descriptors reach deeper than the initial user-copy guard without creating an object or crashing. Direct node sources remain constrained: no `/dev/dma_heap/*` nodes on this device, DRM dumb buffer creation succeeds but PRIME fd export returns `EACCES`, direct `/dev/ion` open returns `EACCES`, `/dev/ashmem` open returns `EACCES`, and ordinary openable fds such as `/dev/dri/card0`, `/dev/mali0`, `/dev/zero`, `/dev/null`, and `/dev/apusys` all fail APUSYS memory-create with `ENOMEM`. The usable fd source is now the framework path: running the probe through `app_process64` can create an `android.hardware.HardwareBuffer`, read a fd-bearing Parcel entry, and import that fd successfully through both APUSYS type-2 and type-3 memory-create. This is the highest APUSYS priority.
-2. **Command parsing/execution and ucmd paths**: `0xC0184107` and `0x40184106` reach `mdw_usr_run_cmd_async`. The current probe sets the user field at `+0x0c` to `1`, which makes this function return early before the indirect ops calls. `0x4014410E` reaches `mdw_usr_ucmd`; with `+0x0c == 0` it imports the fd as APUSYS memory, maps KVA/IOVA, bounds-checks the requested length, then calls `mdw_rsc_ucmd_dispatch` at `core+0x98`. The normal VPU opcode-7 `0x8001` mapped-buffer gate is now runtime-confirmed: with the same HardwareBuffer fd source, a first u32 of `0` returns `EINVAL`, while a first u32 of `0x8001` returns `ENOENT` for core `0` and `1`. That `ENOENT` is now interpreted as Normal and Preload algo lookup miss after a successful mapped-buffer gate, not as a failed fd source. EDMA and MDLA do not show the same opcode-7 command path.
+2. **Command parsing/execution and ucmd paths**: `0xC0184107` and `0x40184106` reach `mdw_usr_run_cmd_async`. The current probe sets the user field at `+0x0c` to `1`, which makes this function return early before command-ops dispatch. Static analysis now maps the next gates: with `+0x0c == 0`, run_cmd calls command ops `+0x00`, then ops `+0x18`, and only then queues the object and writes a handle to user `+0x00`. `0x4014410E` reaches `mdw_usr_ucmd`; with `+0x0c == 0` it imports the fd as APUSYS memory, maps KVA/IOVA, bounds-checks the requested length, then calls `mdw_rsc_ucmd_dispatch` at `core+0x98`. The normal VPU opcode-7 `0x8001` mapped-buffer gate is runtime-confirmed: with the same HardwareBuffer fd source, a first u32 of `0` returns `EINVAL`, while a first u32 of `0x8001` returns `ENOENT` for core `0` and `1`. That `ENOENT` is now interpreted as Normal and Preload algo lookup miss after a successful mapped-buffer gate, not as a failed fd source. EDMA and MDLA do not show the same opcode-7 command path.
 3. **Device/resource control paths**: `0x4004413C/3D` call `mdw_usr_dev_sec_alloc/free`, and `0x400C4109` calls `mdw_usr_dev_ctrl_4109`. The free path has an id `< 0x40` guard; the `0x400C4109` path looks up a device/core and dispatches provider opcode `0` through `mdw_rsc_dev_op0_ctrl` with only a 0x0c user input. Static mapping shows MDLA/EDMA opcode `0` reaches power-on paths, normal VPU opcode `0` reaches control bookkeeping, and VPU RT opcode `0` returns early.
 4. **Handshake/wait/simple rejection paths**: useful for reachability, lower standalone risk.
 
@@ -525,7 +546,7 @@ Interpretation: APUSYS memory-create is now a mapped and runtime-confirmed impor
 - Keep the current Java probe scoped to reject/query/negative-memory/device-control, fd-source scans, HardwareBuffer fd import, and controlled `ucmd` gate tests.
 - Use the `app_process64` HardwareBuffer path as the baseline fd source. Direct `/dev/ion`, `/dev/ashmem`, dma-heap device nodes, and DRM PRIME export remain blocked or unavailable in the current context.
 - Use kernel logs, if available from the lab context, to distinguish whether the `ENOMEM` path comes from ION import, cache sync, or IOVA map setup.
-- Keep `mdw_usr_get_cmd_ops` / `0xffffffc00a188e58` marked unresolved. Leave the `run_cmd` `+0x0c` early-reject field set while resolving the indirect call targets.
+- Keep the `run_cmd` `+0x0c` early-reject field set in default probes while resolving command ops `+0x00`, `+0x10`, and `+0x18`.
 - For `0x400C4109`, optional follow-up is a small control-value sweep on the live-success providers while watching return codes and kernel logs. The current control value `0` already confirms provider opcode `0` reachability.
 - For `mdw_usr_ucmd`, recover the actual relocated `vpu_normal_algo_ops_raw` / `vpu_preload_algo_ops_raw` callback entrypoints before claiming fields beyond the likely key at `mapped_kva+4`.
 - Do not add a matching-key runtime test until the real callback targets are resolved. The nearby thermal cooling-device string cluster may be state-changing if it ever proves connected.

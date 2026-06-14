@@ -95,9 +95,9 @@ Confirmed open from system_app. IDA now maps the main midware ioctl dispatcher: 
 
 **Why interesting**: Private MTK driver, directly open from `uid=1000(system)`, and routes into APUSYS command parsing, VPU/MDLA/EDMA execution, memory import/IOVA, and Reviser resource paths.
 
-**Risk**: Medium-high research priority, with a working framework fd source for memory import and a runtime-confirmed normal VPU `ucmd` content gate. The dispatcher uses fixed `copy_from_user` sizes and several early validation gates, but `app_process64` can create a HardwareBuffer dmabuf, both APUSYS type-2/type-3 memory-create paths import it successfully, and changing the mapped buffer's first u32 from `0` to `0x8001` changes normal VPU `ucmd` from `EINVAL` to `ENOENT`. Static analysis maps that `ENOENT` to the Normal/Preload lookup-miss path at `0xffffffc0087a0c70`; the empty-list path returns success instead. The Preload init path uses the same lookup interface with `X1` pointing at a firmware entry name/key, so `mdw_usr_ucmd` likely expects the key at `mapped_kva+4`. The most interesting paths are now the unresolved lookup callback identity, fields after that key, `mdw_usr_run_cmd_async`/`mdw_usr_run_cmd_sync`, and provider dispatch reached after memory mapping.
+**Risk**: Medium-high research priority, with a working framework fd source for memory import and a runtime-confirmed normal VPU `ucmd` content gate. The dispatcher uses fixed `copy_from_user` sizes and several early validation gates, but `app_process64` can create a HardwareBuffer dmabuf, both APUSYS type-2/type-3 memory-create paths import it successfully, and changing the mapped buffer's first u32 from `0` to `0x8001` changes normal VPU `ucmd` from `EINVAL` to `ENOENT`. Static analysis maps that `ENOENT` to the Normal/Preload lookup-miss path at `0xffffffc0087a0c70`; the empty-list path returns success instead. The Preload init path uses the same lookup interface with `X1` pointing at a firmware entry name/key, so `mdw_usr_ucmd` likely expects the key at `mapped_kva+4`. `mdw_usr_run_cmd_async` now has its first gate and command-ops sequence mapped: `+0x0c` must be zero, ops `+0x00` creates a command object, ops `+0x18` parses it, and success queues a handle back to user `+0x00`. The most interesting paths are now the unresolved callback identities, fields after the VPU ucmd key, and provider dispatch reached after memory mapping.
 
-**Action**: Continue from [`13-apusys-ioctl-surface/README.md`](13-apusys-ioctl-surface/README.md). Recover the actual relocated VPU algo ops callback entrypoints before claiming fields beyond the likely key at `mapped_kva+4` or running a matching-key test.
+**Action**: Continue from [`13-apusys-ioctl-surface/README.md`](13-apusys-ioctl-surface/README.md). Recover the actual relocated VPU algo ops and command-ops callback entrypoints before running matching-key or cleared-`+0x0c` command experiments.
 
 #### E. Binder service-mediated kernel bugs
 
@@ -139,6 +139,7 @@ The IDA-based risk ranking from the handoff identified SET_SLD_PARAM (0x57) and 
 - HardwareBuffer under `app_process64` supplies a usable dmabuf fd; APUSYS type-2/type-3 memory-create both import it and cleanup succeeds
 - Direct DRM PRIME, direct ION, direct ashmem, and tested dma-heap paths are blocked or unavailable
 - Normal VPU opcode-7 `ucmd` reaches beyond the `0x8001` mapped-buffer gate and returns `ENOENT`; current static analysis interprets this as a Normal/Preload lookup miss, but the raw VPU algo ops table entries in the flat Image do not resolve to valid function starts without better relocation/runtime evidence
+- `mdw_usr_run_cmd_async` gate is mapped: user `+0x0c` must be zero, then command ops `+0x00` and `+0x18` run before the command is queued and a handle is copied back to user `+0x00`
 
 **Priority 3: ION CVEs via non-direct paths**
 - Direct `/dev/ion` open is `EACCES` from `system_app`
