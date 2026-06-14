@@ -866,6 +866,32 @@ Result files:
 - `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_opcode_matrix_repeat.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_opcode_matrix_repeat_kernel.txt`
 
+The target-wrapper descriptor-layout matrix keeps opcode `10003`, wrapper
+send-state flags, one output operand, one data descriptor, `buffer_count=5`,
+and no `request+0x38/+0x40` settings property, then varies the five copied
+native VPU descriptors:
+
+| Layout | Descriptor slots | Wait result | Visible result |
+|---|---|---|---|
+| `libvpu_metadata_code5` | code, code, code, code, code | `0` | code word `0x2713 -> 0x271b`; output/data unchanged |
+| `libvpu_metadata_mixed5` | code, output, data descriptor, data payload, plane payload | `0` | code word `0x2713 -> 0x271b`; output/data unchanged |
+| `libvpu_metadata_mixed5_output_first` | output, code, data descriptor, data payload, plane payload | `-EIO` | output word `0xffffffff -> 0xfffffffd`; code/data unchanged |
+
+The no-dispatch control preserves every window. The repeat dispatch run
+reproduces the same three outcomes. This confirms that the visible imported
+buffer write follows copied native VPU descriptor slot `0`, while merely
+placing output/data/data-descriptor buffers into later descriptor slots does not
+make APUNN consume the normal output/data contract.
+
+Result files:
+
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_descriptor_layout_matrix_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_descriptor_layout_matrix_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_descriptor_layout_matrix.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_descriptor_layout_matrix_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_descriptor_layout_matrix_repeat.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_descriptor_layout_matrix_repeat_kernel.txt`
+
 This rules out the presence of a direct settings-property tuple as the cause of
 the current incomplete boundary. The target-wrapper-shaped no-settings request
 is accepted by APUSYS/VPU and can be waited successfully when at least one native
@@ -875,7 +901,8 @@ next unresolved field is therefore not ordinary VPU descriptor metadata,
 nonzero descriptor count, `request+0x38/+0x40` presence, native descriptor
 payload size, request priority/slot, descriptor port/format/plane-count bytes,
 descriptor height, output operand id, tested input/output count combinations,
-or basic `0x1c8` count routing. The opcode word is parsed and does select
+basic `0x1c8` count routing, or simple five-descriptor role ordering. The
+opcode word is parsed and does select
 different APUNN firmware-side status/timeout classes, but opcode alone is still
 not the completion/output contract. The remaining gap is the standard wrapper's
 code/output/data buffer contents, command flags, or output-header semantics that
