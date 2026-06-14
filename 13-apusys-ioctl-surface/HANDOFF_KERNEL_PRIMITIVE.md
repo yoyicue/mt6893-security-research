@@ -47,6 +47,30 @@ The first command-lifetime close-race pass is also implemented. It proves that
 after `run_cmd_async`, but the tested completed and timeout windows did not
 produce a crash, KASAN report, panic, or kernel-pointer copyback.
 
+## Kernel primitive triage
+
+The direct ioctl work is past reachability. Current risk is concentrated in
+whether APUSYS midware returns attacker-useful kernel state or mishandles
+command lifetime; broad APUNN parser matrices should not be the default next
+step.
+
+| Track | Current decision | Evidence |
+|---|---|---|
+| Firmware interaction | Keep as a stable trigger, not the primary primitive | `settings5/no-settings` completes from `system_app`, with exact `0xb70` VPU request size, five native descriptors, settings `0x5 -> 0x7`, output write, and standard data descriptor cleanup |
+| Completed command-buffer copyback leak | De-prioritize | Full `0xb70` before/after diff changes only scalar tail state (`request+0xb60`, and preload-slot `request+0xb68 = 1`); no kernel pointer, slab address, imported-buffer IOVA, or pointer-shaped copyback |
+| Completed output/writeback leak | De-prioritize for synthetic payloads | Output is bounded by `settings+0x08`; tested data payload patterns and data/plane target windows do not flow into output; descriptor-slot deltas behave like provider status words |
+| Timeout/abort lifetime | Remaining kernel-side candidate, currently low confidence | fd close after async dispatch reliably reaches residual command teardown, including the timeout shape, but the first completed and timeout windows show no oops/KASAN/panic and no stale object copyback |
+| Service-wrapper path | Supportive, not a blocker for kernel primitive triage | Direct ioctl already reproduces the wrapper-shaped completed request. A positive wrapper dump is useful for real NN binding semantics, but not required to classify completed-path copyback or the first teardown race |
+| Concurrent submissions | Next cheap kernel experiment if more time is spent | Two in-flight commands sharing one imported IOVA can test scheduler/memory lifetime without adding more firmware parser uncertainty |
+
+Practical next step: run at most one focused kernel-lifetime batch before
+closing this surface for now. Use timeout/abort copyback diff plus a small
+close-delay loop (`0/10/50/100/500/1000 ms`), then optionally two concurrent
+commands sharing the same imported IOVA. A crash, KASAN report, stale command
+completion after destroy, pointer-shaped copyback, or freed-IOVA DMA symptom
+would reopen the primitive. Clean residual teardown keeps APUSYS at
+"reachable firmware execution without demonstrated kernel primitive".
+
 ## Priority 1 — command buffer copyback pointer scan
 
 The first full `0xb70` request diff is now implemented in
