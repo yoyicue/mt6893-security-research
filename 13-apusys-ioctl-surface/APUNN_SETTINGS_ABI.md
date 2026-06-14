@@ -328,16 +328,18 @@ The same helper separates operation ids into several namespaces:
 
 | Opcode range / rule | Name source | Observed names |
 |---|---|---|
-| `0..992`, indexed by `opcode >> 4` | builtin-like table | `CONV2D`, `RELU`, `RESHAPE`, `CAST`, `GET_ALGO_INFO`, `LOCAL_MEM_INFO`, `XTENSA_ANN_VERSION`, `GET_DETAILED_OP_INFO`, `unknown`, `apu_lib_apunn`, `apu_lib_custom`, `apunn_dynamic`, `custom_dynamic` |
-| `10001..10009`, indexed by `opcode - 10001` | internal table | `GET_ALGO_INFO`, `LOCAL_MEM_INFO`, `XTENSA_ANN_VERSION`, `GET_DETAILED_OP_INFO`, `unknown`, `apu_lib_apunn`, `apu_lib_custom`, `apunn_dynamic`, `custom_dynamic` |
+| `(opcode >> 4) <= 0x270`, indexed by the full opcode | builtin-like table at `.data.rel.ro+0x08` | `CONV2D`, `RELU`, `RESHAPE`, `CAST`, `GET_ALGO_INFO`, `LOCAL_MEM_INFO`, `XTENSA_ANN_VERSION`, `GET_DETAILED_OP_INFO`, `unknown`, `apu_lib_apunn`, `apu_lib_custom`, `apunn_dynamic`, `custom_dynamic` |
+| `10001..10009`, indexed by `opcode - 10001` | internal table at `.data.rel.ro+0x200` | `GET_ALGO_INFO`, `LOCAL_MEM_INFO`, `XTENSA_ANN_VERSION`, `GET_DETAILED_OP_INFO`, `unknown`, `apu_lib_apunn`, `apu_lib_custom`, `apunn_dynamic`, `custom_dynamic` |
 | `15001` | special case | `custom op` |
 | `15002` | special case | `builtin cv op` |
 
-No confirmed no-op appears in the recovered name tables. The `10003`
-`XTENSA_ANN_VERSION` probe above shows that a minimal one-entry target code
-section can be submitted without a user-visible crash, but the unchanged
-output/data windows mean the expected output operand and remaining `0x1c8` entry
-fields are still unmapped.
+`10003` is `0x2713`, which fails the builtin guard because `0x2713 >> 4` is
+`0x271`, then lands in the internal table as index `2`. That statically pins
+the current probe opcode to `XTENSA_ANN_VERSION`. No confirmed no-op appears in
+the recovered name tables. The `10003` probe above shows that a minimal
+one-entry target code section can be submitted without a user-visible crash, but
+the unchanged output/data windows mean the expected output operand and remaining
+`0x1c8` entry fields are still unmapped.
 
 The fixed matrix mode (`--run-cmd-vpu-xrp-op-matrix-iova`) now has one dispatch
 run and one no-dispatch control. It keeps the same split-target layout and
@@ -931,6 +933,7 @@ Userland wrapper evidence:
 | `libneuron_platform.vpu.so` | `XrpIntrinsicExecutor::WaitRequest` | `0x101e0` | Requires `(settings[0] & 0x0a) == 0x02` after VPU wait before treating the XRP command as completed |
 | `libneuron_platform.vpu.so` | `XrpVpuStream::CreateVpuRequest` | `0x16d54` | Calls `vpuRequest_setProperty()` for the prepared settings payload |
 | `libneuron_platform.so` | `XrpCommandInfo::PrepareOutputHeader` | `0x129bc` | Writes the output header qword, result size `4`, output size, and output sync/header flag byte |
+| `libneuron_platform.so` | `XrpDebugger::PrintXtensaOperations` | `0x13664` | Confirms the debug-visible Xtensa operation fields: stride at code `+0x04`, opcode at entry `+0x00`, operand-list offset at `+0x08`, input count at `+0x0c`, output count at `+0x10`, and operand ids at `entry+0x48+operand_off` |
 | `libneuron_platform.so` | `XrpIntrinsic::PrepareXrpCommand` | `0x16ac0` | Standard path: binds input/code, prepares Xtensa command fields, allocates/binds output, and prepares output fields |
 | `libneuron_platform.so` | `XrpIntrinsic::FinalizeXrpCommand` | `0x1789c` | Standard path: prepares/finalizes data descriptors, then creates the VPU request |
 | `libneuron_platform.so` | `XrpIntrinsic::PrepareInternalCommand` | `0x1728c` | Separate exported path; no direct xref from standard prepare/finalize flow in this library |
@@ -940,6 +943,7 @@ Userland wrapper evidence:
 | `libapuwarexrp_v2.mtk.so` | `XrpIntrinsicExecutor::XRP_GetPreparedRequests` | `0x9b50` | Requests prepared VPU request info from the APUWARE service after successful finalize |
 | `libneuron_platform.so` | `XrpIntrinsicExecutor::PrepareInternalCommandBuffer` | `0x1ff48` | Separate internal path: binds first internal buffer to settings code fields and second internal buffer to settings output fields |
 | `libneuron_platform.so` | `XrpIntrinsicExecutor::WritebackCommand` | `0x22660` | Host wrapper requires the same completion-flag predicate and records the first output word as command status |
+| `libneuron_platform.so` | `XrpPatternDump::DumpXtensaOperations` | `0x29a0c` | Writes raw code-section bytes to `/data/local/tmp/xrp_xtensa_cmd.bin`; it does not parse fields |
 | `libneuron_platform.so` | `XrpVpuStream::DefaultCreateVpuRequest` | `0x2ad64` | Creates libvpu-style descriptors with `port_id=1`, `height=1`, and `stride=size`; default path calls `addBuffer()` five times |
 
 Kernel handoff evidence:
