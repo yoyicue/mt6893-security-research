@@ -77,11 +77,14 @@ the IOVAs that lead to the imported HardwareBuffer windows used by the probe.
 
 This explains the current writeback boundary: when the two-native-buffer probe
 points native buffer `0` at the APUNN code/input window, the visible
-`0x2713 -> 0x271b` delta follows that buffer's plane IOVA. That is stronger
-than ioctl or scheduler reachability, but it is still not proof that the APUNN
-XRP output section has been consumed. The missing piece is the firmware-side
-meaning of the copied buffer descriptors plus the completion/output contract
-that turns a D2D_EXT command into a finished request.
+`0x2713 -> 0x271b` delta follows that buffer's plane IOVA. When the
+output-first variant points descriptor `0` at the output window instead, the
+visible delta moves to `output[0]` (`0xffffffff -> 0xfffffffd`). That is
+stronger than ioctl or scheduler reachability, but it is still not proof that
+the APUNN XRP output section has been consumed through the normal wrapper
+contract. The missing piece is the firmware-side meaning of the copied buffer
+descriptors plus the completion/output contract that turns a D2D_EXT command
+into a finished request.
 
 ## APUNN/XRP settings buffer
 
@@ -291,6 +294,36 @@ normal VPU request and `libneuron_platform.vpu.so` wrapper route a raw
 code-section IOVA/size pair, while the `0x1c8` entry fields after the basic
 debug-visible header are consumed outside these userland helpers.
 
+## Output header and writeback clues
+
+`/tmp/mtk-apu-artifacts/libneuron_platform.so` and
+`libneuron_platform.vpu.so` both initialize the XRP output section header in
+the output buffer itself:
+
+| Field | Static writer | Meaning |
+|---:|---|---|
+| `output+0x00` | constant qword write | first u32 starts at `0xffffffff`, second u32 at `0x40` |
+| `output+0x08` | constant `4` | header/result word size |
+| `output+0x0c` | output section size | copied from the output buffer descriptor size |
+| `output+0x10` | bool argument | output sync/header flag byte |
+
+`XrpCommandInfo::PrepareOutputHeader(bool)` at `0x129bc` writes these fields
+from the host-side command object. The target-side
+`XrpCommandInfo::InitOutputSection()` at `0xc848` writes the same header unless
+its skip-header argument is set, then writes the settings output size/IOVA at
+settings `+0x08/+0x20`. The large wrapper's `WritebackCommand()` at `0x22660`
+does not treat this output header as a completion predicate. It first requires
+the command settings flags to satisfy `(settings[0] & 0x0a) == 0x02`; only after
+that predicate passes does it copy output bytes and record the first output word
+as command status.
+
+The `output_ready` runtime case sets only `output+0x10` to `1`, matching the
+static `PrepareOutputHeader(true)` form, while keeping code-first descriptor
+order, libvpu metadata, and wrapper send-state flags. Dispatch still returns
+`0`, settings remain `0x5`, output word `0` remains `0xffffffff`, and code word
+`0` changes `0x2713 -> 0x271b`. The output header sync/flag byte is therefore
+not the missing APUNN completion condition.
+
 The same helper separates operation ids into several namespaces:
 
 | Opcode range / rule | Name source | Observed names |
@@ -340,6 +373,16 @@ stable per-case behavior:
 | `detailed_op_info_out0` | 10s | Only native plane payload changes; VPU worker times out |
 | `ann_version_no_output` | 20s | Only native plane payload changes; VPU worker times out |
 | `ann_version_out1` | 20s | Only native plane payload changes; VPU worker times out |
+
+The extra case `ann_version_status_bit3_out0` pre-sets the first operation word
+to `10003 | 0x8` (`0x271b`) before dispatch. Its no-dispatch control leaves all
+windows unchanged. The dispatch run still returns `run_async_vpu_iova ret=0`,
+keeps settings/code/output/data-desc/data-payload unchanged, changes only native
+descriptor `0`'s plane payload word `0` from `0x504c4e30` to `0x504c4e31`, and
+logs `request (D2D_EXT) timeout` plus a residual command at teardown. This
+separates opcode parsing from descriptor writeback: in the split-target
+one-buffer layout, pre-setting bit `3` does not produce completion and does not
+cause additional code-window writeback.
 
 The single-case logs do not reproduce the batch `apusys_devapc_isr`
 read-violation warning. The current parser conclusion is therefore that the
@@ -461,6 +504,265 @@ APUNN command should visibly change settings `+0x00` so that
 `(flags & 0x0a) == 0x02`, and the output section should no longer retain the
 initial `0xffffffff, 0x40, 4, size` header.
 
+The follow-up
+`--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-output-first`
+variant keeps the same settings buffer (`code_iova = base+0x100`,
+`output_iova = base+0x300`) and wrapper send-state flags, but swaps the native
+VPU descriptor order: descriptor `0` points to the output window and descriptor
+`1` points to the code/input window.
+
+| Variant | Runtime result |
+|---|---|
+| `output_first` no-dispatch control | Settings/code/output/data windows and command buffer stay unchanged |
+| `output_first` dispatch | `run_async_vpu_iova ret=0`; settings remain `0x5`; code/input first word stays `0x2713`; output first word changes `0xffffffff -> 0xfffffffd`; data windows remain unchanged; teardown logs residual command cleanup |
+
+This pins the visible imported-buffer writeback to native descriptor `0`.
+Changing descriptor `0` from code/input to output moves the first-word delta
+with it, even though the settings buffer still advertises the same code and
+output IOVAs. The observed first-word deltas are therefore descriptor-index
+effects on the current incomplete command path, not proof that APUNN has
+completed its settings/output contract.
+
+## Wrapper-generated request inspection
+
+`poc/xrp_wrapper_inspect.cpp` is a native wrapper inspector for comparing the
+Java-built request with a request produced by `libneuron_platform.vpu.so`
+itself. It loads the target wrapper, creates an XRP command, allocates one
+code/input buffer and one output buffer, finalizes the command, and dumps the
+`cXrpBufferInfo`, `cVpuRequestInfo`, and first VPU request bytes. The tool does
+not call `XRP_RunCommand()`.
+
+Static analysis of the device library
+`/system/lib64/libneuron_platform.vpu.so`
+(`sha256=3e2f37bab5a6dc30973f42ca72f73b3d02798bff61f9763521b34d25e6aae0f3`)
+adds these wrapper constraints:
+
+| Wrapper item | Evidence |
+|---|---|
+| `cXrpOptions` | `XrpIntrinsicWrapper::XrpIntrinsicWrapper()` expects option size `0x18`, reads byte `+0x05`, and copies the qword at `+0x10` into internal options |
+| `XrpIntrinsicExecutor::InitDriver()` | Creates the VPU stream instance first; failure returns a nonzero XRP status before memory-manager setup |
+| `XrpIntrinsicExecutor::CreateXrpCommand()` | Allocates a `0x68` `xrp_dsp_cmd`/DSP command buffer through the memory manager before command initialization |
+
+The shell-domain run is a negative control, not a valid APUNN wrapper ABI
+dump:
+
+```text
+context=u:r:shell:s0
+dlopen path=/system/lib64/libneuron_platform.vpu.so
+XRP_Create status=4
+XRP_Create did not initialize the wrapper; skip follow-up calls.
+```
+
+The earlier crash after continuing past status `4` is explained by the same
+static path: `XRP_CreateCommand()` reaches
+`XrpMemoryManager::AllocateBuffer(0x68)`, but `InitDriver()` did not create the
+memory manager, so the call locks a null-object mutex at `0x10`. The corrected
+inspector stops after nonzero `XRP_Create`.
+
+The `system_app` `app_process64` route now works as a second negative control.
+`poc/XrpWrapperInspect.java` loads the already-installed
+`/system/lib64/libneuron_platform.vpu.so`, resolves exported function addresses
+from ELF metadata plus `/proc/self/maps`, and calls them through the
+`DrmTrigger` ART native-call stub. The stub self-test calls libc `getpid()` and
+returns the expected process id, proving that the function-call primitive is not
+the blocking point:
+
+```text
+uid=1000(system) context=u:r:system_app:s0
+native getpid()=610
+XRP_Create status=4 device=0xb400006db9a2af10
+XRP_Create did not initialize; stop.
+```
+
+This keeps the wrapper-generated request comparison open, but narrows the
+missing condition. Both shell and direct `system_app` wrapper initialization
+return status `4`; follow-up calls are intentionally skipped because the memory
+manager is not initialized on that path. A useful positive dump still needs a
+context or option set where `XRP_Create()` returns `0`, or a different hook point
+inside an already successful Neuron/VPU client.
+
+The APUWARE HIDL wrapper gives a separate positive initialization path through
+`/system/system_ext/lib64/libapuwarexrp_v2.mtk.so`. It proxies to
+`vendor.mediatek.hardware.apuware.xrp@2.0` in
+`android.hardware.neuralnetworks@1.3-service-mtk-neuron`, and from a shell
+process it reaches the service successfully:
+
+```text
+dlopen path=/system/system_ext/lib64/libapuwarexrp_v2.mtk.so
+XRP_Create status=0 device=0x1
+XRP_CreateCommand status=0 handle=1
+XRP_AllocateBuffer(code) status=0
+XRP_AllocateBuffer(output) status=0
+XRP_UseInputBuffer status=0
+XRP_UseOutputBuffer status=0
+XRP_FinalizeCommand status=2
+```
+
+This path adds two concrete ABI facts. First, the APUWARE client wrapper reads
+the caller-provided `cXrpBufferInfo+0x18` fd before `XRP_AllocateBuffer()`.
+Initializing that field to `-1` is required for the service-allocation path;
+leaving the struct zeroed makes the wrapper duplicate fd `0` and send it over
+HIDL, which aborts after a Binder `FAILED_TRANSACTION`. Second, the APUWARE
+client converts the public 0x30-byte `cXrpBufferInfo` into a 0x38-byte HIDL
+`XRP_cXrpBufferInfo_HD` record before `XRP_FinalizeCommand()`.
+
+The service-allocated buffer info observed from the positive path is:
+
+| `cXrpBufferInfo` offset | Code buffer | Output buffer | Meaning |
+|---:|---:|---:|---|
+| `+0x00` | `2` | `2` | Buffer kind/type returned by APUWARE |
+| `+0x08` | `1` | `2` | Service buffer id |
+| `+0x10` | `0x1c8` | `0x80` | Requested size |
+| `+0x14` | `0x1c8` | `0x80` | Mapped size |
+| `+0x18` | `0x0b` | `0x0c` | Shared fd |
+| `+0x20` | `0xfd643000` | `0xfd641000` | Low 32-bit IOVA/PA-style value |
+| `+0x28` | user VA | user VA | Host mapping used by the client |
+
+The recorded positive APUWARE route stopped at
+`XRP_FinalizeCommand status=2`. It occurs after code/output allocation and
+`UseInputBuffer`/`UseOutputBuffer` both return success, so the remaining
+condition is in the finalize output-vector semantics or service-side command
+validation, not in service lookup or buffer allocation. A forced
+`XRP_GetPreparedRequests()` after the failed finalize blocks in the HIDL path;
+the helper now skips request dumping unless finalize returns `0`.
+
+Static inspection of the local `/system/lib64/libneuron_platform.vpu.so`
+wrapper changes the interpretation of that `status=2`. Its
+`XrpIntrinsicWrapper::FinalizeCommand()` copies each caller
+`cXrpBufferInfo` into a temporary data-buffer vector only after checking the
+qword at `cXrpBufferInfo+0x08` against `output_count`; if the value is
+greater than or equal to `output_count`, the wrapper returns status `2`.
+The saved APUWARE positive run passed the raw output buffer returned by
+`XRP_AllocateBuffer()`, whose `+0x08` field was `2`, together with
+`output_count=1`. That is a direct match for an output-vector index mismatch:
+the finalize vector wants output slot indices, while the allocation result
+contains a service buffer id. This means the old `status=2` result is weak
+evidence for firmware rejection and strong evidence that the wrapper finalize
+ABI was still wrong.
+
+`poc/xrp_wrapper_inspect.cpp` now has `--finalize-slot-index`, which sends a
+copy of the output info with `+0x08` rewritten to the vector slot number before
+calling `XRP_FinalizeCommand()`, and `--dlopen-lazy` for isolating loader
+behavior. Current reruns cannot yet validate the slot-index hypothesis because
+this device state stops inside `dlopen(libapuwarexrp_v2.mtk.so)` before the
+helper prints the loaded path, even with `RTLD_LAZY`.
+
+Wrapper-inspection result files:
+
+- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_shell.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_app_process.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_neuron_shell_latest.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_neuron_skip_finalize_after_index_patch.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_shell.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_matrix.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_buffer_id_retry.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_finalize_slot_index.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_finalize_slot_index_lazy.txt`
+
+## Firmware-visible request model
+
+The readable `apu_lib_apunn` artifact is still not available from this device
+state. The firmware-side model can still be pinned down to the last kernel/user
+boundary: the wrapper builds the XRP settings and native VPU request, `mdw`
+copies the request into kernel memory, and the VPU driver translates it into a
+D2D/D2D_EXT register tuple plus a copied buffer-descriptor array.
+
+The normal-VPU provider gate is now IDA-confirmed in `vmlinux.bin`:
+
+| Function / address | Boundary |
+|---|---|
+| `vpu_send_cmd_rt_handler+0x4dc` / `0xffffffc0087a08f8` | Requires provider argument `+0x0c == 0xb70` |
+| `vpu_send_cmd_rt_handler+0x4e8` / `0xffffffc0087a0904` | Requires `request+0x28 < 0x10` |
+| `vpu_send_cmd_rt_handler+0x4f4` / `0xffffffc0087a0910` | Requires `request+0x35 < 0x21` |
+| `vpu_send_cmd_rt_handler+0x500` / `0xffffffc0087a091c` | Clears `request+0xb68`, stores core id at `request+0xb5c` |
+| `vpu_send_cmd_rt_handler+0x510` / `0xffffffc0087a092c` | Dispatches `vpu_execute()` unless original `request+0x28` bit `2` selects `vpu_execute_with_slot()` |
+
+`vpu_execute()` explains why the runtime logs show `D2D_EXT` even though the
+probe submits `request+0x28 == 0`. It first looks up `request+0x04` in the
+Normal algorithm set. If that lookup returns `-ENOENT` while bit `2` is not
+already set, the driver ORs `request+0x28` with `0x4` and retries the Preload
+set. The observed `apu_lib_apunn` requests therefore reach firmware as Preload
+`D2D_EXT` work after a Normal-set miss, not because the Java request directly
+sets the D2D_EXT flag.
+
+`sub_FFFFFFC0087A5B74()` is the kernel-to-firmware handoff. Its first step is
+to copy `request+0x50` into the per-priority VPU command buffer:
+
+| IDA address | Operation |
+|---|---|
+| `0xffffffc0087a5bd0` | Reads `request+0x35` as `buffer_count` |
+| `0xffffffc0087a5bdc` | Uses `request+0x50` as the source descriptor array |
+| `sub_FFFFFFC0087A20E8` / `0xffffffc0087a20e8` | Rejects copies larger than `0x2000`, then copies `buffer_count * 0x40` bytes |
+| `0xffffffc0087a20f8` | Destination is the per-priority D2D buffer at `core + priority * 0xb0 + 0x3f8` |
+| `sub_FFFFFFC0087A20C8` / `0xffffffc0087a20c8` | Returns the copied descriptor-array IOVA from `core + priority * 0xb0 + 0x400` |
+
+The firmware-visible MMIO writes in the same function are:
+
+| MMIO offset from `core+0xa0` | Firmware input |
+|---:|---|
+| `+0x280` | `request+0x35` buffer count |
+| `+0x284` | IOVA of the copied `struct vpu_buffer[]` array |
+| `+0x288` | Low 32 bits of `request+0x40` settings IOVA |
+| `+0x28c` | `request+0x38` settings length |
+| `+0x254` | command id: `0x22` for D2D, `0x24` for D2D_EXT |
+
+For D2D_EXT, the driver also writes preload state before the common
+`INFO12..15` tuple:
+
+| MMIO offset from `core+0xa0` | D2D_EXT input |
+|---:|---|
+| `+0x27c` | `request+0xb68` priority/slot value |
+| `+0x290` | sum of preload object fields `+0xfb0` and `+0xfb8` |
+| `+0x29c` | preload object `+0xfc0` |
+
+The trigger sequence then clears a status bit at MMIO `+0x910`, sets bit `0` at
+MMIO `+0x204`, waits for completion, maps the per-priority status word through
+`sub_FFFFFFC0087A2040()`, and copies the driver-side algorithm return into
+`request+0xb6c` through `sub_FFFFFFC0087A20A8()`.
+
+This gives the current interpretation boundary:
+
+- `apu_lib_apunn` sees a copied descriptor array, not the original userland
+  `struct vpu_request`.
+- The settings buffer is reached through `INFO14/INFO15`; native buffers are
+  reached through the copied descriptor-array IOVA in `INFO13`.
+- The split-target one-buffer opcode cases show the firmware path following
+  descriptor `0` into the native plane payload and changing word `0` from
+  `0x504c4e30` to `0x504c4e31`, while settings/code/output/data-desc/data
+  windows remain unchanged.
+- The two-native-buffer result where code/input word `0` changes
+  `0x2713 -> 0x271b` is the same descriptor-following behavior with descriptor
+  `0` bound to the code/input window. The low halfword started as opcode
+  `10003` (`XTENSA_ANN_VERSION`), so that layout made the descriptor writeback
+  look like bit `3` being set in the first operation word.
+- The `ann_version_status_bit3_out0` result pre-seeds that bit (`0x271b`) and
+  still only changes native descriptor `0`'s plane payload in the split-target
+  layout. Bit `3` alone is therefore not the missing completion signal.
+- The `output_first` result swaps only the two copied native descriptor slots.
+  The visible first-word delta moves from code/input to output
+  (`0xffffffff -> 0xfffffffd`) while settings still point to the same output
+  IOVA. This confirms descriptor `0`, not the settings output pointer, is the
+  current writeback attribution target.
+- The `settings68` result keeps the code-first two-buffer shape, wrapper
+  send-state flags, and libvpu descriptor metadata, but changes only
+  `request+0x38` from `0x100` to the wrapper-allocated DSP command buffer size
+  `0x68`. Dispatch still returns `0`, kernel logs VPU boot/map activity and
+  residual command cleanup, settings remain `0x5`, output remains
+  `0xffffffff`, and code word `0` changes `0x2713 -> 0x271b`. The request
+  settings length is therefore not the missing APUNN completion condition.
+- The `output_ready` result keeps the same code-first two-buffer shape and sets
+  the wrapper-controlled output header byte at `output+0x10` from `0` to `1`.
+  Dispatch still returns `0`, settings remain `0x5`, output remains
+  `0xffffffff`, and code word `0` changes `0x2713 -> 0x271b`. That output
+  header flag is also not the missing APUNN completion condition.
+- The missing piece is now narrower: APUNN parses enough of the descriptor and
+  first operation entry to modify it, but the command still lacks the
+  firmware-side condition that marks settings `(flags & 0x0a) == 0x02` and
+  writes the output section.
+
+`ApusysIoctlProbe.java` includes the single-case label
+`ann_version_status_bit3_out0` for this pre-seeded operation-word check.
+
 Additional matrix result files:
 
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_matrix_iova.txt`
@@ -475,6 +777,14 @@ Additional matrix result files:
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc_kernel.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc_control.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_ann_version_status_bit3_out0.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_ann_version_status_bit3_out0_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_ann_version_status_bit3_out0_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_ann_version_status_bit3_out0_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_output_first.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_output_first_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_output_first_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_output_first_control_kernel.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc5.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc5_kernel.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc5_control.txt`
@@ -483,6 +793,14 @@ Additional matrix result files:
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc_send_flags_kernel.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc_send_flags_control.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc_send_flags_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_settings68.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_settings68_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_settings68_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_settings68_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_output_ready.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_output_ready_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_output_ready_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_output_ready_control_kernel.txt`
 
 ## Evidence map
 
@@ -500,10 +818,14 @@ Userland wrapper evidence:
 | `libneuron_platform.vpu.so` | `XrpCommandInfo::InitCodeSection` | `0xc728` | Writes code size/IOVA fields |
 | `libneuron_platform.vpu.so` | `XrpCommandInfo::InitOutputSection` | `0xc848` | Initializes output header and writes output size/IOVA |
 | `libneuron_platform.vpu.so` | `XrpCommandInfo::InitDataSection` | `0xcaa0` | Writes data descriptor size/IOVA |
+| `libneuron_platform.vpu.so` | `XrpIntrinsicWrapper::XrpIntrinsicWrapper` | `0x1139c` | Uses `cXrpOptions` size `0x18`, option byte `+0x05`, and qword `+0x10` |
+| `libneuron_platform.vpu.so` | `XrpIntrinsicExecutor::InitDriver` | `0xeb04` | Creates the VPU stream instance and memory manager; shell-domain failure returns status `4` before request construction is usable |
+| `libneuron_platform.vpu.so` | `XrpIntrinsicExecutor::CreateXrpCommand` | `0xf1d4` | Allocates the `0x68` DSP command buffer through the memory manager before XRP command initialization |
 | `libneuron_platform.vpu.so` | `XrpIntrinsicExecutor::PrepareDataSection` | `0xfacc` | Builds 12-byte data entries |
 | `libneuron_platform.vpu.so` | `XrpIntrinsicExecutor::SendRequest` | `0x10044` | Transitions command flags from initialize state toward send state by clearing `0x2` and setting `0x1` |
 | `libneuron_platform.vpu.so` | `XrpIntrinsicExecutor::WaitRequest` | `0x101e0` | Requires `(settings[0] & 0x0a) == 0x02` after VPU wait before treating the XRP command as completed |
 | `libneuron_platform.vpu.so` | `XrpVpuStream::CreateVpuRequest` | `0x16d54` | Calls `vpuRequest_setProperty()` for the prepared settings payload |
+| `libneuron_platform.so` | `XrpCommandInfo::PrepareOutputHeader` | `0x129bc` | Writes the output header qword, result size `4`, output size, and output sync/header flag byte |
 | `libneuron_platform.so` | `XrpIntrinsic::PrepareInternalCommand` | `0x1728c` | Allocates internal input and output buffers before APUNN dispatch |
 | `libneuron_platform.so` | `XrpIntrinsicExecutor::PrepareInternalCommandBuffer` | `0x1ff48` | Binds first internal buffer to settings code fields and second internal buffer to settings output fields |
 | `libneuron_platform.so` | `XrpIntrinsicExecutor::WritebackCommand` | `0x22660` | Host wrapper requires the same completion-flag predicate and records the first output word as command status |
@@ -518,6 +840,7 @@ Kernel handoff evidence:
 | `drivers/misc/mediatek/apusys/vpu/p1/vpu_hw.c` | `vpu_execute_d2d()` | Copies `req->buffers[]` into the D2D command buffer and writes `XTENSA_INFO12..15`; D2D_EXT also writes preload entry/IRAM registers |
 | `drivers/misc/mediatek/apusys/vpu/p1/vpu_hw.h` | register table | Documents `DO_D2D` as INFO12 buffer count, INFO13 buffer-array pointer, INFO14 setting pointer, and INFO15 setting size |
 | IDA `vmlinux.bin` | `vpu_execute` at `0xffffffc0087a7974` | Kernel execution entry that reaches the D2D/D2D_EXT request path |
+| IDA `vmlinux.bin` | `sub_FFFFFFC0087A5B74` at `0xffffffc0087a5b74` | Copies `request+0x50` descriptors, writes MMIO `+0x280/+0x284/+0x288/+0x28c`, triggers command id `0x22/0x24`, and waits for completion |
 
 Runtime evidence so far proves `apu_lib_apunn` lookup, normal VPU request
 acceptance, VPU boot/map activity, XRP-shaped settings header tolerance,
@@ -528,6 +851,10 @@ dispatch where copied native buffer descriptor `0` points at the code/input
 window and the kernel logs residual command state instead of the earlier D2D
 timeout. Libvpu-style descriptor metadata, a five-descriptor alias shape, and
 the wrapper send-state command flag value `0x5` do not change that boundary.
+Changing the firmware-visible settings length from `0x100` to the wrapper DSP
+command buffer size `0x68` also leaves the same boundary in place. Setting the
+wrapper-controlled output header flag byte at `output+0x10` to `1` does not
+produce settings completion or APUNN output writeback either.
 It does not yet prove APUNN data descriptor consumption, APUNN output-section
 writeback, the missing completion parameter, or the full semantic meaning of
 the observed native-buffer writeback. The batch-level devapc warning remains

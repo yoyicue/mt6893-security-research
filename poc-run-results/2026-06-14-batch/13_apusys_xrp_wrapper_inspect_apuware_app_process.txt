@@ -1,0 +1,13 @@
+shell_status= 0
+uid=1000(system) gid=1000(system) groups=1000(system),3003(inet) context=u:r:system_app:s0
+u:r:system_app:s05155299387fa72145f2ce211886a8005  /data/data/com.android.settings/cache/xrp_wrapper_inspect.dex
+[*] === XRP wrapper request inspector ===
+uid=1000 pid=1910
+context=u:r:system_app:s0
+System.load failed path=/system/system_ext/lib64/libapuwarexrp_v2.mtk.so error=java.lang.UnsatisfiedLinkError: dlopen failed: library "libdl_android.so" needed or dlopened by "/system/lib64/libvndksupport.so" is not accessible for the namespace "classloader-namespace"
+System.load failed path=/system_ext/lib64/libapuwarexrp_v2.mtk.so error=java.lang.UnsatisfiedLinkError: dlopen failed: library "libdl_android.so" needed or dlopened by "/system/lib64/libvndksupport.so" is not accessible for the namespace "classloader-namespace"
+System.load failed path=/vendor/lib64/libapuwarexrp_v2.mtk.so error=java.lang.UnsatisfiedLinkError: dlopen failed: library "/vendor/lib64/libapuwarexrp_v2.mtk.so" not found
+System.load failed path=/system/system_ext/lib64/libapuwarexrp.mtk.so error=java.lang.UnsatisfiedLinkError: dlopen failed: library "libdl_android.so" needed or dlopened by "/system/lib64/libvndksupport.so" is not accessible for the namespace "classloader-namespace"
+System.load failed path=/system_ext/lib64/libapuwarexrp.mtk.so error=java.lang.UnsatisfiedLinkError: dlopen failed: library "libdl_android.so" needed or dlopened by "/system/lib64/libvndksupport.so" is not accessible for the namespace "classloader-namespace"
+Killed
+APP_STATUS:137

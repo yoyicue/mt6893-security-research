@@ -1,0 +1,5 @@
+pattern=apusys|vpu|mdw|vpu_req_check
+source=adb logcat -b kernel or dmesg fallback
+
+06-14 20:20:26.073   378   378 I (2)[378:apusys_vpu0]: request (D2D_EXT) timeout, priority: 0, algo: apu_lib_apunn
+06-14 20:20:37.059  3677  3677 I         : (4)[3677:main][apusys][warn] mdw_usr_destroy residual cmd(0xffffff801ef75000)
