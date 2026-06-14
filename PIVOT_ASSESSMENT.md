@@ -31,7 +31,7 @@ This ranking assumes the current post-CVE-2024-31317 position: `uid=1000(system)
 | Rank | Surface | Current risk | Why |
 |---:|---|---|---|
 | 1 | `/dev/mali0` CVE-2023-33200 | **Highest confirmed** | Required ioctls are reachable, the path is not JIT-based, and IDA confirms the soft-event `vmap` vs sticky-resource USER_BUF unmap race shape. |
-| 2 | `/dev/apusys` | **Medium-high research priority** | Confirmed open proprietary MTK ioctl surface; provider opcode-0 dispatch is live for MDLA, normal VPU, EDMA, and MDLA RT. HardwareBuffer under `app_process64` supplies a dmabuf fd that both APUSYS memory-create variants import successfully; normal VPU `ucmd` is narrowed to the `0x8001` mapped-buffer gate. |
+| 2 | `/dev/apusys` | **Medium-high research priority** | Confirmed open proprietary MTK ioctl surface; provider opcode-0 dispatch is live for MDLA, normal VPU, EDMA, and MDLA RT. HardwareBuffer under `app_process64` supplies a dmabuf fd that both APUSYS memory-create variants import successfully; normal VPU `ucmd` reaches beyond the `0x8001` mapped-buffer gate to `ENOENT`. |
 | 3 | `/dev/ion` MTK heap/ioctl family | **Medium-low for direct system_app node access** | DAC bits look permissive, but dedicated old-ION probing confirms direct `/dev/ion` open returns `EACCES` from `system_app`. |
 | 4 | Display DRM `SET_PQPARAM` / adjacent PQ-AAL-SLD paths | **Medium** | `/dev/dri/card0` and many MTK private ioctls are reachable. The strongest current bug shape is display-state/MMIO-oriented, with no confirmed kernel-memory write primitive. |
 | 5 | Display DRM register and GEM paths | **Low** | `WRITE_REG`/`READ_REG` have visible validation, and CVE-2023-32836 `CREATE_DUMB` reaches the MTK 64-bit size path rather than the vulnerable generic 32-bit multiply path. |
@@ -95,9 +95,9 @@ Confirmed open from system_app. IDA now maps the main midware ioctl dispatcher: 
 
 **Why interesting**: Private MTK driver, directly open from `uid=1000(system)`, and routes into APUSYS command parsing, VPU/MDLA/EDMA execution, memory import/IOVA, and Reviser resource paths.
 
-**Risk**: Medium-high research priority, with a working framework fd source for memory import. The dispatcher uses fixed `copy_from_user` sizes and several early validation gates, but `app_process64` can create a HardwareBuffer dmabuf and both APUSYS type-2/type-3 memory-create paths import it successfully. The most interesting paths are now `mdw_usr_ucmd`, `mdw_usr_run_cmd_async`/`mdw_usr_run_cmd_sync`, and the provider dispatch reached after memory mapping.
+**Risk**: Medium-high research priority, with a working framework fd source for memory import and a runtime-confirmed normal VPU `ucmd` content gate. The dispatcher uses fixed `copy_from_user` sizes and several early validation gates, but `app_process64` can create a HardwareBuffer dmabuf, both APUSYS type-2/type-3 memory-create paths import it successfully, and changing the mapped buffer's first u32 from `0` to `0x8001` changes normal VPU `ucmd` from `EINVAL` to `ENOENT`. The most interesting paths are now the `ENOENT` lookup after `mdw_usr_ucmd`, `mdw_usr_run_cmd_async`/`mdw_usr_run_cmd_sync`, and provider dispatch reached after memory mapping.
 
-**Action**: Continue from [`13-apusys-ioctl-surface/README.md`](13-apusys-ioctl-surface/README.md). Use the HardwareBuffer fd source for the normal VPU opcode-7 `ucmd` experiment: device id `3`, core `0/1`, offset `0`, nonzero length, and mapped buffer first u32 `0x8001`.
+**Action**: Continue from [`13-apusys-ioctl-surface/README.md`](13-apusys-ioctl-surface/README.md). Resolve the normal VPU opcode-7 `ENOENT` path after the `0x8001` gate: identify the expected `payload+4` ABI and the Normal/Preload algorithm lookup key.
 
 #### E. Binder service-mediated kernel bugs
 
@@ -138,7 +138,7 @@ The IDA-based risk ranking from the handoff identified SET_SLD_PARAM (0x57) and 
 - Provider opcode-0 dispatch is live
 - HardwareBuffer under `app_process64` supplies a usable dmabuf fd; APUSYS type-2/type-3 memory-create both import it and cleanup succeeds
 - Direct DRM PRIME, direct ION, direct ashmem, and tested dma-heap paths are blocked or unavailable
-- Normal VPU opcode-7 `ucmd` is now narrowed to a dmabuf-backed mapped buffer with first u32 `0x8001`; raw VPU algo ops table entry semantics still need final address-form resolution
+- Normal VPU opcode-7 `ucmd` reaches beyond the `0x8001` mapped-buffer gate and returns `ENOENT`; raw VPU algo ops table entry semantics still need final address-form resolution
 
 **Priority 3: ION CVEs via non-direct paths**
 - Direct `/dev/ion` open is `EACCES` from `system_app`
@@ -152,4 +152,4 @@ The IDA-based risk ranking from the handoff identified SET_SLD_PARAM (0x57) and 
 
 ## Decision
 
-Next target remains **CVE-2023-33200** for Mali-specific work. For APUSYS, the immediate branch is now a normal VPU opcode-7 `ucmd` probe using the HardwareBuffer dmabuf source and mapped command id `0x8001`. Direct `/dev/ion` and `/dev/ashmem` reachability have now been checked and are blocked from `system_app`; tested `/dev/dma_heap/*` nodes are absent.
+Next target remains **CVE-2023-33200** for Mali-specific work. For APUSYS, the immediate branch is now resolving the normal VPU opcode-7 `ENOENT` result after the HardwareBuffer-backed `0x8001` gate. Direct `/dev/ion` and `/dev/ashmem` reachability have now been checked and are blocked from `system_app`; tested `/dev/dma_heap/*` nodes are absent.

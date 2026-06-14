@@ -192,7 +192,7 @@ The `0x4004413C/3D` size mismatch is important for testing: the command encoding
 ## Current risk ranking
 
 1. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` lead to `mdw_usr_mem_create`, then into APUSYS ION KVA/IOVA callbacks. Negative tests confirm that type-2 and type-3 descriptors reach deeper than the initial user-copy guard without creating an object or crashing. Direct node sources remain constrained: no `/dev/dma_heap/*` nodes on this device, DRM dumb buffer creation succeeds but PRIME fd export returns `EACCES`, direct `/dev/ion` open returns `EACCES`, `/dev/ashmem` open returns `EACCES`, and ordinary openable fds such as `/dev/dri/card0`, `/dev/mali0`, `/dev/zero`, `/dev/null`, and `/dev/apusys` all fail APUSYS memory-create with `ENOMEM`. The usable fd source is now the framework path: running the probe through `app_process64` can create an `android.hardware.HardwareBuffer`, read a fd-bearing Parcel entry, and import that fd successfully through both APUSYS type-2 and type-3 memory-create. This is the highest APUSYS priority.
-2. **Command parsing/execution and ucmd paths**: `0xC0184107` and `0x40184106` reach `mdw_usr_run_cmd_async`. The current probe sets the user field at `+0x0c` to `1`, which makes this function return early before the indirect ops calls. `0x4014410E` reaches `mdw_usr_ucmd`; with `+0x0c == 0` it imports the fd as APUSYS memory, maps KVA/IOVA, bounds-checks the requested length, then calls `mdw_rsc_ucmd_dispatch` at `core+0x98`. The provider opcode `7` path is now narrowed: normal VPU has a concrete `0x8001` mapped-buffer gate and walks per-core Normal/Preload algorithm sets, while EDMA and MDLA do not show the same opcode-7 command path.
+2. **Command parsing/execution and ucmd paths**: `0xC0184107` and `0x40184106` reach `mdw_usr_run_cmd_async`. The current probe sets the user field at `+0x0c` to `1`, which makes this function return early before the indirect ops calls. `0x4014410E` reaches `mdw_usr_ucmd`; with `+0x0c == 0` it imports the fd as APUSYS memory, maps KVA/IOVA, bounds-checks the requested length, then calls `mdw_rsc_ucmd_dispatch` at `core+0x98`. The normal VPU opcode-7 `0x8001` mapped-buffer gate is now runtime-confirmed: with the same HardwareBuffer fd source, a first u32 of `0` returns `EINVAL`, while a first u32 of `0x8001` returns `ENOENT` for core `0` and `1`, consistent with reaching the next lookup stage. EDMA and MDLA do not show the same opcode-7 command path.
 3. **Device/resource control paths**: `0x4004413C/3D` call `mdw_usr_dev_sec_alloc/free`, and `0x400C4109` calls `mdw_usr_dev_ctrl_4109`. The free path has an id `< 0x40` guard; the `0x400C4109` path looks up a device/core and dispatches provider opcode `0` through `mdw_rsc_dev_op0_ctrl` with only a 0x0c user input. Static mapping shows MDLA/EDMA opcode `0` reaches power-on paths, normal VPU opcode `0` reaches control bookkeeping, and VPU RT opcode `0` returns early.
 4. **Handshake/wait/simple rejection paths**: useful for reachability, lower standalone risk.
 
@@ -308,6 +308,15 @@ CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
 ```
 
 `--hardwarebuffer` allocates a small `android.hardware.HardwareBuffer`, writes it to a Parcel, enumerates fd-bearing Parcel offsets, and passes discovered fds through APUSYS type-2 and type-3 memory-create descriptors. Use `app_process64` for this mode. Plain `dalvikvm64` can load the Java classes but does not have the required framework JNI registration for `HardwareBuffer.nCreateHardwareBuffer()` or HIDL `HwBinder/HwParcel`.
+
+Optional HardwareBuffer-backed `ucmd` gate test:
+
+```sh
+CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe --ucmd-hardwarebuffer
+```
+
+`--ucmd-hardwarebuffer` creates a writeable RGBA `ImageReader` / `ImageWriter` pair, writes the first u32 of the image plane, obtains the output image's `HardwareBuffer`, and reuses the same Parcel-fd path for APUSYS. It runs two cases: first u32 `0`, then first u32 `0x8001`. It only calls normal VPU `mdw_usr_ucmd` for fd offsets that first pass APUSYS memory-create.
 
 [`poc/apusys_ioctl_probe.c`](poc/apusys_ioctl_probe.c) is a native version of the same reject checks for root/permissive lab contexts. It compiles successfully, but on the current device direct `adb shell` execution returns `open(/dev/apusys) failed: EACCES` because shell is not `system` or `camera`, and `system_app` cannot execute native ELF files from app data under SELinux enforcing.
 
@@ -446,6 +455,31 @@ CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
 
 Interpretation: the `app_process64` runtime path provides a valid framework-created dmabuf fd to the probe. The APUSYS type-2 and type-3 memory-create paths both import the fd successfully and return an object id, and the matching free ioctls clean up successfully. Offsets `364` and `412` read fd objects from the Parcel but fail APUSYS memory-create with `ENOMEM`; offset `388` is the useful descriptor read in this run.
 
+Observed optional `--ucmd-hardwarebuffer` result from the same `system_app` context on 2026-06-14:
+
+```text
+CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe --ucmd-hardwarebuffer
+...
+[*] --- ucmd HardwareBuffer case: zero first_u32=0x0 ---
+[+] input image payload: first_u32=0x0 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] parcel_fd_pos_388 fd=61
+[*] hwb_zero_mem2_pos388 cmd=0xc0384103 ret=0
+[*] hwb_zero_mem3_pos388 cmd=0xc038410f ret=0
+[*] ucmd_hwb_zero_c0_pos388 cmd=0x4014410e ret=-22 (EINVAL)
+[*] ucmd_hwb_zero_c1_pos388 cmd=0x4014410e ret=-22 (EINVAL)
+...
+[*] --- ucmd HardwareBuffer case: gate8001 first_u32=0x8001 ---
+[+] input image payload: first_u32=0x8001 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] parcel_fd_pos_388 fd=62
+[*] hwb_gate8001_mem2_pos388 cmd=0xc0384103 ret=0
+[*] hwb_gate8001_mem3_pos388 cmd=0xc038410f ret=0
+[*] ucmd_hwb_gate8001_c0_pos388 cmd=0x4014410e ret=-2 (ENOENT)
+[*] ucmd_hwb_gate8001_c1_pos388 cmd=0x4014410e ret=-2 (ENOENT)
+```
+
+Interpretation: a valid HardwareBuffer dmabuf and offset `0` are enough to reach the normal VPU `ucmd` content gate. Keeping the mapped buffer's first u32 at `0` returns `EINVAL`; changing only that first u32 to `0x8001` changes the result to `ENOENT` on both tested cores. That matches the static model where `0x8001` passes the first mapped-buffer check and the next stage walks Normal/Preload algorithm state. The probe still does not construct a complete VPU algorithm payload.
+
 Plain `dalvikvm64` is a negative control for this mode:
 
 ```text
@@ -465,16 +499,16 @@ Observed optional `--ucmd-negative` result from the same `system_app` context on
 [*] ucmd_vpu_c1_badfd  cmd=0x4014410e ret=-22 (EINVAL)
 ```
 
-Interpretation: APUSYS memory-create is now a mapped and runtime-confirmed import path from `system_app`. Direct node fd sources are still constrained: DRM can allocate a dumb buffer but cannot export a PRIME fd, direct old-ION allocation cannot start because `/dev/ion` open is denied, tested `/dev/dma_heap/*` nodes are absent, `/dev/ashmem` open is denied, and ordinary non-dmabuf fds fail memory-create with `ENOMEM`. The usable source is the framework path: `app_process64` can create a HardwareBuffer dmabuf and import it through APUSYS. The `ucmd` negative test confirms that normal VPU arguments with offset `0` and nonzero length fail cleanly with a bad fd; the next positive `ucmd` experiment should reuse the HardwareBuffer fd source and put `0x8001` at the start of the mapped buffer.
+Interpretation: APUSYS memory-create is now a mapped and runtime-confirmed import path from `system_app`. Direct node fd sources are still constrained: DRM can allocate a dumb buffer but cannot export a PRIME fd, direct old-ION allocation cannot start because `/dev/ion` open is denied, tested `/dev/dma_heap/*` nodes are absent, `/dev/ashmem` open is denied, and ordinary non-dmabuf fds fail memory-create with `ENOMEM`. The usable source is the framework path: `app_process64` can create a HardwareBuffer dmabuf and import it through APUSYS. The `ucmd` HardwareBuffer test confirms that normal VPU arguments with offset `0`, nonzero length, and first mapped u32 `0x8001` move beyond the zero-header `EINVAL` gate to `ENOENT`.
 
 ## Next analysis steps
 
-- Keep the current Java probe scoped to reject/query/negative-memory/device-control, fd-source scans, HardwareBuffer fd import, and controlled `ucmd` tests.
+- Keep the current Java probe scoped to reject/query/negative-memory/device-control, fd-source scans, HardwareBuffer fd import, and controlled `ucmd` gate tests.
 - Use the `app_process64` HardwareBuffer path as the baseline fd source. Direct `/dev/ion`, `/dev/ashmem`, dma-heap device nodes, and DRM PRIME export remain blocked or unavailable in the current context.
 - Use kernel logs, if available from the lab context, to distinguish whether the `ENOMEM` path comes from ION import, cache sync, or IOVA map setup.
 - Keep `mdw_usr_get_cmd_ops` / `0xffffffc00a188e58` marked unresolved. Leave the `run_cmd` `+0x0c` early-reject field set while resolving the indirect call targets.
 - For `0x400C4109`, optional follow-up is a small control-value sweep on the live-success providers while watching return codes and kernel logs. The current control value `0` already confirms provider opcode `0` reachability.
-- For `mdw_usr_ucmd`, the next concrete experiment is the HardwareBuffer dmabuf fd plus a mapped buffer whose first u32 is `0x8001`, using device id `3` for normal VPU and a live core id observed through `--dev-ctrl`.
+- For `mdw_usr_ucmd`, the next concrete experiment is resolving the `ENOENT` result after the `0x8001` gate: identify the expected `payload+4` ABI and which Normal/Preload algorithm lookup key is missing.
 - Resolve the raw VPU algo ops table address form before treating the `payload+4` cooling-device-name comparisons as the final opcode-7 payload ABI.
 - Continue mapping `mdla_run_command_sync`, `vpu_execute`, and `edma_execute` input structures before valid command-buffer experiments.
 - Continue scheduler/queue analysis after command parser targets are known. Valid command-buffer experiments come after that mapping.
