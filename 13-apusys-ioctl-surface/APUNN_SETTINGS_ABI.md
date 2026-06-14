@@ -1777,19 +1777,43 @@ For D2D_EXT, the driver also writes preload state before the common
 | MMIO offset from `core+0xa0` | D2D_EXT input |
 |---:|---|
 | `+0x27c` | executed slot value from `request+0xb68` after provider rewrite |
-| `+0x290` | sum of preload object fields `+0xfb0` and `+0xfb8` |
-| `+0x29c` | preload object `+0xfc0` |
+| `+0x290` | `pre->a.mva + pre->a.entry_off` (`XTENSA_INFO16`) |
+| `+0x29c` | `pre->a.iram_mva` (`XTENSA_INFO19`) |
 
-Those preload fields come from `vpu_init_dev_algo_sets()`. On a Preload lookup
-miss, the driver copies the firmware entry key/name from the metadata pointer
-`X26` and stores allocated preload state in the algorithm object: `+0xfb0` is
-the program/entry allocation returned by `vpu_preload_iova_alloc()`, `+0xfb8`
-is the entry adjustment computed from metadata fields at `X26-0x18` and
-`X26-0x02`, and `+0xfc0` is populated by a separate preload allocation path
-when the lookup hits an existing algorithm object and the entry metadata permits
-another allocation. The exact firmware-side semantic of `+0xfc0` remains a
-preload input, but the dispatch boundary is fixed: firmware receives only the
-resulting register values and copied descriptor/settings IOVAs.
+The local kernel source mirror for
+`drivers/misc/mediatek/apusys/vpu/` gives the field names behind those IDA
+offsets. `struct vpu_pre_info` is the packed firmware-header entry:
+
+```
+struct vpu_pre_info {
+  uint32_t vpu_core;
+  uint32_t off;
+  uint32_t pAddr;
+  uint32_t mem_sz;
+  uint32_t file_sz;
+  uint32_t flag;
+  uint32_t info;
+  uint32_t start_addr;
+  char name[ALGO_NAMELEN];
+};
+```
+
+`vpu_init_dev_algo_preload_entry()` uses `info->name` as the Preload lookup key.
+For a new `EXE_SEG` entry (`info->flag & 1`), it derives
+`addr = info->start_addr & 0xffff0000`, derives `size` from
+`ALIGN(info->file_sz, 0x1000)` unless `info->info` overrides it, stores
+`alg->a.entry_off = info->pAddr - addr`, and maps the program segment with
+`preload_iova_alloc(addr, size, info->off)`. The returned MVA becomes
+`alg->a.mva`. If a later entry hits an existing algorithm and
+`info->pAddr == PRELOAD_IRAM`, the driver dynamically allocates the IRAM segment
+at address `0` and stores the returned MVA as `alg->a.iram_mva`.
+
+`vpu_execute_d2d()` then writes `XTENSA_INFO16 = pre->a.mva + pre->a.entry_off`
+and `XTENSA_INFO19 = pre->a.iram_mva` before the common `INFO12..15` tuple.
+This means the user request selects the Preload key (`apu_lib_apunn`) and the
+descriptor/settings inputs, but it does not directly control the firmware entry
+MVA or IRAM MVA; those are derived from packed firmware metadata loaded by the
+kernel at boot/probe time.
 
 The trigger sequence then clears a status bit at MMIO `+0x910`, sets bit `0` at
 MMIO `+0x204`, waits for completion through `vpu_wait_d2d_completion()`, maps
@@ -2209,6 +2233,8 @@ Kernel handoff evidence:
 | `drivers/misc/mediatek/apusys/vpu/4.0/vpu_main.c` | `vpu_req_check()` | Requires exact VPU request size, validates flags, and bounds `buffer_count` |
 | `drivers/misc/mediatek/apusys/vpu/p1/vpu_hw.c` | `vpu_execute_d2d()` | Copies `req->buffers[]` into the D2D command buffer and writes `XTENSA_INFO12..15`; D2D_EXT also writes preload entry/IRAM registers |
 | `drivers/misc/mediatek/apusys/vpu/p1/vpu_hw.h` | register table | Documents `DO_D2D` as INFO12 buffer count, INFO13 buffer-array pointer, INFO14 setting pointer, and INFO15 setting size |
+| source mirror `drivers/misc/mediatek/apusys/vpu/p1/vpu_hw.h` | `struct vpu_pre_info` | Names the packed Preload metadata fields: `off`, `pAddr`, `file_sz`, `flag`, `info`, `start_addr`, and `name` |
+| source mirror `drivers/misc/mediatek/apusys/vpu/p1/vpu_hw.c` | `vpu_init_dev_algo_preload_entry()` | Maps `struct vpu_pre_info` into `alg->a.mva`, `alg->a.entry_off`, and optional `alg->a.iram_mva`; D2D_EXT later exposes these as `INFO16/INFO19` |
 | IDA `vmlinux.bin` | `vpu_execute` at `0xffffffc0087a7974` | Kernel execution entry that reaches the D2D/D2D_EXT request path |
 | IDA `vmlinux.bin` | `vpu_execute_d2d_handoff` at `0xffffffc0087a5b74` | Copies `request+0x50` descriptors, writes MMIO `+0x280/+0x284/+0x288/+0x28c`, triggers command id `0x22/0x24`, and waits for completion |
 | IDA `vmlinux.bin` | `vpu_init_d2d_command_slot` at `0xffffffc0087a1e90` | Initializes the clamped D2D slot, clears done/status/ret, stores command id, and increments the slot counter |

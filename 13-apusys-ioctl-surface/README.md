@@ -719,9 +719,11 @@ This also explains the `D2D_EXT` runtime logs. The probe submits
 `request+0x28 == 0`, but `vpu_execute` ORs bit `2` into `request+0x28` when the
 Normal set misses and the Preload set is tried. `apu_lib_apunn` is therefore
 being executed through the Preload / `D2D_EXT` path on this build. In that path
-the selected Preload object contributes additional firmware inputs: the driver
-writes `preload_obj+0xfb0 + preload_obj+0xfb8` to MMIO `+0x290` and
-`preload_obj+0xfc0` to MMIO `+0x29c` before the common buffer/settings tuple.
+the selected Preload object contributes additional firmware inputs. The source
+mirror names them as `XTENSA_INFO16 = pre->a.mva + pre->a.entry_off` and
+`XTENSA_INFO19 = pre->a.iram_mva`, derived from packed `struct vpu_pre_info`
+metadata (`name`, `off`, `pAddr`, `file_sz`, `flag`, `info`, `start_addr`)
+before the common buffer/settings tuple.
 
 This changes the APUNN interpretation model. The two-native-buffer probe is not
 just "two Java buffers"; it is two copied VPU buffer descriptors. Its visible

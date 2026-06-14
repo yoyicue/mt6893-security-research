@@ -79,6 +79,7 @@ copied descriptor-array IOVA and settings tuple to VPU MMIO, and dispatches
 | Firmware-visible input | Kernel/user source | Primitive relevance |
 |---|---|---|
 | D2D command id `0x24` | `vpu_execute()` misses the Normal set, ORs bit `2` into `request+0x28`, then retries the Preload set | The current Java trigger reaches the same Preload/D2D_EXT class that runtime logs show; caller-supplied bit `2` is mainly a slot/lifetime selector |
+| D2D_EXT entry / IRAM | Kernel-selected Preload object from packed firmware metadata: `INFO16 = pre->a.mva + pre->a.entry_off`, `INFO19 = pre->a.iram_mva` | Userland selects the `apu_lib_apunn` key, but does not directly control the firmware entry MVA or optional IRAM MVA |
 | `INFO12` / buffer count | `request+0x35`, bounded below `0x21` by the provider gate | `buffer_count=0` suppresses descriptor-following state writeback; the completed wrapper replay uses `5` |
 | `INFO13` / descriptor-array IOVA | Kernel copy of `request+0x50 + i*0x40`, not the original user buffer | Descriptor slot order and descriptor-0 target explain the observed status/writeback deltas; this is a real firmware input but not yet an arbitrary write primitive |
 | `INFO14/INFO15` / settings tuple | `request+0x40` and `request+0x38` | The completed wrapper-shaped request clears this tuple, so it is not the required completion path for the target wrapper replay |
