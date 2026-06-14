@@ -25,6 +25,7 @@ Raw outputs from this run are archived in this directory.
 | `10_32865_color_transform.txt` | non-destructive `MTK_SUPPORT_COLOR_TRANSFORM` reachability/guard probe |
 | `07_devprobe.txt` | system_app raw `openat(O_RDWR)` device-node reachability |
 | `systemapp_service_probe.txt` | binder/service and sensitive device-node visibility from system_app |
+| `13_apusys_dev_ctrl.txt` | APUSYS `0x400C4109` provider opcode-0 reachability from system_app |
 | `02_vuln_check_jit.txt` | Mali JIT `DONT_NEED` check for CVE-2022-38181 style chain |
 | `02_diag_dont_need.txt` | Mali non-JIT `DONT_NEED` behavior |
 | `03_diag_refcount.txt` | CVE-2022-36449 page refcount diagnostic |
@@ -88,6 +89,11 @@ Evidence:
 
 ```text
 [OPEN] /dev/apusys  fd=5
+[*] devctl_mdla_c0     cmd=0x400c4109 ret=0
+[*] devctl_vpu_c0      cmd=0x400c4109 ret=0
+[*] devctl_edma_c0     cmd=0x400c4109 ret=0
+[*] devctl_mdla_rt_c0  cmd=0x400c4109 ret=0
+[*] devctl_vpu_rt_c0   cmd=0x400c4109 ret=-13 (EACCES)
 ```
 
 `systemapp_service_probe.txt` shows `/dev/ion` exists and is world-readable/writable at DAC level:
@@ -101,6 +107,7 @@ But `07_devprobe.txt` did **not** list `/dev/ion` as successfully opened with ra
 Interpretation:
 
 - `/dev/apusys` is a real reachable kernel surface from `system_app`.
+- APUSYS device-control ioctl `0x400C4109` reaches live provider opcode-0 paths for MDLA, normal VPU, EDMA, and MDLA RT. VPU RT returns `EACCES` on the same opcode.
 - `/dev/ion` needs a dedicated open-mode probe (`O_RDONLY`, `O_RDWR`, and expected ioctl mode) before raising it.
 - Mali WRITE_VALUE works, but it was already reachable from uid=2000 shell and remains bounded to GPU-mapped userspace VA. It does not become a kernel primitive from uid=1000 alone.
 
@@ -108,7 +115,7 @@ Resulting CVE priority:
 
 | CVE / Area | Post-run Risk | Reason |
 |---|---|---|
-| APUSYS CVE candidates | Medium-High | `/dev/apusys` opens with `O_RDWR`; needs CVE mapping to ioctl handlers. |
+| APUSYS CVE candidates | Medium-High | `/dev/apusys` opens with `O_RDWR`; `0x400C4109` provider opcode-0 dispatch is live for MDLA, normal VPU, EDMA, and MDLA RT. |
 | CVE-2023-20768 / ION | Medium-Low pending recheck | DAC suggests possible access, but strict `O_RDWR` devprobe did not confirm open. |
 | Mali WRITE_VALUE boundary | Low for kernel LPE | WRITE_VALUE confirmed, but USER_BUFFER/kernel reachability is blocked. |
 

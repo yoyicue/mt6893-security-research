@@ -279,14 +279,29 @@ Observed optional `--mem-negative` result from the same `system_app` context on 
 
 Interpretation: `/dev/apusys` ioctl is confirmed reachable from `system_app`, generic invalid commands and disabled paths return controlled `EINVAL`, and handshake mode `1` returns structured data. The memory-create negative tests did not create an object or crash the device. NULL user pointers fail at the early copy/argument guard with `EINVAL`. Both the all-zero descriptor and explicit bad-fd descriptor return `ENOMEM`, which means errno alone does not distinguish fd validation from later ION resource-preparation failure. Static analysis now shows the intended downstream path is APUSYS memory import into ION KVA/IOVA mapping via the registered `mdw_mem_ion_*` ops.
 
-The optional `--dev-ctrl` mode is implemented but has no recorded `system_app` runtime result yet. The next useful runtime output is the return matrix for the known provider ids above.
+Observed optional `--dev-ctrl` result from the same `system_app` context on 2026-06-14:
+
+```text
+[*] devctl_mdla_c0     cmd=0x400c4109 ret=0
+[*] devctl_mdla_c1     cmd=0x400c4109 ret=0
+[*] devctl_vpu_c0      cmd=0x400c4109 ret=0
+[*] devctl_vpu_c1      cmd=0x400c4109 ret=0
+[*] devctl_edma_c0     cmd=0x400c4109 ret=0
+[*] devctl_edma_c1     cmd=0x400c4109 ret=0
+[*] devctl_mdla_rt_c0  cmd=0x400c4109 ret=0
+[*] devctl_mdla_rt_c1  cmd=0x400c4109 ret=0
+[*] devctl_vpu_rt_c0   cmd=0x400c4109 ret=-13 (EACCES)
+[*] devctl_vpu_rt_c1   cmd=0x400c4109 ret=-13 (EACCES)
+```
+
+Interpretation: the live ids for MDLA, normal VPU, EDMA, and MDLA RT match the static registration map and reach provider opcode `0` with a success return for core `0` and `1`. VPU RT is also present, but opcode `0` returns `EACCES`, matching the static observation that this entry takes an early access/error path rather than a normal control path. This confirms runtime reachability of APUSYS provider dispatch, but does not by itself establish memory corruption or a privilege-crossing primitive.
 
 ## Next analysis steps
 
 - Keep the current Java probe scoped to reject/query/negative-memory paths. A valid dmabuf-backed descriptor is the next step for real ION/APUSYS mapping behavior.
 - Use kernel logs, if available from the lab context, to distinguish whether the `ENOMEM` path comes from ION import, cache sync, or IOVA map setup.
 - Keep `mdw_usr_get_cmd_ops` / `0xffffffc00a188e58` marked unresolved. Leave the `run_cmd` `+0x0c` early-reject field set while resolving the indirect call targets.
-- Run `--dev-ctrl` from the `system_app` context and record the live return matrix for MDLA, EDMA, normal VPU, and VPU RT.
+- For `0x400C4109`, optional follow-up is a small control-value sweep on the live-success providers while watching return codes and kernel logs. The current control value `0` already confirms provider opcode `0` reachability.
 - For `mdw_usr_ucmd`, focus on normal VPU opcode `7`: it requires a mapped command pointer, non-zero size fields, and mapped command id `0x8001`.
 - Continue mapping `mdla_run_command_sync`, `vpu_execute`, and `edma_execute` input structures before valid command-buffer experiments.
 - Continue scheduler/queue analysis after command parser targets are known. Valid command-buffer experiments come after that mapping.
