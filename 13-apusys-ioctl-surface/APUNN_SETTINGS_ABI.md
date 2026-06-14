@@ -626,6 +626,18 @@ output IOVAs. The observed first-word deltas are therefore descriptor-index
 effects on the current incomplete command path, not proof that APUNN has
 completed its settings/output contract.
 
+The
+`--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data`
+variant keeps the `settings68` request shape, wrapper send-state flags, and
+code-first native descriptor order, but restores the standard one-entry data
+descriptor section: settings `+0x0c = 0x0c`, settings `+0x30 = data_desc_iova`,
+and descriptor `{type=3, size=0x80, iova_low32=data_payload_iova}`. The
+no-dispatch control leaves settings/code/output/data windows unchanged. The
+dispatch run returns `0`, logs VPU map/boot activity, keeps settings at `0x5`,
+leaves output, the data descriptor, and the data payload unchanged, and changes
+code/input word `0` from `0x2713` to `0x271b`. Restoring one ordinary APUNN
+data descriptor is therefore not the missing completion/output condition.
+
 ## Wrapper-generated request inspection
 
 `poc/xrp_wrapper_inspect.cpp` is a native wrapper inspector for comparing the
@@ -884,6 +896,12 @@ This gives the current interpretation boundary:
   Dispatch still returns `0`, settings remain `0x5`, output remains
   `0xffffffff`, and code word `0` changes `0x2713 -> 0x271b`. That output
   header flag is also not the missing APUNN completion condition.
+- The `wrapper_one_data` result keeps `settings_len=0x68`, wrapper send-state
+  flags, wrapper-default output size `0x40`, and code-first native descriptors,
+  but restores one standard APUNN data descriptor. Dispatch still returns `0`,
+  settings remain `0x5`, output/data descriptor/data payload remain unchanged,
+  and code word `0` changes `0x2713 -> 0x271b`. A single ordinary data
+  descriptor is also not the missing APUNN completion condition.
 - The missing piece is now narrower: APUNN parses enough of the descriptor and
   first operation entry to modify it, but the command still lacks the
   firmware-side condition that marks settings `(flags & 0x0a) == 0x02` and
@@ -930,6 +948,10 @@ Additional matrix result files:
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_output_ready_kernel.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_output_ready_control.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_output_ready_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_wrapper_data.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_wrapper_data_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_wrapper_data_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_wrapper_data_control_kernel.txt`
 
 ## Evidence map
 
@@ -991,7 +1013,9 @@ the wrapper send-state command flag value `0x5` do not change that boundary.
 Changing the firmware-visible settings length from `0x100` to the wrapper DSP
 command buffer size `0x68` also leaves the same boundary in place. Setting the
 wrapper-controlled output header flag byte at `output+0x10` to `1` does not
-produce settings completion or APUNN output writeback either.
+produce settings completion or APUNN output writeback either. Restoring a
+single ordinary APUNN data descriptor under the wrapper-sized request also
+leaves the same code-first native descriptor writeback boundary.
 It does not yet prove APUNN data descriptor consumption, APUNN output-section
 writeback, the missing completion parameter, or the full semantic meaning of
 the observed native-buffer writeback. The batch-level devapc warning remains
