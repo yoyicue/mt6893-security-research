@@ -338,18 +338,64 @@ mdw_cmd_delete_cmd:     0xffffffc0087905e8  (frees cmd object)
 
 ## Priority 3 — concurrent command submission (exploratory)
 
-Submit multiple `run_cmd_async` on the same fd without waiting:
+The highest-risk P3 race is **explicit APUSYS mem_free of an imported IOVA
+while a VPU command that references that IOVA is still inside provider opcode
+4**. This is sharper than generic "two commands share one IOVA": `mem_free`
+does not abort or wait for commands, and the command/sc objects do not hold a
+reference to the imported `mdw_mem` object whose IOVA is embedded in the VPU
+request/settings descriptors.
 
-- Two commands referencing the same IOVA import. If the first command's cleanup
-  path (`mdw_mem_ion_unmap_iova`) releases the IOVA mapping while the second
-  command's VPU DMA is still targeting that IOVA, the DMA hits freed pages.
-- Three+ commands to stress the command id allocation at `user_ctx+0x60` and
-  the scheduler queue. Look for list corruption or double-free in the teardown
-  path.
+Evidence chain:
 
-This is lower priority because the attack surface is less clear and depends on
-scheduler ordering. Start with two commands; if "residual cmd" count > 1 in
-teardown, that confirms concurrent in-flight commands are reachable.
+- `mdw_usr_mem_free()` removes the matching object from `u->mem_list` and
+  deletes the IDR handle under `u->mtx`, then calls `mdw_usr_mem_delete(mm)`.
+  It does not scan `u->cmds_idr`, the scheduler queue, or in-flight
+  subcommands before releasing the memory object.
+- For imported type-2 memory, deletion reaches `mdw_mem_unimport()` →
+  `mdw_mem_ion_unmap_iova()` → `ion_free(khandle)`. There is no in-flight VPU
+  DMA guard in that path.
+- `mdw_cmd_create_sc()` maps the APUSYS command buffer KVA and copies/parses the
+  subcommand, but descriptor/settings IOVAs inside the `0xb70` VPU request are
+  just firmware-visible values. The sc/cmd lifetime references protect the
+  command object, not every imported IOVA referenced by APUNN descriptors.
+- `mdw_sched_dev_routine()` calls provider opcode `4` with the copied provider
+  buffer and only runs `clr_hnd` / completion after the provider returns. During
+  the VPU wait window, a second user thread can still issue `mem_free` on the
+  same `/dev/apusys` fd because the memory free path is separate from
+  `wait_cmd`.
+
+Risk ranking:
+
+| Rank | Race shape | Why it is interesting | Expected signal |
+|---:|---|---|---|
+| 1 | `run_cmd_async(timeout shape)` → immediately `mem_free(settings/descriptor IOVA)` → delayed `wait_cmd` or fd close | Frees the exact IOVA used by `INFO13` descriptors and descriptor-backed settings while VPU firmware is still executing. This directly tests DMA/use-after-unmap, not just command-object teardown. | VPU fault/devapc/IOMMU fault, timeout with new kernel warning, stale writeback into reallocated dmabuf, oops/panic |
+| 2 | Two `run_cmd_async` commands on the same fd, both referencing the same imported IOVA, then `mem_free` after the first dispatch window | Amplifies rank 1 by keeping one command queued/running while another may finish or timeout; tests scheduler ordering plus shared-IOMMU lifetime. | one command completes and the other faults, residual cmd count > 1, list/refcount warning, freed-IOVA DMA symptom |
+| 3 | Two commands sharing IOVA, no explicit `mem_free`, then close fd without waits | Exercises residual command abort and mem teardown together, but fd close already calls `abort_cmd` before residual memory cleanup. Current close-race runs make this lower confidence than explicit mem_free. | residual cmd/mem ordering, UAF only if abort fails to serialize provider return |
+
+The next experiment should start with rank 1, not the broader multi-command
+case:
+
+```
+mem_create(type2, shared_hwb_fd) -> shared_iova
+build timeout-prone APUNN/VPU request whose descriptor/settings point at shared_iova
+mem_create(type2, cmd_hwb_fd) -> cmd_iova
+run_cmd_async(cmd_fd) -> ret 0, cmd_id
+sleep 0/10/50/100/500 ms
+mem_free(shared_iova handle)          // same fd, command still in-flight
+sleep until VPU timeout/completion window
+wait_cmd(cmd_id) or close(fd)
+dump shared HardwareBuffer and cmd buffer; collect kernel log
+```
+
+Use the timeout-prone shape first because it maximizes the provider opcode-4
+window. If this produces only clean `-EIO`/timeout behavior, repeat with the
+completed `settings5/no-settings` shape to test fast firmware writeback, then
+move to rank 2 with two commands sharing the same imported IOVA.
+
+Kernel log terms to preserve unfiltered: `mdw_usr_mem_free`,
+`mdw_mem_ion_unmap_iova`, `ion_free`, `request (D2D_EXT) timeout`,
+`mdw_usr_destroy residual cmd`, `devapc`, `iommu`, `Unable to handle kernel`,
+`BUG`, and `KASAN`.
 
 ## What to stop doing
 
