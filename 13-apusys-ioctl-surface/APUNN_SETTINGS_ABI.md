@@ -691,17 +691,40 @@ negative clamp case `0xffffffff`, but it does not produce APUNN settings
 completion or output writeback. The first run's no-write cases for `1` and `2`
 again show the visible state write is not a stable APUNN completion oracle.
 
+The request-buffer-count matrix keeps the same target-wrapper-shaped request and
+first word `0x2713`, but varies native request byte `+0x35`. This byte controls
+both the kernel-side descriptor-copy length and firmware `XTENSA_INFO12`.
+
+| Request `+0x35` | Control result | First dispatch + wait | Repeat dispatch + wait |
+|---:|---|---|---|
+| `0` | Code word remains `0x2713`; APUNN windows unchanged | Code word remains `0x2713`; async `0`, wait `-EIO`; APUNN windows unchanged | Code word remains `0x2713`; async `0`, wait `-EIO`; APUNN windows unchanged |
+| `1,2,3,4,5,0x20` | Code word remains `0x2713`; APUNN windows unchanged | Code word becomes `0x271b`; async `0`, wait `0`; APUNN windows unchanged | Code word becomes `0x271b`; async `0`, wait `0`; APUNN windows unchanged |
+
+Result files:
+
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_buffer_count_matrix_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_buffer_count_matrix_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_buffer_count_matrix.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_buffer_count_matrix_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_buffer_count_matrix_repeat.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_buffer_count_matrix_repeat_kernel.txt`
+
+Runtime therefore confirms `buffer_count=0` is a liveness gate for the current
+descriptor-0 state writeback path. Once one copied descriptor is advertised,
+larger counts up to the kernel-accepted maximum `0x20` do not alter the same
+writeback boundary or produce APUNN settings/output completion.
+
 This rules out the presence of a direct settings-property tuple as the cause of
 the current incomplete boundary. The target-wrapper-shaped no-settings request
-is accepted by APUSYS/VPU and can be waited successfully, but firmware still
-does not transition settings flags to `(settings[0] & 0x0a) == 0x02` or write
-the APUNN output/data windows. The next unresolved field is therefore not
-ordinary VPU descriptor metadata, descriptor count, `request+0x38/+0x40`
-presence, native descriptor payload size, request priority/slot, or basic
-`0x1c8` opcode/count routing. It is the APUNN firmware-side completion/output
-contract: the standard wrapper's code/output/data buffer contents, command
-flags, or output-header semantics that make APUNN signal done and write to the
-settings output section.
+is accepted by APUSYS/VPU and can be waited successfully when at least one native
+descriptor is advertised, but firmware still does not transition settings flags
+to `(settings[0] & 0x0a) == 0x02` or write the APUNN output/data windows. The
+next unresolved field is therefore not ordinary VPU descriptor metadata,
+nonzero descriptor count, `request+0x38/+0x40` presence, native descriptor
+payload size, request priority/slot, or basic `0x1c8` opcode/count routing. It
+is the APUNN firmware-side completion/output contract: the standard wrapper's
+code/output/data buffer contents, command flags, or output-header semantics that
+make APUNN signal done and write to the settings output section.
 
 ## Command flags and completion state
 
@@ -1272,6 +1295,14 @@ This gives the current interpretation boundary:
   clears tail word `40` after dispatch. This confirms `+0xb68` is a real
   D2D_EXT priority/slot input and command-lifetime field, but not the APUNN
   completion/output condition.
+- The `target_code5_no_settings_buffer_count_matrix` result keeps the same
+  five-descriptor/no-settings request shape, but varies request `+0x35` through
+  `0,1,2,3,4,5,0x20`. No-dispatch controls preserve `0x2713` and APUNN windows.
+  Two dispatch runs show `buffer_count=0` returns `-EIO` from wait and leaves
+  code word `0` unchanged, while every tested nonzero count writes
+  `0x2713 -> 0x271b` and returns `0` from wait. This confirms firmware-visible
+  descriptor count is a real liveness gate for descriptor-0 state writeback, but
+  not the APUNN completion/output condition once nonzero.
 - The `wrapper_one_data_output44` result follows the host wrapper's dynamic
   output-size formula for one `0x1c8` Xtensa operation: output size
   `0x40 + 4 * 1 = 0x44`, output header flag `1`, `settings_len=0x68`,
@@ -1432,9 +1463,12 @@ payload size `0`, so native descriptor length is not a hard gate for that
 writeback. The request-priority matrix accepts `request+0xb68` values
 `0,1,2,3,0xffffffff`, clears the command-buffer priority/slot word after
 dispatch, and repeats the same state write in the second run, so priority/slot is
-also not the missing completion/output condition. Libvpu-style descriptor
-metadata, a five-descriptor alias shape, and the wrapper send-state command flag
-value `0x5` do not change that boundary.
+also not the missing completion/output condition. The request-buffer-count matrix
+shows `request+0x35 = 0` suppresses the state write and makes wait return
+`-EIO`, while `1,2,3,4,5,0x20` all produce the same `0x2713 -> 0x271b` state
+write without APUNN output completion. Libvpu-style descriptor metadata, a
+five-descriptor alias shape, and the wrapper send-state command flag value `0x5`
+do not change that boundary.
 Changing the firmware-visible settings length from `0x100` to the wrapper DSP
 command buffer size `0x68` also leaves the same boundary in place. Setting the
 wrapper-controlled output header flag byte at `output+0x10` to `1` does not
