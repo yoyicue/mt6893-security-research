@@ -489,14 +489,146 @@ or `mdw_wait_cmd` failure. Interpretation: the completed writeback is faster
 than the Java-layer `mem_free` ioctl round-trip, even at 0 ms. The lifetime gap
 still exists, but this delay-only completed sweep does not win the race.
 
-Next, add allocator pressure after `mem_free`: immediately `mem_create` a new
-type-2 import of the same size to reuse the freed IOVA range, then check whether
-the completion writes land on the new buffer.
+Allocator pressure after `mem_free` is now implemented as
+`--run-cmd-vpu-xrp-mem-free-race-completed-reuse-iova`; see the first
+additional candidate below for the result.
 
 Kernel log terms to preserve unfiltered: `mdw_usr_mem_free`,
 `mdw_mem_ion_unmap_iova`, `ion_free`, `request (D2D_EXT) timeout`,
 `mdw_usr_destroy residual cmd`, `devapc`, `iommu`, `Unable to handle kernel`,
 `BUG`, and `KASAN`.
+
+## Additional attack surface candidates
+
+The following four directions are outside the current APUNN completion/lifetime
+focus but exploit other APUSYS ioctl paths from the same `system_app` context.
+They are ranked by proximity to a kernel primitive.
+
+### 1. Allocator-reuse pressure on freed IOVA (extends rank 1)
+
+The completed `mem_free` race above showed that the delay-only sweep loses the
+race. The direct escalation is allocator pressure: after `mem_free`,
+immediately `mem_create` new type-2 imports to reclaim the freed IOVA backing
+pages, then check whether the still-in-flight firmware completion writes
+(`settings 0x5 -> 0x7`, output fill) land on a **new** buffer instead of the
+original.
+
+If the IOMMU mapping is torn down but the physical page is reused before
+firmware finishes, this turns the lifetime gap into either:
+- a **cross-buffer write** (firmware writes completion data into attacker's
+  fresh buffer — confused deputy), or
+- a **stale-page read** if `mdw_cmd_sc_clr_hnd` copyback reads from the
+  replacement page.
+
+Implemented mode:
+
+```
+poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-mem-free-race-completed-reuse-iova
+```
+
+Experiment shape:
+
+```
+run_cmd_async(completed settings5/no-settings)
+sleep 0/1/5 ms
+mem_free(shared_iova)
+immediately mem_create(type2, replacement_hwb_fd) x 4
+sleep 1000 ms
+dump original buffer, replacement buffers, then wait_cmd
+```
+
+Observed from `system_app` on 2026-06-15:
+
+```
+result=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_reuse_iova.txt
+kernel=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_reuse_iova_kernel_relevant.txt
+
+free_after=0ms:
+  original_iova=0xfd2c1000
+  replacement_iovas=0xfd2cd000,0xfcf71000,0xfd361000,0xfd385000
+  exact_reuse=0/4, original settings=0x7, wait=0
+
+free_after=1ms:
+  original_iova=0xfd371000
+  replacement_iovas=0xfd375000,0xfcf55000,0xfcf45000,0xfcf69000
+  exact_reuse=0/4, original settings=0x7, wait=0
+
+free_after=5ms:
+  original_iova=0xfcf51000
+  replacement_iovas=0xfcf2d000,0xfcf39000,0xfcf29000,0xfcf49000
+  exact_reuse=0/4, original settings=0x7, wait=0
+```
+
+All replacement buffers kept their marker/header (`0x52555030 + index`) and
+zeroed output windows after the completion wait. No old APUNN completion write
+landed in a replacement buffer. Kernel-side signal was clean: the filtered log
+contains one VPU boot line and no `devapc`, IOMMU fault, panic/Oops, `BUG`,
+`KASAN`, timeout, or `mdw_wait_cmd` failure.
+
+Interpretation: this remains the largest APUSYS risk shape because exact IOVA
+reuse would turn the lifetime gap into a cross-buffer write. On this run, the
+allocator did not hand the freed IOVA back to the immediate same-size
+replacement imports, and the firmware completion path still finished cleanly.
+Current evidence does not show a reusable kernel primitive from this shape.
+
+### 2. `dev_ctrl` (ioctl `0x400C4109`) during in-flight VPU command
+
+`mdw_usr_dev_ctrl_4109` reaches `core+0x70` → `mdw_rsc_dev_op0_ctrl` →
+provider handler opcode `0` with timeout `0xbb8`. For VPU, opcode `0` is
+`vpu_send_cmd_op0` — a power-on/control path.
+
+Hypothesis: issuing `dev_ctrl` while a VPU command is executing may force a
+power cycle, reset, or state flush that collides with the in-flight D2D_EXT
+provider call. The scheduler holds `sc+0xF8` during provider opcode 4, but
+`dev_ctrl` goes through a separate ioctl path that does not acquire the sc
+mutex.
+
+Experiment:
+```
+run_cmd_async (timeout or completed shape)
+sleep 10 ms
+dev_ctrl(device=3, core=0)   // ioctl 0x400C4109
+collect kernel log: timeout/reset/fault/residual interleaving
+```
+
+Signals: VPU reset during active D2D causing IOMMU fault, stale completion
+after reset, scheduler state confusion (done callback on a reset core).
+
+### 3. `ucmd` opcode-7 side effects beyond algorithm lookup
+
+The current `ucmd` evidence shows opcode `7` reaches `vpu_alg_get` (refcount
+increment) then `vpu_alg_put` (decrement) and returns. But the full opcode-7
+branch at `0xffffffc0087a093c` has not been exhaustively traced past the
+refcount path.
+
+Questions:
+- Does repeated `ucmd` with `apu_lib_apunn` key leak refcount (no matching
+  `put` on error paths)? A refcount overflow or underflow on the algorithm
+  object at `+0x103c` would corrupt its list node at `+0x1040`.
+- Does `ucmd` with a crafted payload past offset `+0x04` (the key) reach any
+  firmware control path? The current 0x24-byte `libvpu.so` ABI only uses
+  `+0x00` (magic) and `+0x04` (key), but the kernel maps the full
+  `user+0x10` requested length into KVA.
+
+Experiment: loop `ucmd` with `apu_lib_apunn` key 10000× and check
+`/proc/slabinfo` or kernel log for refcount warnings. Then try `ucmd` with
+length `0x100` and non-zero bytes past offset `+0x24` to see if the provider
+reads beyond the key.
+
+Low-cost smoke test; not expected to be a direct primitive but could expose an
+integer overflow or unbalanced refcount.
+
+### 4. Secure alloc/free (`mdw_usr_dev_sec_alloc` / `mdw_usr_dev_sec_free`)
+
+`mdw_usr_dev_sec_alloc` at `0xffffffc00878c00c` and `mdw_usr_dev_sec_free` at
+`0xffffffc00878c418` are separate ioctl paths. `sec_free` has an
+`id < 0x40` guard, suggesting a fixed-size table. If the alloc/free pair does
+not properly serialize with VPU command dispatch or memory import, it could
+corrupt the secure-resource table.
+
+This has the least evidence of the four. Run a single alloc/free cycle from
+`system_app` to confirm reachability (it may be gated by SELinux or a
+capability check), then decide whether to pursue.
 
 ## What to stop doing
 

