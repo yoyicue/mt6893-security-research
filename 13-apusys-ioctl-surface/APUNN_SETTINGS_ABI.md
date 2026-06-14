@@ -1716,6 +1716,28 @@ Device-side file searches under `/vendor/firmware`, `/system_ext`, `/odm`, and
 the pulled APU/Neuron artifacts currently expose wrapper libraries and service
 libraries, but not a standalone `apu_lib_apunn` firmware image.
 
+The firmware image acquisition path is now narrower than that generic file
+search. On the connected target (`ls12_mt8797_wifi_64`, vendor security patch
+`2023-06-05`), `/dev/block/by-name` exposes `cam_vpu1_a`, `cam_vpu2_a`,
+`cam_vpu3_a` and matching `_b` slots, and the live device tree exposes
+`/sys/firmware/devicetree/base/reserved-memory/mblock-18-vpu_binary`. Those are
+the current candidates for the VPU binary blob that contains the packed
+`struct vpu_image_header` / `struct vpu_pre_info` metadata. The shell context
+cannot read them today: the `cam_vpu*` block nodes are `brw------- root root`,
+`blockdev`/`dd` return permission denied, `mblock-18-vpu_binary/reg` is also
+permission denied, `/proc/vpu/vpu_memory` and `/proc/vpu/vpu*/mesg` are
+permission denied, and `su -c id` is not available. A local scan under
+`/Users/biu/mtk` and `/tmp` did not find pulled `cam_vpu*`, `vpu*.img`, or
+payload images outside the wrapper libraries and run logs.
+
+When a readable `cam_vpu*` image or live VPU binary dump is available, the next
+static step is concrete: parse the merged `struct vpu_image_header` array at
+`bin_head_ofs`, walk `pre_info_count` / `pre_info`, locate the `apu_lib_apunn`
+`struct vpu_pre_info` entry by `name`, then carve the mapped program segment
+from `off`/`file_sz`/`info` and entry point from `pAddr - (start_addr &
+0xffff0000)`. That would move this model from kernel-handoff reconstruction to
+direct firmware parser analysis.
+
 The normal-VPU provider gate is now IDA-confirmed in `vmlinux.bin`:
 
 | Function / address | Boundary |
