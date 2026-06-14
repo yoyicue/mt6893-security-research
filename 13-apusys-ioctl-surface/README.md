@@ -861,10 +861,14 @@ Current direct-Neuron controls:
 - `--no-create-apusys-session`: reproduces `XRP_Create status=4`.
 - default session path from shell: loads `/system/lib64/libapu_mdw.so`, but
   `apusysSession_createInstance()` returns null and `XRP_Create` remains status
+  `4`. Static analysis now shows this helper first opens `/dev/apusys`; failure
+  before constructing the `0xe8` byte `apusysSession` returns null.
+- Java `app_process64` path: native-call stub works, but `System.load()` and
+  direct `dlopen()` of `libapu_mdw.so` both fail from the `system_app` linker
+  namespace. Loading `libvpu5.so` as a dependency-carrier fails for the same
+  `libvndksupport.so` / `libdl_android.so` namespace reason, and `/proc/self/maps`
+  does not show an already mapped `libapu_mdw.so`; `XRP_Create` remains status
   `4`.
-- Java `app_process64` path: native-call stub works, but direct `dlopen()` of
-  `libapu_mdw.so` returns null from the `system_app` linker namespace; `XRP_Create`
-  remains status `4`.
 
 The current interpretation is that direct `libneuron_platform.vpu.so`
 wrapper-generated request dumping requires a process context that already has a
@@ -873,6 +877,7 @@ valid `libapu_mdw` session, or a hook inside such a process. Result files:
 - `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_control.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_neuron_apu_mdw_session.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_java_neuron_native_dlopen_session_system_app.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_java_neuron_maps_session_system_app.txt`
 
 The same helper can also target the APUWARE HIDL wrapper:
 

@@ -1,0 +1,61 @@
+command=id; cat /proc/self/attr/current; echo; md5sum /data/data/com.android.settings/cache/xrp_wrapper_inspect.dex; CLASSPATH=/data/data/com.android.settings/cache/xrp_wrapper_inspect.dex timeout 45s app_process64 /system/bin XrpWrapperInspect neuron; echo APP_STATUS:$?
+status=0
+uid=1000(system) gid=1000(system) groups=1000(system),3003(inet) context=u:r:system_app:s0
+u:r:system_app:s0
+d11e9e55fd01422c8a527e1ff953a8d0  /data/data/com.android.settings/cache/xrp_wrapper_inspect.dex
+[*] === XRP wrapper request inspector ===
+uid=1000 pid=12404
+context=u:r:system_app:s0
+[+] mode=neuron
+[+] loaded=/system/lib64/libneuron_platform.vpu.so
+[+] create_apusys_session=true
+symbol getpid value=0x58d20 bias=0x762681b000 addr=0x7626873d20
+[+] Scratch buffer at 0x76386fe000
+[*] Trying anonymous PROT_RWX mmap...
+[+] Anonymous RWX page at 0x76386fd000
+[+] Wrote syscall stub: JNI@+0x00 (36B), call stub JNI@+0x80 (40B); entry_point left untouched
+[*] ArtMethod for nativeSyscall at 0x763144aa40
+    access_flags = 0x10000108 [NATIVE]
+    data (JNI ptr) = 0x738521a2c0
+    entry_point    = 0x10380008774c0690
+[*] Patching data_ (JNI) → 0x76386fd000
+    data_       = 0x76386fd000 ✓
+    entry_point = 0x10380008774c0690 (unchanged)
+[+] ArtMethod patched
+[+] Syscall infrastructure ready
+
+[*] Patching nativeCall data_ 0x738521a2c0 -> 0x76386fd080, entry_point stays 0x10000108774c0690
+    call begin fn=0x7626873d20 a0=0x0 a1=0x0 a2=0x0 a3=0x0 a4=0x0
+    call fn=0x7626873d20 ret=0x3074
+native getpid()=12404
+symbol XRP_Create value=0xdb3c bias=0x73616d2000 addr=0x73616dfb3c
+symbol XRP_Release value=0xdc48 bias=0x73616d2000 addr=0x73616dfc48
+symbol XRP_CreateCommand value=0xe17c bias=0x73616d2000 addr=0x73616e017c
+symbol XRP_AllocateBuffer value=0xdd30 bias=0x73616d2000 addr=0x73616dfd30
+symbol XRP_UseInputBuffer value=0xe258 bias=0x73616d2000 addr=0x73616e0258
+symbol XRP_UseOutputBuffer value=0xe334 bias=0x73616d2000 addr=0x73616e0334
+symbol XRP_FinalizeCommand value=0xe410 bias=0x73616d2000 addr=0x73616e0410
+symbol XRP_GetPreparedRequests value=0xe5c8 bias=0x73616d2000 addr=0x73616e05c8
+[+] inspect_mem=0x7636734000
+System.load failed apusys=/system/lib64/libapu_mdw.so error=java.lang.UnsatisfiedLinkError: dlopen failed: library "libdl_android.so" needed or dlopened by "/system/lib64/libvndksupport.so" is not accessible for the namespace "classloader-namespace"
+System.load failed apusys=/system/vendor/lib64/libapu_mdw.so error=java.lang.UnsatisfiedLinkError: dlopen failed: library "/system/vendor/lib64/libapu_mdw.so" not found
+System.load failed apusys=/vendor/lib64/libapu_mdw.so error=java.lang.UnsatisfiedLinkError: dlopen failed: library "/vendor/lib64/libapu_mdw.so" not found
+System.load failed vpu5=/system/lib64/libvpu5.so error=java.lang.UnsatisfiedLinkError: dlopen failed: library "libdl_android.so" needed or dlopened by "/system/lib64/libvndksupport.so" is not accessible for the namespace "classloader-namespace"
+System.load failed vpu5=/system/vendor/lib64/libvpu5.so error=java.lang.UnsatisfiedLinkError: dlopen failed: library "/system/vendor/lib64/libvpu5.so" not found
+System.load failed vpu5=/vendor/lib64/libvpu5.so error=java.lang.UnsatisfiedLinkError: dlopen failed: library "/vendor/lib64/libvpu5.so" not found
+symbol dlopen value=0x1020 bias=0x761e1dd000 addr=0x761e1de020
+    call begin fn=0x761e1de020 a0=0x7636737000 a1=0x102 a2=0x0 a3=0x0 a4=0x0
+    call fn=0x761e1de020 ret=0x0
+native dlopen path=/system/lib64/libapu_mdw.so handle=0x0
+    call begin fn=0x761e1de020 a0=0x7636737000 a1=0x102 a2=0x0 a3=0x0 a4=0x0
+    call fn=0x761e1de020 ret=0x0
+native dlopen path=/system/vendor/lib64/libapu_mdw.so handle=0x0
+    call begin fn=0x761e1de020 a0=0x7636737000 a1=0x102 a2=0x0 a3=0x0 a4=0x0
+    call fn=0x761e1de020 ret=0x0
+native dlopen path=/vendor/lib64/libapu_mdw.so handle=0x0
+APUSYS native dlopen failed for all candidate paths.
+    call begin fn=0x73616dfb3c a0=0x7636734000 a1=0x7636734040 a2=0x0 a3=0x0 a4=0x0
+    call fn=0x73616dfb3c ret=0x4
+XRP_Create status=4 device=0xb4000073b5f3fd10
+XRP_Create did not initialize; stop.
+APP_STATUS:0

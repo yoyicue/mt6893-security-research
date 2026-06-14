@@ -660,6 +660,43 @@ adds these wrapper constraints:
 | `XrpIntrinsicExecutor::CreateXrpCommand()` | Allocates a `0x68` `xrp_dsp_cmd`/DSP command buffer through the memory manager before command initialization |
 | `XrpVpuStream::kAlgoNames` | The static table contains `apu_lib_apunn` and `apu_lib_custom`; `InitDriver()` tries custom when `debug.vpu.custom.algo.support` is set, otherwise/fallback APUNN |
 
+The `cXrpOptions+0x10` interpretation is now also confirmed from the direct
+VPU stack. `/system/lib64/libapu_mdw.so::apusysSession_createInstance()` first
+opens `/dev/apusys`; if that open fails it logs the errno path and returns
+null. On success it allocates a `0xe8` byte `apusysSession` object. The session
+stores the APUSYS fd at object `+0x00`, the midware version at `+0x08`, and the
+selected executor object at `+0xe0`. Version `2` uses
+`apusysExecutor_v2`, whose constructor issues ioctl `0xc0284120` to enumerate
+APUSYS device metadata and memory-info records.
+
+`/system/lib64/libvpu5.so::createInstanceImp(char const*, apusys_session*)`
+accepts either a caller-supplied `apusysSession*` or, when the second argument
+is null, calls `apusysSession_createInstance()` itself. It then queries device
+type `3`, obtains the metadata size through `queryInfo(1)`, requests device
+metadata for type `3`, allocates a `0xe0` byte `VpuStreamImp`, and stores the
+session pointer at stream `+0xc8`. The ownership flag at `+0xd0` is set only
+when `createInstanceImp()` created the session itself. This makes the wrapper
+requirement concrete: `libneuron_platform.vpu.so` is not asking for a generic
+handle or fd at `cXrpOptions+0x10`; it is asking for a live `apusysSession`
+object compatible with `libapu_mdw.so`.
+
+The same `libvpu5.so` pass pins the native request builder used behind
+`XrpVpuStream::CreateVpuRequest()`:
+
+| Object / request field | Evidence |
+|---|---|
+| `VpuRequestImp+0x48` | Start of the copied `0xb70` `vpu_user_request` blob |
+| `VpuRequestImp+0x7d` / request `+0x35` | Buffer count updated by `VpuRequestImp::addBuffer()` |
+| `VpuRequestImp+0x80` / request `+0x38` | Settings length written by `prepareSettBuf()` |
+| `VpuRequestImp+0x88` / request `+0x40` | Settings device VA/IOVA from `apusysSession_memGetInfoFromHostPtr(..., 1)` |
+| `VpuRequestImp+0x98` / request `+0x50` | First native `struct vpu_buffer` descriptor slot |
+| `VpuRequestImp+0xb0` / request `+0x68` | First descriptor's first plane MVA/IOVA slot after `mmapMVA()` |
+| `VpuStreamImp::runReq()` | Allocates a `0xb70` APUSYS command buffer, copies `VpuRequestImp+0x48` into it before dispatch, and copies it back into `VpuRequestImp+0x48` after sync/wait |
+
+This supports the Java request layout already used by the direct ioctl probe:
+the remaining APUNN gap is not an off-by-base error in the `0xb70` request
+size, settings pointer, or descriptor-array start.
+
 The shell-domain run without an APUSYS session is a negative control, not a
 valid APUNN wrapper ABI dump:
 
@@ -709,14 +746,25 @@ XRP_Create status=4 device=0xb400006d90f50690
 XRP_Create did not initialize; stop.
 ```
 
+The Java inspector now also tries two non-dlopen fallbacks before the native
+`dlopen()` control: `System.load()` of `libapu_mdw.so`, then `System.load()` of
+`libvpu5.so` followed by `/proc/self/maps` lookup for an already-mapped
+`libapu_mdw.so`. On this device both `System.load()` paths fail in the
+`system_app` classloader namespace because `libvndksupport.so` needs or dlopens
+`libdl_android.so`, which is not namespace-accessible; no mapped
+`libapu_mdw.so` is found, and native `dlopen()` remains null. The exact result
+file is:
+
+- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_java_neuron_maps_session_system_app.txt`
+
 This keeps the wrapper-generated request comparison open, but narrows the
 missing condition. Direct `libneuron_platform.vpu.so` wrapper initialization
 needs a real `libapu_mdw` `apusys_session*`. Shell can load `libapu_mdw.so` but
 does not get a session; `app_process64` can call installed wrapper functions but
-cannot load `libapu_mdw.so` from its linker namespace. A useful positive dump
-therefore needs one of: a process context where `libapu_mdw` creates a session,
-a hook point inside an already successful Neuron/VPU client after it has a
-session, or a service-side APUWARE prepared-request dump.
+cannot load or map `libapu_mdw.so` from its linker namespace. A useful positive
+dump therefore needs one of: a process context where `libapu_mdw` creates a
+session, a hook point inside an already successful Neuron/VPU client after it
+has a session, or a service-side APUWARE prepared-request dump.
 
 The APUWARE HIDL wrapper gives a separate positive initialization path through
 `/system/system_ext/lib64/libapuwarexrp_v2.mtk.so`. It proxies to
@@ -1018,6 +1066,17 @@ Userland wrapper evidence:
 
 | Binary | Function | Address | Evidence |
 |---|---|---:|---|
+| `libapu_mdw.so` | `apusysSession_createInstance` | `0x10ed8` | Opens `/dev/apusys`, allocates a `0xe8` `apusysSession`, returns null when open/session construction fails |
+| `libapu_mdw.so` | `apusysSession::apusysSession` | `0xe014` | Stores fd at `+0x00`, midware version at `+0x08`, and executor pointer at `+0xe0`; selects executor by version |
+| `libapu_mdw.so` | `apusysExecutor_v2::apusysExecutor_v2` | `0x1ce20` | Uses ioctl `0xc0284120` to collect APUSYS metadata and memory-info records for the session |
+| `libapu_mdw.so` | `apusysExecutor_v2::sendUserCmd` | `0x1d8ac` | Wraps user-command buffers into ioctl `0xc0204123`, matching the kernel `mdw_usr_ucmd` path |
+| `libvpu5.so` | `createInstanceImp` | `0xb070` | Accepts caller `apusysSession*` or creates one, queries device type `3`, and stores the session at stream `+0xc8` |
+| `libvpu5.so` | `VpuRequestImp::VpuRequestImp` | `0x722c` | Initializes the `0xb70` native request at object `+0x48` and writes algorithm name into request `+0x04` |
+| `libvpu5.so` | `VpuRequestImp::prepareSettBuf` | `0x73c4` | Allocates settings memory and writes request `+0x38/+0x40` through object `+0x80/+0x88` |
+| `libvpu5.so` | `VpuRequestImp::addBuffer` | `0x7674` | Populates request `+0x35`, `+0x50`, and per-plane descriptor fields, then calls `mmapMVA()` |
+| `libvpu5.so` | `VpuRequestImp::mmapMVA` | `0x78b0` | Imports dmabufs and fills request `+0x68+i*0x40+p*0x10` plane MVA/IOVA slots |
+| `libvpu5.so` | `VpuRequestImp::setProperty` | `0x7bb8` | Calls `prepareSettBuf()`, copies caller property bytes into settings memory, and cache-flushes |
+| `libvpu5.so` | `VpuStreamImp::runReq` | `0x9310` | Copies native `VpuRequestImp+0x48` into the `0xb70` APUSYS command buffer before dispatch and copies it back after wait/sync |
 | `libvpu.so` | `VpuRequestImp::prepareSettBuf` | `0x73fc` | Allocates settings memory and writes request `+0x38/+0x40` |
 | `libvpu.so` | `VpuRequestImp::setProperty` | `0x7b6c` | Copies caller property bytes into settings memory and cache-syncs |
 | `libvpu.so` | `VpuRequestImp::addBuffer` | `0x7624` | Populates `request+0x35` and the raw `struct vpu_buffer` descriptor fields |

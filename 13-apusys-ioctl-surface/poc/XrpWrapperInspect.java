@@ -33,6 +33,11 @@ public final class XrpWrapperInspect {
         "/system/vendor/lib64/libapu_mdw.so",
         "/vendor/lib64/libapu_mdw.so",
     };
+    private static final String[] VPU_LIB_PATHS = {
+        "/system/lib64/libvpu5.so",
+        "/system/vendor/lib64/libvpu5.so",
+        "/vendor/lib64/libvpu5.so",
+    };
     private static final String LIBDL_PATH = "/apex/com.android.runtime/lib64/bionic/libdl.so";
     private static final int RTLD_NOW_GLOBAL = 0x102;
 
@@ -93,14 +98,24 @@ public final class XrpWrapperInspect {
         long apusysSessionCreate = 0;
         long apusysSessionDelete = 0;
         if (createApusysSession) {
+            apusysLibPath = systemLoadFirst(APUSYS_LIB_PATHS, "apusys");
+            if (apusysLibPath == null) {
+                systemLoadFirst(VPU_LIB_PATHS, "vpu5");
+                apusysLibPath = findMappedLibrary(APUSYS_LIB_PATHS);
+                if (apusysLibPath != null) {
+                    System.out.println("[+] apusys_mapped=" + apusysLibPath);
+                }
+            }
             long dlopen = resolve(LIBDL_PATH, "dlopen");
-            apusysLibPath = nativeDlopenFirst(APUSYS_LIB_PATHS, dlopen, mem + 0x3000);
-            if (apusysLibPath != null) {
-                System.out.println("[+] apusys_loaded=" + apusysLibPath);
+            if (apusysLibPath == null) {
+                apusysLibPath = nativeDlopenFirst(APUSYS_LIB_PATHS, dlopen, mem + 0x3000);
+            }
+            if (apusysLibPath == null) {
+                System.out.println("APUSYS native dlopen failed for all candidate paths.");
+            } else {
+                System.out.println("[+] apusys_resolved=" + apusysLibPath);
                 apusysSessionCreate = resolve(apusysLibPath, "apusysSession_createInstance");
                 apusysSessionDelete = resolve(apusysLibPath, "apusysSession_deleteInstance");
-            } else {
-                System.out.println("APUSYS native dlopen failed for all candidate paths.");
             }
         }
 
@@ -243,6 +258,20 @@ public final class XrpWrapperInspect {
         throw new RuntimeException("could not load libneuron wrapper", last);
     }
 
+    private static String systemLoadFirst(String[] paths, String label) {
+        for (String path : paths) {
+            try {
+                System.load(path);
+                System.out.println("[+] System.load " + label + "=" + path);
+                return path;
+            } catch (Throwable t) {
+                System.out.println("System.load failed " + label + "=" + path
+                    + " error=" + t);
+            }
+        }
+        return null;
+    }
+
     private static String nativeDlopenFirst(String[] paths, long dlopen,
                                             long pathBuf) throws Exception {
         for (String path : paths) {
@@ -257,6 +286,15 @@ public final class XrpWrapperInspect {
         return null;
     }
 
+    private static String findMappedLibrary(String[] paths) throws Exception {
+        for (String path : paths) {
+            if (isMapped(path)) {
+                return path;
+            }
+        }
+        return null;
+    }
+
     private static long resolve(String libPath, String symbol) throws Exception {
         long bias = findLoadBias(libPath);
         long value = findElfSymbolValue(libPath, symbol);
@@ -265,6 +303,20 @@ public final class XrpWrapperInspect {
             + " bias=0x" + Long.toHexString(bias)
             + " addr=0x" + Long.toHexString(addr));
         return addr;
+    }
+
+    private static boolean isMapped(String libPath) throws Exception {
+        String canonical = new File(libPath).getCanonicalPath();
+        String name = new File(libPath).getName();
+        List<String> lines = Files.readAllLines(Paths.get("/proc/self/maps"),
+            StandardCharsets.UTF_8);
+        for (String line : lines) {
+            if (line.contains(libPath) || line.contains(canonical)
+                || line.endsWith("/" + name)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static long findLoadBias(String libPath) throws Exception {
