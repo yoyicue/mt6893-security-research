@@ -13,7 +13,7 @@ The current result is **reachable but not yet mapped to a confirmed vulnerabilit
 
 The directory has no CVE number yet. The repository uses CVE-numbered directories when a test is tied to a specific public CVE or confirmed bug class. APUSYS is currently an exposed proprietary ioctl surface with handler-level mapping and runtime reachability evidence, but no confirmed CVE match or vulnerability primitive.
 
-This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths and negative memory-create cases. Valid command buffers, valid dmabuf descriptors, heap shaping, and execution-path inputs are separate experiment tracks.
+This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths, negative memory-create cases, and optional device-control reachability checks. Valid command buffers, valid dmabuf descriptors, heap shaping, and execution-path inputs are separate experiment tracks.
 
 ## IDA handler map
 
@@ -170,7 +170,7 @@ The surface is more promising than the current display OOB family because it is 
 - Sends disabled/error-only APUSYS commands.
 - Sends `run_cmd_async`, `run_cmd_sync`, and `mdw_usr_ucmd` buffers with the early-reject field at offset `+0x0c` set to `1`.
 
-Default mode covers reject paths only. It omits memory-create, memory-free, secure-alloc, secure-free, `0x400C4109` device callback, and real command-buffer execution paths.
+Default mode covers reject paths only. It omits memory-create, memory-free, secure-alloc, secure-free, `0x400C4109` device-control dispatch, and real command-buffer execution paths.
 
 Build:
 
@@ -212,6 +212,24 @@ dalvikvm64 -cp /data/data/com.android.settings/cache/apusys_ioctl_probe.dex Apus
 - `mem_create2_badfd` / `mem_create3_badfd` with a 0x38 descriptor whose fd field at user offset `+0x20` is `-1`.
 
 No valid dmabuf or APUSYS command buffer is supplied in this mode. If a memory-create call unexpectedly succeeds, the probe attempts cleanup with the matching memory-free ioctl using the returned descriptor.
+
+Optional device-control tests:
+
+```sh
+dalvikvm64 -cp /data/data/com.android.settings/cache/apusys_ioctl_probe.dex ApusysIoctlProbe --dev-ctrl
+```
+
+`--dev-ctrl` sends ioctl `0x400C4109` with a 0x0c argument `{device_id, core_id, control}`. The candidate table uses known provider ids from static analysis and tests core `0` and `1` with control value `0`:
+
+| Provider label | Device id | Cores tested | Static expectation |
+|---|---:|---:|---|
+| `mdla` | `0x02` | `0,1` | opcode `0` reaches `mdla_pwr_on` |
+| `vpu` | `0x03` | `0,1` | opcode `0` reaches normal VPU control bookkeeping |
+| `edma` | `0x04` | `0,1` | opcode `0` reaches `edma_power_on` |
+| `mdla_rt` | `0x22` | `0,1` | opcode `0` returns without the MDLA command path |
+| `vpu_rt` | `0x23` | `0,1` | opcode `0` returns through the VPU RT early path |
+
+This mode does not construct command buffers and does not call `mdw_usr_ucmd`. Its value is mapping live device/core ids and provider return codes for opcode `0`.
 
 [`poc/apusys_ioctl_probe.c`](poc/apusys_ioctl_probe.c) is a native version of the same reject checks for root/permissive lab contexts. It compiles successfully, but on the current device direct `adb shell` execution returns `open(/dev/apusys) failed: EACCES` because shell is not `system` or `camera`, and `system_app` cannot execute native ELF files from app data under SELinux enforcing.
 
@@ -261,12 +279,14 @@ Observed optional `--mem-negative` result from the same `system_app` context on 
 
 Interpretation: `/dev/apusys` ioctl is confirmed reachable from `system_app`, generic invalid commands and disabled paths return controlled `EINVAL`, and handshake mode `1` returns structured data. The memory-create negative tests did not create an object or crash the device. NULL user pointers fail at the early copy/argument guard with `EINVAL`. Both the all-zero descriptor and explicit bad-fd descriptor return `ENOMEM`, which means errno alone does not distinguish fd validation from later ION resource-preparation failure. Static analysis now shows the intended downstream path is APUSYS memory import into ION KVA/IOVA mapping via the registered `mdw_mem_ion_*` ops.
 
+The optional `--dev-ctrl` mode is implemented but has no recorded `system_app` runtime result yet. The next useful runtime output is the return matrix for the known provider ids above.
+
 ## Next analysis steps
 
 - Keep the current Java probe scoped to reject/query/negative-memory paths. A valid dmabuf-backed descriptor is the next step for real ION/APUSYS mapping behavior.
 - Use kernel logs, if available from the lab context, to distinguish whether the `ENOMEM` path comes from ION import, cache sync, or IOVA map setup.
 - Keep `mdw_usr_get_cmd_ops` / `0xffffffc00a188e58` marked unresolved. Leave the `run_cmd` `+0x0c` early-reject field set while resolving the indirect call targets.
-- For `0x400C4109`, test live ids for MDLA, EDMA, normal VPU, and VPU RT with small control values. Expected static behavior differs by provider: MDLA/EDMA power-on, normal VPU control bookkeeping, VPU RT early return.
+- Run `--dev-ctrl` from the `system_app` context and record the live return matrix for MDLA, EDMA, normal VPU, and VPU RT.
 - For `mdw_usr_ucmd`, focus on normal VPU opcode `7`: it requires a mapped command pointer, non-zero size fields, and mapped command id `0x8001`.
 - Continue mapping `mdla_run_command_sync`, `vpu_execute`, and `edma_execute` input structures before valid command-buffer experiments.
 - Continue scheduler/queue analysis after command parser targets are known. Valid command-buffer experiments come after that mapping.
