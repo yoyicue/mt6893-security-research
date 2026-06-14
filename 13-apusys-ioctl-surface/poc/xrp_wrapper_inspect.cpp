@@ -1,9 +1,11 @@
 #include <dlfcn.h>
 #include <inttypes.h>
 #include <stdint.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <vector>
 
 namespace {
@@ -33,6 +35,49 @@ using XrpSyncBuffer = uint32_t (*)(void *device, int32_t direction,
                                    const void *buffer_info);
 using ApusysSessionCreateInstance = void *(*)();
 using ApusysSessionDeleteInstance = int32_t (*)(void *);
+
+void dlopen_timeout_handler(int) {
+    static const char kMsg[] = "dlopen timeout\n";
+    write(STDERR_FILENO, kMsg, sizeof(kMsg) - 1);
+    _exit(124);
+}
+
+bool arm_dlopen_timeout(uint32_t timeout_sec, struct sigaction *old_action) {
+    if (timeout_sec == 0) {
+        return true;
+    }
+    struct sigaction action = {};
+    action.sa_handler = dlopen_timeout_handler;
+    sigemptyset(&action.sa_mask);
+    if (sigaction(SIGALRM, &action, old_action) != 0) {
+        perror("sigaction");
+        return false;
+    }
+    alarm(timeout_sec);
+    return true;
+}
+
+void disarm_dlopen_timeout(uint32_t timeout_sec,
+                           const struct sigaction *old_action) {
+    if (timeout_sec == 0) {
+        return;
+    }
+    alarm(0);
+    sigaction(SIGALRM, old_action, nullptr);
+}
+
+void *timed_dlopen(const char *path, int flags, uint32_t timeout_sec,
+                   const char *label) {
+    printf("dlopen begin %s path=%s timeout_sec=%u\n",
+           label, path, timeout_sec);
+    struct sigaction old_action = {};
+    if (!arm_dlopen_timeout(timeout_sec, &old_action)) {
+        return nullptr;
+    }
+    void *lib = dlopen(path, flags);
+    disarm_dlopen_timeout(timeout_sec, &old_action);
+    return lib;
+}
 
 template <typename T>
 T load_le(const uint8_t *p) {
@@ -140,6 +185,7 @@ int main(int argc, char **argv) {
     bool create_apusys_session = true;
     uint64_t handle = 1;
     uint32_t finalize_count = 1;
+    uint32_t dlopen_timeout_sec = 0;
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "apuware") == 0 || strcmp(argv[i], "--lib=apuware") == 0) {
             use_apuware = true;
@@ -164,6 +210,10 @@ int main(int argc, char **argv) {
         } else if (strncmp(argv[i], "--finalize-count=", 17) == 0) {
             finalize_count = static_cast<uint32_t>(
                 parse_u64_arg(argv[i], "--finalize-count=", finalize_count));
+        } else if (strncmp(argv[i], "--dlopen-timeout-sec=", 21) == 0) {
+            dlopen_timeout_sec = static_cast<uint32_t>(
+                parse_u64_arg(argv[i], "--dlopen-timeout-sec=",
+                              dlopen_timeout_sec));
         }
     }
 
@@ -188,16 +238,17 @@ int main(int argc, char **argv) {
 
     printf("mode=%s handle=%" PRIu64
            " finalize_count=%u sync=%d finalize_index_mode=%s dlopen=%s"
-           " create_apusys_session=%d\n",
+           " create_apusys_session=%d dlopen_timeout_sec=%u\n",
            use_apuware ? "apuware" : "neuron", handle, finalize_count,
            sync_buffers ? 1 : 0,
            finalize_slot_index ? "slot" : "buffer_info",
            dlopen_lazy ? "lazy" : "now",
-           create_apusys_session ? 1 : 0);
+           create_apusys_session ? 1 : 0, dlopen_timeout_sec);
     void *lib = nullptr;
     for (size_t i = 0; i < lib_path_count; ++i) {
         const char *path = lib_paths[i];
-        lib = dlopen(path, dlopen_lazy ? RTLD_LAZY : RTLD_NOW);
+        lib = timed_dlopen(path, dlopen_lazy ? RTLD_LAZY : RTLD_NOW,
+                           dlopen_timeout_sec, "xrp");
         if (lib) {
             printf("dlopen path=%s\n", path);
             break;
@@ -243,7 +294,8 @@ int main(int argc, char **argv) {
         };
         ApusysSessionCreateInstance apusys_session_create = nullptr;
         for (size_t i = 0; i < sizeof(apusys_paths) / sizeof(apusys_paths[0]); ++i) {
-            apusys_lib = dlopen(apusys_paths[i], RTLD_NOW | RTLD_GLOBAL);
+            apusys_lib = timed_dlopen(apusys_paths[i], RTLD_NOW | RTLD_GLOBAL,
+                                      dlopen_timeout_sec, "apusys");
             if (apusys_lib) {
                 printf("dlopen apusys path=%s\n", apusys_paths[i]);
                 break;

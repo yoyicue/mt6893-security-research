@@ -930,14 +930,17 @@ adb -s 7FPE0824B0801372 shell \
 
 adb -s 7FPE0824B0801372 shell \
   'timeout 25 /data/local/tmp/xrp_wrapper_inspect apuware --dlopen-lazy --finalize-slot-index 2>&1; echo STATUS:$?'
+
+adb -s 7FPE0824B0801372 shell \
+  '/data/local/tmp/xrp_wrapper_inspect apuware --finalize-slot-index --dlopen-timeout-sec=8 2>&1; echo STATUS:$?'
 ```
 
-The APUWARE path loads
-`/system/system_ext/lib64/libapuwarexrp_v2.mtk.so` and proxies to
-`android.hardware.neuralnetworks@1.3-service-mtk-neuron`. It reaches
+Earlier saved APUWARE runs loaded
+`/system/system_ext/lib64/libapuwarexrp_v2.mtk.so`, proxied to
+`android.hardware.neuralnetworks@1.3-service-mtk-neuron`, and reached
 `XRP_Create`, `XRP_CreateCommand`, `XRP_AllocateBuffer`,
-`XRP_UseInputBuffer`, and `XRP_UseOutputBuffer` successfully from shell. The
-observed service-allocated `cXrpBufferInfo` records expose the fd at `+0x18`,
+`XRP_UseInputBuffer`, and `XRP_UseOutputBuffer` successfully from shell. Those
+runs expose the service-allocated `cXrpBufferInfo` records: fd at `+0x18`,
 low 32-bit IOVA at `+0x20`, and host VA at `+0x28`.
 
 The saved positive APUWARE boundary is `XRP_FinalizeCommand status=2`; a forced
@@ -954,8 +957,21 @@ that `apu_lib_apunn` rejected the command. The native helper now supports
 `--finalize-slot-index` to rewrite that field to vector slot `0` before
 finalize, plus `--dlopen-lazy` to isolate loader behavior. Current reruns stop
 inside `dlopen(libapuwarexrp_v2.mtk.so)` before the helper reaches the wrapper
-calls. The saved logcat for the latest rerun contains only a binder ioctl
-`-EINVAL` from the helper process and no VPU/APUNN worker activity, so this is a
+calls. The explicit 2026-06-15 in-process timeout run prints:
+
+```text
+mode=apuware handle=1 finalize_count=1 sync=0 finalize_index_mode=slot dlopen=now create_apusys_session=0 dlopen_timeout_sec=8
+dlopen begin xrp path=/system/system_ext/lib64/libapuwarexrp_v2.mtk.so timeout_sec=8
+dlopen timeout
+STATUS:124
+```
+
+Static ELF inspection explains this boundary: `.init_array` at `0xe2f8`
+contains `0xccf0`, which constructs the global `XrpIntrinsicExecutor` before
+`dlopen()` returns; the constructor at `0x7100` calls
+`INeuronXrp::tryGetService("default", false)` and retries after `usleep(5000)`.
+The saved logcat for the latest rerun contains only a binder ioctl `-EINVAL`
+from the helper process and no VPU/APUNN worker activity, so this is a
 wrapper/HIDL initialization boundary rather than firmware request parsing.
 
 - `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_shell.txt`
@@ -965,6 +981,8 @@ wrapper/HIDL initialization boundary rather than firmware request parsing.
 - `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_finalize_slot_index_lazy.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_finalize_slot_index_rerun.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_finalize_slot_index_rerun_logcat.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_apuware_dlopen_timeout.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_apuware_dlopen_timeout_logcat.txt`
 
 The pure Java `app_process64` inspector is `poc/XrpWrapperInspect.java`. It
 loads the installed system wrapper, resolves exported function addresses from

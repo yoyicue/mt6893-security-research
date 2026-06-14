@@ -969,11 +969,31 @@ ABI was still wrong.
 
 `poc/xrp_wrapper_inspect.cpp` now has `--finalize-slot-index`, which sends a
 copy of the output info with `+0x08` rewritten to the vector slot number before
-calling `XRP_FinalizeCommand()`, and `--dlopen-lazy` for isolating loader
-behavior. Current reruns cannot yet validate the slot-index hypothesis because
-this device state stops inside `dlopen(libapuwarexrp_v2.mtk.so)` before the
-helper prints the loaded path, even with `RTLD_LAZY`; the only kernel-side clue
-in that rerun is a binder ioctl returning `-EINVAL` from the helper process.
+calling `XRP_FinalizeCommand()`, `--dlopen-lazy` for isolating loader behavior,
+and `--dlopen-timeout-sec=N` for cutting off constructor-level loader hangs.
+Current reruns cannot yet validate the slot-index hypothesis because this
+device state stops inside `dlopen(libapuwarexrp_v2.mtk.so)` before the helper
+reaches any wrapper API. The 2026-06-15 in-process timeout run shows the exact
+boundary:
+
+```text
+mode=apuware handle=1 finalize_count=1 sync=0 finalize_index_mode=slot dlopen=now create_apusys_session=0 dlopen_timeout_sec=8
+dlopen begin xrp path=/system/system_ext/lib64/libapuwarexrp_v2.mtk.so timeout_sec=8
+dlopen timeout
+STATUS:124
+```
+
+Static ELF inspection explains why `dlopen()` itself can block. The dynamic
+section has `.init_array` at `0xe2f8` with one entry, `0xccf0`; that initializer
+allocates and constructs a global `XrpIntrinsicExecutor`, stores it in the
+global executor pointer, and registers the destructor. The constructor at
+`0x7100` calls
+`vendor.mediatek.hardware.apuware.xrp@2.0::INeuronXrp::tryGetService("default",
+false)` and retries after `usleep(5000)` while logging
+`can't get INeuronXrp2 service tried(%d) times`. The only kernel-side clue in
+the timeout rerun is a binder ioctl returning `-EINVAL` from the helper process.
+This moves the current APUWARE blocker before finalize and before firmware
+request parsing.
 
 Wrapper-inspection result files:
 
@@ -988,6 +1008,8 @@ Wrapper-inspection result files:
 - `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_finalize_slot_index_lazy.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_finalize_matrix_rerun.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_dlopen_lazy_rerun.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_apuware_dlopen_timeout.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_apuware_dlopen_timeout_logcat.txt`
 
 ## Firmware-visible request model
 
@@ -1245,6 +1267,8 @@ Userland wrapper evidence:
 | `libapuwarexrp_v2.mtk.so` | `XrpIntrinsicExecutor::XRP_UseOutputBuffer` | `0x9070` | Same HIDL buffer-info conversion for output binding |
 | `libapuwarexrp_v2.mtk.so` | `XrpIntrinsicExecutor::XRP_FinalizeCommand` | `0x93b0` | Serializes the finalize output vector into HIDL buffer-info records and forwards status from the APUWARE service |
 | `libapuwarexrp_v2.mtk.so` | `XrpIntrinsicExecutor::XRP_GetPreparedRequests` | `0x9b50` | Requests prepared VPU request info from the APUWARE service after successful finalize |
+| `libapuwarexrp_v2.mtk.so` | `.init_array` | `0xe2f8 -> 0xccf0` | Constructs the global `XrpIntrinsicExecutor` before `dlopen()` returns |
+| `libapuwarexrp_v2.mtk.so` | `XrpIntrinsicExecutor::XrpIntrinsicExecutor` | `0x7100` | Calls `INeuronXrp::tryGetService("default", false)` during global construction; current timeout run stops in this loader/HIDL boundary |
 | `libneuron_platform.so` | `XrpIntrinsicExecutor::PrepareInternalCommandBuffer` | `0x1ff48` | Separate internal path: binds first internal buffer to settings code fields and second internal buffer to settings output fields |
 | `libneuron_platform.so` | `XrpIntrinsicExecutor::WritebackCommand` | `0x22660` | Host wrapper requires the same completion-flag predicate and records the first output word as command status |
 | `libneuron_platform.so` | `XrpPatternDump::DumpXtensaOperations` | `0x29a0c` | Writes raw code-section bytes to `/data/local/tmp/xrp_xtensa_cmd.bin`; it does not parse fields |
