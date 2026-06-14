@@ -9,11 +9,11 @@ crw-rw---- 1 system camera u:object_r:apusys_device:s0 /dev/apusys
 [OPEN] /dev/apusys  fd=5
 ```
 
-The current result is **reachable through APUSYS memory import, normal-VPU algorithm lookup, command parsing, scheduler handoff, and full-size VPU request acceptance from `system_app`**. The VPU request ABI is now tied back to `/vendor/lib64/libvpu.so`: `request+0x35` is `buffer_count`, `request+0x38/+0x40` are settings length/IOVA, and `request+0x50` starts the per-buffer descriptor array. IDA analysis shows the device is the MTK APUSYS midware character device. Its main ioctl handler is now named `mdw_ioctl` in the IDB at `0xffffffc00878a0ec`.
+The current result is **reachable through APUSYS memory import, normal-VPU algorithm lookup, command parsing, scheduler handoff, and full-size VPU request acceptance from `system_app`**. The VPU request ABI is now tied back to `/vendor/lib64/libvpu.so`: `request+0x35` is `buffer_count`, `request+0x38/+0x40` are settings length/IOVA, and `request+0x50` starts the per-buffer descriptor array. The settings payload behind `setting_iova` is tied back to the `libneuron_platform.vpu.so` XRP command-buffer layout; see [`APUNN_SETTINGS_ABI.md`](APUNN_SETTINGS_ABI.md). IDA analysis shows the device is the MTK APUSYS midware character device. Its main ioctl handler is now named `mdw_ioctl` in the IDB at `0xffffffc00878a0ec`.
 
 The directory has no CVE number yet. The repository uses CVE-numbered directories when a test is tied to a specific public CVE or confirmed bug class. APUSYS is currently an exposed proprietary ioctl surface with confirmed VPU hardware dispatch reachability from an unprivileged `system_app` context, but no confirmed CVE match or memory corruption primitive.
 
-This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths, negative memory-create cases, optional device-control reachability checks, direct dmabuf-source checks, a candidate-fd scan for the memory import path, HardwareBuffer-backed dmabuf import, controlled `ucmd` gate tests, zero-header / invalid-subcommand `run_cmd_async` parser probes, a normal-VPU valid-type request-size guard probe, a full-size (`0xb70`) VPU execution probe, a chained IOVA-import + VPU request probe, and a no-dispatch IOVA control. The remaining closure work is to finish the `apu_lib_apunn` settings ABI, attribute the `0xb` imported-buffer writeback, and inspect command-buffer copyback / timeout lifecycle behavior.
+This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths, negative memory-create cases, optional device-control reachability checks, direct dmabuf-source checks, a candidate-fd scan for the memory import path, HardwareBuffer-backed dmabuf import, controlled `ucmd` gate tests, zero-header / invalid-subcommand `run_cmd_async` parser probes, a normal-VPU valid-type request-size guard probe, a full-size (`0xb70`) VPU execution probe, a chained IOVA-import + VPU request probe, an XRP-shaped APUNN settings probe, and no-dispatch IOVA controls. The remaining closure work is to recover APUNN code-section operation semantics and inspect timeout/lifecycle behavior.
 
 ## IDA handler map
 
@@ -353,6 +353,8 @@ The VPU request object is the codebuf contents that `mdw_cmd_sc_set_hnd` copies 
 
 `request+0x35` is not priority. Priority/boost state lives outside the native `0xb70` request in `VpuRequestImp` bookkeeping and in the APUSYS command header (`+0x11`) / EARA fields.
 
+The `request+0x38/+0x40` settings pointer is an APUNN/XRP command buffer, not a generic image plane. `libvpu.so::prepareSettBuf()` allocates and records the settings memory, `vpuRequest_setProperty()` copies the caller property bytes into it, and `libneuron_platform.vpu.so::XrpCommandInfo` initializes the payload with command flags, code/output/data section sizes, section IOVAs, a 16-byte magic, an output header, and 12-byte data descriptors. The recovered wrapper layout and current XRP-shaped runtime probe are documented in [`APUNN_SETTINGS_ABI.md`](APUNN_SETTINGS_ABI.md).
+
 `vpu_execute` execution flow after guard checks:
 
 1. `sub_FFFFFFC0087A1D58(core, slot_id)` — pre-execution initialization
@@ -427,7 +429,32 @@ vpu_dev_boot_sequence: vpu0: ALTRESETVEC: 0x7da00000
 [apusys][warn] mdw_usr_destroy residual cmd(0xffffff80211a5000)
 ```
 
-Interpretation: the corrected `libvpu.so` request layout is accepted, the worker reaches the VPU boot/map path, and the imported user buffer receives a small status-like writeback under the VPU dispatch path. This is not yet an arbitrary DMA primitive. The firmware-specific settings payload under `setting_iova` is still unknown, and the saved kernel logs still do not show a normal provider completion record.
+Interpretation: the corrected `libvpu.so` request layout is accepted, the worker reaches the VPU boot/map path, and the imported user buffer receives a small status-like writeback under the VPU dispatch path. This is not yet an arbitrary DMA primitive. This minimal mode leaves the APUNN/XRP settings payload malformed; the follow-up XRP-shaped mode below is the better attribution run.
+
+### APUNN/XRP-shaped IOVA request
+
+The `--run-cmd-vpu-xrp-iova` probe uses the same APUSYS memory import and normal-VPU request chain, but lays out the imported IOVA as a recovered `libneuron` XRP settings buffer:
+
+| Imported offset | Use |
+|---:|---|
+| `0x000` | Main XRP settings command buffer (`setting_iova`) |
+| `0x100` | Code section placeholder, size `0` in this probe |
+| `0x200` | Output section, size `0x80` |
+| `0x300` | One 12-byte data descriptor |
+| `0x400` | Data payload and VPU plane0 MVA target, size `0x80` |
+
+Observed dispatch result from `system_app` on 2026-06-14:
+
+```text
+[*] run_async_vpu_iova cmd=0xc0184107 ret=0
+xrp_after_settings    unchanged
+xrp_after_output      unchanged
+xrp_after_data_desc   unchanged
+xrp_after_data_payload[0x400]: [0] 0x41505530 -> 0x41505531
+vpu_cmd_after_request_head/tail unchanged
+```
+
+The matching `--run-cmd-vpu-xrp-iova-control` run skips only `run_cmd_async` and leaves all XRP windows unchanged. The command-buffer before/after dump also stays unchanged in the dispatch run. This points the visible writeback at the APUNN data-payload/plane target rather than the main settings header, output header, data descriptor, or `mdw_cmd_sc_clr_hnd` command-buffer copyback.
 
 ## Ioctl command map
 
@@ -458,9 +485,9 @@ The `0x4004413C/3D` size mismatch is important for testing: the command encoding
 
 ## Current risk ranking
 
-1. **VPU firmware settings ABI and IOVA-chain validation**: Highest current APUSYS task. `system_app` can import HardwareBuffer dmabufs, get APUSYS IOVA values, and submit full-size normal-VPU requests. The corrected probe writes `setting_length`, `setting_iova`, `buffer_count`, and plane0 MVA according to `libvpu.so`; runtime now shows VPU boot/map activity and a controlled `original_iova_buf[0]` change from `0` to `0xb` that the no-dispatch control does not reproduce.
+1. **VPU firmware settings ABI and IOVA-chain validation**: Highest current APUSYS task. `system_app` can import HardwareBuffer dmabufs, get APUSYS IOVA values, and submit full-size normal-VPU requests. The corrected probe writes `setting_length`, `setting_iova`, `buffer_count`, and plane0 MVA according to `libvpu.so`; runtime shows VPU boot/map activity. The XRP-shaped settings run keeps settings/output/data-descriptor and command-buffer copyback windows unchanged, while the data payload / plane0 target changes first word from `0x41505530` to `0x41505531`.
 2. **Timeout-path command object race**: `run_cmd_async` returns before the worker completes. The guard run already showed `mdw_usr_destroy residual cmd(...)` after worker-side rejection. The same lifetime boundary matters for full VPU timeout/abort paths.
-3. **Writeback attribution and command-buffer copyback**: The imported data buffer has a reproducible first-word change under dispatch, and `mdw_cmd_sc_clr_hnd` can copy temporary handle state back to the mapped command KVA after provider return. The next run should dump the command HardwareBuffer before and after worker completion and identify the exact writer for the `0xb` value.
+3. **Writeback attribution and command-buffer copyback**: The XRP-shaped run makes command-buffer copyback unlikely for the visible imported-buffer delta because the command request head/tail do not change while the data payload does. The remaining attribution task is the semantic meaning of the `+1` data-payload writeback and the APUNN code-section operation format.
 4. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` import HardwareBuffer fds through APUSYS type-2/type-3 memory-create and copy out IOVA-like descriptor fields. This is the input path for any VPU request that references user-controlled memory.
 5. **Command parsing/execution and ucmd paths**: Validated at zero-header, invalid SC type, request-size guard, full-size VPU request acceptance, and `apu_lib_apunn` lookup success.
 6. **Device/resource control and secure alloc paths**: `0x4004413C/3D` call `mdw_usr_dev_sec_alloc/free`. These may influence APU power/security state. `0x400C4109` dispatches provider opcode `0`.
@@ -659,6 +686,8 @@ CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
 
 `--run-cmd-vpu-iova` chains `mem_create` type-2 import (to get an IOVA in the APU IOMMU address space) with a full-size VPU request that references that IOVA in the `libvpu.so` settings and plane descriptor fields. `--run-cmd-vpu-iova-control` follows the same setup but skips `run_cmd_async`, which isolates the post-dispatch buffer change.
 
+`--run-cmd-vpu-xrp-iova` uses the same import and dispatch chain, but first writes the recovered APUNN/XRP settings layout into the imported IOVA: settings at `+0x000`, output at `+0x200`, data descriptor at `+0x300`, and data payload/plane0 at `+0x400`. It dumps those windows before and after dispatch. `--run-cmd-vpu-xrp-iova-control` performs the same setup without final dispatch.
+
 ```sh
 # VPU exec without IOVA import:
 CLASSPATH=.../apusys_ioctl_probe.dex \
@@ -671,6 +700,14 @@ CLASSPATH=.../apusys_ioctl_probe.dex \
 # Same import setup, no final run_cmd_async dispatch:
 CLASSPATH=.../apusys_ioctl_probe.dex \
   app_process64 /system/bin ApusysIoctlProbe --run-cmd-vpu-iova-control
+
+# VPU request with APUNN/XRP-shaped settings:
+CLASSPATH=.../apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe --run-cmd-vpu-xrp-iova
+
+# Same APUNN/XRP setup, no final run_cmd_async dispatch:
+CLASSPATH=.../apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe --run-cmd-vpu-xrp-iova-control
 ```
 
 Automated run:
@@ -700,6 +737,24 @@ python3 13-apusys-ioctl-surface/poc/run_system_app_probe.py \
   --mode=--run-cmd-vpu-iova-control \
   --result-name 13_apusys_run_cmd_vpu_iova_control.txt \
   --kernel-result-name 13_apusys_run_cmd_vpu_iova_control_kernel.txt \
+  --kernel-pattern "apusys|vpu|mdw|xos|devapc|iommu|vpu_req_check|vpu_execute|sched_trace|cmd_done|timeout|Timeout|TIMEOUT|oops|panic" \
+  --timeout 180
+
+# --run-cmd-vpu-xrp-iova:
+python3 13-apusys-ioctl-surface/poc/run_system_app_probe.py \
+  -s 7FPE0824B0801372 --local-port 48888 \
+  --mode=--run-cmd-vpu-xrp-iova \
+  --result-name 13_apusys_run_cmd_vpu_xrp_iova.txt \
+  --kernel-result-name 13_apusys_run_cmd_vpu_xrp_iova_kernel.txt \
+  --kernel-pattern "apusys|vpu|mdw|xos|devapc|iommu|vpu_req_check|vpu_execute|sched_trace|cmd_done|timeout|Timeout|TIMEOUT|oops|panic" \
+  --timeout 180
+
+# --run-cmd-vpu-xrp-iova-control:
+python3 13-apusys-ioctl-surface/poc/run_system_app_probe.py \
+  -s 7FPE0824B0801372 --local-port 48888 \
+  --mode=--run-cmd-vpu-xrp-iova-control \
+  --result-name 13_apusys_run_cmd_vpu_xrp_iova_control.txt \
+  --kernel-result-name 13_apusys_run_cmd_vpu_xrp_iova_control_kernel.txt \
   --kernel-pattern "apusys|vpu|mdw|xos|devapc|iommu|vpu_req_check|vpu_execute|sched_trace|cmd_done|timeout|Timeout|TIMEOUT|oops|panic" \
   --timeout 180
 ```
