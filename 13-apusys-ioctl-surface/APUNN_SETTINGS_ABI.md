@@ -611,6 +611,32 @@ Result files:
 - `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_wait.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_wait_kernel.txt`
 
+The follow-up descriptor-0 first-word matrix keeps the same
+target-wrapper-shaped request and varies only code/input word `0`.
+
+| Input word | Control result | Dispatch + wait result |
+|---:|---|---|
+| `0x00000000` | Code word remains `0x00000000` | Code word becomes `0x0000000b`; async `0`, wait `0` |
+| `0x00002713` | Code word remains `0x00002713` | Code word becomes `0x0000271b`; async `0`, wait `0` |
+| `0x0000271b` | Code word remains `0x0000271b` | Code word remains `0x0000271b`; async `0`, wait `0` |
+| `0x504c4e30` | Code word remains `0x504c4e30` | Code word becomes `0x504c4e3b`; async `0`, wait `0` |
+| `0xffffffff` | Code word remains `0xffffffff` | Code word becomes `0xfffffffd`; async `0`, wait `-EIO`; kernel log records `ret(-110)` and `mdw_wait_cmd ... fail` |
+
+Result files:
+
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_word_matrix_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_word_matrix_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_word_matrix.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_word_matrix_kernel.txt`
+
+Settings remain `0x5`, output remains `0xffffffff`, and data descriptor/data
+payload windows remain unchanged in every case. For ordinary inputs, the
+descriptor-0 first word behaves like `old | 0xb`; the all-ones case enters an
+error/timeout state and clears bit `1`. This pins the current visible writeback
+as state-word behavior on copied native descriptor `0`. It still does not show
+APUNN settings completion, APUNN output-section copyback, or a source-sensitive
+leak.
+
 This rules out the presence of a direct settings-property tuple as the cause of
 the current incomplete boundary. The target-wrapper-shaped no-settings request
 is accepted by APUSYS/VPU and can be waited successfully, but firmware still
@@ -1166,6 +1192,13 @@ This gives the current interpretation boundary:
   leaves APUNN settings/output/data unchanged. The settings-property tuple is
   therefore not required for the descriptor-0 writeback and is not the missing
   APUNN completion condition.
+- The `target_code5_no_settings_word_matrix` result keeps the same request shape
+  and varies only descriptor-0 word `0`. No-dispatch controls preserve every
+  input. Dispatch plus wait maps ordinary words through `old | 0xb`, while the
+  all-ones word maps `0xffffffff -> 0xfffffffd` and returns `-EIO` from wait
+  with a VPU scheduler timeout in the kernel log. Settings/output/data remain
+  unchanged. The visible descriptor-0 writeback therefore behaves like a
+  firmware/worker state word, not an APUNN output copyback.
 - The `wrapper_one_data_output44` result follows the host wrapper's dynamic
   output-size formula for one `0x1c8` Xtensa operation: output size
   `0x40 + 4 * 1 = 0x44`, output header flag `1`, `settings_len=0x68`,
@@ -1317,7 +1350,10 @@ dispatch where copied native buffer descriptor `0` points at the code/input
 window and the kernel logs residual command state instead of the earlier D2D
 timeout. The target-wrapper-shaped five-code-descriptor/no-settings-property
 request is accepted too, and its explicit wait variant returns `0` while
-preserving the same code/input writeback-only boundary. Libvpu-style descriptor
+preserving the same code/input writeback-only boundary. The descriptor-0
+first-word matrix shows ordinary inputs becoming `old | 0xb`, and the all-ones
+input entering a timeout/error path as `0xffffffff -> 0xfffffffd` with wait
+`-EIO`. Libvpu-style descriptor
 metadata, a five-descriptor alias shape, and
 the wrapper send-state command flag value `0x5` do not change that boundary.
 Changing the firmware-visible settings length from `0x100` to the wrapper DSP
@@ -1334,8 +1370,9 @@ APUNN settings/output boundary. Moving the operation operand-list offset through
 `0`, `0x10`, `0x40`, and `0x100` in the same wrapper-one-data shape is accepted
 but still leaves the same code-first native descriptor writeback boundary.
 Clearing `request+0x38/+0x40` rules out the direct settings-property tuple as
-the cause of the writeback or of the incomplete boundary. It does not yet prove
-APUNN data descriptor consumption, APUNN output-section writeback, the missing
-completion parameter, or the full semantic meaning of the observed
-native-buffer writeback. The batch-level devapc warning remains non-attributed
-because isolated single-case runs did not reproduce it.
+the cause of the writeback or of the incomplete boundary. The current semantic
+clue is status/flags behavior on native descriptor `0`, not a leak. It does not
+yet prove APUNN data descriptor consumption, APUNN output-section writeback, the
+missing completion parameter, or the exact owner of the observed native-buffer
+writeback. The batch-level devapc warning remains non-attributed because
+isolated single-case runs did not reproduce it.

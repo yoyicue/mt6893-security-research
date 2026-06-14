@@ -246,6 +246,8 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpTargetCode5NoSettingsIova = false;
         boolean runCmdVpuXrpTargetCode5NoSettingsIovaControl = false;
         boolean runCmdVpuXrpTargetCode5NoSettingsWaitIova = false;
+        boolean runCmdVpuXrpTargetCode5NoSettingsWordMatrixIova = false;
+        boolean runCmdVpuXrpTargetCode5NoSettingsWordMatrixIovaControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlotControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix = false;
@@ -347,6 +349,10 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpTargetCode5NoSettingsIovaControl = true;
             } else if ("--run-cmd-vpu-xrp-target-code5-no-settings-wait-iova".equals(arg)) {
                 runCmdVpuXrpTargetCode5NoSettingsWaitIova = true;
+            } else if ("--run-cmd-vpu-xrp-target-code5-no-settings-word-matrix-iova".equals(arg)) {
+                runCmdVpuXrpTargetCode5NoSettingsWordMatrixIova = true;
+            } else if ("--run-cmd-vpu-xrp-target-code5-no-settings-word-matrix-iova-control".equals(arg)) {
+                runCmdVpuXrpTargetCode5NoSettingsWordMatrixIovaControl = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot".equals(arg)) {
                 runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot-control".equals(arg)) {
@@ -710,6 +716,14 @@ public final class ApusysIoctlProbe {
                     XRP_OUTPUT_HEADER_FLAG_DEFAULT,
                     XrpSettingsShape.WRAPPER_ONE_DATA, true,
                     VPU_REQUEST_FLAGS_DEFAULT, false);
+            }
+
+            if (runCmdVpuXrpTargetCode5NoSettingsWordMatrixIova) {
+                runRunCmdVpuXrpTargetCode5NoSettingsWordMatrixProbe(fd, true);
+            }
+
+            if (runCmdVpuXrpTargetCode5NoSettingsWordMatrixIovaControl) {
+                runRunCmdVpuXrpTargetCode5NoSettingsWordMatrixProbe(fd, false);
             }
 
             if (runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot) {
@@ -1471,6 +1485,31 @@ public final class ApusysIoctlProbe {
                                                             int requestFlags,
                                                             boolean includeSettingsProperty)
             throws Exception {
+        runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, xrpSettings,
+            splitTargets, xrpOp, waitMs, twoVpuBuffers, descriptorMode,
+            cmdFlags, descriptorOrder, settingsLen, outputHeaderFlag,
+            settingsShape, waitAfterAsync, requestFlags, includeSettingsProperty,
+            null);
+    }
+
+    private static void runRunCmdVpuIovaHardwareBufferProbe(int apusysFd,
+                                                            boolean dispatch,
+                                                            boolean xrpSettings,
+                                                            boolean splitTargets,
+                                                            XrpOpSpec xrpOp,
+                                                            int waitMs,
+                                                            boolean twoVpuBuffers,
+                                                            int descriptorMode,
+                                                            int cmdFlags,
+                                                            int descriptorOrder,
+                                                            int settingsLen,
+                                                            int outputHeaderFlag,
+                                                            XrpSettingsShape settingsShape,
+                                                            boolean waitAfterAsync,
+                                                            int requestFlags,
+                                                            boolean includeSettingsProperty,
+                                                            Integer codeFirstWordOverride)
+            throws Exception {
         System.out.println("\n[*] === Optional APUSYS run_cmd VPU IOVA chained probe ===");
         if (xrpSettings) {
             System.out.println("[*] Mode: mem_create imports HardwareBuffer to get IOVA,"
@@ -1538,6 +1577,11 @@ public final class ApusysIoctlProbe {
             if (waitAfterAsync) {
                 System.out.println("[*] Wait mode: call mdw_usr_wait_cmd"
                     + " immediately after successful run_cmd_async.");
+            }
+            if (codeFirstWordOverride != null) {
+                System.out.println("[*] Code/input first word override:"
+                    + " code+0x00=0x"
+                    + Integer.toHexString(codeFirstWordOverride));
             }
         } else {
             System.out.println("[*] Mode: mem_create imports HardwareBuffer to get IOVA,"
@@ -1632,6 +1676,9 @@ public final class ApusysIoctlProbe {
                 java.nio.ByteBuffer originalBuf = planes[0].getBuffer();
                 fillXrpSettingsBuffer(originalBuf, iovaLow, iovaSize, xrpOp,
                     cmdFlags, outputHeaderFlag, settingsShape);
+                if (codeFirstWordOverride != null && xrpOp.hasCode()) {
+                    putU32LE(originalBuf, XRP_CODE_OFF, codeFirstWordOverride);
+                }
                 dumpXrpWindows("before", originalBuf, xrpOp);
             }
 
@@ -1676,6 +1723,10 @@ public final class ApusysIoctlProbe {
                 }
                 if (!includeSettingsProperty) {
                     label = label + "_no_settings_property";
+                }
+                if (codeFirstWordOverride != null) {
+                    label = label + "_codeword_"
+                        + Integer.toHexString(codeFirstWordOverride);
                 }
                 fillRunCmdVpuXrpIova(input2, "apu_lib_apunn", label,
                     iovaLow, iovaSize, splitTargets, xrpOp, twoVpuBuffers,
@@ -2106,6 +2157,29 @@ public final class ApusysIoctlProbe {
             if (reader != null) {
                 reader.close();
             }
+        }
+    }
+
+    private static void runRunCmdVpuXrpTargetCode5NoSettingsWordMatrixProbe(
+            int apusysFd, boolean dispatch) throws Exception {
+        int[] codeWords = {
+            0x00000000,
+            0x00002713,
+            0x0000271b,
+            0x504c4e30,
+            0xffffffff,
+        };
+        for (int codeWord : codeWords) {
+            System.out.println("\n[*] === target-code5/no-settings"
+                + " code-first-word case 0x"
+                + Integer.toHexString(codeWord) + " dispatch="
+                + (dispatch ? 1 : 0) + " ===");
+            runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, true, true,
+                XRP_OP_ANN_VERSION, 1000, true, VPU_DESC_LIBVPU_CODE5,
+                XRP_CMD_FLAGS_SEND, VPU_DESC_ORDER_CODE_OUTPUT,
+                XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
+                XrpSettingsShape.WRAPPER_ONE_DATA, dispatch,
+                VPU_REQUEST_FLAGS_DEFAULT, false, codeWord);
         }
     }
 
