@@ -267,13 +267,48 @@ The run path is:
 4. On parse success, it inserts the command object into the per-user command tree/list rooted at user-context `+0x60`, stores the resulting positive id in command object `+0x24`, and copies that id back to user argument `+0x00`.
 5. `mdw_usr_run_cmd_sync` calls async first, then `mdw_usr_wait_cmd`; `mdw_usr_wait_cmd` reads user argument `+0x00`, looks up the command object in the same per-user tree/list, and calls `mdw_wait_cmd`.
 
-`mdw_cmd_create_cmd` requires `offset + 0x30 <= length`; with the current wrapper offset is the zero field at user `+0x0c`. It allocates a command object, builds a memory object with fd at `+0x28` and length at `+0x14`, and maps the command buffer through the APUSYS memory op at `+0x20` for KVA access. `mdw_cmd_parse_cmd` then reads the mapped command buffer and applies early length checks before queueing:
+`mdw_cmd_create_cmd` requires `offset + 0x30 <= length`; with the current wrapper offset is the zero field at user `+0x0c`. It allocates a command object, builds a memory object with fd at `+0x28` and length at `+0x14`, maps the command buffer through the APUSYS memory op at `+0x20`, stores the mapped KVA in command object `+0x00`, stores the mapped length in command object `+0x20`, and copies the first 0x30 bytes from `mapped_kva + offset` into command object `+0x08`.
 
-- `cmd_offset + 0x64 < mapped_length`;
-- the header offset read from mapped KVA at `mapped_kva + cmd_offset * 4 + 0x2c` must satisfy `header_offset + 0x28 <= mapped_length`;
-- if the first header word is `2`, an additional `header_offset + 0x34 <= mapped_length` check applies.
+The recovered top-level command header is:
 
-The optional `--run-cmd-hardwarebuffer` probe clears `+0x0c`, imports the same ImageWriter-backed HardwareBuffer fd, and calls `run_cmd_async` with fd at user `+0x08` and length `0x4000` at user `+0x10`. With an all-zero mapped buffer, APUSYS memory-create succeeds at Parcel fd offset `388`, then `run_async_hwb_run_zero_pos388` returns `-EINVAL`. That is consistent with `mdw_cmd_create_cmd` reaching KVA map and `mdw_cmd_parse_cmd` rejecting the zero command header before queue insertion. The next run-command step is recovering a valid command-buffer layout, not callback identity.
+| Offset | Field / constraint |
+|---:|---|
+| `+0x00` | 64-bit magic, must be `0x3d2070ece309c231` |
+| `+0x08` | uid field, copied for debug |
+| `+0x10` | version byte, must be `1` |
+| `+0x11` | priority byte, must be `<= 0x1f` |
+| `+0x12` | hard_limit, debug-printed as 16-bit |
+| `+0x14` | soft_limit, debug-printed as 16-bit; if nonzero and a `type+0x20` device table exists, parse remaps the subcommand type to `type+0x20` and derives a deadline |
+| `+0x16` | pid, debug-printed as 16-bit |
+| `+0x18` | flags, top two bits must not both be set |
+| `+0x20` | `num_sc`, must be `1..64` |
+| `+0x24` | `ofs_scr_list`, must be within the mapped command length |
+| `+0x28` | `ofs_pdr_cnt_list`, must be within the mapped command length |
+| `+0x2c` | start of u32 subcommand-offset table, one entry per `num_sc` |
+
+`mdw_cmd_parse_cmd` then walks the subcommand-offset table. For each subcommand index, it reads `*(u32 *)(cmd_base + 0x2c + index * 4)` as the subcommand header offset. The generic minimum header size is 0x28 bytes; type `2` needs the longer 0x34-byte form. The current recovered 0x28-byte subcommand header is:
+
+| Offset | Field / constraint |
+|---:|---|
+| `+0x00` | `type`, must be `< 0x20` before queue selection |
+| `+0x04` | `driver_time` |
+| `+0x08` | `ip_time` |
+| `+0x0c` | `suggest_time` |
+| `+0x10` | `bandwidth` |
+| `+0x14` | `tcm_usage` |
+| `+0x18` | `tcm_force` byte |
+| `+0x19` | `boost_val` byte, capped at `100` for runtime state |
+| `+0x1a` | `pack_id` byte, must be `< 0x40` |
+| `+0x1b` | reserved byte |
+| `+0x1c` | `mem_ctx`, must be `< 0x40` |
+| `+0x20` | `cb_info_size` |
+| `+0x24` | `ofs_cb_info`; non-negative means inline `cmd_base + ofs_cb_info`, negative means external memory context `(ofs_cb_info & 0x7fffffff)` mapped through memory op `+0x20` |
+
+For inline code-buffer info, parser verifies `cmd_base + ofs_cb_info + cb_info_size <= cmd_base + mapped_length`. It also validates SCR/PDR-derived dependency state before queue insertion; invalid dependency bitmaps return through the parser failure path and release the command object.
+
+For normal VPU execution, the later provider opcode-4 check is still stricter than the generic APUSYS parser. The normal VPU handler expects its provider argument `+0x00` to point at a VPU request object and provider argument `+0x0c` to equal `0xb70`. It then requires request field `+0x28 < 0x10` and byte `+0x35 < 0x21`, clears request `+0xb68`, stores the APUSYS core id into request `+0xb5c`, and dispatches `vpu_execute` unless request `+0x28` bit `2` selects `vpu_execute_with_slot`. `vpu_execute` treats request `+0x04` as the algorithm name string and request `+0x28` as flags, matching the separate `ucmd` evidence that algorithm state is name-keyed.
+
+The optional `--run-cmd-hardwarebuffer` probe clears `+0x0c`, imports the same ImageWriter-backed HardwareBuffer fd, and calls `run_cmd_async` with fd at user `+0x08` and length `0x4000` at user `+0x10`. With an all-zero mapped buffer, APUSYS memory-create succeeds at Parcel fd offset `388`, then `run_async_hwb_run_zero_pos388` returns `-EINVAL`. That is consistent with `mdw_cmd_create_cmd` reaching KVA map and rejecting the zero command header before queue insertion. The remaining run-command work is mapping the provider-specific code-buffer info and VPU/MDLA/EDMA request layouts before any valid command-buffer experiment.
 
 ## Ioctl command map
 
@@ -706,8 +741,8 @@ Interpretation: APUSYS memory-create is now a mapped and runtime-confirmed impor
 - Keep the current Java probe scoped to reject/query/negative-memory/device-control, fd-source scans, HardwareBuffer fd import, and controlled `ucmd` gate tests.
 - Use the `app_process64` HardwareBuffer path as the baseline fd source. Direct `/dev/ion`, `/dev/ashmem`, dma-heap device nodes, and DRM PRIME export remain blocked or unavailable in the current context.
 - Use kernel logs, if available from the lab context, to distinguish whether the `ENOMEM` path comes from ION import, cache sync, or IOVA map setup.
-- Keep the `run_cmd` parser probe limited to zero-header / invalid-header inputs until the command-buffer layout is mapped. Command ops `+0x00`, `+0x10`, and `+0x18` are now resolved as `mdw_cmd_create_cmd`, `mdw_cmd_abort_cmd`, and `mdw_cmd_parse_cmd`.
+- Keep the `run_cmd` parser probe limited to zero-header / invalid-header inputs while provider-specific code-buffer info and request layouts are mapped. Command ops `+0x00`, `+0x10`, and `+0x18` are resolved as `mdw_cmd_create_cmd`, `mdw_cmd_abort_cmd`, and `mdw_cmd_parse_cmd`; top-level and 0x28-byte subcommand headers are now partially recovered.
 - For `0x400C4109`, optional follow-up is a small control-value sweep on the live-success providers while watching return codes and kernel logs. The current control value `0` already confirms provider opcode `0` reachability.
-- For `mdw_usr_ucmd`, the `apu_lib_apunn` opcode-7 lookup/writeback check is complete for the visible 0x24-byte `libvpu.so::getAlgo()` command buffer: success returns `0`, then `vpu_alg_put`, with no first-64-byte Image-plane change. Continue by mapping the request/command-buffer layouts that lead into `vpu_execute`.
+- For `mdw_usr_ucmd`, the `apu_lib_apunn` opcode-7 lookup/writeback check is complete for the visible 0x24-byte `libvpu.so::getAlgo()` command buffer: success returns `0`, then `vpu_alg_put`, with no first-64-byte Image-plane change.
 - Continue mapping `mdla_run_command_sync`, `vpu_execute`, and `edma_execute` input structures before valid command-buffer experiments.
 - Continue scheduler/queue analysis after command parser targets are known. Valid command-buffer experiments come after that mapping.
