@@ -1579,8 +1579,11 @@ The remaining APUSYS closure items are:
   HIDL wrapper previously reached allocation/use-buffer and returned
   `XRP_FinalizeCommand status=2`; local wrapper static analysis now points to a
   likely output-vector index mismatch (`out_info+0x08 = 2` with
-  `output_count = 1`). Rerun APUWARE with `--finalize-slot-index` in a clean
-  wrapper state and then dump `XRP_GetPreparedRequests()`.
+  `output_count = 1`). The current device state now blocks inside
+  `dlopen(libapuwarexrp_v2.mtk.so)` even with `RTLD_LAZY`, so the next positive
+  wrapper step is to recover that service/library initialization state, rerun
+  APUWARE with `--finalize-slot-index`, and then dump
+  `XRP_GetPreparedRequests()`.
 - Map how `apu_lib_apunn` uses the copied `struct vpu_buffer[]` beyond ordinary libvpu metadata. `port_id=1`, DATA format, `plane_count=1`, `height=1`, `stride=size`, `length=size`, `buffer_count=5` aliases, wrapper send-state settings `+0x00 = 0x5`, output-first descriptor order, `request+0x38 = 0x68`, and output header `+0x10 = 1` have been tested without producing normal completion behavior.
 - Determine the firmware completion/output contract: which APUNN settings and buffer descriptor fields cause `DS_PREEMPT_DONE` / `DS_ALG_DONE`, `XTENSA_INFO00`, and `XTENSA_INFO02` to be produced, which run changes settings flags to satisfy `(settings[0] & 0x0a) == 0x02`, and which path maps to host `WritebackCommand()` output handling. The `ann_version_status_bit3_out0` op-word experiment has ruled out pre-setting bit `3` in opcode `10003` as the missing completion condition.
 - Shift the next matrix toward the standard wrapper path recovered from `libneuron_platform.so`: command-buffer id input binding, `PrepareXtensaCommandBuffer()`, output allocation/binding, `PrepareOutputBuffer()`, and `PrepareDataBuffer()` / `FinalizeDataBuffer()`. Additional command-flag values are control cases now that the wrapper send-state value `0x5` has been tested. The current descriptor shapes prove descriptor-following; the `0x68` settings-length run and `output+0x10 = 1` run rule out two wrapper-visible candidates as the missing completion condition, but settings still do not satisfy `(settings[0] & 0x0a) == 0x02` or produce the wrapper's normal APUNN output writeback.

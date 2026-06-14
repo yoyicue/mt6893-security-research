@@ -705,6 +705,29 @@ validation, not in service lookup or buffer allocation. A forced
 `XRP_GetPreparedRequests()` after the failed finalize blocks in the HIDL path;
 the helper now skips request dumping unless finalize returns `0`.
 
+Static inspection of `/system/system_ext/lib64/libapuwarexrp_v2.mtk.so`
+narrows what this HIDL wrapper actually forwards. `XRP_UseInputBuffer()`
+at `0x8ad0`, `XRP_UseOutputBuffer()` at `0x9070`, and
+`XRP_FinalizeCommand()` at `0x93b0` all convert the public 0x30-byte
+`cXrpBufferInfo` into the same 0x38-byte `XRP_cXrpBufferInfo_HD` shape:
+
+| HIDL record offset | Source `cXrpBufferInfo` field | Meaning |
+|---:|---:|---|
+| `+0x00` | `+0x00` u32 | Buffer kind/type |
+| `+0x08` | `+0x08` qword | Service buffer id or caller-provided output slot value |
+| `+0x10` | `+0x10/+0x14` u32 pair | Requested size and mapped size |
+| `+0x18` | `+0x18` fd, duplicated into a native handle when nonnegative | Shared buffer fd |
+| `+0x28` | `+0x1c` u32 | Buffer offset |
+| `+0x30` | `+0x20` qword | Low IOVA/PA-style address returned by the service |
+
+The host VA at `cXrpBufferInfo+0x28` is not copied into the HIDL record when a
+valid fd is present. In `UseInputBuffer()` / `UseOutputBuffer()`, that host VA
+is only used on the `fd == -1` fallback path: the wrapper looks up the buffer id
+from `+0x08`, uses size `+0x10`, and writes the host memory payload through the
+HIDL FMQ before calling the service method. The service-allocated positive path
+therefore forwards fd, size, offset, id, and IOVA-style fields, not the local
+host VA, toward request preparation.
+
 Static inspection of the local `/system/lib64/libneuron_platform.vpu.so`
 wrapper changes the interpretation of that `status=2`. Its
 `XrpIntrinsicWrapper::FinalizeCommand()` copies each caller
@@ -724,7 +747,8 @@ copy of the output info with `+0x08` rewritten to the vector slot number before
 calling `XRP_FinalizeCommand()`, and `--dlopen-lazy` for isolating loader
 behavior. Current reruns cannot yet validate the slot-index hypothesis because
 this device state stops inside `dlopen(libapuwarexrp_v2.mtk.so)` before the
-helper prints the loaded path, even with `RTLD_LAZY`.
+helper prints the loaded path, even with `RTLD_LAZY`; the only kernel-side clue
+in that rerun is a binder ioctl returning `-EINVAL` from the helper process.
 
 Wrapper-inspection result files:
 
@@ -737,6 +761,8 @@ Wrapper-inspection result files:
 - `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_buffer_id_retry.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_finalize_slot_index.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_finalize_slot_index_lazy.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_finalize_matrix_rerun.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_dlopen_lazy_rerun.txt`
 
 ## Firmware-visible request model
 
@@ -908,6 +934,10 @@ Userland wrapper evidence:
 | `libneuron_platform.so` | `XrpIntrinsic::PrepareXrpCommand` | `0x16ac0` | Standard path: binds input/code, prepares Xtensa command fields, allocates/binds output, and prepares output fields |
 | `libneuron_platform.so` | `XrpIntrinsic::FinalizeXrpCommand` | `0x1789c` | Standard path: prepares/finalizes data descriptors, then creates the VPU request |
 | `libneuron_platform.so` | `XrpIntrinsic::PrepareInternalCommand` | `0x1728c` | Separate exported path; no direct xref from standard prepare/finalize flow in this library |
+| `libapuwarexrp_v2.mtk.so` | `XrpIntrinsicExecutor::XRP_UseInputBuffer` | `0x8ad0` | Converts public 0x30-byte `cXrpBufferInfo` into a 0x38-byte HIDL buffer-info record; uses host-VA/FMQ fallback only when fd is `-1` |
+| `libapuwarexrp_v2.mtk.so` | `XrpIntrinsicExecutor::XRP_UseOutputBuffer` | `0x9070` | Same HIDL buffer-info conversion for output binding |
+| `libapuwarexrp_v2.mtk.so` | `XrpIntrinsicExecutor::XRP_FinalizeCommand` | `0x93b0` | Serializes the finalize output vector into HIDL buffer-info records and forwards status from the APUWARE service |
+| `libapuwarexrp_v2.mtk.so` | `XrpIntrinsicExecutor::XRP_GetPreparedRequests` | `0x9b50` | Requests prepared VPU request info from the APUWARE service after successful finalize |
 | `libneuron_platform.so` | `XrpIntrinsicExecutor::PrepareInternalCommandBuffer` | `0x1ff48` | Separate internal path: binds first internal buffer to settings code fields and second internal buffer to settings output fields |
 | `libneuron_platform.so` | `XrpIntrinsicExecutor::WritebackCommand` | `0x22660` | Host wrapper requires the same completion-flag predicate and records the first output word as command status |
 | `libneuron_platform.so` | `XrpVpuStream::DefaultCreateVpuRequest` | `0x2ad64` | Creates libvpu-style descriptors with `port_id=1`, `height=1`, and `stride=size`; default path calls `addBuffer()` five times |
