@@ -351,6 +351,7 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIovaControl = false;
         boolean runCmdVpuXrpCloseRaceIova = false;
         boolean runCmdVpuXrpMemFreeRaceIova = false;
+        boolean runCmdVpuXrpMemFreeRaceCompletedIova = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlotControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix = false;
@@ -568,6 +569,8 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpCloseRaceIova = true;
             } else if ("--run-cmd-vpu-xrp-mem-free-race-iova".equals(arg)) {
                 runCmdVpuXrpMemFreeRaceIova = true;
+            } else if ("--run-cmd-vpu-xrp-mem-free-race-completed-iova".equals(arg)) {
+                runCmdVpuXrpMemFreeRaceCompletedIova = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot".equals(arg)) {
                 runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot-control".equals(arg)) {
@@ -703,6 +706,7 @@ public final class ApusysIoctlProbe {
                 || runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIovaControl
                 || runCmdVpuXrpCloseRaceIova
                 || runCmdVpuXrpMemFreeRaceIova
+                || runCmdVpuXrpMemFreeRaceCompletedIova
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrixControl
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescOperandOffsetMatrix
@@ -1268,6 +1272,10 @@ public final class ApusysIoctlProbe {
 
             if (runCmdVpuXrpMemFreeRaceIova) {
                 runRunCmdVpuXrpMemFreeRaceHardwareBufferProbe();
+            }
+
+            if (runCmdVpuXrpMemFreeRaceCompletedIova) {
+                runRunCmdVpuXrpMemFreeRaceCompletedHardwareBufferProbe();
             }
 
             if (runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot) {
@@ -3897,6 +3905,42 @@ public final class ApusysIoctlProbe {
                 XrpSettingsShape.CURRENT, false, VPU_REQUEST_FLAGS_DEFAULT,
                 true, null, null, null, null, null, null, null, null, null,
                 null, null, false, null, Integer.valueOf(freeDelayMs));
+        } finally {
+            if (raceFd >= 0) {
+                DrmTrigger.closeFd(raceFd);
+            }
+        }
+    }
+
+    private static void runRunCmdVpuXrpMemFreeRaceCompletedHardwareBufferProbe()
+            throws Exception {
+        System.out.println("\n[*] === APUSYS run_cmd VPU mem-free-race completed-writeback probe ===");
+        System.out.println("[*] Mode: each case opens a temporary /dev/apusys fd,"
+            + " submits the stable settings5/no-settings APUNN request, frees"
+            + " the imported shared IOVA via APUSYS_CMD_MEM_FREE while the fd"
+            + " remains open, then waits and dumps both buffers.");
+        int[] freeDelaysMs = {0, 1, 5, 10, 50};
+        for (int delayMs : freeDelaysMs) {
+            runRunCmdVpuXrpMemFreeRaceCompletedCase(delayMs);
+        }
+    }
+
+    private static void runRunCmdVpuXrpMemFreeRaceCompletedCase(int freeDelayMs)
+            throws Exception {
+        int raceFd = -1;
+        try {
+            raceFd = DrmTrigger.openDev(APUSYS_DEV);
+            System.out.println("\n[*] === mem-free-race completed case:"
+                + " settings5/no-settings ANN_VERSION free_after="
+                + freeDelayMs + "ms post_free_wait=1000ms ===");
+            runRunCmdVpuIovaHardwareBufferProbe(raceFd, true, true, true,
+                XRP_OP_ANN_VERSION, 1000, true, VPU_DESC_LIBVPU_SETTINGS5,
+                XRP_CMD_FLAGS_SEND, VPU_DESC_ORDER_CODE_OUTPUT,
+                XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
+                XrpSettingsShape.WRAPPER_ONE_DATA, false,
+                VPU_REQUEST_FLAGS_DEFAULT, false, null, null, null, null,
+                null, null, null, null, null, null, null, false, null,
+                Integer.valueOf(freeDelayMs));
         } finally {
             if (raceFd >= 0) {
                 DrmTrigger.closeFd(raceFd);

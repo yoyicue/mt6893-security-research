@@ -364,13 +364,14 @@ Evidence chain:
   same `/dev/apusys` fd because the memory free path is separate from
   `wait_cmd`.
 
-Risk ranking:
+Risk ranking after the first timeout sweep:
 
 | Rank | Race shape | Why it is interesting | Expected signal |
 |---:|---|---|---|
-| 1 | `run_cmd_async(timeout shape)` → immediately `mem_free(settings/descriptor IOVA)` → delayed `wait_cmd` or fd close | Frees the exact IOVA used by `INFO13` descriptors and descriptor-backed settings while VPU firmware is still executing. This directly tests DMA/use-after-unmap, not just command-object teardown. | VPU fault/devapc/IOMMU fault, timeout with new kernel warning, stale writeback into reallocated dmabuf, oops/panic |
-| 2 | Two `run_cmd_async` commands on the same fd, both referencing the same imported IOVA, then `mem_free` after the first dispatch window | Amplifies rank 1 by keeping one command queued/running while another may finish or timeout; tests scheduler ordering plus shared-IOMMU lifetime. | one command completes and the other faults, residual cmd count > 1, list/refcount warning, freed-IOVA DMA symptom |
-| 3 | Two commands sharing IOVA, no explicit `mem_free`, then close fd without waits | Exercises residual command abort and mem teardown together, but fd close already calls `abort_cmd` before residual memory cleanup. Current close-race runs make this lower confidence than explicit mem_free. | residual cmd/mem ordering, UAF only if abort fails to serialize provider return |
+| 1 | `run_cmd_async(completed settings5/no-settings)` → `mem_free(settings/output/data IOVA)` at `0/1/5/10/50 ms` → delayed dump/wait | Largest current race window: the request is known to complete and write back through the same imported IOVA, so `mem_free` races an actual provider writeback path rather than a timeout-only path. | stale writeback into a freed/reused dmabuf, VPU/IOMMU/devapc fault, wait result changing from success to `-EIO`, oops/panic |
+| 2 | `run_cmd_async(timeout shape)` → immediately `mem_free(settings/descriptor IOVA)` → delayed `wait_cmd` or fd close | Proves the kernel allows explicit free of the exact IOVA used by `INFO13` descriptors while the command is outstanding, but the malformed timeout request does not force useful post-free writeback. | controlled timeout/EIO, new VPU warning, IOMMU fault only if firmware still touches the freed IOVA |
+| 3 | Two `run_cmd_async` commands on the same fd, both referencing the same imported IOVA, then `mem_free` after the first dispatch window | Amplifies rank 1 by keeping one command queued/running while another may finish or timeout; tests scheduler ordering plus shared-IOMMU lifetime. | one command completes and the other faults, residual cmd count > 1, list/refcount warning, freed-IOVA DMA symptom |
+| 4 | Two commands sharing IOVA, no explicit `mem_free`, then close fd without waits | Exercises residual command abort and mem teardown together, but fd close already calls `abort_cmd` before residual memory cleanup. Current close-race runs make this lower confidence than explicit mem_free. | residual cmd/mem ordering, UAF only if abort fails to serialize provider return |
 
 Rank 1 timeout-shape experiment is now implemented as
 `poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-mem-free-race-iova`. It runs the
@@ -400,10 +401,8 @@ Interpretation: the lifetime gap is real enough to measure because the same fd
 can successfully `mem_free` the imported shared IOVA while the submitted VPU
 command is still outstanding. The timeout/minimal shape does not by itself turn
 that gap into a kernel fault or visible stale writeback on this device; it
-degrades to provider timeout and `wait_cmd=-EIO`. Rank 1 remains the right
-race family, but the next useful variants are the completed fast-writeback
-shape and then allocator-reuse pressure around the freed dmabuf, not another
-timeout-only delay sweep.
+degrades to provider timeout and `wait_cmd=-EIO`. This closes only the
+timeout-shaped subcase; it does not close P3.
 
 Rank 1 experiment shape:
 
@@ -419,9 +418,80 @@ wait_cmd(cmd_id) or close(fd)
 dump shared HardwareBuffer and cmd buffer; collect kernel log
 ```
 
-Next, repeat rank 1 with the completed `settings5/no-settings` shape to test
-fast firmware writeback, then move to rank 2 with two commands sharing the same
-imported IOVA.
+### Rank 1 completed-shape variant (current experiment)
+
+The timeout-shape result above is expected to be negative: firmware times out
+without producing a DMA write, so freeing the IOVA during the timeout window
+does not race with an actual data store. The **completed `settings5/no-settings`
+shape** is the right current variant because firmware actually writes to the
+descriptor-backed buffer (settings `0x5 → 0x7`, output fill) within the fast
+completion window.
+
+Implemented mode:
+
+```
+poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-mem-free-race-completed-iova
+```
+
+The race hypothesis: `mem_free` releases the IOVA mapping while APUNN firmware
+is still performing its completion writes (settings flag flip, output fill,
+`settings+0x30` clear). If the IOMMU unmap wins, the firmware DMA hits an
+unmapped page and faults. If the firmware write wins but the kernel-side
+`mdw_cmd_sc_clr_hnd` copyback reads from a freed/reused dmabuf page, the
+copyback may contain stale or attacker-controlled data.
+
+```
+mem_create(type2, shared_hwb_fd) -> shared_iova
+build settings5/no-settings completed-shape request
+  (five descriptors at shared_iova, code_size=0x48, output_size=0x40,
+   one standard data descriptor, opcode 10003)
+mem_create(type2, cmd_hwb_fd) -> cmd_iova
+run_cmd_async(cmd_fd) -> ret 0, cmd_id
+sleep 0/1/5/10/50 ms               // tight delays — completion is fast
+mem_free(shared_iova handle)        // free while firmware may still be writing
+sleep 1000 ms                       // let completion or fault propagate
+wait_cmd(cmd_id)
+dump shared HardwareBuffer and cmd buffer; collect kernel log
+```
+
+Why shorter delays than the timeout variant: the completed shape finishes in
+well under 1 second. The interesting window is the first ~50 ms after dispatch
+where firmware is actively writing. Use `0/1/5/10/50 ms` instead of the
+`0/10/50/100/500 ms` timeout-shape sweep.
+
+What to look for in the result:
+
+| Signal | Meaning |
+|---|---|
+| `wait_cmd = 0` and settings `0x7` | completion won the race; `mem_free` happened after firmware finished — not useful |
+| `wait_cmd = -EIO` and settings still `0x5` | `mem_free` landed during or before firmware write; check if output/settings window shows partial/corrupt fill |
+| IOMMU fault or `devapc` in kernel log | firmware DMA hit unmapped page — confirms the IOVA lifetime gap is exploitable |
+| `request+0xb60` or other copyback fields show pointer-shaped values | `clr_hnd` read from freed/reused page — info leak through the race |
+| kernel panic/oops/KASAN | UAF confirmed |
+| clean `-EIO` with no fault, no pointer, settings unchanged | `mem_free` succeeded but unmap completed before firmware touched the page — race exists but window is too narrow at this delay |
+
+Observed from `system_app` on 2026-06-15:
+
+```
+result=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_iova.txt
+kernel=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_iova_kernel_relevant.txt
+
+free_after=0ms:  run_async=0, mem_free=0, settings=0x7, wait=0
+free_after=1ms:  run_async=0, mem_free=0, settings=0x7, wait=0
+free_after=5ms:  run_async=0, mem_free=0, settings=0x7, wait=0
+free_after=10ms: run_async=0, mem_free=0, settings=0x7, wait=0
+free_after=50ms: run_async=0, mem_free=0, settings=0x7, wait=0
+```
+
+Kernel-side signal is clean for this sweep: the filtered log contains VPU boot
+noise only, with no `devapc`, IOMMU fault, panic/Oops, `BUG`, `KASAN`, timeout,
+or `mdw_wait_cmd` failure. Interpretation: the completed writeback is faster
+than the Java-layer `mem_free` ioctl round-trip, even at 0 ms. The lifetime gap
+still exists, but this delay-only completed sweep does not win the race.
+
+Next, add allocator pressure after `mem_free`: immediately `mem_create` a new
+type-2 import of the same size to reuse the freed IOVA range, then check whether
+the completion writes land on the new buffer.
 
 Kernel log terms to preserve unfiltered: `mdw_usr_mem_free`,
 `mdw_mem_ion_unmap_iova`, `ion_free`, `request (D2D_EXT) timeout`,
