@@ -910,6 +910,14 @@ This gives the current interpretation boundary:
   settings remain `0x5`, output/data descriptor/data payload remain unchanged,
   and code word `0` changes `0x2713 -> 0x271b`. A single ordinary data
   descriptor is also not the missing APUNN completion condition.
+- The `wrapper_one_data_output44` result follows the host wrapper's dynamic
+  output-size formula for one `0x1c8` Xtensa operation: output size
+  `0x40 + 4 * 1 = 0x44`, output header flag `1`, `settings_len=0x68`,
+  wrapper send-state flags, and one standard APUNN data descriptor. Dispatch
+  still returns `0`, settings remain `0x5`, output/data descriptor/data
+  payload remain unchanged, and code word `0` changes `0x2713 -> 0x271b`.
+  The wrapper dynamic-output size/header combination is therefore not the
+  missing APUNN completion condition.
 - The `preload_slot` result keeps the same wrapper-one-data request shape but
   sets native VPU `request+0x28 = 0x4`, causing the kernel to enter the
   Preload/slot path directly. Dispatch still returns `0`, settings remain
@@ -1034,9 +1042,11 @@ command buffer size `0x68` also leaves the same boundary in place. Setting the
 wrapper-controlled output header flag byte at `output+0x10` to `1` does not
 produce settings completion or APUNN output writeback either. Restoring a
 single ordinary APUNN data descriptor under the wrapper-sized request also
-leaves the same code-first native descriptor writeback boundary. Directly
-setting native VPU `request+0x28` bit `2` changes kernel slot bookkeeping but
-also leaves the same APUNN settings/output boundary.
+leaves the same code-first native descriptor writeback boundary. Combining that
+one-data shape with the wrapper dynamic output size `0x44` and output header
+flag `1` leaves the same boundary. Directly setting native VPU `request+0x28`
+bit `2` changes kernel slot bookkeeping but also leaves the same APUNN
+settings/output boundary.
 It does not yet prove APUNN data descriptor consumption, APUNN output-section
 writeback, the missing completion parameter, or the full semantic meaning of
 the observed native-buffer writeback. The batch-level devapc warning remains

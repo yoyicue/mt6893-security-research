@@ -74,6 +74,7 @@ public final class ApusysIoctlProbe {
     private static final int XRP_NZ_OUTPUT_OFF = 0x300;
     private static final int XRP_OUTPUT_SIZE = 0x80;
     private static final int XRP_OUTPUT_SIZE_WRAPPER_DEFAULT = 0x40;
+    private static final int XRP_OUTPUT_SIZE_WRAPPER_ONE_OP = 0x44;
     private static final int XRP_OUTPUT_HEADER_FLAG_DEFAULT = 0;
     private static final int XRP_OUTPUT_HEADER_FLAG_SYNC = 1;
     private static final int XRP_DATA_DESC_OFF = 0x300;
@@ -151,6 +152,9 @@ public final class ApusysIoctlProbe {
         static final XrpSettingsShape WRAPPER_ONE_DATA = new XrpSettingsShape(
             "wrapper_one_data", XRP_OUTPUT_SIZE_WRAPPER_DEFAULT,
             XRP_DATA_DESC_SIZE, true);
+        static final XrpSettingsShape WRAPPER_ONE_DATA_OUTPUT44
+            = new XrpSettingsShape("wrapper_one_data_output44",
+                XRP_OUTPUT_SIZE_WRAPPER_ONE_OP, XRP_DATA_DESC_SIZE, true);
 
         final String label;
         final int outputSize;
@@ -204,6 +208,8 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsSettings68Control = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperData = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataControl = false;
+        boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataOutput44 = false;
+        boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataOutput44Control = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlotControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsOutputReady = false;
@@ -287,6 +293,10 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperData = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-control".equals(arg)) {
                 runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataControl = true;
+            } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-output44".equals(arg)) {
+                runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataOutput44 = true;
+            } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-output44-control".equals(arg)) {
+                runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataOutput44Control = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot".equals(arg)) {
                 runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot-control".equals(arg)) {
@@ -570,6 +580,22 @@ public final class ApusysIoctlProbe {
                     XRP_CMD_FLAGS_SEND, VPU_DESC_ORDER_CODE_OUTPUT,
                     XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
                     XrpSettingsShape.WRAPPER_ONE_DATA);
+            }
+
+            if (runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataOutput44) {
+                runRunCmdVpuIovaHardwareBufferProbe(fd, true, true, true,
+                    XRP_OP_ANN_VERSION, 20000, true, VPU_DESC_LIBVPU,
+                    XRP_CMD_FLAGS_SEND, VPU_DESC_ORDER_CODE_OUTPUT,
+                    XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_SYNC,
+                    XrpSettingsShape.WRAPPER_ONE_DATA_OUTPUT44);
+            }
+
+            if (runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataOutput44Control) {
+                runRunCmdVpuIovaHardwareBufferProbe(fd, false, true, true,
+                    XRP_OP_ANN_VERSION, 20000, true, VPU_DESC_LIBVPU,
+                    XRP_CMD_FLAGS_SEND, VPU_DESC_ORDER_CODE_OUTPUT,
+                    XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_SYNC,
+                    XrpSettingsShape.WRAPPER_ONE_DATA_OUTPUT44);
             }
 
             if (runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot) {
