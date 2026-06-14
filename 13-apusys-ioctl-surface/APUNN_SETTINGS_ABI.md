@@ -675,6 +675,8 @@ longer points at them through the settings tuple:
 | `target_settings5_no_settings_data_desc_matrix` | Same settings-backed request, varied data descriptor size/pointer, followed by `mdw_usr_wait_cmd` | Every case returns `0` and writes output; no pointer stays zero, non-null size `0` is preserved, standard size `0x0c` clears `settings+0x30`, and larger sizes `0x18/0x80` preserve `settings+0x30` but clear descriptor word `0` |
 | `target_settings5_no_settings_data_entry_matrix` control | Same settings-backed request, opcode `10003`, explicit one-entry and two-entry descriptor contents, no dispatch | Every case preserves the explicitly initialized descriptor entries, data payload, plane payload, and output header |
 | `target_settings5_no_settings_data_entry_matrix` | Same settings-backed request, explicit flags `1/2/3`, size-0 entry, and two-entry payload/plane orderings, followed by `mdw_usr_wait_cmd` | Every case returns `0`, changes settings `0x5 -> 0x7`, and writes output. Single-entry flags `1/2/3` and entry size `0` clear `settings+0x30` and leave entries unchanged. Two-entry cases keep `settings+0x30` nonzero; payload-then-plane clears both entry flags, while plane-then-payload leaves both entries unchanged. Data and plane payload bytes remain unchanged |
+| `target_settings5_no_settings_data_target_matrix` control | Same settings-backed request, opcode `10003`, descriptor entries pointing at settings/code/output/data-desc/data-payload/plane-payload, no dispatch | Every case preserves the explicitly initialized descriptor entries and target windows |
+| `target_settings5_no_settings_data_target_matrix` | Same settings-backed request, single-entry section targets and two-entry payload/settings/code/output orderings, followed by `mdw_usr_wait_cmd` | Every case returns `0`, changes settings `0x5 -> 0x7`, and writes output. Single-entry targets clear `settings+0x30` and leave entries unchanged. Two-entry payload/settings/code/output pairs keep `settings+0x30` nonzero and clear both entry flags while preserving size/IOVA. Target windows remain unchanged outside normal completion/output state |
 | `target_settings5_no_settings_data_payload_matrix` control | Same settings-backed request, opcode `10003`, standard data descriptor, varied data payload word bases, no dispatch | Every case preserves the chosen payload pattern and initialized output header |
 | `target_settings5_no_settings_data_payload_matrix` | Same settings-backed request, payload word bases `0/0x41505530/0x5a5a0000/0x7f000000`, followed by `mdw_usr_wait_cmd` | Every case returns `0`, changes settings `0x5 -> 0x7`, clears `settings+0x30`, leaves data descriptor and payload unchanged, and writes completion-style output that does not reflect the payload pattern |
 
@@ -724,6 +726,10 @@ Result files:
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_entry_matrix_kernel.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_entry_matrix_control.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_entry_matrix_control_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_target_matrix.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_target_matrix_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_target_matrix_control.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_target_matrix_control_kernel.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_payload_matrix.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_payload_matrix_kernel.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_payload_matrix_control.txt`
@@ -1791,6 +1797,16 @@ This gives the current interpretation boundary:
   size/IOVA words; reversing the order leaves both entries unchanged. The data
   and plane payload bytes remain unchanged. This makes the two-entry cleanup
   target/order-sensitive rather than a pure descriptor-size side effect.
+- The `target_settings5_no_settings_data_target_matrix` result keeps the
+  completed settings-backed shape and points descriptor entries at settings,
+  code, output, the descriptor section itself, the APUNN data payload, and the
+  native plane payload. Single-entry targets all complete, clear
+  `settings+0x30`, and leave their entries unchanged. Two-entry
+  payload/settings, settings/payload, payload/code, code/payload,
+  payload/output, and output/payload pairs also complete, keep `settings+0x30`
+  nonzero, and clear both entry flags while preserving size/IOVA words. The
+  target windows remain unchanged outside the normal settings/output completion
+  state, and the earlier plane-first exception remains target/order-specific.
 - The `target_settings5_no_settings_data_payload_matrix` result keeps the
   standard data descriptor and varies the data payload word base through `0`,
   `0x41505530`, `0x5a5a0000`, and `0x7f000000`. Every dispatch case returns
@@ -2061,9 +2077,10 @@ descriptor sections preserve `settings+0x30` and clear descriptor word `0`.
 The explicit data-entry matrix refines that larger-section behavior: single
 entries with flags `1/2/3` or size `0` still complete and clear `settings+0x30`;
 two-entry descriptors keep `settings+0x30` nonzero, and flags cleanup depends
-on whether entry `0` points at the data-payload or plane-payload window. The
-data-payload pattern matrix shows tested payload contents are preserved and are
-not copied into output.
+on the target/order pair. The data-target matrix shows settings/code/output,
+data-descriptor, data-payload, and plane-payload targets all complete without
+source-sensitive target-window copies. The data-payload pattern matrix shows
+tested payload contents are preserved and are not copied into output.
 
 The earlier code-first, output-first, descriptor-size, priority, buffer-count,
 port-id, format, plane-count, height, output-operand-id, operation-shape, and
