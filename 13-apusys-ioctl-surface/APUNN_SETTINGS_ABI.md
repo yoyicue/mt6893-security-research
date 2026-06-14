@@ -399,10 +399,28 @@ This is the strongest runtime boundary so far:
 - settings `+0x08/+0x20` plus native buffer `1` are still not enough to observe
   APUNN output-section writeback.
 
-The next unresolved field is therefore not basic `0x1c8` opcode/count routing.
-It is the firmware-side meaning of the internal input buffer contents and the
-completion/output contract that makes APUNN write to the settings output
-section.
+Follow-up static analysis narrowed the normal `struct vpu_buffer` metadata:
+`libvpu.so::VpuRequestImp::addBuffer()` writes `port_id`, DATA format,
+`plane_count`, width, height, stride, length, and the final plane MVA into the
+same raw kernel descriptor layout. The host wrapper
+`xrp::XrpVpuStream::DefaultCreateVpuRequest()` builds a libvpu-style descriptor
+with `port_id=1`, `format=0`, `plane_count=1`, `width=size`, `height=1`,
+`stride=size`, and `length=size`, and calls `addBuffer()` five times for its
+default request shape.
+
+The 2026-06-14 `libvpu_metadata` and `libvpu_metadata_alias5` probe variants
+tested both deltas against the internal `XTENSA_ANN_VERSION` request:
+
+| Variant | Descriptor change | Runtime result |
+|---|---|---|
+| `libvpu_metadata` | Keeps `buffer_count=2`, but uses libvpu-style `port_id=1`, `height=1`, `stride=size`, `length=size` descriptors for code/input and output | Control unchanged; dispatch returns `0`, code/input first word changes `0x2713 -> 0x271b`, output/data windows unchanged, teardown logs residual command |
+| `libvpu_metadata_alias5` | Uses libvpu-style metadata and `buffer_count=5` with code/output aliases | Same result: code/input first word changes `0x2713 -> 0x271b`, output/data windows unchanged, teardown logs residual command |
+
+The next unresolved field is therefore not ordinary VPU descriptor metadata,
+descriptor count, or basic `0x1c8` opcode/count routing. It is the APUNN
+firmware-side completion/output contract: the command flags, settings fields,
+internal input contents, or output-header semantics that make APUNN signal done
+and write to the settings output section.
 
 Additional matrix result files:
 
@@ -414,6 +432,14 @@ Additional matrix result files:
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_kernel.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_control.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc5.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc5_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc5_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc5_control_kernel.txt`
 
 ## Evidence map
 
@@ -423,7 +449,7 @@ Userland wrapper evidence:
 |---|---|---:|---|
 | `libvpu.so` | `VpuRequestImp::prepareSettBuf` | `0x73fc` | Allocates settings memory and writes request `+0x38/+0x40` |
 | `libvpu.so` | `VpuRequestImp::setProperty` | `0x7b6c` | Copies caller property bytes into settings memory and cache-syncs |
-| `libvpu.so` | `VpuRequestImp::addBuffer` | `0x7624` | Populates `request+0x35` and descriptor array |
+| `libvpu.so` | `VpuRequestImp::addBuffer` | `0x7624` | Populates `request+0x35` and the raw `struct vpu_buffer` descriptor fields |
 | `libvpu.so` | `VpuRequestImp::mmapMVA` | `0x7858` | Fills per-plane MVA/IOVA entries |
 | `libvpu.so` | `VpuStreamImp::runReq` | `0x91fc` | Copies native `0xb70` request into APUSYS command memory |
 | `libneuron_platform.vpu.so` | `XrpCommandInfo::Initialize` | `0xc5e4` | Initializes main XRP command buffer and magic |
@@ -435,6 +461,7 @@ Userland wrapper evidence:
 | `libneuron_platform.vpu.so` | `XrpVpuStream::CreateVpuRequest` | `0x16d54` | Calls `vpuRequest_setProperty()` for the prepared settings payload |
 | `libneuron_platform.so` | `XrpIntrinsic::PrepareInternalCommand` | `0x1728c` | Allocates internal input and output buffers before APUNN dispatch |
 | `libneuron_platform.so` | `XrpIntrinsicExecutor::PrepareInternalCommandBuffer` | `0x1ff48` | Binds first internal buffer to settings code fields and second internal buffer to settings output fields |
+| `libneuron_platform.so` | `XrpVpuStream::DefaultCreateVpuRequest` | `0x2ad64` | Creates libvpu-style descriptors with `port_id=1`, `height=1`, and `stride=size`; default path calls `addBuffer()` five times |
 
 Kernel handoff evidence:
 
@@ -453,8 +480,9 @@ operation shapes, a controlled native VPU buffer writeback, a per-case timeout
 for the earlier one-buffer shape, and a two-native-buffer `XTENSA_ANN_VERSION`
 dispatch where copied native buffer descriptor `0` points at the code/input
 window and the kernel logs residual command state instead of the earlier D2D
-timeout. It does not yet prove APUNN data descriptor consumption, APUNN
-output-section writeback, the missing completion parameter, or the full
-semantic meaning of the observed native-buffer writeback. The batch-level
-devapc warning remains non-attributed because isolated single-case runs did not
-reproduce it.
+timeout. Libvpu-style descriptor metadata and a five-descriptor alias shape do
+not change that boundary. It does not yet prove APUNN data descriptor
+consumption, APUNN output-section writeback, the missing completion parameter,
+or the full semantic meaning of the observed native-buffer writeback. The
+batch-level devapc warning remains non-attributed because isolated single-case
+runs did not reproduce it.
