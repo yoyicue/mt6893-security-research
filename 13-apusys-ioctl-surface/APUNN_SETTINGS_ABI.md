@@ -48,6 +48,43 @@ Current field interpretation in the completed shape:
 | data payload contents | Preserved for tested patterns; no source-sensitive copy into output was observed |
 | command request tail | Provider/midware scalar state copyback, not a pointer leak in completed runs |
 
+The current proof is a boundary reconstruction, not raw firmware
+disassembly: the local artifacts contain wrapper/platform libraries but no
+standalone `apu_lib_apunn` firmware image. The firmware-visible interpretation
+is therefore tied together from kernel D2D handoff, wrapper construction, and
+runtime mutation.
+
+Wrapper-side static anchors from `libneuron_platform.so` line up with the
+runtime field map:
+
+- `XrpCommandInfo::PrepareOutputHeader()` at `0x129bc` writes the no-dispatch
+  output header: output `+0x00/+0x04 = 0xffffffff/0x40`, `+0x08 = 4`,
+  `+0x0c = output_size`, and `+0x10 = flag`. Those words are host-initialized,
+  not firmware output.
+- `XrpIntrinsicExecutor::PrepareXtensaCommandBuffer()` at `0x1ebe8` writes the
+  code-section size and device address into the DSP command settings fields
+  that correspond to settings `+0x04/+0x10`.
+- `XrpIntrinsicExecutor::CalculateOutputSize()` at `0x23e40` returns `0x40` in
+  the default wrapper mode. With the wrapper output-sizing option enabled, it
+  computes `0x40 + 4 * (code_size / first_entry_stride)`.
+- `XrpIntrinsicExecutor::PrepareOutputBuffer()` at `0x1f1d8` writes output
+  size/device address into settings `+0x08/+0x20` and then calls
+  `PrepareOutputHeader()`.
+- `XrpIntrinsicExecutor::PrepareDataBuffer()` at `0x1f88c` allocates a
+  data-descriptor section sized as `data_buffer_count * 0x0c` and writes its
+  size/device address into settings `+0x0c/+0x30`.
+- `XrpIntrinsicExecutor::FinalizeDataBuffer()` at `0x205bc` serializes each
+  data-buffer descriptor as a 12-byte entry sourced from buffer metadata, size,
+  and device address, matching the runtime `{flags, size, iova}` entry shape.
+- `XrpIntrinsicExecutor::WritebackCommand()` at `0x22660` uses the same host
+  completion predicate `(settings[0] & 0x0a) == 0x02`; only after that predicate
+  passes does it copy the output device buffer back to host memory and record
+  the first output word as command status.
+
+This makes the completion oracle explicit: APUNN must update settings/output
+memory into the wrapper-accepted state. A successful APUSYS wait without that
+mutation is not enough to prove the APUNN command completed semantically.
+
 This is enough to describe how the tested APUNN request is interpreted at the
 field level. It is not yet enough to name the semantic meaning of the output
 bytes or to prove an information leak: completed output currently looks like
@@ -2145,6 +2182,11 @@ Userland wrapper evidence:
 | `libneuron_platform.so` | `XrpIntrinsic::PrepareXrpCommand` | `0x16ac0` | Standard path: binds input/code, prepares Xtensa command fields, allocates/binds output, and prepares output fields |
 | `libneuron_platform.so` | `XrpIntrinsic::FinalizeXrpCommand` | `0x1789c` | Standard path: prepares/finalizes data descriptors, then creates the VPU request |
 | `libneuron_platform.so` | `XrpIntrinsic::PrepareInternalCommand` | `0x1728c` | Separate exported path; no direct xref from standard prepare/finalize flow in this library |
+| `libneuron_platform.so` | `XrpIntrinsicExecutor::PrepareXtensaCommandBuffer` | `0x1ebe8` | Writes settings code size and code device address for the selected command buffer |
+| `libneuron_platform.so` | `XrpIntrinsicExecutor::PrepareOutputBuffer` | `0x1f1d8` | Writes settings output size/device address and prepares the output header |
+| `libneuron_platform.so` | `XrpIntrinsicExecutor::PrepareDataBuffer` | `0x1f88c` | Allocates a `data_buffer_count * 0x0c` data-descriptor section and writes settings data size/device address |
+| `libneuron_platform.so` | `XrpIntrinsicExecutor::FinalizeDataBuffer` | `0x205bc` | Serializes each data-buffer descriptor as metadata/size/device-address dwords and registers the buffer id |
+| `libneuron_platform.so` | `XrpIntrinsicExecutor::CalculateOutputSize` | `0x23e40` | Returns default output size `0x40`, or dynamic `0x40 + 4 * (code_size / first_entry_stride)` when wrapper output sizing is enabled |
 | `libapuwarexrp_v2.mtk.so` | `XrpIntrinsicExecutor::XRP_UseInputBuffer` | `0x8ad0` | Converts public 0x30-byte `cXrpBufferInfo` into a 0x38-byte HIDL buffer-info record; uses host-VA/FMQ fallback only when fd is `-1` |
 | `libapuwarexrp_v2.mtk.so` | `XrpIntrinsicExecutor::XRP_UseOutputBuffer` | `0x9070` | Same HIDL buffer-info conversion for output binding |
 | `libapuwarexrp_v2.mtk.so` | `XrpIntrinsicExecutor::XRP_FinalizeCommand` | `0x93b0` | Serializes the finalize output vector into HIDL buffer-info records and forwards status from the APUWARE service |
