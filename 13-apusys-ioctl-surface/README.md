@@ -30,7 +30,7 @@ The kernel image under analysis is `07-cve-2023-32836-display-overflow/vmlinux.b
 | `mdw_usr_dev_sec_alloc` | `0xffffffc00878c00c` | Secure-device allocation path |
 | `mdw_usr_dev_sec_free` | `0xffffffc00878c418` | Secure-device free path, includes an id `< 0x40` guard |
 | `mdw_usr_ucmd` | `0xffffffc00878c6ac` | User-command control path |
-| `mdw_usr_dev_ctrl_4109` | `0xffffffc00878c7b4` | Handler for ioctl `0x400C4109`; looks up a device/core and calls its `+0x70` callback with timeout `0xbb8` |
+| `mdw_usr_dev_ctrl_4109` | `0xffffffc00878c7b4` | Handler for ioctl `0x400C4109`; looks up a device/core and calls `mdw_rsc_dev_op0_ctrl` at `+0x70` with timeout `0xbb8` |
 | `mdw_usr_run_cmd_async` | `0xffffffc00878c7f8` | Parses and queues an APUSYS command |
 | `mdw_usr_get_cmd_ops` | `0xffffffc008791b04` | Returns a static object stored at `0xffffffc00a188e58`; **not yet confirmed as the user command parser ops** |
 | `mdw_wait_cmd` | `0xffffffc00878ca68` | Internal wait helper |
@@ -65,6 +65,11 @@ Additional functions named during the APUSYS follow-up pass:
 | `mdw_dev_lookup_core` | `0xffffffc00878eb6c` | Looks up a registered APUSYS device/core from the global device table |
 | `mdw_dev_get_core_count` | `0xffffffc00878ebb8` | Returns the registered core count for a device id |
 | `mdw_rsc_get_dev` | `0xffffffc00878dfcc` | Selects APUSYS device resources for a request |
+| `mdw_dev_get_table` | `0xffffffc00878d678` | Returns the per-device table entry from the APUSYS global device table |
+| `mdw_dev_get_queue` | `0xffffffc00878d6c0` | Returns a registered device queue pointer from the per-device table |
+| `mdw_rsc_update_avl_bmp` | `0xffffffc00878d77c` | Updates APUSYS resource availability bitmap state |
+| `mdw_rsc_add_dev` | `0xffffffc00878f14c` | Registers provider device descriptors into the APUSYS resource table and installs midware callbacks |
+| `apusys_unregister_device` | `0xffffffc00878f520` | Unregisters APUSYS provider device descriptors |
 | `mdw_queue_init` | `0xffffffc008793b14` | Initializes APUSYS command queue state |
 | `mdw_queue_insert` | `0xffffffc008793834` | Queue insertion helper |
 | `mdw_queue_pop` | `0xffffffc00879376c` | Queue pop helper |
@@ -77,6 +82,37 @@ Important correction: reading the static object returned by `mdw_usr_get_cmd_ops
 Memory-ops correction: the APUSYS memory ops behind `0xffffffc00a189078` are now resolved. `mdw_mem_mgr_init` stores the object returned by `apusys_midware_register_driver`; that registration path creates the `"apusys midware"` ION client and installs the `mdw_mem_ion_*` callbacks above. The type-2 create path calls the registered `+0x30` IOVA map op. The type-3 create path calls `+0x20` KVA map first, then `+0x30` IOVA map, and unwinds KVA on IOVA failure.
 
 The 0x38 user memory descriptor is not an fd at offset `+0x00`. `mdw_mem_copy_user_desc` copies the user fd from descriptor offset `+0x20` into the kernel object at `+0x28`; this field is what the ION import wrapper receives. Other relevant checked fields are copied from user `+0x10`, `+0x14`, and `+0x18` into kernel `+0x18`, `+0x1c`, and `+0x20` for alignment/type validation in `mdw_mem_ion_check`.
+
+## Device callback model
+
+`mdw_rsc_add_dev` is the registration point for APUSYS provider devices. It receives a provider descriptor, allocates an internal per-core object of size `0x138`, stores the original provider descriptor pointer at internal offset `+0x30`, and installs a fixed midware callback table into the internal object.
+
+The ioctl paths therefore do not call MDLA/VPU/EDMA handlers directly. They first call fixed midware wrappers from the internal core object, and those wrappers either dispatch into the provider descriptor handler at `provider_desc+0x18` with an opcode or perform internal APUSYS resource bookkeeping.
+
+| Internal core offset | Function | Behavior |
+|---:|---|---|
+| `+0x68` | `mdw_rsc_dev_exec` | Stores a request pointer at `core+0xc0` and wakes the resource waitqueue |
+| `+0x70` | `mdw_rsc_dev_op0_ctrl` | Calls provider handler `+0x18` with opcode `0` and control arguments |
+| `+0x78` | `mdw_rsc_dev_op1` | Calls provider handler `+0x18` with opcode `1` |
+| `+0x80` | `mdw_rsc_suspend` | Calls provider handler `+0x18` with opcode `3` after resource checks |
+| `+0x88` | `mdw_rsc_dev_op2` | Calls provider handler `+0x18` with opcode `2` |
+| `+0x90` | `mdw_rsc_dev_op6` | Calls provider handler `+0x18` with opcode `6` |
+| `+0x98` | `mdw_rsc_ucmd_dispatch` | Calls provider handler `+0x18` with opcode `7` and ucmd arguments |
+| `+0xa0` | `mdw_rsc_sec_on` | Internal secure-resource gate |
+| `+0xa8` | `mdw_rsc_sec_off` | Internal secure-resource gate |
+| `+0xb0` | `mdw_rsc_lock_dev` | Internal resource lock/refcount path |
+| `+0xb8` | `mdw_rsc_unlock_dev` | Internal resource unlock/refcount path |
+
+Provider registration sites identified so far:
+
+| Provider | Registration function | Provider handler | Notes |
+|---|---|---|---|
+| MDLA | `mdla_probe` at `0xffffffc0087990d8` | `apusys_mdla_handler` at `0xffffffc008798de0` | Registers MDLA and MDLA RT descriptors through `mdw_rsc_add_dev` |
+| VPU | `vpu_probe` at `0xffffffc0087a0f18` | `vpu_ucmd_handle` at `0xffffffc0087a041c` | Registers provider descriptors for device ids `3` and `0x23`; the second descriptor uses this handler |
+| EDMA | `edma_probe` at `0xffffffc0087ab510` | `edma_send_cmd_handler` at `0xffffffc0087ab430` | The handler reaches `edma_execute` at `0xffffffc0087ac584` for the execution opcode |
+| Sample | `apusys_sample_device_init` at `0xffffffc0087983f4` | sample handler still lower priority | Sample-device registration path, useful as a structure reference |
+
+This changes the interpretation of the ioctl callback offsets. `0x400C4109` reaches `core+0x70`, then `mdw_rsc_dev_op0_ctrl`, then a provider handler with opcode `0`. `mdw_usr_ucmd` reaches `core+0x98`, then `mdw_rsc_ucmd_dispatch`, then a provider handler with opcode `7`. Secure on/off offsets `+0xa0` and `+0xa8` are internal APUSYS gates rather than provider dispatch calls.
 
 ## Ioctl command map
 
@@ -95,7 +131,7 @@ The ioctl magic byte is `0x41` (`'A'`). The dispatcher uses fixed internal copy 
 | `0x40184106` | `0x18` | `mdw_usr_run_cmd_sync` | High research priority; command parser plus wait |
 | `0xC0184107` | `0x18` | `mdw_usr_run_cmd_async`, copyout on success | High research priority; command parser and device queue |
 | `0x40184108` | `0x18` | `mdw_usr_wait_cmd` | Medium; depends on command lifecycle |
-| `0x400C4109` | `0x0c` | `mdw_usr_dev_ctrl_4109`, device/core lookup then device callback at `+0x70` | Medium-high; reaches a live device callback |
+| `0x400C4109` | `0x0c` | `mdw_usr_dev_ctrl_4109`, device/core lookup then `mdw_rsc_dev_op0_ctrl` at `+0x70` | Medium-high; reaches provider opcode `0` through the midware wrapper |
 | `0x4038410C` | `0x38` | Disabled/error path | Low |
 | `0x4038410D` | `0x38` | Disabled/error path | Low |
 | `0x4014410E` | `0x14` | `mdw_usr_ucmd` | Medium; rejects early if field at `+0x0c` is nonzero |
@@ -108,8 +144,8 @@ The `0x4004413C/3D` size mismatch is important for testing: the command encoding
 ## Current risk ranking
 
 1. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` lead to `mdw_usr_mem_create`, then into APUSYS ION KVA/IOVA callbacks. Negative tests now confirm that type-2 and type-3 descriptors reach deeper than the initial user-copy guard without creating an object or crashing. This remains the highest APUSYS priority because a valid dmabuf-backed descriptor would exercise ION import, KVA/IOVA mapping, cache sync, and APUSYS memory object lifetime.
-2. **Command parsing/execution and ucmd paths**: `0xC0184107` and `0x40184106` reach `mdw_usr_run_cmd_async`. The current probe sets the user field at `+0x0c` to `1`, which makes this function return early before the indirect ops calls. `0x4014410E` reaches `mdw_usr_ucmd`; with `+0x0c == 0` it maps APUSYS memory through `+0x20`/`+0x30`, bounds-checks the requested range, then calls a device callback at `+0x98`. These paths remain high priority once callback targets and command formats are mapped.
-3. **Device/resource control paths**: `0x4004413C/3D` call `mdw_usr_dev_sec_alloc/free`, and `0x400C4109` calls `mdw_usr_dev_ctrl_4109`. The free path has an id `< 0x40` guard; the `0x400C4109` path looks up a device/core and can call a registered device callback even with a small 0x0c input. These are medium-high static targets whose runtime behavior depends on callback mapping.
+2. **Command parsing/execution and ucmd paths**: `0xC0184107` and `0x40184106` reach `mdw_usr_run_cmd_async`. The current probe sets the user field at `+0x0c` to `1`, which makes this function return early before the indirect ops calls. `0x4014410E` reaches `mdw_usr_ucmd`; with `+0x0c == 0` it maps APUSYS memory through `+0x20`/`+0x30`, bounds-checks the requested range, then calls `mdw_rsc_ucmd_dispatch` at `core+0x98`, which dispatches provider opcode `7`. These paths remain high priority while the MDLA/VPU/EDMA opcode formats are mapped.
+3. **Device/resource control paths**: `0x4004413C/3D` call `mdw_usr_dev_sec_alloc/free`, and `0x400C4109` calls `mdw_usr_dev_ctrl_4109`. The free path has an id `< 0x40` guard; the `0x400C4109` path looks up a device/core and dispatches provider opcode `0` through `mdw_rsc_dev_op0_ctrl` with only a 0x0c user input. These are medium-high static targets whose runtime behavior depends on provider-specific argument validation.
 4. **Handshake/wait/simple rejection paths**: useful for reachability, lower standalone risk.
 
 The surface is more promising than the current display OOB family because it is a directly open proprietary device from `system_app` and reaches several hardware subsystems. Current evidence is reachability plus path mapping; memory corruption, UAF, OOB access, and privilege crossing remain unproven.
@@ -219,5 +255,7 @@ Interpretation: `/dev/apusys` ioctl is confirmed reachable from `system_app`, ge
 - Keep the current Java probe scoped to reject/query/negative-memory paths. A valid dmabuf-backed descriptor is the next step for real ION/APUSYS mapping behavior.
 - Use kernel logs, if available from the lab context, to distinguish whether the `ENOMEM` path comes from ION import, cache sync, or IOVA map setup.
 - Keep `mdw_usr_get_cmd_ops` / `0xffffffc00a188e58` marked unresolved. Leave the `run_cmd` `+0x0c` early-reject field set while resolving the indirect call targets.
-- Resolve the registered device callback tables used at `+0x70`, `+0x78`, `+0x98`, `+0xa0`, and `+0xa8`; then test `0x400C4109`, `mdw_usr_ucmd`, or secure-device allocation with live device ids.
-- Map `vpu_ucmd_handle`, EDMA/MDLA validators, and the scheduler queue after command parser targets are known. Valid command-buffer experiments come after that mapping.
+- Map provider opcode formats for `apusys_mdla_handler`, `vpu_ucmd_handle`, `edma_send_cmd_handler`, and `edma_execute`.
+- For `0x400C4109`, build tests around provider opcode `0` argument validation once live device ids and provider-specific argument layout are confirmed.
+- For `mdw_usr_ucmd`, build tests around provider opcode `7` after resolving the mapped APUSYS memory range and ucmd argument structure.
+- Continue scheduler/queue analysis after command parser targets are known. Valid command-buffer experiments come after that mapping.
