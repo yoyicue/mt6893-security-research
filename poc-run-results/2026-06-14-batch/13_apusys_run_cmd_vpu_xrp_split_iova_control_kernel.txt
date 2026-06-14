@@ -1,0 +1,11 @@
+pattern=apusys|vpu|mdw|xos|devapc|iommu|vpu_req_check|vpu_execute|sched_trace|cmd_done|timeout|Timeout|TIMEOUT|oops|panic
+source=adb logcat -b kernel or dmesg fallback
+
+06-14 17:37:10.837 24420 24420 I         : (7)[24420:main][apusys][warn] mdw_ioctl not support fw load
+06-14 17:37:10.837 24420 24420 I         : (7)[24420:main][apusys][warn] mdw_ioctl not suppot fw unload
+06-14 17:37:10.837 24420 24420 I         : (7)[24420:main][apusys][error] mdw_usr_run_cmd_async don't support offset(1)
+06-14 17:37:10.837 24420 24420 I         : (7)[24420:main][apusys][error] mdw_usr_run_cmd_async don't support offset(1)
+06-14 17:37:10.837 24420 24420 I         : (7)[24420:main][apusys][error] mdw_usr_ucmd don't support offset(1)
+06-14 17:37:10.937  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 17:37:11.961  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 17:37:14.009  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]

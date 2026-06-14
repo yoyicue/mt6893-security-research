@@ -13,16 +13,16 @@ This document summarizes the current end-to-end state of the MT6893 / MT8797 `ui
 | APUSYS normal VPU `ucmd` lookup | Closed for lookup depth. `0x8001 + key` reaches the userspace-compatible lookup path; `apu_lib_apunn` returns provider success on core `0` and `1` without visible first-64-byte Image-plane writeback. | `poc-run-results/2026-06-14-batch/13_apusys_ucmd_keydump_apunn.txt`, `13-apusys-ioctl-surface/README.md` |
 | APUSYS `run_cmd_async` parser depth | Closed. Zero-header reaches parser rejection, valid header plus invalid subcommand reaches `mdw_cmd_sc_valid invalid type(32)`. | `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_hardwarebuffer.txt`, `13_apusys_run_cmd_invalid_sc.txt`, `13_apusys_run_cmd_invalid_sc_kernel.txt` |
 | APUSYS `run_cmd_async` provider handoff | Closed for guard and full-size request reachability. A valid normal VPU `type=0x03` subcommand reaches the request-size guard with `cb_info_size=0x20`; a full `0xb70` request for `apu_lib_apunn` returns async success. | `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_guard.txt`, `13_apusys_run_cmd_vpu_exec.txt`, `13_apusys_run_cmd_vpu_guard_kernel.txt` |
-| APUSYS VPU IOVA dispatch | Closed for current safe dispatch evidence. The corrected `libvpu.so` request layout is accepted from `system_app`, VPU boot/map-side logs are observed, and the XRP-shaped APUNN settings run changes only the data-payload/plane0 target first word (`0x41505530 -> 0x41505531`); settings/output/data-descriptor and command-buffer copyback windows stay unchanged. | `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_iova_final.txt`, `13_apusys_run_cmd_vpu_iova_final_kernel.txt`, `13_apusys_run_cmd_vpu_iova_control.txt`, `13_apusys_run_cmd_vpu_xrp_iova.txt`, `13_apusys_run_cmd_vpu_xrp_iova_control.txt` |
+| APUSYS VPU IOVA dispatch | Closed for current safe dispatch evidence. The corrected `libvpu.so` request layout is accepted from `system_app`, VPU boot/map-side logs are observed, and the XRP-shaped split-target run changes only the native VPU plane0 MVA target first word (`0x504c4e30 -> 0x504c4e31`); settings/output/data-descriptor, APUNN data payload, and command-buffer copyback windows stay unchanged. | `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_iova_final.txt`, `13_apusys_run_cmd_vpu_iova_final_kernel.txt`, `13_apusys_run_cmd_vpu_iova_control.txt`, `13_apusys_run_cmd_vpu_xrp_iova.txt`, `13_apusys_run_cmd_vpu_xrp_iova_control.txt`, `13_apusys_run_cmd_vpu_xrp_split_iova.txt`, `13_apusys_run_cmd_vpu_xrp_split_iova_control.txt` |
 | Display / DRM safe probes | Closed for current direct-path ranking. `/dev/dri/card0` is reachable; tested `CREATE_DUMB`, atomic, private getter, register, and color-transform probes are mapped to guarded or permission-gated behavior. | `poc-run-results/2026-06-14-batch/07_*.txt`, `10_32865_color_transform.txt`, `poc-run-results/2026-06-14-batch/README.md` |
 | Mali legacy candidates | Closed for current target ranking. JIT `DONT_NEED`, CVE-2022-36449 refcount, write-readonly, WRITE_VALUE boundary, and CVE-2023-33200 imported-buffer paths are downgraded or dead on this firmware. | `02-*`, `03-*`, `05-*`, `11-cve-2022-22706-mali-write-readonly/`, `12-cve-2023-33200-mali-race-uaf/` |
 
 ## Current Ranking Boundary
 
-The current experiment batch proves reachability, guard depth, VPU dispatch data flow, and a small APUNN data-payload writeback signal; it does not prove a kernel write primitive.
+The current experiment batch proves reachability, guard depth, VPU dispatch data flow, and a small native VPU plane0-MVA writeback signal; it does not prove a kernel write primitive.
 
 1. Display / DRM OOB cluster remains the highest practical target family, with `32867` / `32868` ahead of the already probed guarded paths.
-2. APUSYS remains high research priority because the chain now reaches memory import, `ucmd`, queue, scheduler, full-size normal VPU request dispatch, VPU boot/map activity, and a reproducible APUNN data-payload/plane0 writeback from `system_app`.
+2. APUSYS remains high research priority because the chain now reaches memory import, `ucmd`, queue, scheduler, full-size normal VPU request dispatch, VPU boot/map activity, and a reproducible native VPU plane0-MVA writeback from `system_app`.
 3. Direct ION from `system_app` is downgraded because `/dev/ion` open returns `EACCES`.
 4. Mali old chains, AF_UNIX, and sk_buff offset work do not gain new risk from `uid=1000(system)`.
 
@@ -34,8 +34,8 @@ These are next research tasks, not missing pieces of the earlier APUSYS guard ex
 
 | Track | Next work |
 |---|---|
-| APUSYS VPU firmware ABI | The `libneuron` APUNN/XRP settings layout behind `setting_iova` is recovered and runtime-validates data-payload routing; next map APUNN code-section operation encoding and the semantic meaning of the observed `+1` writeback. |
-| APUSYS writeback attribution | Command-buffer copyback is not the visible XRP-shaped delta; continue from the APUNN data-payload/plane target and firmware-side operation/status handling. |
+| APUSYS VPU firmware ABI | The `libneuron` APUNN/XRP settings layout behind `setting_iova` is recovered and runtime-tolerated; next map APUNN code-section operation encoding and test whether nonzero code consumes the APUNN data descriptor. |
+| APUSYS writeback attribution | Command-buffer copyback is not the visible XRP-shaped delta; the split-target run localizes the current `+1` to native VPU plane0 MVA, so continue with firmware-side operation/status handling. |
 | APUSYS command lifetime | Inspect async command cleanup after worker-side rejection and full-size dispatch, including the observed residual-command warning. |
 | APUSYS non-VPU providers | Map MDLA and EDMA request layouts separately from the now-tested normal VPU path. |
 | Display `32867` / `32868` | Map exact MTK DRM handlers and patched ALPS deltas before adding new PoC logic. |

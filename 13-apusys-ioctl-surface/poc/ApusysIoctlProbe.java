@@ -58,6 +58,8 @@ public final class ApusysIoctlProbe {
     private static final int XRP_DATA_DESC_SIZE = 0x0c;
     private static final int XRP_DATA_PAYLOAD_OFF = 0x400;
     private static final int XRP_DATA_PAYLOAD_SIZE = 0x80;
+    private static final int XRP_PLANE_PAYLOAD_OFF = 0x600;
+    private static final int XRP_PLANE_PAYLOAD_SIZE = 0x80;
     private static final byte[] XRP_CMD_MAGIC = new byte[] {
         (byte) 0xde, 0x63, (byte) 0xdb, (byte) 0xbe,
         0x4a, (byte) 0x99, 0x48, (byte) 0x89,
@@ -86,6 +88,8 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuIovaControl = false;
         boolean runCmdVpuXrpIova = false;
         boolean runCmdVpuXrpIovaControl = false;
+        boolean runCmdVpuXrpSplitIova = false;
+        boolean runCmdVpuXrpSplitIovaControl = false;
         String ucmdKey = null;
         String ucmdKeyDump = null;
         for (String arg : args) {
@@ -123,6 +127,10 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpIova = true;
             } else if ("--run-cmd-vpu-xrp-iova-control".equals(arg)) {
                 runCmdVpuXrpIovaControl = true;
+            } else if ("--run-cmd-vpu-xrp-split-iova".equals(arg)) {
+                runCmdVpuXrpSplitIova = true;
+            } else if ("--run-cmd-vpu-xrp-split-iova-control".equals(arg)) {
+                runCmdVpuXrpSplitIovaControl = true;
             } else if (arg.startsWith("--ucmd-key=")) {
                 ucmdKey = arg.substring("--ucmd-key=".length());
                 validateUcmdKey(ucmdKey);
@@ -140,6 +148,7 @@ public final class ApusysIoctlProbe {
                 || runCmdHardwareBuffer || runCmdInvalidSc || runCmdVpuGuard
                 || runCmdVpuExec || runCmdVpuIova || runCmdVpuIovaControl
                 || runCmdVpuXrpIova || runCmdVpuXrpIovaControl
+                || runCmdVpuXrpSplitIova || runCmdVpuXrpSplitIovaControl
                 || ucmdKey != null || ucmdKeyDump != null) {
             System.out.println("[*] Mode: optional checks enabled;"
                 + " no secure alloc/free; some modes submit controlled"
@@ -233,19 +242,27 @@ public final class ApusysIoctlProbe {
             }
 
             if (runCmdVpuIova) {
-                runRunCmdVpuIovaHardwareBufferProbe(fd, true, false);
+                runRunCmdVpuIovaHardwareBufferProbe(fd, true, false, false);
             }
 
             if (runCmdVpuIovaControl) {
-                runRunCmdVpuIovaHardwareBufferProbe(fd, false, false);
+                runRunCmdVpuIovaHardwareBufferProbe(fd, false, false, false);
             }
 
             if (runCmdVpuXrpIova) {
-                runRunCmdVpuIovaHardwareBufferProbe(fd, true, true);
+                runRunCmdVpuIovaHardwareBufferProbe(fd, true, true, false);
             }
 
             if (runCmdVpuXrpIovaControl) {
-                runRunCmdVpuIovaHardwareBufferProbe(fd, false, true);
+                runRunCmdVpuIovaHardwareBufferProbe(fd, false, true, false);
+            }
+
+            if (runCmdVpuXrpSplitIova) {
+                runRunCmdVpuIovaHardwareBufferProbe(fd, true, true, true);
+            }
+
+            if (runCmdVpuXrpSplitIovaControl) {
+                runRunCmdVpuIovaHardwareBufferProbe(fd, false, true, true);
             }
 
             if (ucmdKey != null) {
@@ -726,13 +743,18 @@ public final class ApusysIoctlProbe {
 
     private static void runRunCmdVpuIovaHardwareBufferProbe(int apusysFd,
                                                             boolean dispatch,
-                                                            boolean xrpSettings)
+                                                            boolean xrpSettings,
+                                                            boolean splitTargets)
             throws Exception {
         System.out.println("\n[*] === Optional APUSYS run_cmd VPU IOVA chained probe ===");
         if (xrpSettings) {
             System.out.println("[*] Mode: mem_create imports HardwareBuffer to get IOVA,"
                 + " writes a libneuron-style XRP settings buffer into that IOVA,"
                 + " then the VPU request references settings/output/data sections.");
+            if (splitTargets) {
+                System.out.println("[*] Split target: XRP data descriptor and"
+                    + " native VPU plane0 MVA point at different IOVA offsets.");
+            }
         } else {
             System.out.println("[*] Mode: mem_create imports HardwareBuffer to get IOVA,"
                 + " then the VPU request references that IOVA in libvpu-style"
@@ -837,7 +859,9 @@ public final class ApusysIoctlProbe {
             android.media.Image input2 = writer2.dequeueInputImage();
             if (xrpSettings) {
                 fillRunCmdVpuXrpIova(input2, "apu_lib_apunn",
-                    "vpu_xrp_iova_apunn", iovaLow, iovaSize);
+                    splitTargets ? "vpu_xrp_split_iova_apunn"
+                        : "vpu_xrp_iova_apunn",
+                    iovaLow, iovaSize, splitTargets);
             } else {
                 fillRunCmdVpuIova(input2, "apu_lib_apunn", "vpu_iova_apunn",
                     iovaLow, iovaSize);
@@ -1234,7 +1258,8 @@ public final class ApusysIoctlProbe {
                                              String algoName,
                                              String label,
                                              int iovaAddr,
-                                             int iovaSize) throws Exception {
+                                             int iovaSize,
+                                             boolean splitTargets) throws Exception {
         android.media.Image.Plane[] planes = image.getPlanes();
         if (planes == null || planes.length == 0) {
             throw new IllegalStateException("input image has no planes");
@@ -1245,7 +1270,7 @@ public final class ApusysIoctlProbe {
             buffer.put(i, (byte) 0);
         }
 
-        int requiredIovaBytes = XRP_DATA_PAYLOAD_OFF + XRP_DATA_PAYLOAD_SIZE;
+        int requiredIovaBytes = XRP_PLANE_PAYLOAD_OFF + XRP_PLANE_PAYLOAD_SIZE;
         if (iovaSize < requiredIovaBytes) {
             throw new IllegalStateException("imported IOVA too small: need 0x"
                 + Integer.toHexString(requiredIovaBytes) + " have 0x"
@@ -1295,9 +1320,12 @@ public final class ApusysIoctlProbe {
         putU32LE(buffer, buf0 + 0x04, XRP_DATA_PAYLOAD_SIZE);
         putU32LE(buffer, buf0 + 0x08, 0);
         putU32LE(buffer, buf0 + 0x10, 0);
-        putU32LE(buffer, buf0 + 0x14, XRP_DATA_PAYLOAD_SIZE);
+        putU32LE(buffer, buf0 + 0x14, splitTargets
+            ? XRP_PLANE_PAYLOAD_SIZE : XRP_DATA_PAYLOAD_SIZE);
+        int planePayloadOff = splitTargets
+            ? XRP_PLANE_PAYLOAD_OFF : XRP_DATA_PAYLOAD_OFF;
         putU64LE(buffer, buf0 + 0x18,
-            iovaLow32(iovaAddr, XRP_DATA_PAYLOAD_OFF));
+            iovaLow32(iovaAddr, planePayloadOff));
 
         image.setTimestamp(System.nanoTime());
         System.out.println("[+] input run_cmd " + label + " payload:"
@@ -1314,8 +1342,11 @@ public final class ApusysIoctlProbe {
             + Long.toHexString(iovaLow32(iovaAddr, XRP_OUTPUT_OFF))
             + " data_desc_iova=0x"
             + Long.toHexString(iovaLow32(iovaAddr, XRP_DATA_DESC_OFF))
-            + " plane0_mva=0x"
+            + " data_payload_iova=0x"
             + Long.toHexString(iovaLow32(iovaAddr, XRP_DATA_PAYLOAD_OFF))
+            + " plane0_mva=0x"
+            + Long.toHexString(iovaLow32(iovaAddr, planePayloadOff))
+            + " split_targets=" + splitTargets
             + " plane_count=" + planes.length
             + " cap=" + buffer.capacity()
             + " rowStride=" + planes[0].getRowStride()
@@ -1325,7 +1356,7 @@ public final class ApusysIoctlProbe {
     private static void fillXrpSettingsBuffer(java.nio.ByteBuffer buffer,
                                               int iovaAddr,
                                               int iovaSize) {
-        int required = XRP_DATA_PAYLOAD_OFF + XRP_DATA_PAYLOAD_SIZE;
+        int required = XRP_PLANE_PAYLOAD_OFF + XRP_PLANE_PAYLOAD_SIZE;
         if (buffer.capacity() < required) {
             throw new IllegalStateException("settings image too small: need 0x"
                 + Integer.toHexString(required) + " have "
@@ -1373,6 +1404,10 @@ public final class ApusysIoctlProbe {
         for (int off = 0; off < XRP_DATA_PAYLOAD_SIZE; off += 4) {
             putU32LE(buffer, payload + off, 0x41505530 + (off / 4));
         }
+        int planePayload = XRP_PLANE_PAYLOAD_OFF;
+        for (int off = 0; off < XRP_PLANE_PAYLOAD_SIZE; off += 4) {
+            putU32LE(buffer, planePayload + off, 0x504c4e30 + (off / 4));
+        }
 
         System.out.println("[+] XRP settings buffer initialized:"
             + " settings_off=0x" + Integer.toHexString(XRP_SETTINGS_OFF)
@@ -1380,6 +1415,7 @@ public final class ApusysIoctlProbe {
             + " output_off=0x" + Integer.toHexString(XRP_OUTPUT_OFF)
             + " data_desc_off=0x" + Integer.toHexString(XRP_DATA_DESC_OFF)
             + " data_payload_off=0x" + Integer.toHexString(XRP_DATA_PAYLOAD_OFF)
+            + " plane_payload_off=0x" + Integer.toHexString(XRP_PLANE_PAYLOAD_OFF)
             + " base_iova=0x" + Integer.toHexString(iovaAddr));
     }
 
@@ -1396,6 +1432,8 @@ public final class ApusysIoctlProbe {
             buf, XRP_DATA_DESC_OFF, 0x40);
         dumpByteBufferRange("xrp_" + phase + "_data_payload",
             buf, XRP_DATA_PAYLOAD_OFF, 0x80);
+        dumpByteBufferRange("xrp_" + phase + "_plane_payload",
+            buf, XRP_PLANE_PAYLOAD_OFF, 0x80);
     }
 
     private static void dumpVpuCommandWindows(String phase,

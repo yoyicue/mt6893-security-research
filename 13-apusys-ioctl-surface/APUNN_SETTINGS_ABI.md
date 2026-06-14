@@ -22,8 +22,8 @@ The current `--run-cmd-vpu-iova` probe validates layer 2 and dispatch
 reachability. It intentionally uses a minimal malformed settings payload by
 pointing `setting_iova` at the imported HardwareBuffer base. The newer
 `--run-cmd-vpu-xrp-iova` mode builds the layer-3 XRP shape in that imported
-buffer so runtime output can distinguish settings, output, data descriptor, and
-data-payload writeback.
+buffer so runtime output can distinguish settings, output, data descriptor,
+data-payload, and native VPU plane-MVA writeback.
 
 ## Native VPU request link
 
@@ -107,7 +107,8 @@ the firmware-facing memory and partitions it like this:
 | `0x100` | Code section placeholder, size currently `0` |
 | `0x200` | Output section, size `0x80` |
 | `0x300` | One 12-byte data descriptor |
-| `0x400` | Data payload and VPU plane0 MVA target, size `0x80` |
+| `0x400` | Data payload, size `0x80` |
+| `0x600` | Split-test VPU plane0 MVA target, size `0x80` |
 
 The mode prints the same windows before and after dispatch:
 
@@ -115,6 +116,7 @@ The mode prints the same windows before and after dispatch:
 - `xrp_before_output` / `xrp_after_output`
 - `xrp_before_data_desc` / `xrp_after_data_desc`
 - `xrp_before_data_payload` / `xrp_after_data_payload`
+- `xrp_before_plane_payload` / `xrp_after_plane_payload`
 
 That lets the next run classify the previous `0xb` signal:
 
@@ -122,7 +124,9 @@ That lets the next run classify the previous `0xb` signal:
   directly;
 - output window changed: APUNN recognized the XRP output section;
 - data descriptor changed: firmware rewrites the descriptor list;
-- data payload changed: firmware followed a data descriptor or VPU plane MVA;
+- data payload changed: firmware followed the APUNN/XRP data descriptor;
+- plane payload changed: the visible writeback follows the native VPU
+  plane0 MVA descriptor;
 - command HardwareBuffer changed while imported buffer does not: the signal is
   likely command-buffer copyback through `mdw_cmd_sc_clr_hnd`.
 
@@ -134,14 +138,24 @@ unchanged across the 3-second wait.
 
 The 2026-06-14 `--run-cmd-vpu-xrp-iova` dispatch run returns success from
 `run_cmd_async`, reaches VPU boot/map-side kernel logs, and shows this
-before/after delta:
+before/after delta when the XRP data payload and native VPU plane0 MVA point to
+the same imported-buffer offset:
 
 | Window | Before | After | Interpretation |
 |---|---:|---:|---|
 | `settings+0x00` | `0x00000004` | `0x00000004` | Main XRP settings header unchanged |
 | `output+0x00` | `0xffffffff` | `0xffffffff` | Output section header unchanged |
 | `data_desc+0x00` | `0x00000003` | `0x00000003` | Data descriptor unchanged |
-| `data_payload+0x00` | `0x41505530` | `0x41505531` | First data-payload word incremented by dispatch |
+| `data_payload/plane0+0x00` | `0x41505530` | `0x41505531` | First shared target word incremented by dispatch |
+| command request head/tail | unchanged | unchanged | Not explained by visible command-buffer copyback |
+
+The follow-up `--run-cmd-vpu-xrp-split-iova` run separates the APUNN/XRP data
+descriptor target from the native VPU plane0 MVA:
+
+| Target | Before | After | Interpretation |
+|---|---:|---:|---|
+| `data_payload+0x00` at `0x400` | `0x41505530` | `0x41505530` | APUNN/XRP data descriptor target unchanged |
+| `plane_payload+0x00` at `0x600` | `0x504c4e30` | `0x504c4e31` | Visible `+1` follows native VPU plane0 MVA |
 | command request head/tail | unchanged | unchanged | Not explained by visible command-buffer copyback |
 
 The exact result files are:
@@ -150,15 +164,41 @@ The exact result files are:
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_iova_kernel.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_iova_control.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_iova_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_split_iova.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_split_iova_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_split_iova_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_split_iova_control_kernel.txt`
 
 This moves the lower-bound APUNN interpretation from "the request dispatches"
-to "the firmware path follows the recovered settings/data layout far enough to
-write the first word of the data payload target." With the current zero-length
-code section, there is still no recovered APUNN operation encoding and no
-semantic label for the `+1` writeback. The earlier minimal IOVA mode wrote
-`0xb` at imported-buffer offset `0`; that shape pointed settings and plane MVA
-at the same malformed buffer base, so the new XRP-shaped result supersedes it
-for section-routing attribution.
+to "the recovered settings header is accepted by the normal VPU path, but the
+visible `+1` writeback follows the native VPU plane0 MVA rather than the
+APUNN/XRP data descriptor." With the current zero-length code section, there is
+still no recovered APUNN operation encoding and no semantic label for the `+1`
+plane-MVA writeback. The earlier minimal IOVA mode wrote `0xb` at
+imported-buffer offset `0`; that shape pointed settings and plane MVA at the
+same malformed buffer base, so the split XRP-shaped result supersedes it for
+section-routing attribution.
+
+## Code-section clues
+
+`/tmp/mtk-apu-artifacts/libneuron_platform.so` contains host-side XRP debug
+helpers that describe the Xtensa operation table used by APUNN-style command
+buffers:
+
+| Entry offset | Size | Meaning |
+|---:|---:|---|
+| `+0x00` | 2 | Operation id / opcode |
+| `+0x04` | 4 | Per-operation stride; `GetNumXtensaOPs()` divides code size by this value from the first entry |
+| `+0x08` | 4 | Operand-list offset relative to `entry+0x48` |
+| `+0x0c` | 4 | Input operand count |
+| `+0x10` | 4 | Output operand count |
+| `+0x48 + operand_off` | 2 each | Input operand ids followed by output operand ids |
+
+This is enough to construct a structurally valid nonzero code section, but not
+enough to choose a confirmed harmless opcode. The next runtime experiment should
+therefore start with a debug-recognized no-op or status-only opcode recovered
+from the same helper tables, then vary only `code_size` and the first operation
+entry while keeping the already validated VPU request and split-target layout.
 
 ## Evidence map
 
@@ -179,7 +219,7 @@ Userland wrapper evidence:
 | `libneuron_platform.vpu.so` | `XrpVpuStream::CreateVpuRequest` | `0x16d54` | Calls `vpuRequest_setProperty()` for the prepared settings payload |
 
 Runtime evidence so far proves `apu_lib_apunn` lookup, normal VPU request
-acceptance, VPU boot/map activity, XRP-shaped settings section routing, and a
-controlled data-payload writeback. It does not yet prove the APUNN code-section
-operation encoding or the semantic meaning of the observed `+1` data-payload
-change.
+acceptance, VPU boot/map activity, XRP-shaped settings header tolerance, and a
+controlled native VPU plane0-MVA writeback. It does not yet prove APUNN data
+descriptor consumption, APUNN code-section operation execution, or the semantic
+meaning of the observed `+1` plane-MVA change.
