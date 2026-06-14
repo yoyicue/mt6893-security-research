@@ -11,9 +11,9 @@ crw-rw---- 1 system camera u:object_r:apusys_device:s0 /dev/apusys
 
 The current result is **reachable but not yet mapped to a confirmed vulnerability**. IDA analysis shows the device is the MTK APUSYS midware character device. Its main ioctl handler is now named `mdw_ioctl` in the IDB at `0xffffffc00878a0ec`.
 
-The directory intentionally has no CVE number yet. The repository uses CVE-numbered directories when a test is tied to a specific public CVE or confirmed bug class. APUSYS is currently an exposed proprietary ioctl surface with handler-level mapping and safe reachability evidence, but no confirmed CVE match or vulnerability primitive.
+The directory has no CVE number yet. The repository uses CVE-numbered directories when a test is tied to a specific public CVE or confirmed bug class. APUSYS is currently an exposed proprietary ioctl surface with handler-level mapping and runtime reachability evidence, but no confirmed CVE match or vulnerability primitive.
 
-This directory documents the ioctl surface and provides only non-destructive probes. It does not include command buffers, device execution payloads, heap shaping, or privilege-escalation logic.
+This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths and negative memory-create cases. Valid command buffers, valid dmabuf descriptors, heap shaping, and execution-path inputs are separate experiment tracks.
 
 ## IDA handler map
 
@@ -72,7 +72,7 @@ Additional functions named during the APUSYS follow-up pass:
 | `mdw_sched_routine` | `0xffffffc008792f9c` | Main APUSYS scheduler thread routine |
 | `mdw_sched_dev_routine` | `0xffffffc0087920ec` | Per-device scheduler routine |
 
-Important correction: reading the static object returned by `mdw_usr_get_cmd_ops` as 64-bit pointers produces `0xffffff800881...` values. After normalizing them to the IDB base, they land around `0xffffffc00881....`, but the referenced locations do not look like normal APUSYS parser function entries and include unrelated MMDVFS/clock strings. Treat `mdw_usr_get_cmd_ops` as unresolved until its runtime registration/use is proven. Do not use it as proof of a command parser target.
+Important correction: reading the static object returned by `mdw_usr_get_cmd_ops` as 64-bit pointers produces `0xffffff800881...` values. After normalizing them to the IDB base, they land around `0xffffffc00881....`, but the referenced locations do not look like normal APUSYS parser function entries and include unrelated MMDVFS/clock strings. `mdw_usr_get_cmd_ops` remains unresolved until its runtime registration/use is proven; parser-target attribution requires independent registration/use evidence.
 
 Memory-ops correction: the APUSYS memory ops behind `0xffffffc00a189078` are now resolved. `mdw_mem_mgr_init` stores the object returned by `apusys_midware_register_driver`; that registration path creates the `"apusys midware"` ION client and installs the `mdw_mem_ion_*` callbacks above. The type-2 create path calls the registered `+0x30` IOVA map op. The type-3 create path calls `+0x20` KVA map first, then `+0x30` IOVA map, and unwinds KVA on IOVA failure.
 
@@ -95,7 +95,7 @@ The ioctl magic byte is `0x41` (`'A'`). The dispatcher uses fixed internal copy 
 | `0x40184106` | `0x18` | `mdw_usr_run_cmd_sync` | High research priority; command parser plus wait |
 | `0xC0184107` | `0x18` | `mdw_usr_run_cmd_async`, copyout on success | High research priority; command parser and device queue |
 | `0x40184108` | `0x18` | `mdw_usr_wait_cmd` | Medium; depends on command lifecycle |
-| `0x400C4109` | `0x0c` | `mdw_usr_dev_ctrl_4109`, device/core lookup then device callback at `+0x70` | Medium-high; not a safe default probe target |
+| `0x400C4109` | `0x0c` | `mdw_usr_dev_ctrl_4109`, device/core lookup then device callback at `+0x70` | Medium-high; reaches a live device callback |
 | `0x4038410C` | `0x38` | Disabled/error path | Low |
 | `0x4038410D` | `0x38` | Disabled/error path | Low |
 | `0x4014410E` | `0x14` | `mdw_usr_ucmd` | Medium; rejects early if field at `+0x0c` is nonzero |
@@ -107,14 +107,14 @@ The `0x4004413C/3D` size mismatch is important for testing: the command encoding
 
 ## Current risk ranking
 
-1. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` lead to `mdw_usr_mem_create`, then into APUSYS ION KVA/IOVA callbacks. Safe negative tests now confirm that type-2 and type-3 descriptors reach deeper than the initial user-copy guard without creating an object or crashing. This remains the highest APUSYS priority because a valid dmabuf-backed descriptor would exercise ION import, KVA/IOVA mapping, cache sync, and APUSYS memory object lifetime.
-2. **Command parsing/execution and ucmd paths**: `0xC0184107` and `0x40184106` reach `mdw_usr_run_cmd_async`. The current safe probe sets the user field at `+0x0c` to `1`, which makes this function return early before the indirect ops calls. `0x4014410E` reaches `mdw_usr_ucmd`; with `+0x0c == 0` it maps APUSYS memory through `+0x20`/`+0x30`, bounds-checks the requested range, then calls a device callback at `+0x98`. These paths are high priority but should not be dynamically opened until callback targets and command formats are known.
-3. **Device/resource control paths**: `0x4004413C/3D` call `mdw_usr_dev_sec_alloc/free`, and `0x400C4109` calls `mdw_usr_dev_ctrl_4109`. The free path has an id `< 0x40` guard; the `0x400C4109` path looks up a device/core and can call a registered device callback even with a small 0x0c input. Treat these as medium-high static targets, not default runtime probes.
+1. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` lead to `mdw_usr_mem_create`, then into APUSYS ION KVA/IOVA callbacks. Negative tests now confirm that type-2 and type-3 descriptors reach deeper than the initial user-copy guard without creating an object or crashing. This remains the highest APUSYS priority because a valid dmabuf-backed descriptor would exercise ION import, KVA/IOVA mapping, cache sync, and APUSYS memory object lifetime.
+2. **Command parsing/execution and ucmd paths**: `0xC0184107` and `0x40184106` reach `mdw_usr_run_cmd_async`. The current probe sets the user field at `+0x0c` to `1`, which makes this function return early before the indirect ops calls. `0x4014410E` reaches `mdw_usr_ucmd`; with `+0x0c == 0` it maps APUSYS memory through `+0x20`/`+0x30`, bounds-checks the requested range, then calls a device callback at `+0x98`. These paths remain high priority once callback targets and command formats are mapped.
+3. **Device/resource control paths**: `0x4004413C/3D` call `mdw_usr_dev_sec_alloc/free`, and `0x400C4109` calls `mdw_usr_dev_ctrl_4109`. The free path has an id `< 0x40` guard; the `0x400C4109` path looks up a device/core and can call a registered device callback even with a small 0x0c input. These are medium-high static targets whose runtime behavior depends on callback mapping.
 4. **Handshake/wait/simple rejection paths**: useful for reachability, lower standalone risk.
 
-The surface is more promising than the current display OOB family because it is a directly open proprietary device from `system_app` and reaches several hardware subsystems. It is still below a confirmed exploitable CVE because no memory corruption, UAF, OOB access, or privilege crossing has been confirmed.
+The surface is more promising than the current display OOB family because it is a directly open proprietary device from `system_app` and reaches several hardware subsystems. Current evidence is reachability plus path mapping; memory corruption, UAF, OOB access, and privilege crossing remain unproven.
 
-## Safe experiments
+## Runtime Probes
 
 [`poc/ApusysIoctlProbe.java`](poc/ApusysIoctlProbe.java) is the preferred `system_app` probe because it reuses the pure-Java syscall helper from `DrmTrigger.java`. By default it:
 
@@ -123,7 +123,7 @@ The surface is more promising than the current display OOB family because it is 
 - Sends disabled/error-only APUSYS commands.
 - Sends `run_cmd_async`, `run_cmd_sync`, and `mdw_usr_ucmd` buffers with the early-reject field at offset `+0x0c` set to `1`.
 
-It deliberately does not call the memory-create, memory-free, secure-alloc, secure-free, `0x400C4109` device callback, or real command-buffer execution paths.
+Default mode covers reject paths only. It omits memory-create, memory-free, secure-alloc, secure-free, `0x400C4109` device callback, and real command-buffer execution paths.
 
 Build:
 
@@ -150,7 +150,7 @@ Optional handshake query:
 dalvikvm64 -cp /data/data/com.android.settings/cache/apusys_ioctl_probe.dex ApusysIoctlProbe --query
 ```
 
-`--query` sets the handshake mode field at offset `+0x0c` to `1` and prints the returned 0x28-byte buffer. It should remain non-destructive, but it is not needed for basic handler reachability.
+`--query` sets the handshake mode field at offset `+0x0c` to `1` and prints the returned 0x28-byte buffer. Basic handler reachability does not depend on this mode.
 
 Optional memory negative tests:
 
@@ -158,15 +158,15 @@ Optional memory negative tests:
 dalvikvm64 -cp /data/data/com.android.settings/cache/apusys_ioctl_probe.dex ApusysIoctlProbe --mem-negative
 ```
 
-`--mem-negative` is intentionally not the default. It sends:
+`--mem-negative` sends:
 
 - `mem_create2_null` / `mem_create3_null` with a NULL user pointer, expected to fail before import.
 - `mem_create2_zero` / `mem_create3_zero` with an all-zero 0x38 descriptor, including fd `0`.
 - `mem_create2_badfd` / `mem_create3_badfd` with a 0x38 descriptor whose fd field at user offset `+0x20` is `-1`.
 
-It does not pass a valid dmabuf, does not create command buffers, and does not request APUSYS execution. If a memory-create call unexpectedly succeeds, the probe attempts cleanup with the matching memory-free ioctl using the returned descriptor.
+No valid dmabuf or APUSYS command buffer is supplied in this mode. If a memory-create call unexpectedly succeeds, the probe attempts cleanup with the matching memory-free ioctl using the returned descriptor.
 
-[`poc/apusys_ioctl_probe.c`](poc/apusys_ioctl_probe.c) is a native version of the same reject-only checks for root/permissive lab contexts. It compiles successfully, but on the current device direct `adb shell` execution returns `open(/dev/apusys) failed: EACCES` because shell is not `system` or `camera`, and `system_app` cannot execute native ELF files from app data under SELinux enforcing.
+[`poc/apusys_ioctl_probe.c`](poc/apusys_ioctl_probe.c) is a native version of the same reject checks for root/permissive lab contexts. It compiles successfully, but on the current device direct `adb shell` execution returns `open(/dev/apusys) failed: EACCES` because shell is not `system` or `camera`, and `system_app` cannot execute native ELF files from app data under SELinux enforcing.
 
 Current local negative-control result:
 
@@ -177,7 +177,7 @@ adb shell dalvikvm64 -cp /data/local/tmp/apusys_ioctl_probe.dex ApusysIoctlProbe
 Exception in thread "main" java.lang.RuntimeException: open(/dev/apusys) failed: errno=13
 ```
 
-That is expected for `uid=2000(shell)`. It validates the Java probe startup path but not APUSYS handler reachability. The meaningful runtime test must run from the `uid=1000(system)` / `u:r:system_app:s0` context that previously opened `/dev/apusys`.
+That is expected for `uid=2000(shell)`. It validates the Java probe startup path but not APUSYS handler reachability. Handler reachability was measured from the `uid=1000(system)` / `u:r:system_app:s0` context that previously opened `/dev/apusys`.
 
 Observed from the rebuilt `system_app` bind shell on 2026-06-14:
 
@@ -216,8 +216,8 @@ Interpretation: `/dev/apusys` ioctl is confirmed reachable from `system_app`, ge
 
 ## Next analysis steps
 
-- Keep the current Java probe reject-only. The next dynamic APUSYS memory test should require an explicit decision because a valid dmabuf-backed descriptor would move from reachability into real ION/APUSYS mapping behavior.
+- Keep the current Java probe scoped to reject/query/negative-memory paths. A valid dmabuf-backed descriptor is the next step for real ION/APUSYS mapping behavior.
 - Use kernel logs, if available from the lab context, to distinguish whether the `ENOMEM` path comes from ION import, cache sync, or IOVA map setup.
-- Treat `mdw_usr_get_cmd_ops` / `0xffffffc00a188e58` as unresolved. Do not clear the `run_cmd` `+0x0c` early-reject field until the indirect call targets are confirmed.
-- Resolve the registered device callback tables used at `+0x70`, `+0x78`, `+0x98`, `+0xa0`, and `+0xa8` before testing `0x400C4109`, `mdw_usr_ucmd`, or secure-device allocation with live device ids.
-- Map `vpu_ucmd_handle`, EDMA/MDLA validators, and the scheduler queue only after command parser targets are known. No valid command-buffer experiment should be added before that.
+- Keep `mdw_usr_get_cmd_ops` / `0xffffffc00a188e58` marked unresolved. Leave the `run_cmd` `+0x0c` early-reject field set while resolving the indirect call targets.
+- Resolve the registered device callback tables used at `+0x70`, `+0x78`, `+0x98`, `+0xa0`, and `+0xa8`; then test `0x400C4109`, `mdw_usr_ucmd`, or secure-device allocation with live device ids.
+- Map `vpu_ucmd_handle`, EDMA/MDLA validators, and the scheduler queue after command parser targets are known. Valid command-buffer experiments come after that mapping.
