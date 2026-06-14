@@ -23,12 +23,24 @@ public final class ApusysIoctlProbe {
     private static final long APUSYS_CMD_DISABLED_0D = 0x4038410DL;
     private static final long APUSYS_CMD_UNKNOWN     = 0x41414141L;
 
+    private static final long DRM_IOCTL_PRIME_HANDLE_TO_FD = 0xC00C642DL;
+    private static final long ION_IOC_ALLOC          = 0xC0204900L;
+    private static final long ION_IOC_FREE           = 0xC0044901L;
+    private static final long ION_IOC_SHARE          = 0xC0084904L;
+
     private static final int OFF_HANDSHAKE = 0x100;
     private static final int OFF_RUN_CMD   = 0x140;
     private static final int OFF_UCMD      = 0x180;
     private static final int OFF_MEM_A     = 0x1c0;
     private static final int OFF_MEM_B     = 0x220;
     private static final int OFF_DEV_CTRL  = 0x280;
+    private static final int OFF_DRM_CREATE  = 0x300;
+    private static final int OFF_DRM_PRIME   = 0x340;
+    private static final int OFF_DRM_DESTROY = 0x360;
+    private static final int OFF_MEM_DMABUF  = 0x380;
+    private static final int OFF_ION_ALLOC   = 0x400;
+    private static final int OFF_ION_SHARE   = 0x440;
+    private static final int OFF_ION_FREE    = 0x460;
 
     private ApusysIoctlProbe() {
     }
@@ -37,6 +49,8 @@ public final class ApusysIoctlProbe {
         boolean query = false;
         boolean memNegative = false;
         boolean devCtrl = false;
+        boolean memDmabuf = false;
+        boolean memIon = false;
         for (String arg : args) {
             if ("--query".equals(arg)) {
                 query = true;
@@ -44,13 +58,17 @@ public final class ApusysIoctlProbe {
                 memNegative = true;
             } else if ("--dev-ctrl".equals(arg)) {
                 devCtrl = true;
+            } else if ("--mem-dmabuf".equals(arg)) {
+                memDmabuf = true;
+            } else if ("--mem-ion".equals(arg)) {
+                memIon = true;
             } else {
                 throw new IllegalArgumentException("unknown option: " + arg);
             }
         }
 
         System.out.println("[*] === APUSYS ioctl probe ===");
-        if (memNegative || devCtrl) {
+        if (memNegative || devCtrl || memDmabuf || memIon) {
             System.out.println("[*] Mode: optional checks enabled;"
                 + " no secure alloc/free, no valid cmdbuf\n");
         } else {
@@ -99,6 +117,14 @@ public final class ApusysIoctlProbe {
 
             if (devCtrl) {
                 runDevCtrlProbe(fd);
+            }
+
+            if (memDmabuf) {
+                runMemDmabuf(fd);
+            }
+
+            if (memIon) {
+                runMemIon(fd);
             }
 
             System.out.println("\n[+] Probe completed. Interpret results as handler reachability only.");
@@ -162,6 +188,193 @@ public final class ApusysIoctlProbe {
 
         String name = "devctl_" + provider + "_c" + coreId;
         return ioctlAndPrint(fd, name, APUSYS_CMD_DEV_CTRL, devCtrl);
+    }
+
+    private static void runMemDmabuf(int apusysFd) throws Exception {
+        System.out.println("\n[*] === Optional APUSYS dmabuf memory-create tests ===");
+        System.out.println("[*] Mode: create DRM dumb buffer, export PRIME fd,"
+            + " import through APUSYS type2/type3 descriptors");
+
+        int drmFd = -1;
+        int dmaBufFd = -1;
+        int handle = 0;
+        try {
+            drmFd = DrmTrigger.openDev("/dev/dri/card0");
+            System.out.println("[+] Opened /dev/dri/card0 fd=" + drmFd);
+
+            long create = DrmTrigger.sScratchBuf + OFF_DRM_CREATE;
+            DrmTrigger.zeroMem(create, 0x20);
+            DrmTrigger.unsafePutInt(create + 0x00, 64);  // height
+            DrmTrigger.unsafePutInt(create + 0x04, 64);  // width
+            DrmTrigger.unsafePutInt(create + 0x08, 32);  // bpp
+            long ret = DrmTrigger.rawIoctl(drmFd, DrmTrigger.DRM_IOCTL_MODE_CREATE_DUMB, create);
+            System.out.println("[*] drm_create_dumb   cmd=0x"
+                + Long.toHexString(DrmTrigger.DRM_IOCTL_MODE_CREATE_DUMB)
+                + " ret=" + retText(ret));
+            if (ret < 0) {
+                return;
+            }
+
+            handle = DrmTrigger.unsafeGetInt(create + 0x10);
+            int pitch = DrmTrigger.unsafeGetInt(create + 0x14);
+            long size = DrmTrigger.unsafeGetLong(create + 0x18);
+            System.out.println("    dumb: handle=" + handle + " pitch=" + pitch
+                + " size=0x" + Long.toHexString(size));
+
+            long prime = DrmTrigger.sScratchBuf + OFF_DRM_PRIME;
+            DrmTrigger.zeroMem(prime, 0x10);
+            DrmTrigger.unsafePutInt(prime + 0x00, handle);
+            DrmTrigger.unsafePutInt(prime + 0x04, 0);  // flags
+            ret = DrmTrigger.rawIoctl(drmFd, DRM_IOCTL_PRIME_HANDLE_TO_FD, prime);
+            System.out.println("[*] drm_prime_to_fd   cmd=0x"
+                + Long.toHexString(DRM_IOCTL_PRIME_HANDLE_TO_FD)
+                + " ret=" + retText(ret));
+            if (ret < 0) {
+                return;
+            }
+
+            dmaBufFd = DrmTrigger.unsafeGetInt(prime + 0x08);
+            System.out.println("    dmabuf fd=" + dmaBufFd);
+
+            runMemCreateWithFd(apusysFd, "mem_create2_dmabuf",
+                APUSYS_CMD_MEM_CREATE2, APUSYS_CMD_MEM_FREE_02, dmaBufFd, size);
+            runMemCreateWithFd(apusysFd, "mem_create3_dmabuf",
+                APUSYS_CMD_MEM_CREATE3, APUSYS_CMD_MEM_FREE_10, dmaBufFd, size);
+        } finally {
+            if (dmaBufFd >= 0) {
+                DrmTrigger.closeFd(dmaBufFd);
+            }
+            if (drmFd >= 0 && handle != 0) {
+                long destroy = DrmTrigger.sScratchBuf + OFF_DRM_DESTROY;
+                DrmTrigger.zeroMem(destroy, 0x08);
+                DrmTrigger.unsafePutInt(destroy + 0x00, handle);
+                long ret = DrmTrigger.rawIoctl(drmFd, DrmTrigger.DRM_IOCTL_MODE_DESTROY_DUMB, destroy);
+                System.out.println("[*] drm_destroy_dumb cmd=0x"
+                    + Long.toHexString(DrmTrigger.DRM_IOCTL_MODE_DESTROY_DUMB)
+                    + " ret=" + retText(ret));
+            }
+            if (drmFd >= 0) {
+                DrmTrigger.closeFd(drmFd);
+            }
+        }
+    }
+
+    private static void runMemIon(int apusysFd) throws Exception {
+        System.out.println("\n[*] === Optional APUSYS ION memory-create tests ===");
+        System.out.println("[*] Mode: allocate old-ION buffer, share dmabuf fd,"
+            + " import through APUSYS type2/type3 descriptors");
+
+        int ionFd = -1;
+        int dmaBufFd = -1;
+        int handle = 0;
+        int heapMask = 0;
+        int[] heapMasks = {0x4, 0x1, 0x2, 0x8, 0x10, 0x20, 0x40, 0x100};
+        try {
+            try {
+                ionFd = DrmTrigger.openDev("/dev/ion");
+            } catch (RuntimeException e) {
+                System.out.println("[-] open /dev/ion failed: " + e.getMessage());
+                return;
+            }
+            System.out.println("[+] Opened /dev/ion fd=" + ionFd);
+
+            for (int i = 0; i < heapMasks.length; i++) {
+                int candidate = heapMasks[i];
+                handle = ionAlloc(ionFd, candidate, 0x4000);
+                if (handle != 0) {
+                    heapMask = candidate;
+                    break;
+                }
+            }
+
+            if (handle == 0) {
+                System.out.println("[-] ION allocation failed for all tested heap masks");
+                return;
+            }
+
+            dmaBufFd = ionShare(ionFd, handle);
+            if (dmaBufFd < 0) {
+                return;
+            }
+
+            System.out.println("    ion: heap_mask=0x" + Integer.toHexString(heapMask)
+                + " handle=" + handle + " dmabuf_fd=" + dmaBufFd);
+            runMemCreateWithFd(apusysFd, "mem_create2_ion",
+                APUSYS_CMD_MEM_CREATE2, APUSYS_CMD_MEM_FREE_02, dmaBufFd, 0x4000);
+            runMemCreateWithFd(apusysFd, "mem_create3_ion",
+                APUSYS_CMD_MEM_CREATE3, APUSYS_CMD_MEM_FREE_10, dmaBufFd, 0x4000);
+        } finally {
+            if (dmaBufFd >= 0) {
+                DrmTrigger.closeFd(dmaBufFd);
+            }
+            if (ionFd >= 0 && handle != 0) {
+                ionFree(ionFd, handle);
+            }
+            if (ionFd >= 0) {
+                DrmTrigger.closeFd(ionFd);
+            }
+        }
+    }
+
+    private static int ionAlloc(int ionFd, int heapMask, int size) throws Exception {
+        long alloc = DrmTrigger.sScratchBuf + OFF_ION_ALLOC;
+        DrmTrigger.zeroMem(alloc, 0x20);
+        DrmTrigger.unsafePutLong(alloc + 0x00, size);
+        DrmTrigger.unsafePutLong(alloc + 0x08, 0);       // align
+        DrmTrigger.unsafePutInt(alloc + 0x10, heapMask);
+        DrmTrigger.unsafePutInt(alloc + 0x14, 0);        // flags
+
+        long ret = DrmTrigger.rawIoctl(ionFd, ION_IOC_ALLOC, alloc);
+        int handle = ret >= 0 ? DrmTrigger.unsafeGetInt(alloc + 0x18) : 0;
+        System.out.println("[*] ion_alloc_hmask_0x" + Integer.toHexString(heapMask)
+            + " cmd=0x" + Long.toHexString(ION_IOC_ALLOC)
+            + " ret=" + retText(ret)
+            + (handle != 0 ? " handle=" + handle : ""));
+        return ret >= 0 ? handle : 0;
+    }
+
+    private static int ionShare(int ionFd, int handle) throws Exception {
+        long share = DrmTrigger.sScratchBuf + OFF_ION_SHARE;
+        DrmTrigger.zeroMem(share, 0x08);
+        DrmTrigger.unsafePutInt(share + 0x00, handle);
+
+        long ret = DrmTrigger.rawIoctl(ionFd, ION_IOC_SHARE, share);
+        int fd = ret >= 0 ? DrmTrigger.unsafeGetInt(share + 0x04) : -1;
+        System.out.println("[*] ion_share        cmd=0x"
+            + Long.toHexString(ION_IOC_SHARE)
+            + " ret=" + retText(ret)
+            + (fd >= 0 ? " fd=" + fd : ""));
+        return ret >= 0 ? fd : -1;
+    }
+
+    private static void ionFree(int ionFd, int handle) throws Exception {
+        long free = DrmTrigger.sScratchBuf + OFF_ION_FREE;
+        DrmTrigger.zeroMem(free, 0x04);
+        DrmTrigger.unsafePutInt(free + 0x00, handle);
+
+        long ret = DrmTrigger.rawIoctl(ionFd, ION_IOC_FREE, free);
+        System.out.println("[*] ion_free         cmd=0x"
+            + Long.toHexString(ION_IOC_FREE)
+            + " ret=" + retText(ret));
+    }
+
+    private static void runMemCreateWithFd(int fd, String name, long createCmd,
+                                           long freeCmd, int dmaBufFd, long size)
+            throws Exception {
+        long mem = DrmTrigger.sScratchBuf + OFF_MEM_DMABUF;
+        int importSize = size >= 0x1000 ? 0x1000 : (int) size;
+        DrmTrigger.zeroMem(mem, 0x38);
+        DrmTrigger.unsafePutInt(mem + 0x0c, importSize);
+        DrmTrigger.unsafePutInt(mem + 0x10, 0);  // page-aligned offset
+        DrmTrigger.unsafePutInt(mem + 0x14, 0);  // no alignment override
+        DrmTrigger.unsafePutInt(mem + 0x18, 0);  // memory type accepted by mdw_mem_ion_check
+        DrmTrigger.unsafePutInt(mem + 0x20, dmaBufFd);
+
+        long ret = ioctlAndPrint(fd, name, createCmd, mem);
+        if (ret >= 0) {
+            dumpU32Words(name + "_desc", mem, 0x38);
+        }
+        cleanupUnexpectedMemSuccess(fd, name, freeCmd, mem, ret);
     }
 
     private static void cleanupUnexpectedMemSuccess(int fd, String name, long freeCmd,

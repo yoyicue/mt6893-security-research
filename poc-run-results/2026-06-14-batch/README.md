@@ -26,6 +26,8 @@ Raw outputs from this run are archived in this directory.
 | `07_devprobe.txt` | system_app raw `openat(O_RDWR)` device-node reachability |
 | `systemapp_service_probe.txt` | binder/service and sensitive device-node visibility from system_app |
 | `13_apusys_dev_ctrl.txt` | APUSYS `0x400C4109` provider opcode-0 reachability from system_app |
+| `13_apusys_mem_dmabuf.txt` | APUSYS memory-create fd-source check using DRM dumb buffer plus PRIME export |
+| `13_apusys_mem_ion.txt` | APUSYS memory-create fd-source check using old ION allocation/share path |
 | `02_vuln_check_jit.txt` | Mali JIT `DONT_NEED` check for CVE-2022-38181 style chain |
 | `02_diag_dont_need.txt` | Mali non-JIT `DONT_NEED` behavior |
 | `03_diag_refcount.txt` | CVE-2022-36449 page refcount diagnostic |
@@ -83,7 +85,7 @@ Next experiment:
 
 ### 2. Batch 4: APU / ION
 
-Risk after test: **APUSYS moves up; ION moves down until `O_RDWR` reachability is confirmed**.
+Risk after test: **APUSYS remains medium-high; direct ION from system_app moves down**.
 
 Evidence:
 
@@ -94,6 +96,10 @@ Evidence:
 [*] devctl_edma_c0     cmd=0x400c4109 ret=0
 [*] devctl_mdla_rt_c0  cmd=0x400c4109 ret=0
 [*] devctl_vpu_rt_c0   cmd=0x400c4109 ret=-13 (EACCES)
+[+] Opened /dev/dri/card0 fd=7
+[*] drm_create_dumb   cmd=0xc02064b2 ret=0
+[*] drm_prime_to_fd   cmd=0xc00c642d ret=-13 (EACCES)
+[-] open /dev/ion failed: open(/dev/ion) failed: errno=13
 ```
 
 `systemapp_service_probe.txt` shows `/dev/ion` exists and is world-readable/writable at DAC level:
@@ -102,21 +108,23 @@ Evidence:
 crw-rw-rw- 1 system graphics u:object_r:ion_device:s0 /dev/ion
 ```
 
-But `07_devprobe.txt` did **not** list `/dev/ion` as successfully opened with raw `openat(O_RDWR)` from the Java syscall context.
+`07_devprobe.txt` did not list `/dev/ion` as successfully opened with raw `openat(O_RDWR)`, and `13_apusys_mem_ion.txt` confirms the dedicated old-ION path also fails at open with `EACCES` from `system_app`.
 
 Interpretation:
 
 - `/dev/apusys` is a real reachable kernel surface from `system_app`.
 - APUSYS device-control ioctl `0x400C4109` reaches live provider opcode-0 paths for MDLA, normal VPU, EDMA, and MDLA RT. VPU RT returns `EACCES` on the same opcode.
-- `/dev/ion` needs a dedicated open-mode probe (`O_RDONLY`, `O_RDWR`, and expected ioctl mode) before raising it.
+- APUSYS memory-create type-2/type-3 remains the highest APUSYS subpath, but the current experiment lacks a valid dmabuf fd source in this context.
+- DRM dumb buffer creation works from `system_app`, but PRIME fd export returns `EACCES`.
+- Direct `/dev/ion` allocation/share is blocked at open with `EACCES` despite permissive-looking DAC bits on the node.
 - Mali WRITE_VALUE works, but it was already reachable from uid=2000 shell and remains bounded to GPU-mapped userspace VA. It does not become a kernel primitive from uid=1000 alone.
 
 Resulting CVE priority:
 
 | CVE / Area | Post-run Risk | Reason |
 |---|---|---|
-| APUSYS CVE candidates | Medium-High | `/dev/apusys` opens with `O_RDWR`; `0x400C4109` provider opcode-0 dispatch is live for MDLA, normal VPU, EDMA, and MDLA RT. |
-| CVE-2023-20768 / ION | Medium-Low pending recheck | DAC suggests possible access, but strict `O_RDWR` devprobe did not confirm open. |
+| APUSYS CVE candidates | Medium-High | `/dev/apusys` opens with `O_RDWR`; `0x400C4109` provider opcode-0 dispatch is live for MDLA, normal VPU, EDMA, and MDLA RT. Memory-create is mapped but still needs a usable dmabuf fd source. |
+| CVE-2023-20768 / ION | Medium-Low for direct system_app node access | Dedicated old-ION path confirms `/dev/ion` open returns `EACCES` from `system_app`. |
 | Mali WRITE_VALUE boundary | Low for kernel LPE | WRITE_VALUE confirmed, but USER_BUFFER/kernel reachability is blocked. |
 
 Mali evidence:

@@ -6,7 +6,8 @@ Updated: 2026-06-14
 
 - uid=1000 system_app bind shell (CVE-2024-31317) ✅
 - ART ArtMethod syscall primitive (arbitrary ioctl from pure Java) ✅
-- Accessible devices: `/dev/binder`, `/dev/hwbinder`, `/dev/ion`, `/dev/mali0`, `/dev/dri/card0`, `/dev/apusys`, `/dev/aw_smartpa`
+- Accessible devices: `/dev/binder`, `/dev/hwbinder`, `/dev/mali0`, `/dev/dri/card0`, `/dev/apusys`, `/dev/aw_smartpa`
+- Visible but direct-open denied from `system_app`: `/dev/ion`
 - SPL: 2023-06-05
 
 ## Exhausted / Dead-End Paths
@@ -30,8 +31,8 @@ This ranking assumes the current post-CVE-2024-31317 position: `uid=1000(system)
 | Rank | Surface | Current risk | Why |
 |---:|---|---|---|
 | 1 | `/dev/mali0` CVE-2023-33200 | **Highest confirmed** | Required ioctls are reachable, the path is not JIT-based, and IDA confirms the soft-event `vmap` vs sticky-resource USER_BUF unmap race shape. |
-| 2 | `/dev/ion` MTK heap/ioctl family | **Unknown-high** | Device permissions look promising for `system_app`, and old SPL predates several MTK ION fixes, but this repo has not yet confirmed open/ioctl semantics from the target context. |
-| 3 | `/dev/apusys` | **Unknown-medium/high** | Confirmed open proprietary MTK ioctl surface with little existing analysis. Promising for bug hunting, but no mapped CVE or primitive yet. |
+| 2 | `/dev/apusys` | **Medium-high research priority** | Confirmed open proprietary MTK ioctl surface; provider opcode-0 dispatch is live for MDLA, normal VPU, EDMA, and MDLA RT. Memory-create is mapped but still needs a usable dmabuf fd source. |
+| 3 | `/dev/ion` MTK heap/ioctl family | **Medium-low for direct system_app node access** | DAC bits look permissive, but dedicated old-ION probing confirms direct `/dev/ion` open returns `EACCES` from `system_app`. |
 | 4 | Display DRM `SET_PQPARAM` / adjacent PQ-AAL-SLD paths | **Medium** | `/dev/dri/card0` and many MTK private ioctls are reachable. The strongest current bug shape is display-state/MMIO-oriented, with no confirmed kernel-memory write primitive. |
 | 5 | Display DRM register and GEM paths | **Low** | `WRITE_REG`/`READ_REG` have visible validation, and CVE-2023-32836 `CREATE_DUMB` reaches the MTK 64-bit size path rather than the vulnerable generic 32-bit multiply path. |
 | 6 | Patched/dead Mali candidates | **Low / removed** | CVE-2022-22706 is patched in the binary; CVE-2022-38181/CVE-2023-4211 JIT paths are blocked by `no_user_free_count`; CVE-2022-36449 was retracted for this target. |
@@ -78,13 +79,13 @@ See `11-cve-2022-22706-mali-write-readonly/IDA_HANDOFF.md` for full details.
 
 **CVE-2023-20768** and potentially others.
 
-`/dev/ion` DAC is `crw-rw-rw-` (world-writable), SELinux label `ion_device`. system_app should be able to open it.
+`/dev/ion` DAC is `crw-rw-rw-` (world-writable), SELinux label `ion_device`, but runtime probing from `system_app` returns `EACCES` on direct open.
 
-**Anomaly**: runtime devprobe from DrmTrigger ioctlscan didn't confirm `/dev/ion` open. Need dedicated re-test with O_RDWR and O_RDONLY.
+**Runtime result**: `13_apusys_mem_ion.txt` uses the old ION ABI observed in IDA (`ALLOC 0xc0204900`, `SHARE 0xc0084904`, `FREE 0xc0044901`) and fails before ioctl because `/dev/ion` cannot be opened from `system_app`.
 
-**Why promising**: ION is a large attack surface with custom MTK heap implementations. SPL 2023-06-05 predates many ION fixes.
+**Why still tracked**: ION is a large attack surface with custom MTK heap implementations, and SPL 2023-06-05 predates several ION fixes. Direct node access is not currently available from this context.
 
-**Action**: Verify `/dev/ion` open from system_app. If yes, enumerate ION heap IDs and custom ioctls.
+**Action**: Treat direct `/dev/ion` as blocked for `system_app`; revisit via a framework/HAL path that can hand back a dmabuf fd or via a different lab context.
 
 ### Tier 2: Medium Promise
 
@@ -94,9 +95,9 @@ Confirmed open from system_app. IDA now maps the main midware ioctl dispatcher: 
 
 **Why interesting**: Private MTK driver, directly open from `uid=1000(system)`, and routes into APUSYS command parsing, VPU/MDLA/EDMA execution, memory import/IOVA, and Reviser resource paths.
 
-**Risk**: Medium-high research priority, but not yet a confirmed vulnerability. The dispatcher uses fixed `copy_from_user` sizes and several early validation gates. The most interesting paths are `mdw_usr_run_cmd_async`/`mdw_usr_run_cmd_sync` and `mdw_usr_mem_create`.
+**Risk**: Medium-high research priority, but not yet a confirmed vulnerability. The dispatcher uses fixed `copy_from_user` sizes and several early validation gates. The most interesting paths are `mdw_usr_run_cmd_async`/`mdw_usr_run_cmd_sync`, `mdw_usr_ucmd`, and `mdw_usr_mem_create`.
 
-**Action**: Continue from [`13-apusys-ioctl-surface/README.md`](13-apusys-ioctl-surface/README.md). Run the safe reject-only ioctl probe first, then statically inspect the parser ops table before constructing any valid command buffer.
+**Action**: Continue from [`13-apusys-ioctl-surface/README.md`](13-apusys-ioctl-surface/README.md). Current APUSYS work is to find a `system_app`-reachable dmabuf fd source for memory-create, and separately map normal VPU opcode-7 `ucmd` inputs before valid command-buffer experiments.
 
 #### E. Binder service-mediated kernel bugs
 
@@ -132,15 +133,15 @@ The IDA-based risk ranking from the handoff identified SET_SLD_PARAM (0x57) and 
 - IDA confirms the race shape and confirms it avoids the JIT + `no_user_free_count` blocker
 - Remaining work is exploitability engineering analysis, not initial reachability/patch-state triage
 
-**Priority 2: `/dev/ion` reachability + ION CVEs**
-- DAC world-writable, SELinux needs confirmation
-- CVE-2023-20768 + other MTK ION heap bugs
-- Quick to verify open
+**Priority 2: `/dev/apusys` memory import / ucmd mapping**
+- `/dev/apusys` opens from `system_app`
+- Provider opcode-0 dispatch is live
+- Memory import needs a usable dmabuf fd source; direct DRM PRIME and direct ION are blocked
 
-**Priority 3: `/dev/apusys` black-box ioctl analysis**
-- Confirmed open from system_app
-- Novel surface, likely unaudited MTK proprietary code
-- High effort but high potential
+**Priority 3: ION CVEs via non-direct paths**
+- Direct `/dev/ion` open is `EACCES` from `system_app`
+- Revisit if a framework/HAL path supplies a dmabuf fd or a different lab context is used
+- CVE-2023-20768 remains interesting for broader device contexts, not for direct node access here
 
 **Priority 4: Display DRM remaining OOB cluster**
 - SET_PQPARAM u4PartialY confirmed triggerable but limited exploitation ceiling
@@ -149,4 +150,4 @@ The IDA-based risk ranking from the handoff identified SET_SLD_PARAM (0x57) and 
 
 ## Decision
 
-Next target remains **CVE-2023-33200**. IDA now confirms it avoids the JIT/no_user_free_count blocker and has the expected imported-user-buffer lifetime race. The next decision point is whether to continue non-destructive primitive characterization or pivot to the quicker `/dev/ion` reachability check.
+Next target remains **CVE-2023-33200** for Mali-specific work. For APUSYS, the immediate branch is dmabuf-source discovery or normal VPU opcode-7 `ucmd` input mapping. Direct `/dev/ion` reachability has now been checked and is blocked from `system_app`.

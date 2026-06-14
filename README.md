@@ -31,7 +31,7 @@ The target device (kernel 4.19.191, Mali Valhall r32p1, SPL 2023-06-05, SELinux 
 | [10](10-cve-2023-32865-display-drm-oob-write/) | CVE-2023-32865 display-drm OOB write | The color-transform validation ioctl is reachable from `system_app` and rejects unsupported matrices; the exact vulnerable write path is not yet identified. |
 | [11](11-cve-2022-22706-mali-write-readonly/) | CVE-2022-22706 Mali write-readonly | Mali WRITE_VALUE can modify GPU-mapped userspace pages but does not cross into kernel memory on this target. |
 | [12](12-cve-2023-33200-mali-race-uaf/) | CVE-2023-33200 Mali imported-buffer race | Patched/dead on this target: `kbase_vmap_prot` rejects non-NATIVE imported USER_BUF allocations before the race window can open. |
-| [13](13-apusys-ioctl-surface/) | APUSYS ioctl surface | `/dev/apusys` opens from `system_app`; IDA maps `mdw_ioctl` and command/parser paths, but no confirmed APUSYS vulnerability is identified yet. |
+| [13](13-apusys-ioctl-surface/) | APUSYS ioctl surface | `/dev/apusys` opens from `system_app`; provider opcode-0 dispatch is live, while memory-create still needs a usable dmabuf fd source. |
 
 ## Building the PoCs
 
@@ -109,7 +109,7 @@ mt6893-security-research/
 
 ## Ethics
 
-This research was conducted on a personally-owned device for educational purposes. All findings document defensive knowledge — why attacks fail, not how to make them succeed.
+This research was conducted on a personally-owned device for educational purposes. The notes record tested entry points, runtime results, and firmware-specific technical conclusions.
 
 ## License
 

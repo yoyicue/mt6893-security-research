@@ -32,9 +32,14 @@ Confirmed useful device access from `system_app`:
 
 ```text
 /dev/dri/card0
-/dev/ion
 /dev/mali0
 /dev/apusys
+```
+
+Visible but direct-open denied from `system_app`:
+
+```text
+/dev/ion
 ```
 
 Important permissions observed on device:
@@ -84,7 +89,7 @@ The current CVE-2023-32836 checks disprove both tested direct paths on this firm
 | CVE-2024-20037 pq | Increased | MT6893/Android 13 affected; advisory describes write-what-where condition. |
 | CVE-2023-20761 ril | Increased, likely service path | MT6893/MT8797/Android 13 affected; likely binder/socket/service rather than direct device-node ioctl. |
 | CVE-2023-20766 gps | Increased, likely service path | MT6893/MT8797/Android 13 affected; likely service path. |
-| CVE-2023-20768 ion | Increased | `/dev/ion` is reachable; advisory lists System privileges needed and broad MTK Android 11/12 impact. Need confirm Android 13 applicability for this exact target. |
+| CVE-2023-20768 ion | Lower for direct node access | `/dev/ion` is visible and DAC-permissive, but dedicated old-ION probing from `system_app` returns `EACCES` at open. Revisit only through framework/HAL dmabuf paths or another lab context. |
 
 ## Not Significantly Changed
 
