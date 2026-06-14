@@ -21,15 +21,15 @@ The direct ioctl experiments use three nested formats:
 Target-side static analysis currently separates this direct-probe layout from
 `libneuron_platform.vpu.so::XrpVpuStream::CreateVpuRequest()`: that function
 creates/acquires a libvpu request and calls `vpuRequest_addBuffer()` five times,
-with no visible `vpuRequest_setProperty()` call in the same function. This means
+while leaving the resolved `vpuRequest_setProperty()` slot unused. This means
 the firmware-facing `request+0x38/+0x40` tuple is still a real kernel input and
-a valid libvpu property-path shape, but it is not proven to be how this target
-wrapper normally submits APUNN.
+a valid libvpu property-path shape, while this target wrapper's ordinary
+`CreateVpuRequest()` path submits APUNN through five copied native descriptors.
 
 The direct ioctl replay now covers both sides of that split. The property-path
 probes set `request+0x38/+0x40` to the XRP settings buffer. The target-wrapper
 replay sets `buffer_count=5`, repeats the code/input descriptor five times, and
-zeros `request+0x38/+0x40` to match the no-visible-`setProperty()` path.
+zeros `request+0x38/+0x40` to match the target wrapper's no-property path.
 
 The outer APUSYS subcommand layer is now pinned too. `mdw_cmd_parse_cmd` copies
 subcommand `+0x20` into `sc+0x28` as `cb_info_size` and records the selected
@@ -126,11 +126,31 @@ The caller-visible flow is:
 5. On this target, `XrpVpuStream::CreateVpuRequest()` creates a libvpu request
    and calls the `stream+0x88` function pointer five times. The
    `VpuStreamLibManager` constructor resolves `stream+0x88` to
-   `vpuRequest_addBuffer`. No `stream+0x90` / `vpuRequest_setProperty` call is
-   visible in this function. Therefore the direct ioctl probe's
-   `request+0x38/+0x40` settings payload is a kernel/firmware-facing
-   experiment and a valid libvpu property-path shape, but it is not yet proven
-   to be emitted by the target wrapper's `CreateVpuRequest()` path.
+   `vpuRequest_addBuffer`. The same constructor resolves `stream+0x90` to
+   `vpuRequest_setProperty`, but `CreateVpuRequest()` does not call that slot.
+   Therefore the direct ioctl probe's `request+0x38/+0x40` settings
+   payload is a kernel/firmware-facing experiment and a valid libvpu
+   property-path shape, but it is not emitted by the target wrapper's
+   `CreateVpuRequest()` path seen in `libneuron_platform.vpu.so`.
+
+Static wrapper resolution from `/tmp/mtk-apu-artifacts/device/libneuron_platform.vpu.so`:
+
+| Evidence | Result |
+|---|---|
+| `VpuStreamLibManagerC2()` loads `libvpu5.so` with `dlopen()` | The wrapper targets the same `libvpu5.so` request ABI used by the direct probes |
+| `stream+0x88` `dlsym()` string | `vpuRequest_addBuffer` |
+| `stream+0x90` `dlsym()` string | `vpuRequest_setProperty` |
+| `XrpVpuStream::CreateVpuRequest()` at `0x16d54` | Calls `stream+0x88` five times with the same stack descriptor; no `stream+0x90` call |
+| `XrpIntrinsicExecutor::CreateVpuRequest()` at `0xf788` | Passes `XrpCommandInfo+0x28/+0x38`-derived code descriptor fields to `XrpVpuStream::CreateVpuRequest()` |
+
+This turns the target-wrapper lower-bound model into:
+
+1. APUSYS/VPU firmware receives `XTENSA_INFO12 = 5` and `XTENSA_INFO13` pointing
+   to the kernel-copied five-entry `struct vpu_buffer[]`.
+2. The first copied native descriptor is the currently observed status/writeback
+   target in the incomplete path.
+3. `XTENSA_INFO14/15` remain a real kernel input, but the normal wrapper path
+   does not rely on them for the XRP command buffer on this build.
 
 Main XRP command buffer fields recovered from userland wrappers:
 
@@ -345,6 +365,29 @@ normal VPU request and `libneuron_platform.vpu.so` wrapper route a raw
 code-section IOVA/size pair, while the `0x1c8` entry fields after the basic
 debug-visible header are consumed outside these userland helpers.
 
+## MVPU embedded-kernel side evidence
+
+`/tmp/mtk-apu-artifacts/device/libmvpuop_mtk_nn.mtk.so` embeds many 32-bit
+RISC-V MVPU ELF blobs. Eighteen of those inner ELFs carry a
+`.mvpu.kernel.info` section. The section is a short ASCII argument type
+signature, for example:
+
+| Inner ELF group | `.mvpu.kernel.info` examples |
+|---|---|
+| small point kernels | `s8p,s32,s32,s32,s32,s32,s32p` and `u8p,s32,s32,s32,s32,s32,s32p` |
+| GLSU/check kernels | `u8p,s32p,s32p,u8p,s32,s32,s32,s32,s32`, plus matching `u16p` and `u32p` variants |
+| larger GLSU kernels | `u8p,s32p,s32p,u8p,s32,s32,s32,s32,s32,s32,s32,s32,s32`, plus matching `u16p` and `u32p` variants |
+
+The symbol tables are generic: `entry_function`, `_start`, `kernel_entry`,
+`kernel_wrapper`, `memset`, and for the GLSU-like blobs `check_GLSU_2D`,
+`check_GLSU_3D`, and `check_GLSU_4D`. These blobs show the MVPU firmware/kernel
+toolchain's parameter style: a firmware-visible command points at a kernel blob,
+and the blob carries an ordered type signature for its arguments. They do not,
+by themselves, decode the `apu_lib_apunn` XRP command header or the internal
+`10001..10009` APUNN operation namespace. The APUNN parser boundary therefore
+remains the raw code-section bytes consumed behind `apu_lib_apunn`, not the MVPU
+kernel-info metadata in `libmvpuop_mtk_nn.mtk.so`.
+
 ## Output header and writeback clues
 
 `/tmp/mtk-apu-artifacts/libneuron_platform.so` and
@@ -507,7 +550,7 @@ The relevant standard-wrapper field interpretation is now:
 | `PrepareOutputHeader(bool)` | Writes output `+0x00/+0x04 = 0xffffffff/0x40`, `+0x08 = 4`, `+0x0c = output_size`, `+0x10 = bool flag` |
 | `PrepareDataBuffer()` | Allocates a data-descriptor section sized as `data_buffer_count * 0x0c`; the zero-data-buffer path is valid and leaves no data section to consume |
 | `FinalizeDataBuffer()` | Fills each 12-byte data descriptor as `{access_flags, buffer_size, iova_low32}` from registered data buffers |
-| `CreateVpuRequest()` | Creates the target VPU request. Static target-side evidence currently shows repeated `vpuRequest_addBuffer()` calls; a matching `vpuRequest_setProperty()` call has not been found in this function |
+| `CreateVpuRequest()` | Creates the target VPU request through repeated `vpuRequest_addBuffer()` calls; `vpuRequest_setProperty()` is resolved in the binding table but not used by this function |
 
 This correction changes the interpretation of the two-native-buffer Java
 experiments below: they are useful descriptor-following probes, but they are not
@@ -1155,7 +1198,7 @@ The target `libneuron_platform.vpu.so` binding table also resolves the
 |---:|---|---|
 | `stream+0x20` | `vpuStream_acquire` | Creates/acquires the libvpu request object for the selected algorithm |
 | `stream+0x88` | `vpuRequest_addBuffer` | Called five consecutive times with the same stack `VpuBuffer` object |
-| `stream+0x90` | `vpuRequest_setProperty` | Resolved by the constructor, but no call is visible in `CreateVpuRequest()` |
+| `stream+0x90` | `vpuRequest_setProperty` | Resolved by the constructor, but unused by `CreateVpuRequest()` |
 
 `libvpu5.so::VpuRequestImp::addBuffer()` maps that stack `VpuBuffer` into the
 firmware-visible `struct vpu_buffer` slots as follows:
@@ -1557,8 +1600,8 @@ This gives the current interpretation boundary:
   completion condition.
 - The `target_code5_no_settings` result keeps those five code/input native
   descriptors but clears the native settings tuple (`request+0x38/+0x40 = 0`),
-  matching the target `CreateVpuRequest()` path where no `setProperty()` call
-  is visible. Dispatch still returns `0`, settings/output/data remain
+  matching the target `CreateVpuRequest()` no-property path. Dispatch still
+  returns `0`, settings/output/data remain
   unchanged, and code word `0` changes `0x2713 -> 0x271b`. The explicit wait
   variant returns `0` from `mdw_usr_wait_cmd`, consumes the command, and still
   leaves APUNN settings/output/data unchanged. The settings-property tuple is
@@ -1765,7 +1808,7 @@ Userland wrapper evidence:
 | `libneuron_platform.vpu.so` | `XrpIntrinsicExecutor::PrepareDataSection` | `0xfacc` | Builds 12-byte data entries |
 | `libneuron_platform.vpu.so` | `XrpIntrinsicExecutor::SendRequest` | `0x10044` | Transitions command flags from initialize state toward send state by clearing `0x2` and setting `0x1` |
 | `libneuron_platform.vpu.so` | `XrpIntrinsicExecutor::WaitRequest` | `0x101e0` | Requires `(settings[0] & 0x0a) == 0x02` after VPU wait before treating the XRP command as completed |
-| `libneuron_platform.vpu.so` | `XrpVpuStream::CreateVpuRequest` | `0x16d54` | Calls `vpuStream_acquire`, then `vpuRequest_addBuffer()` five times through `stream+0x88`; no `vpuRequest_setProperty()` call is visible in this function |
+| `libneuron_platform.vpu.so` | `XrpVpuStream::CreateVpuRequest` | `0x16d54` | Calls `vpuStream_acquire`, then `vpuRequest_addBuffer()` five times through `stream+0x88`; leaves the resolved `vpuRequest_setProperty()` slot unused |
 | `libneuron_platform.so` | `XrpCommandInfo::PrepareOutputHeader` | `0x129bc` | Writes the output header qword, result size `4`, output size, and output sync/header flag byte |
 | `libneuron_platform.so` | `XrpDebugger::PrintXtensaOperations` | `0x13664` | Confirms the debug-visible Xtensa operation fields: stride at code `+0x04`, opcode at entry `+0x00`, operand-list offset at `+0x08`, input count at `+0x0c`, output count at `+0x10`, and operand ids at `entry+0x48+operand_off` |
 | `libneuron_platform.so` | `XrpIntrinsic::PrepareXrpCommand` | `0x16ac0` | Standard path: binds input/code, prepares Xtensa command fields, allocates/binds output, and prepares output fields |
