@@ -834,6 +834,38 @@ Result files:
 - `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_op_shape_matrix_repeat.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_op_shape_matrix_repeat_kernel.txt`
 
+The target-wrapper opcode matrix keeps the same target-wrapper-shaped request,
+`buffer_count=5`, and one output operand `[0]`, but varies the first operation
+opcode through the recovered internal APUNN opcode range `10001..10009`.
+This is the first target-wrapper/no-settings matrix that clearly changes
+firmware behavior by opcode class:
+
+| Opcode | Label | Wait result | Code word result |
+|---:|---|---|---|
+| `10001` / `0x2711` | `GET_ALGO_INFO` | `0` | `0x2711 -> 0x271b` in both dispatch runs |
+| `10002` / `0x2712` | `LOCAL_MEM_INFO` | `0` | `0x2712 -> 0x271b` in the first run; no visible write in the repeat |
+| `10003` / `0x2713` | `XTENSA_ANN_VERSION` | `0` | `0x2713 -> 0x271b` in both dispatch runs |
+| `10004` / `0x2714` | `GET_DETAILED_OP_INFO` | `0` | no visible write in either dispatch run |
+| `10005` / `0x2715` | `UNKNOWN_10005` | `-EIO` | no visible write |
+| `10006` / `0x2716` | `APU_LIB_APUNN_10006` | `-EIO` | `0x2716 -> 0x2715` |
+| `10007` / `0x2717` | `APU_LIB_CUSTOM_10007` | `-EIO` | `0x2717 -> 0x2715` |
+| `10008` / `0x2718` | `APUNN_DYNAMIC_10008` | `0` | `0x2718 -> 0x271b` in both dispatch runs |
+| `10009` / `0x2719` | `CUSTOM_DYNAMIC_10009` | `0` | `0x2719 -> 0x271b` in both dispatch runs |
+
+No-dispatch controls preserve every requested opcode. Both dispatch runs leave
+APUNN settings/output/data unchanged for every opcode. Kernel logs contain
+D2D_EXT timeout and `mdw_wait_cmd` failure lines for the `10005..10007`
+wait-failure cases.
+
+Result files:
+
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_opcode_matrix_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_opcode_matrix_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_opcode_matrix.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_opcode_matrix_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_opcode_matrix_repeat.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_opcode_matrix_repeat_kernel.txt`
+
 This rules out the presence of a direct settings-property tuple as the cause of
 the current incomplete boundary. The target-wrapper-shaped no-settings request
 is accepted by APUSYS/VPU and can be waited successfully when at least one native
@@ -843,8 +875,9 @@ next unresolved field is therefore not ordinary VPU descriptor metadata,
 nonzero descriptor count, `request+0x38/+0x40` presence, native descriptor
 payload size, request priority/slot, descriptor port/format/plane-count bytes,
 descriptor height, output operand id, tested input/output count combinations,
-or basic `0x1c8` opcode/count routing. It is the APUNN firmware-side
-completion/output contract: the standard wrapper's
+or basic `0x1c8` count routing. The opcode word is parsed and does select
+different APUNN firmware-side status/timeout classes, but opcode alone is still
+not the completion/output contract. The remaining gap is the standard wrapper's
 code/output/data buffer contents, command flags, or output-header semantics that
 make APUNN signal done and write to the settings output section.
 
@@ -1473,6 +1506,15 @@ This gives the current interpretation boundary:
   `0` from wait, write `0x2713 -> 0x271b` in every case, and never change APUNN
   settings/output/data. The tested count combinations are therefore accepted
   operation metadata, not the APUNN completion/output condition.
+- The `target_code5_no_settings_opcode_matrix` result keeps the same
+  five-descriptor/no-settings request shape and `buffer_count=5`, but varies the
+  first operation opcode through `10001..10009`. This proves the firmware parses
+  the opcode word: `10005` returns `-EIO` and times out without a visible state
+  write, `10006` and `10007` return `-EIO` and rewrite the first word to
+  `10005`, `10004` returns `0` without visible descriptor-0 writeback, and
+  `10001`, `10003`, `10008`, and `10009` consistently write `0x271b`.
+  `10002` is accepted, with one no-write repeat matching the known unstable
+  state-write oracle. No tested opcode changes APUNN settings/output/data.
 - The `wrapper_one_data_output44` result follows the host wrapper's dynamic
   output-size formula for one `0x1c8` Xtensa operation: output size
   `0x40 + 4 * 1 = 0x44`, output header flag `1`, `settings_len=0x68`,
@@ -1648,8 +1690,11 @@ descriptor-0 state write is not a reliable completion oracle. The output
 operand-id matrix accepts `0,1,2,3,0xffff` with the same boundary and no APUNN
 settings/output/data changes. The operation-shape matrix accepts input/output
 count tuples `0/0`, `0/1`, `0/2`, `1/0`, `1/1`, and `2/1` with the same
-boundary. Libvpu-style descriptor metadata, a five-descriptor alias shape, and
-the wrapper send-state command flag value `0x5` do not change that boundary.
+boundary. The opcode matrix is the exception among operation-entry metadata:
+`10005..10007` select timeout/error behavior and `10006/10007` normalize to
+`10005`, but no opcode in `10001..10009` produces APUNN output completion.
+Libvpu-style descriptor metadata, a five-descriptor alias shape, and the wrapper
+send-state command flag value `0x5` do not change that completion boundary.
 Changing the firmware-visible settings length from `0x100` to the wrapper DSP
 command buffer size `0x68` also leaves the same boundary in place. Setting the
 wrapper-controlled output header flag byte at `output+0x10` to `1` does not
@@ -1667,6 +1712,9 @@ Changing the single output operand id through `0`, `1`, `2`, `3`, and `0xffff`
 also leaves the same boundary.
 Changing `XTENSA_ANN_VERSION` input/output counts through `0/0`, `0/1`, `0/2`,
 `1/0`, `1/1`, and `2/1` also leaves the same boundary.
+Changing opcode through the recovered `10001..10009` APUNN table does alter
+firmware status/timeout behavior, but still leaves settings/output/data
+unchanged in the current request shape.
 Clearing `request+0x38/+0x40` rules out the direct settings-property tuple as
 the cause of the writeback or of the incomplete boundary. The current semantic
 clue is status/flags behavior on native descriptor `0`, not a leak. It does not
