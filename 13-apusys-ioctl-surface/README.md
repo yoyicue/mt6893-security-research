@@ -13,7 +13,7 @@ The current result is **reachable through APUSYS memory import, normal-VPU algor
 
 The directory has no CVE number yet. The repository uses CVE-numbered directories when a test is tied to a specific public CVE or confirmed bug class. APUSYS is currently an exposed proprietary ioctl surface with confirmed VPU hardware dispatch reachability from an unprivileged `system_app` context, but no confirmed CVE match or memory corruption primitive.
 
-This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths, negative memory-create cases, optional device-control reachability checks, direct dmabuf-source checks, a candidate-fd scan for the memory import path, HardwareBuffer-backed dmabuf import, controlled `ucmd` gate tests, zero-header / invalid-subcommand `run_cmd_async` parser probes, a normal-VPU valid-type request-size guard probe, a full-size (`0xb70`) VPU execution probe, a chained IOVA-import + VPU request probe, an XRP-shaped APUNN settings probe, no-dispatch IOVA controls, a small APUNN/XRP opcode/operand matrix mode, and two-native-buffer internal-command modes with minimal and libvpu-style descriptor metadata. The remaining closure work is to recover the APUNN internal input-buffer contents and output/completion contract.
+This directory documents the ioctl surface and current runtime probes. The Java probe covers reject/query paths, negative memory-create cases, optional device-control reachability checks, direct dmabuf-source checks, a candidate-fd scan for the memory import path, HardwareBuffer-backed dmabuf import, controlled `ucmd` gate tests, zero-header / invalid-subcommand `run_cmd_async` parser probes, a normal-VPU valid-type request-size guard probe, a full-size (`0xb70`) VPU execution probe, a chained IOVA-import + VPU request probe, an XRP-shaped APUNN settings probe, no-dispatch IOVA controls, a small APUNN/XRP opcode/operand matrix mode, and two-native-buffer internal-command modes with minimal/libvpu-style descriptor metadata plus wrapper send-state command flags. The remaining closure work is to recover the APUNN internal input-buffer contents and output/completion contract.
 
 ## IDA handler map
 
@@ -646,7 +646,7 @@ inside the VPU path, but not APUNN XRP output consumption.
 ## Current risk ranking
 
 1. **VPU D2D_EXT parameter ABI and IOVA-chain validation**: Highest current APUSYS task. `system_app` can import HardwareBuffer dmabufs, get APUSYS IOVA values, submit full-size normal-VPU requests, and reach `apu_lib_apunn`. Kernel source now confirms the firmware handoff: `vpu_execute_d2d()` passes `buffer_count`, copied `struct vpu_buffer[]` IOVA, `sett_ptr`, and `sett_length` through `XTENSA_INFO12..15`; D2D_EXT also carries preload entry/IRAM through `XTENSA_INFO16/19`. Runtime shows VPU boot/map activity and descriptor-following into imported memory. APUNN output/data consumption is still not proven.
-2. **Firmware completion/output contract under VPU dispatch**: The one-buffer internal query/status shapes timeout in the VPU worker. The two-native-buffer host-wrapper shape changes lifecycle behavior: `run_cmd_async` returns `0`, kernel logs show VPU map/boot activity without the earlier captured `D2D_EXT timeout`, teardown logs residual command state, and the visible writeback moves to copied native buffer descriptor `0`. Libvpu-style descriptor metadata (`port_id=1`, `height=1`, `stride=size`) and a five-descriptor alias shape do not change the boundary. The missing contract is what makes firmware signal done through `XTENSA_INFO00/02` and what settings/input/output shape causes APUNN output writeback.
+2. **Firmware completion/output contract under VPU dispatch**: The one-buffer internal query/status shapes timeout in the VPU worker. The two-native-buffer host-wrapper shape changes lifecycle behavior: `run_cmd_async` returns `0`, kernel logs show VPU map/boot activity without the earlier captured `D2D_EXT timeout`, teardown logs residual command state, and the visible writeback moves to copied native buffer descriptor `0`. Libvpu-style descriptor metadata (`port_id=1`, `height=1`, `stride=size`), a five-descriptor alias shape, and wrapper send-state settings `+0x00 = 0x5` do not change the boundary. The missing contract is what makes firmware signal done through `XTENSA_INFO00/02`, make settings flags satisfy `(settings[0] & 0x0a) == 0x02`, and cause APUNN output writeback.
 3. **Timeout-path command object lifetime**: `run_cmd_async` returns before the worker completes. Guard and two-buffer runs both show residual command cleanup boundaries. The same lifetime edge matters for fd close, process teardown, timeout, and abort experiments.
 4. **Writeback attribution and command-buffer copyback**: Split-target and two-buffer runs localize the visible imported-buffer deltas to native VPU plane IOVAs reached through copied descriptors. The remaining attribution task is the semantic meaning of the observed `+1` / `+8` style first-word writebacks and whether they are firmware status, request-result fields, or internal command side effects.
 5. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` import HardwareBuffer fds through APUSYS type-2/type-3 memory-create and copy out IOVA-like descriptor fields. This is the input path for any VPU request that references user-controlled memory.
@@ -952,6 +952,16 @@ CLASSPATH=.../apusys_ioctl_probe.dex \
 CLASSPATH=.../apusys_ioctl_probe.dex \
   app_process64 /system/bin ApusysIoctlProbe \
   --run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-control
+
+# Two-buffer libvpu metadata setup with wrapper send-state settings[0]=0x5:
+CLASSPATH=.../apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe \
+  --run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags
+
+# Same send-state setup, no final run_cmd_async dispatch:
+CLASSPATH=.../apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe \
+  --run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-control
 
 # Libvpu metadata plus five copied descriptors:
 CLASSPATH=.../apusys_ioctl_probe.dex \
@@ -1374,9 +1384,9 @@ Interpretation: APUSYS memory-create is now a mapped and runtime-confirmed impor
 
 The remaining APUSYS closure items are:
 
-- Map how `apu_lib_apunn` uses the copied `struct vpu_buffer[]` beyond ordinary libvpu metadata. `port_id=1`, DATA format, `plane_count=1`, `height=1`, `stride=size`, `length=size`, and `buffer_count=5` aliases have been tested without changing output/completion behavior.
-- Determine the firmware completion/output contract: which APUNN settings and buffer descriptor fields cause `DS_PREEMPT_DONE` / `DS_ALG_DONE`, `XTENSA_INFO00`, and `XTENSA_INFO02` to be produced, and which path maps to host `WritebackCommand()` output handling.
-- Extend the two-buffer matrix across APUNN command flags, settings size/IOVA, output header fields, output buffer size, and code/input first-word fields. The current descriptor shapes prove descriptor-following but still leave APUNN output/data windows unchanged.
+- Map how `apu_lib_apunn` uses the copied `struct vpu_buffer[]` beyond ordinary libvpu metadata. `port_id=1`, DATA format, `plane_count=1`, `height=1`, `stride=size`, `length=size`, `buffer_count=5` aliases, and wrapper send-state settings `+0x00 = 0x5` have been tested without changing output/completion behavior.
+- Determine the firmware completion/output contract: which APUNN settings and buffer descriptor fields cause `DS_PREEMPT_DONE` / `DS_ALG_DONE`, `XTENSA_INFO00`, and `XTENSA_INFO02` to be produced, which run changes settings flags to satisfy `(settings[0] & 0x0a) == 0x02`, and which path maps to host `WritebackCommand()` output handling.
+- Extend the two-buffer matrix across settings size/IOVA, output header fields, output buffer size, code/input first-word fields, and internal input contents. Additional command-flag values are control cases now that the wrapper send-state value `0x5` has been tested. The current descriptor shapes prove descriptor-following but still leave APUNN output/data windows unchanged.
 - Map the VPU/APUNN-side `0x1c8` operation-entry fields. Host/debug helpers expose opcode, stride, operand-list offset, input count, and output count; the device wrapper only routes raw code-section IOVA/size and counts fixed `0x1c8` entries.
 - Attribute the native plane first-word writebacks semantically: identify whether they are firmware status, driver-side status, request-result fields, or internal command side effects.
 - Map `mdw_cmd_sc_clr_hnd` writeback after provider return and timeout/abort.

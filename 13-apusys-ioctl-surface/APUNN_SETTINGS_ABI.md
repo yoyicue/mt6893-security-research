@@ -422,6 +422,45 @@ firmware-side completion/output contract: the command flags, settings fields,
 internal input contents, or output-header semantics that make APUNN signal done
 and write to the settings output section.
 
+## Command flags and completion state
+
+Target-side `libneuron_platform.vpu.so` adds one wrapper state transition that
+the direct ioctl probe originally skipped. `XrpIntrinsicExecutor::SendRequest()`
+at `0x10044` finds the command info, clears bit `0x2`, sets bit `0x1`, and then
+calls `XrpVpuStream::RunRequest()`. A normally sent command therefore enters
+the kernel/VPU path with settings `+0x00 == 0x5`, not the post-initialize value
+`0x4`.
+
+`XrpIntrinsicExecutor::WaitRequest()` at `0x101e0` calls
+`XrpVpuStream::WaitRequest()` and then reads the same command flags. Its success
+predicate is:
+
+```text
+(settings[0] & 0x0a) == 0x02
+```
+
+So the APUNN completion contract must eventually set bit `0x2` and leave bit
+`0x8` clear. The host-side wrapper has the same model in a more explicit
+writeback path: `libneuron_platform.so::WritebackCommand()` at `0x22660`
+requires the same `(flags & 0x0a) == 0x02` predicate before it copies output and
+records the first output word as command status.
+
+The `--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags`
+variant tests this missing wrapper state against the current strongest request
+shape: two native buffers, libvpu-style descriptors, opcode `10003`, and
+settings `+0x00 == 0x5`.
+
+| Variant | Runtime result |
+|---|---|
+| `send_flags` no-dispatch control | All settings/code/output/data windows stay unchanged |
+| `send_flags` dispatch | `run_async_vpu_iova ret=0`; settings remain `0x5`, not completion state; code/input first word changes `0x2713 -> 0x271b`; output/data windows remain unchanged |
+
+This rules out the wrapper send-state flag as the only missing condition. It
+also gives a concrete firmware-side success oracle for future runs: a completed
+APUNN command should visibly change settings `+0x00` so that
+`(flags & 0x0a) == 0x02`, and the output section should no longer retain the
+initial `0xffffffff, 0x40, 4, size` header.
+
 Additional matrix result files:
 
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_matrix_iova.txt`
@@ -440,6 +479,10 @@ Additional matrix result files:
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc5_kernel.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc5_control.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc5_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc_send_flags.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc_send_flags_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc_send_flags_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc_send_flags_control_kernel.txt`
 
 ## Evidence map
 
@@ -458,9 +501,12 @@ Userland wrapper evidence:
 | `libneuron_platform.vpu.so` | `XrpCommandInfo::InitOutputSection` | `0xc848` | Initializes output header and writes output size/IOVA |
 | `libneuron_platform.vpu.so` | `XrpCommandInfo::InitDataSection` | `0xcaa0` | Writes data descriptor size/IOVA |
 | `libneuron_platform.vpu.so` | `XrpIntrinsicExecutor::PrepareDataSection` | `0xfacc` | Builds 12-byte data entries |
+| `libneuron_platform.vpu.so` | `XrpIntrinsicExecutor::SendRequest` | `0x10044` | Transitions command flags from initialize state toward send state by clearing `0x2` and setting `0x1` |
+| `libneuron_platform.vpu.so` | `XrpIntrinsicExecutor::WaitRequest` | `0x101e0` | Requires `(settings[0] & 0x0a) == 0x02` after VPU wait before treating the XRP command as completed |
 | `libneuron_platform.vpu.so` | `XrpVpuStream::CreateVpuRequest` | `0x16d54` | Calls `vpuRequest_setProperty()` for the prepared settings payload |
 | `libneuron_platform.so` | `XrpIntrinsic::PrepareInternalCommand` | `0x1728c` | Allocates internal input and output buffers before APUNN dispatch |
 | `libneuron_platform.so` | `XrpIntrinsicExecutor::PrepareInternalCommandBuffer` | `0x1ff48` | Binds first internal buffer to settings code fields and second internal buffer to settings output fields |
+| `libneuron_platform.so` | `XrpIntrinsicExecutor::WritebackCommand` | `0x22660` | Host wrapper requires the same completion-flag predicate and records the first output word as command status |
 | `libneuron_platform.so` | `XrpVpuStream::DefaultCreateVpuRequest` | `0x2ad64` | Creates libvpu-style descriptors with `port_id=1`, `height=1`, and `stride=size`; default path calls `addBuffer()` five times |
 
 Kernel handoff evidence:
@@ -480,9 +526,9 @@ operation shapes, a controlled native VPU buffer writeback, a per-case timeout
 for the earlier one-buffer shape, and a two-native-buffer `XTENSA_ANN_VERSION`
 dispatch where copied native buffer descriptor `0` points at the code/input
 window and the kernel logs residual command state instead of the earlier D2D
-timeout. Libvpu-style descriptor metadata and a five-descriptor alias shape do
-not change that boundary. It does not yet prove APUNN data descriptor
-consumption, APUNN output-section writeback, the missing completion parameter,
-or the full semantic meaning of the observed native-buffer writeback. The
-batch-level devapc warning remains non-attributed because isolated single-case
-runs did not reproduce it.
+timeout. Libvpu-style descriptor metadata, a five-descriptor alias shape, and
+the wrapper send-state command flag value `0x5` do not change that boundary.
+It does not yet prove APUNN data descriptor consumption, APUNN output-section
+writeback, the missing completion parameter, or the full semantic meaning of
+the observed native-buffer writeback. The batch-level devapc warning remains
+non-attributed because isolated single-case runs did not reproduce it.
