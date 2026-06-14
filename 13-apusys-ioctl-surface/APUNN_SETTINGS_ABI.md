@@ -637,16 +637,42 @@ as state-word behavior on copied native descriptor `0`. It still does not show
 APUNN settings completion, APUNN output-section copyback, or a source-sensitive
 leak.
 
+The descriptor-size matrix keeps the same target-wrapper-shaped request, keeps
+code/input word `0` at `0x2713`, and varies only the copied native descriptor
+payload size fields (`width`, `stride`, and `length`) across all five
+code/input descriptors:
+
+| Descriptor size | Control result | First dispatch + wait | Repeat dispatch + wait |
+|---:|---|---|---|
+| `0,1,2,3,4,5,6,8,0x20,0x40,0x1c8` | Code word remains `0x2713`; APUNN windows unchanged | Code word becomes `0x271b`; async `0`, wait `0` | Code word becomes `0x271b`; async `0`, wait `0` |
+| `7,9,0xc,0x10` | Code word remains `0x2713`; APUNN windows unchanged | Code word remains `0x2713`; async `0`, wait `0` | Code word becomes `0x271b`; async `0`, wait `0` |
+
+Result files:
+
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_size_matrix_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_size_matrix_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_size_matrix.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_size_matrix_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_size_matrix_repeat.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_size_matrix_repeat_kernel.txt`
+
+Every tested descriptor size is accepted by the kernel/worker path. The repeat
+run shows the visible descriptor-0 state write can happen even when the native
+descriptor advertises payload size `0`, so those size fields are not a hard
+bounds gate for this state-word writeback. The first run's no-write cases also
+show that this signal is timing/state/cache-sensitive and should not be treated
+as a normal APUNN completion oracle.
+
 This rules out the presence of a direct settings-property tuple as the cause of
 the current incomplete boundary. The target-wrapper-shaped no-settings request
 is accepted by APUSYS/VPU and can be waited successfully, but firmware still
 does not transition settings flags to `(settings[0] & 0x0a) == 0x02` or write
 the APUNN output/data windows. The next unresolved field is therefore not
 ordinary VPU descriptor metadata, descriptor count, `request+0x38/+0x40`
-presence, or basic `0x1c8` opcode/count routing. It is the APUNN firmware-side
-completion/output contract: the standard wrapper's code/output/data buffer
-contents, command flags, or output-header semantics that make APUNN signal done
-and write to the settings output section.
+presence, native descriptor payload size, or basic `0x1c8` opcode/count routing.
+It is the APUNN firmware-side completion/output contract: the standard wrapper's
+code/output/data buffer contents, command flags, or output-header semantics that
+make APUNN signal done and write to the settings output section.
 
 ## Command flags and completion state
 
@@ -1199,6 +1225,15 @@ This gives the current interpretation boundary:
   with a VPU scheduler timeout in the kernel log. Settings/output/data remain
   unchanged. The visible descriptor-0 writeback therefore behaves like a
   firmware/worker state word, not an APUNN output copyback.
+- The `target_code5_no_settings_size_matrix` result keeps the same request shape
+  and first word `0x2713`, but varies native descriptor `width`/`stride`/`length`
+  through `0,1,2,3,4,5,6,7,8,9,0xc,0x10,0x20,0x40,0x1c8`. No-dispatch controls
+  preserve `0x2713`, and dispatch plus wait returns `0` for every size. The
+  first dispatch run missed visible descriptor-0 writeback for `7,9,0xc,0x10`,
+  but a repeat run wrote `0x271b` for every tested size, including advertised
+  size `0`. Native descriptor payload size is therefore not a hard acceptance or
+  bounds gate for the current state-word writeback, and the occasional no-write
+  result keeps this signal unsuitable as a normal APUNN completion oracle.
 - The `wrapper_one_data_output44` result follows the host wrapper's dynamic
   output-size formula for one `0x1c8` Xtensa operation: output size
   `0x40 + 4 * 1 = 0x44`, output header flag `1`, `settings_len=0x68`,
@@ -1353,8 +1388,10 @@ request is accepted too, and its explicit wait variant returns `0` while
 preserving the same code/input writeback-only boundary. The descriptor-0
 first-word matrix shows ordinary inputs becoming `old | 0xb`, and the all-ones
 input entering a timeout/error path as `0xffffffff -> 0xfffffffd` with wait
-`-EIO`. Libvpu-style descriptor
-metadata, a five-descriptor alias shape, and
+`-EIO`. The descriptor-size matrix accepts every tested size and repeats the
+same `0x2713 -> 0x271b` state write even when the native descriptor advertises
+payload size `0`, so native descriptor length is not a hard gate for that
+writeback. Libvpu-style descriptor metadata, a five-descriptor alias shape, and
 the wrapper send-state command flag value `0x5` do not change that boundary.
 Changing the firmware-visible settings length from `0x100` to the wrapper DSP
 command buffer size `0x68` also leaves the same boundary in place. Setting the
