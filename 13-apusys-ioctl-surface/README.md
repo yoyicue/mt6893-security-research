@@ -196,6 +196,8 @@ The raw ops tables are named `vpu_normal_algo_ops_raw` at `0xffffffc00979ae70` a
 
 For the `ucmd` path, the relevant lookup callback is `vpu_alg_get`. The branch reached from opcode `7` calls it first on the Normal set and then on the Preload set. The observed `-ENOENT` result therefore means the mapped payload passed the `0x8001` gate, reached the algorithm lookup interface, and missed both sets for the supplied empty key.
 
+The userspace `/vendor/lib64/libvpu.so` wrapper independently confirms this payload ABI. `VpuStreamImp::getAlgo(char const *name)` allocates a 0x24-byte user-command buffer, zeroes it, writes `0x8001` at offset `+0x00`, copies `name` to offset `+0x04` with `strncpy(..., 0x1f)`, and sends it through `apusysEngine::sendUserCmdBuf(..., device 3)`. The kernel-side `vpu_alg_get` compares that key with algorithm object names using `strcmp`: the object name starts at object `+0x00`, the list node is at object `+0x1040`, and the refcount is at object `+0x103c`.
+
 ### APUSYS run_cmd_async / run_cmd_sync path
 
 `0xC0184107` / `mdw_usr_run_cmd_async` and `0x40184106` / `mdw_usr_run_cmd_sync` use a 0x18-byte user argument. The minimum verified layout is:
@@ -379,6 +381,15 @@ CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
 
 `--ucmd-hardwarebuffer` creates a writeable RGBA `ImageReader` / `ImageWriter` pair, writes the first u32 of the image plane, obtains the output image's `HardwareBuffer`, and reuses the same Parcel-fd path for APUSYS. It runs two cases: first u32 `0`, then first u32 `0x8001`. It only calls normal VPU `mdw_usr_ucmd` for fd offsets that first pass APUSYS memory-create.
 
+Optional HardwareBuffer-backed `ucmd` key lookup test:
+
+```sh
+CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe --ucmd-key=Normal
+```
+
+`--ucmd-key=<ascii>` emulates the non-executing `libvpu.so` `VpuStreamImp::getAlgo()` user-command shape: first u32 `0x8001`, up to 31 printable ASCII key bytes at payload offset `+0x04`, then normal VPU `mdw_usr_ucmd` on core `0` and `1`. It only runs after the HardwareBuffer fd first passes APUSYS memory-create. This is a lookup probe, not a VPU execute request.
+
 Optional HardwareBuffer-backed `run_cmd_async` parser test:
 
 ```sh
@@ -550,6 +561,23 @@ CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
 
 Interpretation: a valid HardwareBuffer dmabuf and offset `0` are enough to reach the normal VPU `ucmd` content gate. Keeping the mapped buffer's first u32 at `0` returns `EINVAL`; changing only that first u32 to `0x8001` changes the result to `ENOENT` on both tested cores. That matches the static model where `0x8001` passes the first mapped-buffer check and the next stage walks Normal/Preload algorithm state. Current IDA evidence maps `ENOENT` to both lookup callbacks returning no object for the provided payload. The probe still does not construct a complete VPU algorithm payload.
 
+Observed optional `--ucmd-key=Normal` result from the same `system_app` context on 2026-06-14:
+
+```text
+CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe --ucmd-key=Normal
+...
+[*] --- ucmd HardwareBuffer case: key_Normal first_u32=0x8001 key="Normal" ---
+[+] input image payload: first_u32=0x8001 key_bytes=6 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] parcel_fd_pos_388 fd=60
+[*] hwb_key_Normal_mem2_pos388 cmd=0xc0384103 ret=0
+[*] hwb_key_Normal_mem3_pos388 cmd=0xc038410f ret=0
+[*] ucmd_hwb_key_Normal_c0_pos388 cmd=0x4014410e ret=-2 (ENOENT)
+[*] ucmd_hwb_key_Normal_c1_pos388 cmd=0x4014410e ret=-2 (ENOENT)
+```
+
+Interpretation: the payload now matches the userspace `getAlgo()` shape, including a printable key string at `mapped_kva+4`. `Normal` is the set name, not a loaded algorithm key on this target, so both tested cores still return `ENOENT`. A successful key lookup should change this return path without queueing a VPU execution request.
+
 Observed optional `--run-cmd-hardwarebuffer` result from the same `system_app` context on 2026-06-14:
 
 ```text
@@ -594,6 +622,6 @@ Interpretation: APUSYS memory-create is now a mapped and runtime-confirmed impor
 - Use kernel logs, if available from the lab context, to distinguish whether the `ENOMEM` path comes from ION import, cache sync, or IOVA map setup.
 - Keep the `run_cmd` parser probe limited to zero-header / invalid-header inputs until the command-buffer layout is mapped. Command ops `+0x00`, `+0x10`, and `+0x18` are now resolved as `mdw_cmd_create_cmd`, `mdw_cmd_abort_cmd`, and `mdw_cmd_parse_cmd`.
 - For `0x400C4109`, optional follow-up is a small control-value sweep on the live-success providers while watching return codes and kernel logs. The current control value `0` already confirms provider opcode `0` reachability.
-- For `mdw_usr_ucmd`, recover actual Normal/Preload algorithm keys from firmware/bin metadata or runtime state before adding a matching-key test. The resolved `vpu_alg_get` interface indicates the key begins at or near `mapped_kva+4`, but fields after that key still need mapping.
+- For `mdw_usr_ucmd`, recover actual Normal/Preload algorithm keys from firmware/bin metadata or runtime state before expecting a positive `--ucmd-key=<name>` result. The key string ABI is now confirmed as `mapped_kva+4`, up to 31 bytes, matching userspace `libvpu.so::getAlgo()`.
 - Continue mapping `mdla_run_command_sync`, `vpu_execute`, and `edma_execute` input structures before valid command-buffer experiments.
 - Continue scheduler/queue analysis after command parser targets are known. Valid command-buffer experiments come after that mapping.

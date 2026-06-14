@@ -56,6 +56,7 @@ public final class ApusysIoctlProbe {
         boolean hardwareBuffer = false;
         boolean ucmdHardwareBuffer = false;
         boolean runCmdHardwareBuffer = false;
+        String ucmdKey = null;
         for (String arg : args) {
             if ("--query".equals(arg)) {
                 query = true;
@@ -77,6 +78,9 @@ public final class ApusysIoctlProbe {
                 ucmdHardwareBuffer = true;
             } else if ("--run-cmd-hardwarebuffer".equals(arg)) {
                 runCmdHardwareBuffer = true;
+            } else if (arg.startsWith("--ucmd-key=")) {
+                ucmdKey = arg.substring("--ucmd-key=".length());
+                validateUcmdKey(ucmdKey);
             } else {
                 throw new IllegalArgumentException("unknown option: " + arg);
             }
@@ -85,7 +89,7 @@ public final class ApusysIoctlProbe {
         System.out.println("[*] === APUSYS ioctl probe ===");
         if (memNegative || devCtrl || memDmabuf || memIon || fdScan
                 || ucmdNegative || hardwareBuffer || ucmdHardwareBuffer
-                || runCmdHardwareBuffer) {
+                || runCmdHardwareBuffer || ucmdKey != null) {
             System.out.println("[*] Mode: optional checks enabled;"
                 + " no secure alloc/free, no run_cmd cmdbuf\n");
         } else {
@@ -162,6 +166,10 @@ public final class ApusysIoctlProbe {
 
             if (runCmdHardwareBuffer) {
                 runRunCmdHardwareBufferProbe(fd);
+            }
+
+            if (ucmdKey != null) {
+                runUcmdKeyHardwareBufferProbe(fd, ucmdKey);
             }
 
             System.out.println("\n[+] Probe completed. Interpret results as handler reachability only.");
@@ -473,10 +481,33 @@ public final class ApusysIoctlProbe {
         runOneUcmdHardwareBufferProbe(apusysFd, "gate8001", 0x8001);
     }
 
+    private static void runUcmdKeyHardwareBufferProbe(int apusysFd, String key)
+            throws Exception {
+        System.out.println("\n[*] === Optional APUSYS ucmd key lookup probe ===");
+        System.out.println("[*] Mode: emulate libvpu.so getAlgo payload:"
+            + " first_u32=0x8001, key at +4, then normal VPU ucmd core 0/1");
+
+        loadRuntimeLibraries();
+        dumpClassShape("android.hardware.HardwareBuffer");
+        dumpClassShape("android.media.ImageReader");
+        dumpClassShape("android.media.ImageWriter");
+
+        runOneUcmdHardwareBufferProbe(apusysFd,
+            "key_" + sanitizeLabel(key), 0x8001, key);
+    }
+
     private static void runOneUcmdHardwareBufferProbe(int apusysFd, String label,
                                                       int firstU32) throws Exception {
+        runOneUcmdHardwareBufferProbe(apusysFd, label, firstU32, null);
+    }
+
+    private static void runOneUcmdHardwareBufferProbe(int apusysFd, String label,
+                                                      int firstU32, String key)
+            throws Exception {
         System.out.println("\n[*] --- ucmd HardwareBuffer case: " + label
-            + " first_u32=0x" + Integer.toHexString(firstU32) + " ---");
+            + " first_u32=0x" + Integer.toHexString(firstU32)
+            + (key == null ? "" : " key=\"" + key + "\"")
+            + " ---");
 
         android.media.ImageReader reader = null;
         android.media.ImageWriter writer = null;
@@ -499,7 +530,7 @@ public final class ApusysIoctlProbe {
                 + " usage=0x" + Long.toHexString(writer.getUsage()));
 
             input = writer.dequeueInputImage();
-            fillImageHeader(input, firstU32);
+            fillImageHeader(input, firstU32, key);
             writer.queueInputImage(input);
             input = null;
 
@@ -645,6 +676,11 @@ public final class ApusysIoctlProbe {
 
     private static void fillImageHeader(android.media.Image image, int firstU32)
             throws Exception {
+        fillImageHeader(image, firstU32, null);
+    }
+
+    private static void fillImageHeader(android.media.Image image, int firstU32,
+                                        String key) throws Exception {
         android.media.Image.Plane[] planes = image.getPlanes();
         if (planes == null || planes.length == 0) {
             throw new IllegalStateException("input image has no planes");
@@ -658,13 +694,52 @@ public final class ApusysIoctlProbe {
         buffer.put(1, (byte) ((firstU32 >>> 8) & 0xff));
         buffer.put(2, (byte) ((firstU32 >>> 16) & 0xff));
         buffer.put(3, (byte) ((firstU32 >>> 24) & 0xff));
+        int keyBytes = 0;
+        if (key != null) {
+            byte[] bytes = key.getBytes("US-ASCII");
+            keyBytes = bytes.length < 0x1f ? bytes.length : 0x1f;
+            for (int i = 0; i < keyBytes; i++) {
+                buffer.put(4 + i, bytes[i]);
+            }
+        }
         image.setTimestamp(System.nanoTime());
         System.out.println("[+] input image payload: first_u32=0x"
             + Integer.toHexString(firstU32)
+            + (key == null ? "" : " key_bytes=" + keyBytes)
             + " plane_count=" + planes.length
             + " cap=" + buffer.capacity()
             + " rowStride=" + planes[0].getRowStride()
             + " pixelStride=" + planes[0].getPixelStride());
+    }
+
+    private static void validateUcmdKey(String key) {
+        if (key == null || key.length() == 0) {
+            throw new IllegalArgumentException("--ucmd-key requires a non-empty key");
+        }
+        if (key.length() > 0x1f) {
+            throw new IllegalArgumentException("--ucmd-key is limited to 31 ASCII bytes");
+        }
+        for (int i = 0; i < key.length(); i++) {
+            char ch = key.charAt(i);
+            if (ch < 0x20 || ch > 0x7e) {
+                throw new IllegalArgumentException(
+                    "--ucmd-key must contain printable ASCII only");
+            }
+        }
+    }
+
+    private static String sanitizeLabel(String text) {
+        StringBuilder out = new StringBuilder();
+        for (int i = 0; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')
+                    || (ch >= '0' && ch <= '9')) {
+                out.append(ch);
+            } else {
+                out.append('_');
+            }
+        }
+        return out.toString();
     }
 
     private static android.media.Image acquireImage(android.media.ImageReader reader)
