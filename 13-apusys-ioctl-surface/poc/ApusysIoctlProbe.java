@@ -204,6 +204,28 @@ public final class ApusysIoctlProbe {
         }
     }
 
+    private static final class XrpDataDescEntry {
+        final int flags;
+        final int size;
+        final int iovaOffset;
+
+        XrpDataDescEntry(int flags, int size, int iovaOffset) {
+            this.flags = flags;
+            this.size = size;
+            this.iovaOffset = iovaOffset;
+        }
+    }
+
+    private static final class XrpDataEntryCase {
+        final String label;
+        final XrpDataDescEntry[] entries;
+
+        XrpDataEntryCase(String label, XrpDataDescEntry[] entries) {
+            this.label = label;
+            this.entries = entries;
+        }
+    }
+
     private ApusysIoctlProbe() {
     }
 
@@ -289,6 +311,8 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpTargetSettings5NoSettingsOutputShapeMatrixIovaControl = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsDataDescMatrixIova = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsDataDescMatrixIovaControl = false;
+        boolean runCmdVpuXrpTargetSettings5NoSettingsDataEntryMatrixIova = false;
+        boolean runCmdVpuXrpTargetSettings5NoSettingsDataEntryMatrixIovaControl = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsDataPayloadMatrixIova = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsDataPayloadMatrixIovaControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = false;
@@ -472,6 +496,10 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpTargetSettings5NoSettingsDataDescMatrixIova = true;
             } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-data-desc-matrix-iova-control".equals(arg)) {
                 runCmdVpuXrpTargetSettings5NoSettingsDataDescMatrixIovaControl = true;
+            } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-data-entry-matrix-iova".equals(arg)) {
+                runCmdVpuXrpTargetSettings5NoSettingsDataEntryMatrixIova = true;
+            } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-data-entry-matrix-iova-control".equals(arg)) {
+                runCmdVpuXrpTargetSettings5NoSettingsDataEntryMatrixIovaControl = true;
             } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-data-payload-matrix-iova".equals(arg)) {
                 runCmdVpuXrpTargetSettings5NoSettingsDataPayloadMatrixIova = true;
             } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-data-payload-matrix-iova-control".equals(arg)) {
@@ -593,6 +621,8 @@ public final class ApusysIoctlProbe {
                 || runCmdVpuXrpTargetSettings5NoSettingsOutputShapeMatrixIovaControl
                 || runCmdVpuXrpTargetSettings5NoSettingsDataDescMatrixIova
                 || runCmdVpuXrpTargetSettings5NoSettingsDataDescMatrixIovaControl
+                || runCmdVpuXrpTargetSettings5NoSettingsDataEntryMatrixIova
+                || runCmdVpuXrpTargetSettings5NoSettingsDataEntryMatrixIovaControl
                 || runCmdVpuXrpTargetSettings5NoSettingsDataPayloadMatrixIova
                 || runCmdVpuXrpTargetSettings5NoSettingsDataPayloadMatrixIovaControl
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix
@@ -1071,6 +1101,16 @@ public final class ApusysIoctlProbe {
 
             if (runCmdVpuXrpTargetSettings5NoSettingsDataDescMatrixIovaControl) {
                 runRunCmdVpuXrpTargetSettings5NoSettingsDataDescMatrixProbe(
+                    fd, false);
+            }
+
+            if (runCmdVpuXrpTargetSettings5NoSettingsDataEntryMatrixIova) {
+                runRunCmdVpuXrpTargetSettings5NoSettingsDataEntryMatrixProbe(
+                    fd, true);
+            }
+
+            if (runCmdVpuXrpTargetSettings5NoSettingsDataEntryMatrixIovaControl) {
+                runRunCmdVpuXrpTargetSettings5NoSettingsDataEntryMatrixProbe(
                     fd, false);
             }
 
@@ -1907,7 +1947,8 @@ public final class ApusysIoctlProbe {
             codeFirstWordOverride, descriptorPayloadSizeOverride,
             requestPriorityOverride, requestBufferCountOverride,
             descriptorPortIdOverride, descriptorFormatOverride,
-            descriptorPlaneCountOverride, descriptorHeightOverride, null, null);
+            descriptorPlaneCountOverride, descriptorHeightOverride, null, null,
+            null);
     }
 
     private static void runRunCmdVpuIovaHardwareBufferProbe(int apusysFd,
@@ -1935,7 +1976,8 @@ public final class ApusysIoctlProbe {
                                                             Integer descriptorPlaneCountOverride,
                                                             Integer descriptorHeightOverride,
                                                             Integer outerCodebufSizeOverride,
-                                                            Integer dataPayloadWordBaseOverride)
+                                                            Integer dataPayloadWordBaseOverride,
+                                                            XrpDataDescEntry[] dataDescEntriesOverride)
             throws Exception {
         System.out.println("\n[*] === Optional APUSYS run_cmd VPU IOVA chained probe ===");
         if (xrpSettings) {
@@ -2063,6 +2105,10 @@ public final class ApusysIoctlProbe {
                     + Integer.toHexString(dataPayloadWordBaseOverride)
                     + "+n.");
             }
+            if (dataDescEntriesOverride != null) {
+                System.out.println("[*] XRP data descriptor entries override: "
+                    + dataDescEntriesText(dataDescEntriesOverride));
+            }
         } else {
             System.out.println("[*] Mode: mem_create imports HardwareBuffer to get IOVA,"
                 + " then the VPU request references that IOVA in libvpu-style"
@@ -2156,7 +2202,7 @@ public final class ApusysIoctlProbe {
                 java.nio.ByteBuffer originalBuf = planes[0].getBuffer();
                 fillXrpSettingsBuffer(originalBuf, iovaLow, iovaSize, xrpOp,
                     cmdFlags, outputHeaderFlag, settingsShape,
-                    dataPayloadWordBaseOverride);
+                    dataPayloadWordBaseOverride, dataDescEntriesOverride);
                 if (codeFirstWordOverride != null && xrpOp.hasCode()) {
                     putU32LE(originalBuf, XRP_CODE_OFF, codeFirstWordOverride);
                 }
@@ -3154,6 +3200,61 @@ public final class ApusysIoctlProbe {
         }
     }
 
+    private static void runRunCmdVpuXrpTargetSettings5NoSettingsDataEntryMatrixProbe(
+            int apusysFd, boolean dispatch) throws Exception {
+        XrpDataEntryCase[] cases = {
+            new XrpDataEntryCase("standard_flags3_payload",
+                new XrpDataDescEntry[] {
+                    new XrpDataDescEntry(3, XRP_DATA_PAYLOAD_SIZE,
+                        XRP_NZ_DATA_PAYLOAD_OFF),
+                }),
+            new XrpDataEntryCase("flags1_payload",
+                new XrpDataDescEntry[] {
+                    new XrpDataDescEntry(1, XRP_DATA_PAYLOAD_SIZE,
+                        XRP_NZ_DATA_PAYLOAD_OFF),
+                }),
+            new XrpDataEntryCase("flags2_payload",
+                new XrpDataDescEntry[] {
+                    new XrpDataDescEntry(2, XRP_DATA_PAYLOAD_SIZE,
+                        XRP_NZ_DATA_PAYLOAD_OFF),
+                }),
+            new XrpDataEntryCase("flags3_size0_payload",
+                new XrpDataDescEntry[] {
+                    new XrpDataDescEntry(3, 0, XRP_NZ_DATA_PAYLOAD_OFF),
+                }),
+            new XrpDataEntryCase("payload_then_plane",
+                new XrpDataDescEntry[] {
+                    new XrpDataDescEntry(3, XRP_DATA_PAYLOAD_SIZE,
+                        XRP_NZ_DATA_PAYLOAD_OFF),
+                    new XrpDataDescEntry(3, XRP_PLANE_PAYLOAD_SIZE,
+                        XRP_NZ_PLANE_PAYLOAD_OFF),
+                }),
+            new XrpDataEntryCase("plane_then_payload",
+                new XrpDataDescEntry[] {
+                    new XrpDataDescEntry(3, XRP_PLANE_PAYLOAD_SIZE,
+                        XRP_NZ_PLANE_PAYLOAD_OFF),
+                    new XrpDataDescEntry(3, XRP_DATA_PAYLOAD_SIZE,
+                        XRP_NZ_DATA_PAYLOAD_OFF),
+                }),
+        };
+        for (XrpDataEntryCase dataCase : cases) {
+            XrpSettingsShape shape = new XrpSettingsShape(
+                "wrapper_data_entries_" + dataCase.label,
+                XRP_OUTPUT_SIZE_WRAPPER_DEFAULT,
+                dataCase.entries.length * XRP_DATA_DESC_SIZE, true);
+            System.out.println("\n[*] === target-settings5/no-settings"
+                + " data-entry case " + dataCase.label + " dispatch="
+                + (dispatch ? 1 : 0) + " ===");
+            runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, true, true,
+                XRP_OP_ANN_VERSION, 1000, true, VPU_DESC_LIBVPU_SETTINGS5,
+                XRP_CMD_FLAGS_SEND, VPU_DESC_ORDER_CODE_OUTPUT,
+                XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
+                shape, dispatch, VPU_REQUEST_FLAGS_DEFAULT, false,
+                XRP_OPCODE_XTENSA_ANN_VERSION, null, null, null, null, null,
+                null, null, null, null, dataCase.entries);
+        }
+    }
+
     private static void runRunCmdVpuXrpTargetSettings5NoSettingsDataPayloadMatrixProbe(
             int apusysFd, boolean dispatch) throws Exception {
         int[] wordBases = {
@@ -3173,7 +3274,8 @@ public final class ApusysIoctlProbe {
                 XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
                 XrpSettingsShape.WRAPPER_ONE_DATA, dispatch,
                 VPU_REQUEST_FLAGS_DEFAULT, false, XRP_OPCODE_XTENSA_ANN_VERSION,
-                null, null, null, null, null, null, null, null, wordBase);
+                null, null, null, null, null, null, null, null, wordBase,
+                null);
         }
     }
 
@@ -3230,7 +3332,7 @@ public final class ApusysIoctlProbe {
                 XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
                 XrpSettingsShape.WRAPPER_ONE_DATA, dispatch,
                 VPU_REQUEST_FLAGS_DEFAULT, false, XRP_OP_ANN_VERSION.opcode,
-                null, null, null, null, null, null, null, size, null);
+                null, null, null, null, null, null, null, size, null, null);
         }
     }
 
@@ -3791,7 +3893,8 @@ public final class ApusysIoctlProbe {
                                               int cmdFlags,
                                               int outputHeaderFlag,
                                               XrpSettingsShape settingsShape,
-                                              Integer dataPayloadWordBaseOverride) {
+                                              Integer dataPayloadWordBaseOverride,
+                                              XrpDataDescEntry[] dataDescEntriesOverride) {
         int outputOff = xrpOutputOff(xrpOp);
         int dataDescOff = xrpDataDescOff(xrpOp);
         int dataPayloadOff = xrpDataPayloadOff(xrpOp);
@@ -3851,11 +3954,28 @@ public final class ApusysIoctlProbe {
         putU32LE(buffer, out + 0x10, outputHeaderFlag);
 
         if (settingsShape.includeDataDesc) {
+            if (dataDescEntriesOverride != null
+                    && dataDescEntriesOverride.length * XRP_DATA_DESC_SIZE
+                    > settingsShape.dataDescSize) {
+                throw new IllegalArgumentException("data descriptor override"
+                    + " exceeds declared size");
+            }
             int data = dataDescOff;
-            putU32LE(buffer, data + 0x00, 3);
-            putU32LE(buffer, data + 0x04, XRP_DATA_PAYLOAD_SIZE);
-            putU32LE(buffer, data + 0x08,
-                (int) iovaLow32(iovaAddr, dataPayloadOff));
+            if (dataDescEntriesOverride != null) {
+                for (int i = 0; i < dataDescEntriesOverride.length; i++) {
+                    XrpDataDescEntry entry = dataDescEntriesOverride[i];
+                    int entryOff = data + (i * XRP_DATA_DESC_SIZE);
+                    putU32LE(buffer, entryOff + 0x00, entry.flags);
+                    putU32LE(buffer, entryOff + 0x04, entry.size);
+                    putU32LE(buffer, entryOff + 0x08,
+                        (int) iovaLow32(iovaAddr, entry.iovaOffset));
+                }
+            } else {
+                putU32LE(buffer, data + 0x00, 3);
+                putU32LE(buffer, data + 0x04, XRP_DATA_PAYLOAD_SIZE);
+                putU32LE(buffer, data + 0x08,
+                    (int) iovaLow32(iovaAddr, dataPayloadOff));
+            }
         }
 
         int payload = dataPayloadOff;
@@ -3891,6 +4011,9 @@ public final class ApusysIoctlProbe {
             + " data_payload_off=0x" + Integer.toHexString(dataPayloadOff)
             + " data_payload_word_base=0x"
             + Integer.toHexString(dataPayloadWordBase)
+            + (dataDescEntriesOverride != null
+                ? " data_desc_entries="
+                + dataDescEntriesText(dataDescEntriesOverride) : "")
             + " plane_payload_off=0x" + Integer.toHexString(planePayloadOff)
             + " base_iova=0x" + Integer.toHexString(iovaAddr));
     }
@@ -3944,6 +4067,26 @@ public final class ApusysIoctlProbe {
                 sb.append(',');
             }
             sb.append(xrpOp.operandIds[i]);
+        }
+        sb.append(']');
+        return sb.toString();
+    }
+
+    private static String dataDescEntriesText(XrpDataDescEntry[] entries) {
+        StringBuilder sb = new StringBuilder();
+        sb.append('[');
+        for (int i = 0; i < entries.length; i++) {
+            if (i != 0) {
+                sb.append(',');
+            }
+            XrpDataDescEntry entry = entries[i];
+            sb.append("{flags=0x");
+            sb.append(Integer.toHexString(entry.flags));
+            sb.append(",size=0x");
+            sb.append(Integer.toHexString(entry.size));
+            sb.append(",iova_off=0x");
+            sb.append(Integer.toHexString(entry.iovaOffset));
+            sb.append('}');
         }
         sb.append(']');
         return sb.toString();

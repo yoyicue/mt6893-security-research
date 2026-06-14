@@ -1,0 +1,12 @@
+pattern=apusys|vpu|mdw|xos|devapc|iommu|vpu_req_check|vpu_execute|sched_trace|cmd_done|timeout|Timeout|TIMEOUT|oops|panic
+source=adb logcat -b kernel or dmesg fallback
+
+06-15 04:40:04.163  7605  7605 I         : (4)[7605:main][apusys][warn] mdw_ioctl not support fw load
+06-15 04:40:04.163  7605  7605 I         : (4)[7605:main][apusys][warn] mdw_ioctl not suppot fw unload
+06-15 04:40:04.163  7605  7605 I         : (4)[7605:main][apusys][error] mdw_usr_run_cmd_async don't support offset(1)
+06-15 04:40:04.163  7605  7605 I         : (4)[7605:main][apusys][error] mdw_usr_run_cmd_async don't support offset(1)
+06-15 04:40:04.164  7605  7605 I         : (4)[7605:main][apusys][error] mdw_usr_ucmd don't support offset(1)
+06-15 04:40:04.211   378   378 I (0)[378:apusys_vpu0]vpu_dev_boot_sequence: vpu0: ALTRESETVEC: 0x7da00000
+06-15 04:40:04.601  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 04:40:07.673  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 04:40:12.973   814   814 I (0)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=4320/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=842727, RxOK=2360587, FcsErr=0

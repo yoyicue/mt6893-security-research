@@ -187,7 +187,7 @@ The data descriptor section is an array of 12-byte entries:
 
 | Entry offset | Meaning |
 |---:|---|
-| `+0x00` | Kind/type, observed as `3` |
+| `+0x00` | Access/metadata flags; wrapper-generated standard entry is observed as `3` |
 | `+0x04` | Buffer size |
 | `+0x08` | Low 32 bits of buffer IOVA |
 
@@ -201,10 +201,15 @@ updates only the size/IOVA words after checking that the slot is below
 
 The host-side standard path matches this layout. `PrepareDataBuffer()` writes
 settings `+0x0c` and `+0x30` from an allocated descriptor buffer sized as
-`12 * data_buffer_count`; `FinalizeDataBuffer()` then fills each entry from the
-registered data buffer object as kind/type, size, and low IOVA. This means a
-zero-data probe is a useful control, but it does not exercise the standard data
-descriptor population path.
+`12 * data_buffer_count`. Static analysis of
+`libneuron_platform.so::XrpIntrinsicExecutor::FinalizeDataBuffer()` at
+`0x205bc` shows the finalizer computes `data_buffer_count` from the executor's
+data-buffer vector length, then writes each entry from `GetBuffer(index)`:
+`XrpBufferDesc+0x20` to entry `+0x00`, `XrpBufferDesc+0x08` to entry `+0x04`,
+and `XrpBufferDesc+0x30` to entry `+0x08`, before calling
+`XrpCommandInfo::RegisterDataBuffer(index)`. This means a zero-data probe is a
+useful control, but it does not exercise the standard data descriptor population
+path.
 
 ## Current probe shape
 
@@ -549,7 +554,7 @@ The relevant standard-wrapper field interpretation is now:
 | `PrepareOutputBuffer()` | Writes settings `+0x08 = output_size`, `+0x20 = output_iova_low32`, then prepares the output header |
 | `PrepareOutputHeader(bool)` | Writes output `+0x00/+0x04 = 0xffffffff/0x40`, `+0x08 = 4`, `+0x0c = output_size`, `+0x10 = bool flag` |
 | `PrepareDataBuffer()` | Allocates a data-descriptor section sized as `data_buffer_count * 0x0c`; the zero-data-buffer path is valid and leaves no data section to consume |
-| `FinalizeDataBuffer()` | Fills each 12-byte data descriptor as `{access_flags, buffer_size, iova_low32}` from registered data buffers |
+| `FinalizeDataBuffer()` | Computes the registered data-buffer count from the executor vector, then fills descriptor entries as `{XrpBufferDesc+0x20, XrpBufferDesc+0x08, XrpBufferDesc+0x30}` and registers each slot with `XrpCommandInfo` |
 | `CreateVpuRequest()` | Creates the target VPU request through repeated `vpuRequest_addBuffer()` calls; `vpuRequest_setProperty()` is resolved in the binding table but not used by this function |
 
 This correction changes the interpretation of the two-native-buffer Java
@@ -668,6 +673,8 @@ longer points at them through the settings tuple:
 | `target_settings5_no_settings_output_shape_matrix` | Same settings-backed request, varied output size/header, followed by `mdw_usr_wait_cmd` | Every case returns `0`, changes settings `0x5 -> 0x7`, and clears `settings+0x30`; small sizes leave header words intact, larger sizes show `settings+0x08` as the maximum output-fill bound, with some repeat-time tail skips |
 | `target_settings5_no_settings_data_desc_matrix` control | Same settings-backed request, opcode `10003`, varied data descriptor size and pointer presence, no dispatch | Every case preserves settings, output header, data descriptor, and data payload |
 | `target_settings5_no_settings_data_desc_matrix` | Same settings-backed request, varied data descriptor size/pointer, followed by `mdw_usr_wait_cmd` | Every case returns `0` and writes output; no pointer stays zero, non-null size `0` is preserved, standard size `0x0c` clears `settings+0x30`, and larger sizes `0x18/0x80` preserve `settings+0x30` but clear descriptor word `0` |
+| `target_settings5_no_settings_data_entry_matrix` control | Same settings-backed request, opcode `10003`, explicit one-entry and two-entry descriptor contents, no dispatch | Every case preserves the explicitly initialized descriptor entries, data payload, plane payload, and output header |
+| `target_settings5_no_settings_data_entry_matrix` | Same settings-backed request, explicit flags `1/2/3`, size-0 entry, and two-entry payload/plane orderings, followed by `mdw_usr_wait_cmd` | Every case returns `0`, changes settings `0x5 -> 0x7`, and writes output. Single-entry flags `1/2/3` and entry size `0` clear `settings+0x30` and leave entries unchanged. Two-entry cases keep `settings+0x30` nonzero; payload-then-plane clears both entry flags, while plane-then-payload leaves both entries unchanged. Data and plane payload bytes remain unchanged |
 | `target_settings5_no_settings_data_payload_matrix` control | Same settings-backed request, opcode `10003`, standard data descriptor, varied data payload word bases, no dispatch | Every case preserves the chosen payload pattern and initialized output header |
 | `target_settings5_no_settings_data_payload_matrix` | Same settings-backed request, payload word bases `0/0x41505530/0x5a5a0000/0x7f000000`, followed by `mdw_usr_wait_cmd` | Every case returns `0`, changes settings `0x5 -> 0x7`, clears `settings+0x30`, leaves data descriptor and payload unchanged, and writes completion-style output that does not reflect the payload pattern |
 
@@ -713,6 +720,10 @@ Result files:
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_desc_matrix_control_kernel.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_desc_matrix_repeat.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_desc_matrix_repeat_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_entry_matrix.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_entry_matrix_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_entry_matrix_control.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_entry_matrix_control_kernel.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_payload_matrix.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_payload_matrix_kernel.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_payload_matrix_control.txt`
@@ -1770,6 +1781,16 @@ This gives the current interpretation boundary:
   descriptor entry unchanged. Larger sizes `0x18` and `0x80` leave
   `settings+0x30` nonzero and clear descriptor word `0` while preserving the
   descriptor's size and IOVA words.
+- The `target_settings5_no_settings_data_entry_matrix` result keeps the
+  completed settings-backed shape and explicitly fills descriptor entries.
+  Single-entry flags `1`, `2`, and `3`, plus a flags-`3` entry with size `0`,
+  all complete, clear `settings+0x30`, and leave the descriptor entry
+  unchanged. Two-entry descriptors also complete but keep `settings+0x30`
+  nonzero. If entry `0` points at the APUNN data-payload window and entry `1`
+  points at the plane window, firmware clears both entry flags while preserving
+  size/IOVA words; reversing the order leaves both entries unchanged. The data
+  and plane payload bytes remain unchanged. This makes the two-entry cleanup
+  target/order-sensitive rather than a pure descriptor-size side effect.
 - The `target_settings5_no_settings_data_payload_matrix` result keeps the
   standard data descriptor and varies the data payload word base through `0`,
   `0x41505530`, `0x5a5a0000`, and `0x7f000000`. Every dispatch case returns
@@ -2037,8 +2058,12 @@ semantic label. The completed-shape output-size/header matrix shows
 `settings+0x08` bounds the maximum output fill. The data-descriptor matrix
 shows standard `data_desc_size=0x0c` clears `settings+0x30`, while larger
 descriptor sections preserve `settings+0x30` and clear descriptor word `0`.
-The data-payload pattern matrix shows tested payload contents are preserved and
-are not copied into output.
+The explicit data-entry matrix refines that larger-section behavior: single
+entries with flags `1/2/3` or size `0` still complete and clear `settings+0x30`;
+two-entry descriptors keep `settings+0x30` nonzero, and flags cleanup depends
+on whether entry `0` points at the data-payload or plane-payload window. The
+data-payload pattern matrix shows tested payload contents are preserved and are
+not copied into output.
 
 The earlier code-first, output-first, descriptor-size, priority, buffer-count,
 port-id, format, plane-count, height, output-operand-id, operation-shape, and
