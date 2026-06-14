@@ -146,6 +146,8 @@ The path is:
 3. It verifies `offset + length <= mapped_length`; because offset must be zero in this build, the requested length must fit inside the mapped object.
 4. It looks up `{device_id, core_id}` and calls `core+0x98` (`mdw_rsc_ucmd_dispatch`), which invokes the provider handler with opcode `7`.
 
+`mdw_usr_ucmd` preserves the provider return value in `W20` across the following memory cleanup calls (`+0x38` IOVA unmap and `+0x28` KVA unmap). Those cleanup return values are ignored. Therefore the observed `-ENOENT` from the `0x8001` HardwareBuffer case is not a cleanup artifact; it comes from the provider opcode-7 path.
+
 The normal VPU provider opcode-7 branch at `0xffffffc0087a093c` then applies its own gate:
 
 - provider argument pointer is non-null;
