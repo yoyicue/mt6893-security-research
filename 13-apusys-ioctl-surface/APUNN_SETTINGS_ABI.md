@@ -658,6 +658,8 @@ longer points at them through the settings tuple:
 | `target_code5_no_settings_wait_summary` | Same wait variant with semantic request-field dumps | Before and after dispatch: `result_status=0`, `slot_b68=0`, `algo_ret_b6c=0`, `buffer_count=5`, and `settings_len/settings_iova=0`; code/input first word still changes `0x2713 -> 0x271b` |
 | `target_settings5_no_settings_wait` control | `buffer_count=5`, all five descriptors point at the DSP command/settings buffer, `request+0x38 = 0`, `request+0x40 = 0`, no dispatch | Settings stay `0x5`, settings `+0x30` keeps the data-descriptor pointer, output keeps its initialized header, and code/input stays unchanged |
 | `target_settings5_no_settings_wait` | Same settings-backed request, followed by `mdw_usr_wait_cmd` | `run_async_vpu_iova ret=0`; `wait_vpu_iova ret=0`; settings change `0x5 -> 0x7`; settings `+0x30` is cleared; code/input is unchanged; output words through offset `0x40` become `0xffffffff` |
+| `target_settings5_no_settings_opcode_matrix` control | Same settings-backed request, opcodes `10001..10009`, no dispatch | Every case preserves settings `0x5`, settings `+0x30`, code/opcode words, and initialized output header |
+| `target_settings5_no_settings_opcode_matrix` | Same settings-backed request, opcodes `10001..10009`, followed by `mdw_usr_wait_cmd` | Every case returns `0` from dispatch and wait, changes settings `0x5 -> 0x7`, clears settings `+0x30`, leaves the code/opcode window unchanged, and writes output; `10004` writes through output offset `0x3c`, while the other tested opcodes write through offset `0x40` |
 
 Result files:
 
@@ -673,6 +675,10 @@ Result files:
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_wait_repeat_kernel.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_wait_control_repeat.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_wait_control_repeat_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_opcode_matrix.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_opcode_matrix_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_opcode_matrix_control.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_opcode_matrix_control_kernel.txt`
 
 The code5 summary rerun shows that the copied-back native request fields
 `result_status` (`+0x34`), slot (`+0xb68`), and `algo_ret` (`+0xb6c`) remain zero
@@ -680,7 +686,13 @@ in that successful wait case. Those fields therefore do not carry the observed
 descriptor-0 `0x2713 -> 0x271b` state write. The settings5 rerun is the
 completed wrapper-shaped case: firmware acts on the DSP command/settings buffer
 descriptor, not on the code/input descriptor, and produces the wrapper-visible
-settings/output completion state.
+settings/output completion state. The settings5 opcode matrix extends that from
+`XTENSA_ANN_VERSION` to the recovered `10001..10009` opcode range: once the
+descriptor target is the DSP command/settings buffer, the previous code-first
+`10005..10007` timeout/error classes disappear and all tested opcodes complete.
+The only visible opcode distinction in this shape is output length: `10004`
+leaves output offset `0x40` unchanged, while the other tested opcodes write
+through it.
 
 The follow-up descriptor-0 first-word matrix keeps the same
 target-wrapper-shaped request and varies only code/input word `0`.
@@ -1672,6 +1684,18 @@ This gives the current interpretation boundary:
   APUNN settings/output completion contract for the tested
   `XTENSA_ANN_VERSION` request shape. It does not prove a source-sensitive
   leak or timeout lifetime misuse.
+- The `target_settings5_no_settings_opcode_matrix` result keeps that completed
+  settings-backed shape and varies the first operation opcode through
+  `10001..10009`. Every dispatch case returns `0`, every wait returns `0`,
+  every case changes settings `0x5 -> 0x7`, clears settings `+0x30`, and leaves
+  the code/opcode window unchanged. The no-dispatch control preserves the
+  initialized settings/output state for every opcode. Output is deterministic:
+  `10001`, `10002`, `10003`, `10005`, `10006`, `10007`, `10008`, and `10009`
+  write `0xffffffff` through output offset `0x40`, while `10004` writes through
+  offset `0x3c` and leaves offset `0x40` at zero. Therefore the earlier
+  code-first `10005..10007` timeout/error behavior is not the completed opcode
+  contract; it is a consequence of pointing descriptor slot `0` at the wrong
+  buffer.
 - The `target_code5_no_settings_word_matrix` result keeps the same request shape
   and varies only descriptor-0 word `0`. No-dispatch controls preserve every
   input. Dispatch plus wait maps ordinary words through `old | 0xb`, while the
@@ -1916,20 +1940,24 @@ Runtime evidence now proves `apu_lib_apunn` lookup, normal VPU request
 acceptance, exact outer `cb_info_size == 0xb70` enforcement, VPU boot/map
 activity, XRP-shaped settings header tolerance, target-side nonzero
 code-section tolerance for internal query/status operation shapes, controlled
-descriptor-0 status writeback, firmware opcode-class behavior, and APUNN
-settings/output completion for the wrapper-shaped `settings5/no-settings`
-request. In the completed shape, all five native descriptors point at the DSP
-command/settings buffer, `request+0x38/+0x40` are clear, dispatch and wait both
-return `0`, settings flags change `0x5 -> 0x7`, settings `+0x30` is cleared,
-the code/input window is unchanged, and the output section is filled through
-offset `0x40`.
+descriptor-0 status writeback, firmware opcode-class behavior in incomplete
+descriptor-target shapes, and APUNN settings/output completion for the
+wrapper-shaped `settings5/no-settings` request. In the completed shape, all
+five native descriptors point at the DSP command/settings buffer,
+`request+0x38/+0x40` are clear, dispatch and wait both return `0`, settings
+flags change `0x5 -> 0x7`, settings `+0x30` is cleared, and the code/input
+window is unchanged. The completed-shape opcode matrix shows `10001..10009` all
+complete. Output is filled through offset `0x40` for every tested opcode except
+`10004`, which fills through offset `0x3c`.
 
 The earlier code-first, output-first, descriptor-size, priority, buffer-count,
 port-id, format, plane-count, height, output-operand-id, operation-shape, and
 opcode matrices remain useful diagnostics. They show descriptor slot `0` is the
 active status/writeback target in incomplete shapes, `buffer_count=0` suppresses
-that state write, and `10005..10007` select timeout/error classes with
-`10006/10007` normalizing to `10005`. Those diagnostics do not establish a
+that state write, and code-first `10005..10007` select timeout/error classes
+with `10006/10007` normalizing to `10005`. The settings-backed opcode matrix
+shows those timeout/error classes do not apply once descriptor slot `0` points
+at the DSP command/settings buffer. These diagnostics do not establish a
 source-sensitive leak. The completed output writeback currently looks like
 deterministic APUNN completion data, not disclosure of unrelated firmware or
 kernel memory.
