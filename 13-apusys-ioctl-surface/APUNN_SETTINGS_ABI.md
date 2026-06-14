@@ -737,12 +737,20 @@ Result files:
 - `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_priority_matrix_repeat.txt`
 - `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_priority_matrix_repeat_kernel.txt`
 
-IDA shows this field is read from the request before algorithm lookup and passed
-to the Preload path; the D2D_EXT helper then clamps signed values into `0..2`
-when choosing per-priority preload metadata and the copied descriptor-array
-IOVA. Runtime confirms it is accepted as a priority/slot input, including the
-negative clamp case `0xffffffff`, but it does not produce APUNN settings
-completion or output writeback. The first run's no-write cases for `1` and `2`
+IDA now separates the user-submitted field from the value that reaches the D2D
+helpers. The normal-VPU opcode-4 provider clears `request+0xb68` before
+`vpu_execute()`, so the default path reaches D2D_EXT with slot `0` after the
+Normal lookup misses and the Preload retry sets bit `2`. If the caller sets
+`request+0x28` bit `2` up front, `vpu_execute_with_slot()` stores its internal
+slot allocator result at `request+0xb68` before `vpu_execute()`. The
+descriptor-copy, preload-object, copied-array-IOVA, status, and algo-ret helpers
+clamp that value into `0..2`; the wait helper indexes with the raw slot value,
+but the upstream provider has already replaced the user field with a
+kernel-owned value on the execution paths seen here.
+
+The matrix therefore proves that the original `request+0xb68` word is not the
+missing APUNN completion condition. The dispatch copyback clearing the tail word
+matches the provider rewrite, and the first run's no-write cases for `1` and `2`
 again show the visible state write is not a stable APUNN completion oracle.
 
 The request-buffer-count matrix keeps the same target-wrapper-shaped request and
@@ -1019,7 +1027,7 @@ to `(settings[0] & 0x0a) == 0x02` or write the APUNN output/data windows. The
 next unresolved field is therefore not the outer APUSYS `cb_info_size`, ordinary
 VPU descriptor metadata,
 nonzero descriptor count, `request+0x38/+0x40` presence, native descriptor
-payload size, request priority/slot, descriptor port/format/plane-count bytes,
+payload size, submitted `request+0xb68`, descriptor port/format/plane-count bytes,
 descriptor height, output operand id, tested input/output count combinations,
 basic `0x1c8` count routing, simple five-descriptor role ordering, or pairing
 output slot `0` with all recovered internal opcodes. The opcode word is parsed
@@ -1486,25 +1494,27 @@ If the caller supplies `request+0x28` bit `2` up front, the provider dispatches
 allocates a slot, stores it at `request+0xb68`, and then calls `vpu_execute()`.
 Inside `vpu_execute()`, the same bit selects the Preload algorithm set for the
 first lookup. This makes bit `2` a kernel execution/lifetime selector as well
-as an input to the D2D_EXT firmware tuple through `request+0xb68` priority/slot
-state.
+as the switch that lets `vpu_execute_with_slot()` put an internal slot id into
+the D2D_EXT firmware tuple.
 
-`sub_FFFFFFC0087A5B74()` is the kernel-to-firmware handoff. Its first step is
-to copy `request+0x50` into the per-priority VPU command buffer:
+`vpu_execute_d2d_handoff()` is the kernel-to-firmware handoff. Its first step is
+to copy `request+0x50` into the clamped-slot VPU command buffer:
 
 | IDA address | Operation |
 |---|---|
 | `0xffffffc0087a5bd0` | Reads `request+0x35` as `buffer_count` |
 | `0xffffffc0087a5bdc` | Uses `request+0x50` as the source descriptor array |
-| `sub_FFFFFFC0087A20E8` / `0xffffffc0087a20e8` | Rejects copies larger than `0x2000`, then copies `buffer_count * 0x40` bytes |
-| `0xffffffc0087a20f8` | Destination is the per-priority D2D buffer at `core + priority * 0xb0 + 0x3f8` |
-| `sub_FFFFFFC0087A20C8` / `0xffffffc0087a20c8` | Returns the copied descriptor-array IOVA from `core + priority * 0xb0 + 0x400` |
+| `vpu_copy_req_buffers_to_d2d` / `0xffffffc0087a20e8` | Rejects copies larger than `0x2000`, then copies `buffer_count * 0x40` bytes |
+| `vpu_copy_req_buffers_to_d2d_inner` / `0xffffffc0087a20f8` | Destination is the clamped-priority D2D buffer at `core + slot * 0xb0 + 0x3f8` |
+| `vpu_get_d2d_buffer_array_iova` / `0xffffffc0087a20c8` | Returns the copied descriptor-array IOVA from `core + slot * 0xb0 + 0x400` |
 
-The priority value used in those helpers is bounded by
+The slot value used in those helpers is bounded by
 `vpu_get_preload_entry_for_priority()` at `0xffffffc0087a1f40`: values above
 `2` use slot `2`, negative values become `0`, and the selected Preload object is
-loaded from `core + priority * 0xb0 + 0x3c8`. This object is kernel-owned
-firmware metadata, not the original user request.
+loaded from `core + slot * 0xb0 + 0x3c8`. This object is kernel-owned firmware
+metadata, not the original user request. The default provider path clears
+`request+0xb68` to `0`; the explicit Preload/slot path writes the allocator
+result there before execution.
 
 The firmware-visible MMIO writes in the same function are:
 
@@ -1521,7 +1531,7 @@ For D2D_EXT, the driver also writes preload state before the common
 
 | MMIO offset from `core+0xa0` | D2D_EXT input |
 |---:|---|
-| `+0x27c` | `request+0xb68` priority/slot value |
+| `+0x27c` | executed slot value from `request+0xb68` after provider rewrite |
 | `+0x290` | sum of preload object fields `+0xfb0` and `+0xfb8` |
 | `+0x29c` | preload object `+0xfc0` |
 
@@ -1537,14 +1547,20 @@ preload input, but the dispatch boundary is fixed: firmware receives only the
 resulting register values and copied descriptor/settings IOVAs.
 
 The trigger sequence then clears a status bit at MMIO `+0x910`, sets bit `0` at
-MMIO `+0x204`, waits for completion, maps the per-priority status word through
-`sub_FFFFFFC0087A2040()`, and copies the driver-side algorithm return into
-`request+0xb6c` through `sub_FFFFFFC0087A20A8()`.
+MMIO `+0x204`, waits for completion through `vpu_wait_d2d_completion()`, maps
+the firmware status word through `vpu_map_d2d_status_to_errno()`, and copies the
+driver-side algorithm return into `request+0xb6c` through
+`vpu_get_d2d_algo_ret()`. The status map is concrete: firmware status `1` or
+`2` maps to success, `0` or `8` maps to `-EIO`, `3`, `5..7`, and `9..15` map to
+`-EINVAL`, `4` maps to `-EBUSY`, and `16` or `0xff` maps to an `-EBADFD`-class
+error.
 
 This gives the current interpretation boundary:
 
 - `apu_lib_apunn` sees a copied descriptor array, not the original userland
   `struct vpu_request`.
+- The default execution path clears the user-supplied `request+0xb68`; firmware
+  sees slot `0` unless the explicit Preload/slot path writes an internal slot id.
 - The settings buffer is reached through `INFO14/INFO15`; native buffers are
   reached through the copied descriptor-array IOVA in `INFO13`.
 - The split-target one-buffer opcode cases show the firmware path following
@@ -1626,12 +1642,13 @@ This gives the current interpretation boundary:
 - The `target_code5_no_settings_priority_matrix` result keeps the same request
   shape and first word `0x2713`, but varies request `+0xb68` through
   `0,1,2,3,0xffffffff`. No-dispatch controls preserve the requested value in the
-  command-buffer tail. Dispatch plus wait returns `0` for every priority; the
-  first dispatch missed visible descriptor-0 writeback for `1` and `2`, but a
+  command-buffer tail. Dispatch plus wait returns `0` for every submitted value;
+  the first dispatch missed visible descriptor-0 writeback for `1` and `2`, but a
   repeat run wrote `0x271b` for every tested value. The command-buffer copyback
-  clears tail word `40` after dispatch. This confirms `+0xb68` is a real
-  D2D_EXT priority/slot input and command-lifetime field, but not the APUNN
-  completion/output condition.
+  clears tail word `40` after dispatch because the default opcode-4 provider
+  rewrites `request+0xb68` to slot `0` before execution. This confirms the
+  submitted word is not the APUNN completion/output condition; the firmware slot
+  input on this path is kernel-selected.
 - The `target_code5_no_settings_buffer_count_matrix` result keeps the same
   five-descriptor/no-settings request shape, but varies request `+0x35` through
   `0,1,2,3,4,5,0x20`. No-dispatch controls preserve `0x2713` and APUNN windows.
@@ -1837,10 +1854,13 @@ Kernel handoff evidence:
 | `drivers/misc/mediatek/apusys/vpu/p1/vpu_hw.c` | `vpu_execute_d2d()` | Copies `req->buffers[]` into the D2D command buffer and writes `XTENSA_INFO12..15`; D2D_EXT also writes preload entry/IRAM registers |
 | `drivers/misc/mediatek/apusys/vpu/p1/vpu_hw.h` | register table | Documents `DO_D2D` as INFO12 buffer count, INFO13 buffer-array pointer, INFO14 setting pointer, and INFO15 setting size |
 | IDA `vmlinux.bin` | `vpu_execute` at `0xffffffc0087a7974` | Kernel execution entry that reaches the D2D/D2D_EXT request path |
-| IDA `vmlinux.bin` | `sub_FFFFFFC0087A5B74` at `0xffffffc0087a5b74` | Copies `request+0x50` descriptors, writes MMIO `+0x280/+0x284/+0x288/+0x28c`, triggers command id `0x22/0x24`, and waits for completion |
-| IDA `vmlinux.bin` | `vpu_get_preload_entry_for_priority` at `0xffffffc0087a1f40` | Clamps priority to `0..2` and returns the selected Preload object from `core + priority * 0xb0 + 0x3c8` |
-| IDA `vmlinux.bin` | `vpu_get_d2d_buffer_array_iova` at `0xffffffc0087a20c8` | Returns the firmware-visible copied descriptor-array IOVA from `core + priority * 0xb0 + 0x400` |
-| IDA `vmlinux.bin` | `vpu_copy_req_buffers_to_d2d_inner` at `0xffffffc0087a20f8` | Copies `buffer_count * 0x40` bytes from `request+0x50` into `*(core + priority * 0xb0 + 0x3f8)` |
+| IDA `vmlinux.bin` | `vpu_execute_d2d_handoff` at `0xffffffc0087a5b74` | Copies `request+0x50` descriptors, writes MMIO `+0x280/+0x284/+0x288/+0x28c`, triggers command id `0x22/0x24`, and waits for completion |
+| IDA `vmlinux.bin` | `vpu_init_d2d_command_slot` at `0xffffffc0087a1e90` | Initializes the clamped D2D slot, clears done/status/ret, stores command id, and increments the slot counter |
+| IDA `vmlinux.bin` | `vpu_get_preload_entry_for_priority` at `0xffffffc0087a1f40` | Clamps slot to `0..2` and returns the selected Preload object from `core + slot * 0xb0 + 0x3c8` |
+| IDA `vmlinux.bin` | `vpu_wait_d2d_completion` at `0xffffffc0087a6374` | Waits on `core + slot * 0xb0 + 0x3d0` without clamping; normal provider paths feed slot `0` or an internal allocator slot |
+| IDA `vmlinux.bin` | `vpu_map_d2d_status_to_errno` at `0xffffffc0087a2040` | Reads firmware status from the clamped slot at `+0x3d4` and maps `1/2` to success, `0/8` to `-EIO`, `3/5..7/9..15` to `-EINVAL`, `4` to `-EBUSY`, and `16/0xff` to `-EBADFD` |
+| IDA `vmlinux.bin` | `vpu_get_d2d_buffer_array_iova` at `0xffffffc0087a20c8` | Returns the firmware-visible copied descriptor-array IOVA from `core + slot * 0xb0 + 0x400` |
+| IDA `vmlinux.bin` | `vpu_copy_req_buffers_to_d2d_inner` at `0xffffffc0087a20f8` | Copies `buffer_count * 0x40` bytes from `request+0x50` into `*(core + slot * 0xb0 + 0x3f8)` |
 
 Runtime evidence so far proves `apu_lib_apunn` lookup, normal VPU request
 acceptance, exact outer `cb_info_size == 0xb70` enforcement, VPU boot/map
@@ -1859,10 +1879,11 @@ input entering a timeout/error path as `0xffffffff -> 0xfffffffd` with wait
 `-EIO`. The descriptor-size matrix accepts every tested size and repeats the
 same `0x2713 -> 0x271b` state write even when the native descriptor advertises
 payload size `0`, so native descriptor length is not a hard gate for that
-writeback. The request-priority matrix accepts `request+0xb68` values
-`0,1,2,3,0xffffffff`, clears the command-buffer priority/slot word after
-dispatch, and repeats the same state write in the second run, so priority/slot is
-also not the missing completion/output condition. The request-buffer-count matrix
+writeback. The request-priority matrix submits `request+0xb68` values
+`0,1,2,3,0xffffffff`, but IDA shows the default provider rewrites the executed
+slot to `0`; the matrix clears the command-buffer slot word after dispatch and
+repeats the same state write in the second run, so the submitted slot word is not
+the missing completion/output condition. The request-buffer-count matrix
 shows `request+0x35 = 0` suppresses the state write and makes wait return
 `-EIO`, while `1,2,3,4,5,0x20` all produce the same `0x2713 -> 0x271b` state
 write without APUNN output completion. The descriptor-port-id matrix accepts
