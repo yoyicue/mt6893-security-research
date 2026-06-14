@@ -92,7 +92,7 @@ The current CVE-2023-32836 checks disprove both tested direct paths on this firm
 | CVE-2023-20761 ril | Increased, likely service path | MT6893/MT8797/Android 13 affected; likely binder/socket/service rather than direct device-node ioctl. |
 | CVE-2023-20766 gps | Increased, likely service path | MT6893/MT8797/Android 13 affected; likely service path. |
 | CVE-2023-20768 ion | Lower for direct node access | `/dev/ion` is visible and DAC-permissive, but dedicated old-ION probing from `system_app` returns `EACCES` at open. Revisit only through framework/HAL dmabuf paths or another lab context. |
-| APUSYS ioctl surface | Medium-high, rising | `/dev/apusys` opens from `system_app`; provider opcode-0 dispatch, memory-create, normal VPU opcode-7 `ucmd`, and `run_cmd_async` parser reachability are mapped. Direct node fd sources are constrained, but `app_process64` can create a HardwareBuffer dmabuf, both APUSYS type-2/type-3 memory-create paths import it successfully, normal VPU `ucmd` reaches the userspace-compatible `0x8001 + key` lookup path and returns `ENOENT` for empty/`Normal` keys, and zero-header `run_cmd_async` reaches parser rejection (`EINVAL`). |
+| APUSYS ioctl surface | High research priority | `/dev/apusys` opens from `system_app`; provider opcode-0 dispatch, memory-create, normal VPU opcode-7 `ucmd`, and `run_cmd_async` parser reachability are mapped. Direct node fd sources are constrained, but `app_process64` can create a HardwareBuffer dmabuf, both APUSYS type-2/type-3 memory-create paths import it successfully, normal VPU `ucmd` reaches the userspace-compatible `0x8001 + key` lookup path, `apu_lib_apunn` returns provider success on core `0` and `1`, and zero-header `run_cmd_async` reaches parser rejection (`EINVAL`). |
 
 ## Not Significantly Changed
 
@@ -107,7 +107,7 @@ The current CVE-2023-32836 checks disprove both tested direct paths on this firm
 ## Recommended Next Triage
 
 1. Display/display-drm: enumerate ioctls and symbol paths for CVE-2023-20775 and CVE-2023-32860/32867/32868. For CVE-2023-32863, CVE-2023-32864, and CVE-2023-32865, prioritize locating the exact `ALPS07326314` / `ALPS07292187` / `ALPS07363456` patched handlers because the first probes did not confirm exploitable paths.
-2. APUSYS: recover actual Normal/Preload VPU algorithm keys and APUSYS command-buffer layout after the HardwareBuffer-backed `0x8001 + key` and zero-header `run_cmd_async` parser gates.
+2. APUSYS: inspect the `apu_lib_apunn` `ucmd` success side effects and recover APUSYS command-buffer layout after the HardwareBuffer-backed `0x8001 + key` and zero-header `run_cmd_async` parser gates.
 3. secmem/keyinstall: identify runtime entry points, likely trusted execution / key management interfaces, then test reachability from `system_app`.
 4. CMDQ/PQ/MMP: map device nodes, binder services, and ioctl numbers; prioritize any path accessible from `system_app`.
 5. DA/AEE/LK: determine whether the advisory entry point exists at runtime or only during update/boot flows.

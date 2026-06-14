@@ -9,7 +9,7 @@ crw-rw---- 1 system camera u:object_r:apusys_device:s0 /dev/apusys
 [OPEN] /dev/apusys  fd=5
 ```
 
-The current result is **reachable but not yet mapped to a confirmed vulnerability**. IDA analysis shows the device is the MTK APUSYS midware character device. Its main ioctl handler is now named `mdw_ioctl` in the IDB at `0xffffffc00878a0ec`.
+The current result is **reachable, with a confirmed VPU algorithm lookup hit, but not yet mapped to a confirmed vulnerability**. IDA analysis shows the device is the MTK APUSYS midware character device. Its main ioctl handler is now named `mdw_ioctl` in the IDB at `0xffffffc00878a0ec`.
 
 The directory has no CVE number yet. The repository uses CVE-numbered directories when a test is tied to a specific public CVE or confirmed bug class. APUSYS is currently an exposed proprietary ioctl surface with handler-level mapping and runtime reachability evidence, but no confirmed CVE match or vulnerability primitive.
 
@@ -78,6 +78,13 @@ Additional functions named during the APUSYS follow-up pass:
 | `mdw_sched_dev_routine` | `0xffffffc0087920ec` | Per-device scheduler routine |
 | `vpu_init_dev_algo_sets` | `0xffffffc0087a5214` | Initializes per-VPU-core Normal and Preload algorithm sets from firmware/bin metadata |
 | `vpu_exit_dev_algo_sets` | `0xffffffc0087a56f0` | Tears down the Normal and Preload algorithm lists |
+| `vpu_read_iova_dts_tuple` | `0xffffffc0087a8750` | Reads a 3-u32 VPU DT tuple `{iova, size, bin_offset}` |
+| `vpu_mem_alloc_from_bin_or_dynamic` | `0xffffffc0087a84b0` | Maps/copies VPU memory from the global bin region when `bin_offset != -1`, otherwise dynamically allocates backing memory |
+| `vpu_mem_release_region` | `0xffffffc0087a8658` | Releases a mapped VPU memory region |
+| `vpu_map_kva_to_sgt` | `0xffffffc0087a8994` | Builds a scatterlist for a KVA range |
+| `vpu_map_sg_to_iova` | `0xffffffc0087a8be4` | Maps a scatterlist into VPU IOVA |
+| `vpu_proc_dump_driver_info` | `0xffffffc0087a30e0` | Procfs driver dump path for VPU bin/iova metadata |
+| `vpu_map_named_iomem_resource` | `0xffffffc0087a1528` | Maps named iomem resources such as `reg`, `dmem`, `imem`, and `dbg` |
 
 Command-ops correction: `mdw_usr_get_cmd_ops` returns rodata table `0xffffffc0097966b8`; `mdw_usr_init` stores that pointer into runtime global `0xffffffc00a188e58`, and `mdw_usr_run_cmd_async`, `mdw_wait_cmd`, and `mdw_usr_destroy` all dispatch through that global. The table is confirmed as the APUSYS user-command ops table. The entries are raw flat-Image pointers, not directly loaded IDB addresses. Built-in kallsyms gives the correct raw-to-IDB delta: raw `_stext = 0xffffff8008080800`, IDB `_stext = 0xffffffc008000800`, so raw function pointers normalize with `+0x3ffff80000`.
 
@@ -170,7 +177,7 @@ The normal VPU provider opcode-7 branch at `0xffffffc0087a093c` then applies its
 - provider argument `+0x0c` is nonzero, which corresponds to user `+0x10`;
 - first u32 at the mapped KVA is `0x8001`.
 
-After the `0x8001` check, normal VPU uses `mapped_kva + 4` as the payload pointer. It locks the global VPU driver object, walks the registered VPU core list at `g_vpu_drv+0xb0`, and tries the per-core Normal algorithm set first, then the Preload set. A zero lookup result from both sets reaches `0xffffffc0087a0c70`, which unlocks and returns `-ENOENT`. The empty-list path is different: it reaches `0xffffffc0087a0a88` and returns success. The current runtime result therefore means the fd import, KVA mapping, size check, provider dispatch, `0x8001` header gate, and at least one Normal/Preload lookup attempt have all succeeded; the missing piece is the expected payload key.
+After the `0x8001` check, normal VPU uses `mapped_kva + 4` as the payload pointer. It locks the global VPU driver object, walks the registered VPU core list at `g_vpu_drv+0xb0`, and tries the per-core Normal algorithm set first, then the Preload set. A zero lookup result from both sets reaches `0xffffffc0087a0c70`, which unlocks and returns `-ENOENT`. The empty-list path is different: it reaches `0xffffffc0087a0a88` and returns success. The empty and `Normal` payload tests therefore mean the fd import, KVA mapping, size check, provider dispatch, `0x8001` header gate, and at least one Normal/Preload lookup attempt all succeeded before a key miss. The later `apu_lib_apunn` test shows the same path can also return provider success with a real key.
 
 `vpu_init_dev_algo_sets` initializes those sets at core offsets:
 
@@ -194,9 +201,40 @@ The raw ops tables are named `vpu_normal_algo_ops_raw` at `0xffffffc00979ae70` a
 | Normal/Preload `+0x20` | `0xffffff8008821a64` | `vpu_alg_release` at `0xffffffc0087a1a64` |
 | Normal-only `+0x28` | `0xffffff8008827d40` | `vpu_hw_alg_init` at `0xffffffc0087a7d40` |
 
-For the `ucmd` path, the relevant lookup callback is `vpu_alg_get`. The branch reached from opcode `7` calls it first on the Normal set and then on the Preload set. The observed `-ENOENT` result therefore means the mapped payload passed the `0x8001` gate, reached the algorithm lookup interface, and missed both sets for the supplied empty key.
+For the `ucmd` path, the relevant lookup callback is `vpu_alg_get`. The branch reached from opcode `7` calls it first on the Normal set and then on the Preload set. The observed `-ENOENT` result for empty, `Normal`, `unknown`, and `apu_lib_custom` payloads means the mapped payload passed the `0x8001` gate, reached the algorithm lookup interface, and missed both sets for those keys. The observed `0` result for `apu_lib_apunn` confirms a loaded key on this firmware.
 
 The userspace `/vendor/lib64/libvpu.so` wrapper independently confirms this payload ABI. `VpuStreamImp::getAlgo(char const *name)` allocates a 0x24-byte user-command buffer, zeroes it, writes `0x8001` at offset `+0x00`, copies `name` to offset `+0x04` with `strncpy(..., 0x1f)`, and sends it through `apusysEngine::sendUserCmdBuf(..., device 3)`. The kernel-side `vpu_alg_get` compares that key with algorithm object names using `strcmp`: the object name starts at object `+0x00`, the list node is at object `+0x1040`, and the refcount is at object `+0x103c`.
+
+### VPU algorithm metadata source
+
+The VPU algorithm keys are initialized from the reserved VPU binary metadata, not from the public `/vendor/lib64/libvpu.so` strings alone. `vpu_probe` reads named DT tuples through `vpu_read_iova_dts_tuple`; on the test device, only `vpu_core0@19030000` carries the global bin metadata and `algo` tuple:
+
+| DT property | Value |
+|---|---|
+| `/reserved-memory/mblock-18-vpu_binary/reg` | physical `0xbe510000`, size `0x018f0000` |
+| `vpu_core0/bin-phy-addr` | `0xbe510000` |
+| `vpu_core0/bin-size` | `0x018f0000` |
+| `vpu_core0/img-head` | `0x00cb1000` |
+| `vpu_core0/pre-bin` | `0x00cbf000` |
+| `vpu_core0/algo` | `{iova=0x00000000, size=0x00080000, bin_offset=0x00c00000}` |
+| `vpu_core0/reset-vector` | `{iova=0x7da00000, size=0x00100000, bin_offset=0x00000000}` |
+| `vpu_core0/main-prog` | `{iova=0x7db00000, size=0x00300000, bin_offset=0x00100000}` |
+| `vpu_core0/kernel-lib` | `{iova=0x7de00000, size=0x00500000, bin_offset=0xffffffff}` |
+
+`vpu_proc_dump_driver_info` confirms the global driver fields used for this bin: `bin_pa` at `+0x08`, `bin_size` at `+0x10`, `bin_head_ofs` at `+0x14`, `bin_preload_ofs` at `+0x18`, and `mva_algo` at `+0xa8`. From `system_app`, `/proc/vpu/vpu0/mesg`, `/proc/vpu/vpu*/mesg_level`, and `/proc/vpu/vpu_memory` exist but return `Permission denied`, so this context cannot dump the live key list through procfs.
+
+The `/system/lib64/libneuron_platform.vpu.so` `XrpVpuStream::kAlgoNames` table gives three userland candidates: `unknown`, `apu_lib_apunn`, and `apu_lib_custom`. Runtime lookup shows that only `apu_lib_apunn` is a loaded key on this target:
+
+```text
+[*] ucmd_hwb_key_apu_lib_apunn_c0_pos388 cmd=0x4014410e ret=0
+[*] ucmd_hwb_key_apu_lib_apunn_c1_pos388 cmd=0x4014410e ret=0
+[*] ucmd_hwb_key_apu_lib_custom_c0_pos388 cmd=0x4014410e ret=-2 (ENOENT)
+[*] ucmd_hwb_key_apu_lib_custom_c1_pos388 cmd=0x4014410e ret=-2 (ENOENT)
+[*] ucmd_hwb_key_unknown_c0_pos388 cmd=0x4014410e ret=-2 (ENOENT)
+[*] ucmd_hwb_key_unknown_c1_pos388 cmd=0x4014410e ret=-2 (ENOENT)
+```
+
+This is a material risk change for APUSYS: the PoC no longer stops at a header-gate lookup miss. It now reaches the real Normal/Preload lookup path with a known key and gets a provider success return. The current probe still does not submit a VPU execution request or build a valid APUSYS command buffer.
 
 ### APUSYS run_cmd_async / run_cmd_sync path
 
@@ -255,7 +293,7 @@ The `0x4004413C/3D` size mismatch is important for testing: the command encoding
 ## Current risk ranking
 
 1. **Memory import / IOVA mapping path**: `0xC0384103` and `0xC038410F` lead to `mdw_usr_mem_create`, then into APUSYS ION KVA/IOVA callbacks. Negative tests confirm that type-2 and type-3 descriptors reach deeper than the initial user-copy guard without creating an object or crashing. Direct node sources remain constrained: no `/dev/dma_heap/*` nodes on this device, DRM dumb buffer creation succeeds but PRIME fd export returns `EACCES`, direct `/dev/ion` open returns `EACCES`, `/dev/ashmem` open returns `EACCES`, and ordinary openable fds such as `/dev/dri/card0`, `/dev/mali0`, `/dev/zero`, `/dev/null`, and `/dev/apusys` all fail APUSYS memory-create with `ENOMEM`. The usable fd source is now the framework path: running the probe through `app_process64` can create an `android.hardware.HardwareBuffer`, read a fd-bearing Parcel entry, and import that fd successfully through both APUSYS type-2 and type-3 memory-create. This is the highest APUSYS priority.
-2. **Command parsing/execution and ucmd paths**: `0xC0184107` and `0x40184106` reach `mdw_usr_run_cmd_async`. Static analysis resolves the command ops callbacks: clearing user `+0x0c` calls `mdw_cmd_create_cmd`, then `mdw_cmd_parse_cmd`, and only then queues the object and writes a handle to user `+0x00`. Runtime now confirms the HardwareBuffer fd source can reach this parser path: a zero-header ImageWriter-backed buffer imports successfully and `run_async_hwb_run_zero_pos388` returns `EINVAL`, matching parser rejection before queue insertion. `0x4014410E` reaches `mdw_usr_ucmd`; with `+0x0c == 0` it imports the fd as APUSYS memory, maps KVA/IOVA, bounds-checks the requested length, then calls `mdw_rsc_ucmd_dispatch` at `core+0x98`. The normal VPU opcode-7 `0x8001` mapped-buffer gate is runtime-confirmed: with the same HardwareBuffer fd source, a first u32 of `0` returns `EINVAL`, while a first u32 of `0x8001` returns `ENOENT` for core `0` and `1`. That `ENOENT` is now interpreted as Normal and Preload algo lookup miss after a successful mapped-buffer gate, not as a failed fd source. EDMA and MDLA do not show the same opcode-7 command path.
+2. **Command parsing/execution and ucmd paths**: `0xC0184107` and `0x40184106` reach `mdw_usr_run_cmd_async`. Static analysis resolves the command ops callbacks: clearing user `+0x0c` calls `mdw_cmd_create_cmd`, then `mdw_cmd_parse_cmd`, and only then queues the object and writes a handle to user `+0x00`. Runtime now confirms the HardwareBuffer fd source can reach this parser path: a zero-header ImageWriter-backed buffer imports successfully and `run_async_hwb_run_zero_pos388` returns `EINVAL`, matching parser rejection before queue insertion. `0x4014410E` reaches `mdw_usr_ucmd`; with `+0x0c == 0` it imports the fd as APUSYS memory, maps KVA/IOVA, bounds-checks the requested length, then calls `mdw_rsc_ucmd_dispatch` at `core+0x98`. The normal VPU opcode-7 `0x8001` mapped-buffer gate is runtime-confirmed, and `--ucmd-key=apu_lib_apunn` now returns `0` for core `0` and `1`. Empty, `Normal`, `unknown`, and `apu_lib_custom` payloads still return `EINVAL` or `ENOENT` as expected. EDMA and MDLA do not show the same opcode-7 command path.
 3. **Device/resource control paths**: `0x4004413C/3D` call `mdw_usr_dev_sec_alloc/free`, and `0x400C4109` calls `mdw_usr_dev_ctrl_4109`. The free path has an id `< 0x40` guard; the `0x400C4109` path looks up a device/core and dispatches provider opcode `0` through `mdw_rsc_dev_op0_ctrl` with only a 0x0c user input. Static mapping shows MDLA/EDMA opcode `0` reaches power-on paths, normal VPU opcode `0` reaches control bookkeeping, and VPU RT opcode `0` returns early.
 4. **Handshake/wait/simple rejection paths**: useful for reachability, lower standalone risk.
 
@@ -576,7 +614,34 @@ CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
 [*] ucmd_hwb_key_Normal_c1_pos388 cmd=0x4014410e ret=-2 (ENOENT)
 ```
 
-Interpretation: the payload now matches the userspace `getAlgo()` shape, including a printable key string at `mapped_kva+4`. `Normal` is the set name, not a loaded algorithm key on this target, so both tested cores still return `ENOENT`. A successful key lookup should change this return path without queueing a VPU execution request.
+Interpretation: the payload now matches the userspace `getAlgo()` shape, including a printable key string at `mapped_kva+4`. `Normal` is the set name, not a loaded algorithm key on this target, so both tested cores still return `ENOENT`. The following `apu_lib_apunn` result shows the expected success return without queueing a VPU execution request.
+
+Observed optional `--ucmd-key` result with candidates recovered from `/system/lib64/libneuron_platform.vpu.so::XrpVpuStream::kAlgoNames`:
+
+```text
+Candidates: unknown, apu_lib_apunn, apu_lib_custom
+
+CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex \
+  app_process64 /system/bin ApusysIoctlProbe --ucmd-key=apu_lib_apunn
+...
+[*] --- ucmd HardwareBuffer case: key_apu_lib_apunn first_u32=0x8001 key="apu_lib_apunn" ---
+[+] input image payload: first_u32=0x8001 key_bytes=13 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] parcel_fd_pos_388 fd=60
+[*] hwb_key_apu_lib_apunn_mem2_pos388 cmd=0xc0384103 ret=0
+[*] hwb_key_apu_lib_apunn_mem3_pos388 cmd=0xc038410f ret=0
+[*] ucmd_hwb_key_apu_lib_apunn_c0_pos388 cmd=0x4014410e ret=0
+[*] ucmd_hwb_key_apu_lib_apunn_c1_pos388 cmd=0x4014410e ret=0
+
+--ucmd-key=apu_lib_custom:
+[*] ucmd_hwb_key_apu_lib_custom_c0_pos388 cmd=0x4014410e ret=-2 (ENOENT)
+[*] ucmd_hwb_key_apu_lib_custom_c1_pos388 cmd=0x4014410e ret=-2 (ENOENT)
+
+--ucmd-key=unknown:
+[*] ucmd_hwb_key_unknown_c0_pos388 cmd=0x4014410e ret=-2 (ENOENT)
+[*] ucmd_hwb_key_unknown_c1_pos388 cmd=0x4014410e ret=-2 (ENOENT)
+```
+
+Interpretation: `apu_lib_apunn` is a real loaded VPU algorithm key on this firmware and produces a provider success return through the same HardwareBuffer-backed `mdw_usr_ucmd` path. This is still a lookup/control primitive, not a submitted VPU workload. The next question is what kernel/user fields are written on success and how the normal APUSYS command-buffer path references the returned algorithm object.
 
 Observed optional `--run-cmd-hardwarebuffer` result from the same `system_app` context on 2026-06-14:
 
@@ -622,6 +687,6 @@ Interpretation: APUSYS memory-create is now a mapped and runtime-confirmed impor
 - Use kernel logs, if available from the lab context, to distinguish whether the `ENOMEM` path comes from ION import, cache sync, or IOVA map setup.
 - Keep the `run_cmd` parser probe limited to zero-header / invalid-header inputs until the command-buffer layout is mapped. Command ops `+0x00`, `+0x10`, and `+0x18` are now resolved as `mdw_cmd_create_cmd`, `mdw_cmd_abort_cmd`, and `mdw_cmd_parse_cmd`.
 - For `0x400C4109`, optional follow-up is a small control-value sweep on the live-success providers while watching return codes and kernel logs. The current control value `0` already confirms provider opcode `0` reachability.
-- For `mdw_usr_ucmd`, recover actual Normal/Preload algorithm keys from firmware/bin metadata or runtime state before expecting a positive `--ucmd-key=<name>` result. The key string ABI is now confirmed as `mapped_kva+4`, up to 31 bytes, matching userspace `libvpu.so::getAlgo()`.
+- For `mdw_usr_ucmd`, inspect the success side effects of `--ucmd-key=apu_lib_apunn`: dump the 0x24-byte mapped buffer after ioctl if possible, and continue static analysis around the opcode-7 success branch. The key string ABI is confirmed as `mapped_kva+4`, up to 31 bytes, matching userspace `libvpu.so::getAlgo()`.
 - Continue mapping `mdla_run_command_sync`, `vpu_execute`, and `edma_execute` input structures before valid command-buffer experiments.
 - Continue scheduler/queue analysis after command parser targets are known. Valid command-buffer experiments come after that mapping.
