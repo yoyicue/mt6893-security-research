@@ -663,16 +663,45 @@ bounds gate for this state-word writeback. The first run's no-write cases also
 show that this signal is timing/state/cache-sensitive and should not be treated
 as a normal APUNN completion oracle.
 
+The request-priority matrix keeps the same target-wrapper-shaped request and
+first word `0x2713`, but varies native request `+0xb68`:
+
+| Request `+0xb68` | Control result | First dispatch + wait | Repeat dispatch + wait |
+|---:|---|---|---|
+| `0` | Code word remains `0x2713`; command-buffer tail word `40` remains `0` | Code word becomes `0x271b`; async `0`, wait `0`; tail word `40` cleared to `0` | Code word becomes `0x271b`; async `0`, wait `0`; tail word `40` cleared to `0` |
+| `1` | Code word remains `0x2713`; command-buffer tail word `40` remains `1` | Code word remains `0x2713`; async `0`, wait `0`; tail word `40` cleared to `0` | Code word becomes `0x271b`; async `0`, wait `0`; tail word `40` cleared to `0` |
+| `2` | Code word remains `0x2713`; command-buffer tail word `40` remains `2` | Code word remains `0x2713`; async `0`, wait `0`; tail word `40` cleared to `0` | Code word becomes `0x271b`; async `0`, wait `0`; tail word `40` cleared to `0` |
+| `3` | Code word remains `0x2713`; command-buffer tail word `40` remains `3` | Code word becomes `0x271b`; async `0`, wait `0`; tail word `40` cleared to `0` | Code word becomes `0x271b`; async `0`, wait `0`; tail word `40` cleared to `0` |
+| `0xffffffff` | Code word remains `0x2713`; command-buffer tail word `40` remains `0xffffffff` | Code word becomes `0x271b`; async `0`, wait `0`; tail word `40` cleared to `0` | Code word becomes `0x271b`; async `0`, wait `0`; tail word `40` cleared to `0` |
+
+Result files:
+
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_priority_matrix_control.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_priority_matrix_control_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_priority_matrix.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_priority_matrix_kernel.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_priority_matrix_repeat.txt`
+- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_priority_matrix_repeat_kernel.txt`
+
+IDA shows this field is read from the request before algorithm lookup and passed
+to the Preload path; the D2D_EXT helper then clamps signed values into `0..2`
+when choosing per-priority preload metadata and the copied descriptor-array
+IOVA. Runtime confirms it is accepted as a priority/slot input, including the
+negative clamp case `0xffffffff`, but it does not produce APUNN settings
+completion or output writeback. The first run's no-write cases for `1` and `2`
+again show the visible state write is not a stable APUNN completion oracle.
+
 This rules out the presence of a direct settings-property tuple as the cause of
 the current incomplete boundary. The target-wrapper-shaped no-settings request
 is accepted by APUSYS/VPU and can be waited successfully, but firmware still
 does not transition settings flags to `(settings[0] & 0x0a) == 0x02` or write
 the APUNN output/data windows. The next unresolved field is therefore not
 ordinary VPU descriptor metadata, descriptor count, `request+0x38/+0x40`
-presence, native descriptor payload size, or basic `0x1c8` opcode/count routing.
-It is the APUNN firmware-side completion/output contract: the standard wrapper's
-code/output/data buffer contents, command flags, or output-header semantics that
-make APUNN signal done and write to the settings output section.
+presence, native descriptor payload size, request priority/slot, or basic
+`0x1c8` opcode/count routing. It is the APUNN firmware-side completion/output
+contract: the standard wrapper's code/output/data buffer contents, command
+flags, or output-header semantics that make APUNN signal done and write to the
+settings output section.
 
 ## Command flags and completion state
 
@@ -1234,6 +1263,15 @@ This gives the current interpretation boundary:
   size `0`. Native descriptor payload size is therefore not a hard acceptance or
   bounds gate for the current state-word writeback, and the occasional no-write
   result keeps this signal unsuitable as a normal APUNN completion oracle.
+- The `target_code5_no_settings_priority_matrix` result keeps the same request
+  shape and first word `0x2713`, but varies request `+0xb68` through
+  `0,1,2,3,0xffffffff`. No-dispatch controls preserve the requested value in the
+  command-buffer tail. Dispatch plus wait returns `0` for every priority; the
+  first dispatch missed visible descriptor-0 writeback for `1` and `2`, but a
+  repeat run wrote `0x271b` for every tested value. The command-buffer copyback
+  clears tail word `40` after dispatch. This confirms `+0xb68` is a real
+  D2D_EXT priority/slot input and command-lifetime field, but not the APUNN
+  completion/output condition.
 - The `wrapper_one_data_output44` result follows the host wrapper's dynamic
   output-size formula for one `0x1c8` Xtensa operation: output size
   `0x40 + 4 * 1 = 0x44`, output header flag `1`, `settings_len=0x68`,
@@ -1391,8 +1429,12 @@ input entering a timeout/error path as `0xffffffff -> 0xfffffffd` with wait
 `-EIO`. The descriptor-size matrix accepts every tested size and repeats the
 same `0x2713 -> 0x271b` state write even when the native descriptor advertises
 payload size `0`, so native descriptor length is not a hard gate for that
-writeback. Libvpu-style descriptor metadata, a five-descriptor alias shape, and
-the wrapper send-state command flag value `0x5` do not change that boundary.
+writeback. The request-priority matrix accepts `request+0xb68` values
+`0,1,2,3,0xffffffff`, clears the command-buffer priority/slot word after
+dispatch, and repeats the same state write in the second run, so priority/slot is
+also not the missing completion/output condition. Libvpu-style descriptor
+metadata, a five-descriptor alias shape, and the wrapper send-state command flag
+value `0x5` do not change that boundary.
 Changing the firmware-visible settings length from `0x100` to the wrapper DSP
 command buffer size `0x68` also leaves the same boundary in place. Setting the
 wrapper-controlled output header flag byte at `output+0x10` to `1` does not
