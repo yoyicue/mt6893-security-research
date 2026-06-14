@@ -349,6 +349,7 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpTargetSettings5NoSettingsDataPayloadMatrixIovaControl = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIova = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIovaControl = false;
+        boolean runCmdVpuXrpCloseRaceIova = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlotControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix = false;
@@ -562,6 +563,8 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIova = true;
             } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-cmd-copyback-diff-iova-control".equals(arg)) {
                 runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIovaControl = true;
+            } else if ("--run-cmd-vpu-xrp-close-race-iova".equals(arg)) {
+                runCmdVpuXrpCloseRaceIova = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot".equals(arg)) {
                 runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot-control".equals(arg)) {
@@ -695,6 +698,7 @@ public final class ApusysIoctlProbe {
                 || runCmdVpuXrpTargetSettings5NoSettingsDataPayloadMatrixIovaControl
                 || runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIova
                 || runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIovaControl
+                || runCmdVpuXrpCloseRaceIova
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrixControl
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescOperandOffsetMatrix
@@ -1252,6 +1256,10 @@ public final class ApusysIoctlProbe {
             if (runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIovaControl) {
                 runRunCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffProbe(
                     fd, false);
+            }
+
+            if (runCmdVpuXrpCloseRaceIova) {
+                runRunCmdVpuXrpCloseRaceHardwareBufferProbe();
             }
 
             if (runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot) {
@@ -2150,6 +2158,48 @@ public final class ApusysIoctlProbe {
                                                             XrpDataDescEntry[] dataDescEntriesOverride,
                                                             boolean fullCommandCopybackDiff)
             throws Exception {
+        runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, xrpSettings,
+            splitTargets, xrpOp, waitMs, twoVpuBuffers, descriptorMode,
+            cmdFlags, descriptorOrder, settingsLen, outputHeaderFlag,
+            settingsShape, waitAfterAsync, requestFlags, includeSettingsProperty,
+            codeFirstWordOverride, descriptorPayloadSizeOverride,
+            requestPriorityOverride, requestBufferCountOverride,
+            descriptorPortIdOverride, descriptorFormatOverride,
+            descriptorPlaneCountOverride, descriptorHeightOverride,
+            outerCodebufSizeOverride, dataPayloadWordBaseOverride,
+            dataDescEntriesOverride, fullCommandCopybackDiff, null);
+    }
+
+    private static void runRunCmdVpuIovaHardwareBufferProbe(int apusysFd,
+                                                            boolean dispatch,
+                                                            boolean xrpSettings,
+                                                            boolean splitTargets,
+                                                            XrpOpSpec xrpOp,
+                                                            int waitMs,
+                                                            boolean twoVpuBuffers,
+                                                            int descriptorMode,
+                                                            int cmdFlags,
+                                                            int descriptorOrder,
+                                                            int settingsLen,
+                                                            int outputHeaderFlag,
+                                                            XrpSettingsShape settingsShape,
+                                                            boolean waitAfterAsync,
+                                                            int requestFlags,
+                                                            boolean includeSettingsProperty,
+                                                            Integer codeFirstWordOverride,
+                                                            Integer descriptorPayloadSizeOverride,
+                                                            Integer requestPriorityOverride,
+                                                            Integer requestBufferCountOverride,
+                                                            Integer descriptorPortIdOverride,
+                                                            Integer descriptorFormatOverride,
+                                                            Integer descriptorPlaneCountOverride,
+                                                            Integer descriptorHeightOverride,
+                                                            Integer outerCodebufSizeOverride,
+                                                            Integer dataPayloadWordBaseOverride,
+                                                            XrpDataDescEntry[] dataDescEntriesOverride,
+                                                            boolean fullCommandCopybackDiff,
+                                                            Integer closeApusysFdAfterAsyncMs)
+            throws Exception {
         System.out.println("\n[*] === Optional APUSYS run_cmd VPU IOVA chained probe ===");
         if (xrpSettings) {
             System.out.println("[*] Mode: mem_create imports HardwareBuffer to get IOVA,"
@@ -2285,6 +2335,13 @@ public final class ApusysIoctlProbe {
                     + " snapshot request[0..0xb70) before dispatch and"
                     + " classify changed dwords/qwords after wait.");
             }
+            if (closeApusysFdAfterAsyncMs != null) {
+                System.out.println("[*] Close-race mode: run_cmd_async, skip"
+                    + " wait_cmd, sleep "
+                    + closeApusysFdAfterAsyncMs.intValue()
+                    + "ms, close this APUSYS fd, then keep buffers alive for "
+                    + waitMs + "ms before dumping.");
+            }
         } else {
             System.out.println("[*] Mode: mem_create imports HardwareBuffer to get IOVA,"
                 + " then the VPU request references that IOVA in libvpu-style"
@@ -2304,6 +2361,7 @@ public final class ApusysIoctlProbe {
         android.hardware.HardwareBuffer hb = null;
         long memDesc = 0;
         boolean memImported = false;
+        boolean apusysFdClosedInProbe = false;
         byte[] commandRequestBefore = null;
         try {
             reader = createRgbaImageReader(64, 64);
@@ -2567,7 +2625,17 @@ public final class ApusysIoctlProbe {
                     + Long.toHexString(APUSYS_CMD_RUN_ASYNC)
                     + " ret=" + retText(runRet));
                 dumpU32Words("run_cmd_arg_after_async", runCmd, 0x18);
-                if (waitAfterAsync && runRet >= 0) {
+                if (closeApusysFdAfterAsyncMs != null && runRet >= 0) {
+                    int closeDelayMs = closeApusysFdAfterAsyncMs.intValue();
+                    System.out.println("[*] close-race: sleeping "
+                        + closeDelayMs
+                        + "ms before closing APUSYS fd after async submit");
+                    Thread.sleep(closeDelayMs);
+                    DrmTrigger.closeFd(apusysFd);
+                    apusysFdClosedInProbe = true;
+                    System.out.println("[*] close-race: closed APUSYS fd;"
+                        + " mdw_usr_destroy should own residual cmd/mem cleanup");
+                } else if (waitAfterAsync && runRet >= 0) {
                     long waitRet = DrmTrigger.rawIoctl(apusysFd,
                         APUSYS_CMD_WAIT, runCmd);
                     System.out.println("[*] wait_vpu_iova cmd=0x"
@@ -2613,8 +2681,13 @@ public final class ApusysIoctlProbe {
             }
 
             // cleanup cmd mem
-            DrmTrigger.rawIoctl(apusysFd, APUSYS_CMD_MEM_FREE_02, cmdMemDesc);
-            System.out.println("[*] cmd mem_create2 freed");
+            if (apusysFdClosedInProbe) {
+                System.out.println("[*] close-race: skipping cmd mem_free"
+                    + " because APUSYS fd is already closed");
+            } else {
+                DrmTrigger.rawIoctl(apusysFd, APUSYS_CMD_MEM_FREE_02, cmdMemDesc);
+                System.out.println("[*] cmd mem_create2 freed");
+            }
 
             hb2.close();
             output2.close();
@@ -2624,8 +2697,19 @@ public final class ApusysIoctlProbe {
         } finally {
             // phase 6: cleanup IOVA mem
             if (memImported) {
-                DrmTrigger.rawIoctl(apusysFd, APUSYS_CMD_MEM_FREE_02, memDesc);
-                System.out.println("[*] IOVA mem_create2 freed");
+                if (apusysFdClosedInProbe) {
+                    System.out.println("[*] close-race: skipping IOVA mem_free"
+                        + " because APUSYS fd is already closed");
+                } else {
+                    DrmTrigger.rawIoctl(apusysFd,
+                        APUSYS_CMD_MEM_FREE_02, memDesc);
+                    System.out.println("[*] IOVA mem_create2 freed");
+                }
+            }
+            if (closeApusysFdAfterAsyncMs != null && !apusysFdClosedInProbe) {
+                DrmTrigger.closeFd(apusysFd);
+                System.out.println("[*] close-race: closed APUSYS fd during"
+                    + " probe cleanup");
             }
             if (hb != null) hb.close();
             if (output != null) output.close();
@@ -3679,6 +3763,67 @@ public final class ApusysIoctlProbe {
                 XrpSettingsShape.WRAPPER_ONE_DATA, dispatch, flags, false,
                 null, null, null, null, null, null, null, null, null, null,
                 null, true);
+        }
+    }
+
+    private static void runRunCmdVpuXrpCloseRaceHardwareBufferProbe()
+            throws Exception {
+        System.out.println("\n[*] === APUSYS run_cmd VPU close-race lifetime probe ===");
+        System.out.println("[*] Mode: each case opens a temporary /dev/apusys fd,"
+            + " submits run_cmd_async, closes that fd without wait_cmd, and"
+            + " keeps the HardwareBuffers alive while scheduler/provider cleanup"
+            + " completes.");
+
+        runRunCmdVpuXrpCloseRaceCompletedCase();
+        runRunCmdVpuXrpCloseRaceTimeoutCase();
+    }
+
+    private static void runRunCmdVpuXrpCloseRaceCompletedCase()
+            throws Exception {
+        int raceFd = -1;
+        try {
+            raceFd = DrmTrigger.openDev(APUSYS_DEV);
+            System.out.println("\n[*] === close-race case A:"
+                + " completed settings5/no-settings close_after=100ms"
+                + " post_close_wait=5000ms ===");
+            int ownedFd = raceFd;
+            raceFd = -1;
+            runRunCmdVpuIovaHardwareBufferProbe(ownedFd, true, true, true,
+                XRP_OP_ANN_VERSION, 5000, true, VPU_DESC_LIBVPU_SETTINGS5,
+                XRP_CMD_FLAGS_SEND, VPU_DESC_ORDER_CODE_OUTPUT,
+                XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
+                XrpSettingsShape.WRAPPER_ONE_DATA, false,
+                VPU_REQUEST_FLAGS_DEFAULT, false, null, null, null, null,
+                null, null, null, null, null, null, null, false,
+                Integer.valueOf(100));
+        } finally {
+            if (raceFd >= 0) {
+                DrmTrigger.closeFd(raceFd);
+            }
+        }
+    }
+
+    private static void runRunCmdVpuXrpCloseRaceTimeoutCase()
+            throws Exception {
+        int raceFd = -1;
+        try {
+            raceFd = DrmTrigger.openDev(APUSYS_DEV);
+            System.out.println("\n[*] === close-race case B:"
+                + " timeout minimal/split ANN_VERSION close_after=500ms"
+                + " post_close_wait=15000ms ===");
+            int ownedFd = raceFd;
+            raceFd = -1;
+            runRunCmdVpuIovaHardwareBufferProbe(ownedFd, true, true, true,
+                XRP_OP_ANN_VERSION, 15000, false, VPU_DESC_MINIMAL,
+                XRP_CMD_FLAGS_INITIAL, VPU_DESC_ORDER_CODE_OUTPUT,
+                XRP_SETTINGS_LEN, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
+                XrpSettingsShape.CURRENT, false, VPU_REQUEST_FLAGS_DEFAULT,
+                true, null, null, null, null, null, null, null, null, null,
+                null, null, false, Integer.valueOf(500));
+        } finally {
+            if (raceFd >= 0) {
+                DrmTrigger.closeFd(raceFd);
+            }
         }
     }
 

@@ -42,6 +42,11 @@ reachability. Firmware-side work should now be limited to experiments that feed
 the kernel primitive questions directly, such as wrapper-generated real
 operation bindings.
 
+The first command-lifetime close-race pass is also implemented. It proves that
+`system_app` can leave residual in-flight APUSYS commands by closing the fd
+after `run_cmd_async`, but the tested completed and timeout windows did not
+produce a crash, KASAN report, panic, or kernel-pointer copyback.
+
 ## Priority 1 — command buffer copyback pointer scan
 
 The first full `0xb70` request diff is now implemented in
@@ -119,9 +124,9 @@ scheduler's `mdw_sched_dev_routine` calls the provider with `W0=4` at
 `0xffffffc008792284` — the provider call itself (VPU execute with ~1s firmware
 timeout) holds no cmd-level lock.
 
-### What to do
+### Test shape
 
-Write a new probe mode, e.g. `--run-cmd-close-race`:
+The implemented close-race mode follows this shape:
 
 **Case A — completed shape, immediate close:**
 ```
@@ -160,6 +165,31 @@ Kernel log signals to classify:
 Even without a crash, the timing relationship between "residual cmd" and
 "D2D_EXT timeout" / completion logs tells us whether abort waits for provider
 completion or races past it.
+
+### Implemented probe
+
+`--run-cmd-vpu-xrp-close-race-iova` now runs both cases with a temporary
+`/dev/apusys` fd per case. After successful `run_cmd_async`, the probe skips
+`wait_cmd`, sleeps for the configured delay, closes that APUSYS fd, keeps the
+HardwareBuffers alive, then dumps the imported IOVA buffer and command buffer.
+Because the fd is intentionally closed, the probe skips explicit APUSYS
+`mem_free` ioctls and lets `mdw_usr_destroy` own residual command/memory
+teardown.
+
+| Case | Shape | Close timing | User-visible result | Kernel signal | Interpretation |
+|---|---|---|---|---|---|
+| A | completed `settings5/no-settings` | close 100 ms after `run_async=0`, dump after 5 s | output completes: settings `0x5 -> 0x7`, output filled, request tail `+0xb60 = 0xe699a` | `mdw_usr_destroy residual cmd(0xffffff8018275000)`, residual mem for original IOVA and cmd IOVA; no oops/KASAN/panic | fd close races with an in-flight or just-finished command, but this completed path is cleaned up without visible UAF |
+| B | timeout/minimal split ANN_VERSION | close 500 ms after `run_async=0`, dump after 15 s | settings/output mostly unchanged, command request has `result_status=0x2`, tail `+0xb60 = 0x215606bb`, `+0xb64 = 0x2` | `mdw_usr_destroy residual cmd(0xffffff8018705000)`, residual cmd mem; no oops/KASAN/panic | abort/timeout cleanup reaches user-mapped cmd status without a visible dangling scheduler use in this single run |
+
+This first pass moves the lifetime finding from "theoretical race" to
+"reachable residual command teardown". The tested windows do not confirm a UAF.
+If this path is pursued further, vary close delay (`0/10/50/100/500/1000 ms`)
+and loop the timeout shape while collecting less-filtered scheduler/VPU logs.
+
+Result files:
+
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_close_race.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_close_race_kernel.txt`
 
 ### IDA reference
 
