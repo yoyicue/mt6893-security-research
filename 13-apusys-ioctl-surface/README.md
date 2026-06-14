@@ -11,6 +11,8 @@ crw-rw---- 1 system camera u:object_r:apusys_device:s0 /dev/apusys
 
 The current result is **reachable but not yet mapped to a confirmed vulnerability**. IDA analysis shows the device is the MTK APUSYS midware character device. Its main ioctl handler is now named `mdw_ioctl` in the IDB at `0xffffffc00878a0ec`.
 
+The directory intentionally has no CVE number yet. The repository uses CVE-numbered directories when a test is tied to a specific public CVE or confirmed bug class. APUSYS is currently an exposed proprietary ioctl surface with handler-level mapping and safe reachability evidence, but no confirmed CVE match or vulnerability primitive.
+
 This directory documents the ioctl surface and provides only non-destructive probes. It does not include command buffers, device execution payloads, heap shaping, or privilege-escalation logic.
 
 ## IDA handler map
@@ -122,6 +124,30 @@ Exception in thread "main" java.lang.RuntimeException: open(/dev/apusys) failed:
 ```
 
 That is expected for `uid=2000(shell)`. It validates the Java probe startup path but not APUSYS handler reachability. The meaningful runtime test must run from the `uid=1000(system)` / `u:r:system_app:s0` context that previously opened `/dev/apusys`.
+
+Observed from the rebuilt `system_app` bind shell on 2026-06-14:
+
+```text
+[+] Opened /dev/apusys fd=5
+[*] unknown            cmd=0x41414141 ret=-22 (EINVAL)
+[*] disabled_0c        cmd=0x4038410c ret=-22 (EINVAL)
+[*] disabled_0d        cmd=0x4038410d ret=-22 (EINVAL)
+[*] handshake_reject   cmd=0xc0284100 ret=-22 (EINVAL)
+[*] run_async_reject   cmd=0xc0184107 ret=-22 (EINVAL)
+[*] run_sync_reject    cmd=0x40184106 ret=-22 (EINVAL)
+[*] ucmd_reject        cmd=0x4014410e ret=-22 (EINVAL)
+```
+
+Optional `--query` handshake result:
+
+```text
+[*] handshake_query    cmd=0xc0284100 ret=0
+    handshake: [0]=0xe309c231 [4]=0x3d2070ec [8]=0x1 [12]=0x1
+               [16]=0x1e [20]=0xc [24]=0x40 [28]=0x5
+               [32]=0x1d800000 [36]=0x100000
+```
+
+Interpretation: `/dev/apusys` ioctl is confirmed reachable from `system_app`, generic invalid commands and disabled paths return controlled `EINVAL`, and handshake mode `1` returns structured data. The next useful experiments are not broader ioctl fuzzing; they are targeted tests against `mdw_usr_mem_create` and the command parser after the parser ops table is fully named.
 
 ## Next analysis steps
 
