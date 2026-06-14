@@ -1738,6 +1738,19 @@ from `off`/`file_sz`/`info` and entry point from `pAddr - (start_addr &
 0xffff0000)`. That would move this model from kernel-handoff reconstruction to
 direct firmware parser analysis.
 
+`tools/parse_vpu_image.py` now scripts that step:
+
+```
+13-apusys-ioctl-surface/tools/parse_vpu_image.py cam_vpu.bin \
+  --auto --algo apu_lib_apunn --json apunn_preload.json \
+  --carve-dir apunn_carve
+```
+
+The parser was verified on a synthetic preload-header sample: it walks
+`struct vpu_image_header`, finds both PROG and IRAM `apu_lib_apunn`
+`struct vpu_pre_info` entries, computes the PROG entry offset, and carves the
+declared byte ranges.
+
 The normal-VPU provider gate is now IDA-confirmed in `vmlinux.bin`:
 
 | Function / address | Boundary |
