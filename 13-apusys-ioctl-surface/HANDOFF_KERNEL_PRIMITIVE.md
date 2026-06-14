@@ -51,6 +51,10 @@ This handoff note is now the APUSYS closure artifact. `APUNN_SETTINGS_ABI.md`
 stays as the long-form ABI/evidence log; new APUNN facts belong here only when
 they change a kernel primitive decision.
 
+For the current experiment backlog and controllable surfaces, use
+`CONTROLLED_OPPORTUNITIES.md`. It keeps the actionable controls separate from
+the longer evidence narrative here.
+
 ## Kernel primitive triage
 
 The direct ioctl work is past reachability. Current risk is concentrated in
@@ -571,6 +575,13 @@ allocator did not hand the freed IOVA back to the immediate same-size
 replacement imports, and the firmware completion path still finished cleanly.
 Current evidence does not show a reusable kernel primitive from this shape.
 
+Follow-up no-firmware allocator profiling is also negative for exact reuse:
+`--apusys-iova-reuse-profiler` produced `exact_reuse=0/2720` across 1K, 4K,
+and 64K imports. The allocator often returns nearby IOVAs for 4K/64K
+(`closest_delta=-0x4000` / `-0x10000`), but not the exact freed IOVA required
+for the current cross-buffer write hypothesis. Full result:
+`poc-run-results/2026-06-15-batch/13_apusys_iova_reuse_profiler.txt`.
+
 ### 2. `dev_ctrl` (ioctl `0x400C4109`) during in-flight VPU command
 
 `mdw_usr_dev_ctrl_4109` reaches `core+0x70` → `mdw_rsc_dev_op0_ctrl` →
@@ -583,16 +594,31 @@ provider call. The scheduler holds `sc+0xF8` during provider opcode 4, but
 `dev_ctrl` goes through a separate ioctl path that does not acquire the sc
 mutex.
 
-Experiment:
+Implemented mode:
+
 ```
-run_cmd_async (timeout or completed shape)
-sleep 10 ms
-dev_ctrl(device=3, core=0)   // ioctl 0x400C4109
-collect kernel log: timeout/reset/fault/residual interleaving
+poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-dev-ctrl-race-iova
 ```
 
-Signals: VPU reset during active D2D causing IOMMU fault, stale completion
-after reset, scheduler state confusion (done callback on a reset core).
+Observed from `system_app` on 2026-06-15:
+
+```
+result=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_dev_ctrl_race_iova.txt
+kernel=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_dev_ctrl_race_iova_kernel_relevant.txt
+
+completed settings5/no-settings, dev_ctrl_after=0/1/10/50ms:
+  run_async=0, dev_ctrl=0, settings=0x7, wait=0
+
+timeout minimal/split, dev_ctrl_after=0/1/10/50ms:
+  run_async=0, dev_ctrl=0, request result_status=0x2, wait=-EIO
+```
+
+Kernel-side signal is controlled: timeout cases show the expected
+`request (D2D_EXT) timeout`, `mdw_sched_trace ret(-110)`, and
+`mdw_wait_cmd ... fail` lines, plus VPU power/idle noise. There is no `devapc`,
+IOMMU fault, panic/Oops, `BUG`, or `KASAN`. Interpretation: `dev_ctrl` is
+reachable during the command lifetime window, but this control value does not
+produce a reset/copyback/lifetime primitive in the tested windows.
 
 ### 3. `ucmd` opcode-7 side effects beyond algorithm lookup
 

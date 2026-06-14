@@ -1,0 +1,919 @@
+command=CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex app_process64 /system/bin ApusysIoctlProbe --apusys-iova-reuse-profiler
+probe=apusys
+dex_md5=aabcc4ad1f2c7d11370d6f9ab59cf659
+dex_sha256=417f99859d0a7d3ac0b1282ff147164a8be28c2bb19c787e1f63984f5f18570d
+remote_dex=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex
+shell_port=127.0.0.1:48888
+exit_status=0
+
+uid=1000(system) gid=1000(system) groups=1000(system),3003(inet) context=u:r:system_app:s0
+u:r:system_app:s0
+aabcc4ad1f2c7d11370d6f9ab59cf659  /data/data/com.android.settings/cache/apusys_ioctl_probe.dex
+[*] === APUSYS ioctl probe ===
+[*] Mode: optional checks enabled; no secure alloc/free; some modes submit controlled provider probes
+
+[+] Scratch buffer at 0x7055b69000
+[*] Trying anonymous PROT_RWX mmap...
+[+] Anonymous RWX page at 0x7055b34000
+[+] Wrote syscall stub: JNI@+0x00 (36B), call stub JNI@+0x80 (40B); entry_point left untouched
+[*] ArtMethod for nativeSyscall at 0x704c02dbd0
+    access_flags = 0x10000108 [NATIVE]
+    data (JNI ptr) = 0x6d9621a180
+    entry_point    = 0x1038000875f3c888
+[*] Patching data_ (JNI) → 0x7055b34000
+    data_       = 0x7055b34000 ✓
+    entry_point = 0x1038000875f3c888 (unchanged)
+[+] ArtMethod patched
+[+] Syscall infrastructure ready
+
+[+] Opened /dev/apusys fd=48
+[*] unknown            cmd=0x41414141 ret=-22 (EINVAL)
+[*] disabled_0c        cmd=0x4038410c ret=-22 (EINVAL)
+[*] disabled_0d        cmd=0x4038410d ret=-22 (EINVAL)
+[*] handshake_reject   cmd=0xc0284100 ret=-22 (EINVAL)
+[*] run_async_reject   cmd=0xc0184107 ret=-22 (EINVAL)
+[*] run_sync_reject    cmd=0x40184106 ret=-22 (EINVAL)
+[*] ucmd_reject        cmd=0x4014410e ret=-22 (EINVAL)
+
+[*] === APUSYS IOVA reuse profiler ===
+[*] Mode: no firmware dispatch. Each case imports an original HardwareBuffer, frees its APUSYS IOVA mapping, then imports replacement HardwareBuffers and records exact and nearby IOVA reuse.
+[+] loaded /apex/com.android.art/lib64/libnativehelper.so
+[-] load /system/lib64/libhidlbase.so failed: java.lang.UnsatisfiedLinkError: dlopen failed: library "libdl_android.so" needed or dlopened by "/system/lib64/libvndksupport.so" is not accessible for the namespace "classloader-namespace"
+[+] loaded /system/lib64/libhidltransport.so
+[-] load /system/lib64/libui.so failed: java.lang.UnsatisfiedLinkError: dlopen failed: library "libdl_android.so" needed or dlopened by "/system/lib64/libvndksupport.so" is not accessible for the namespace "classloader-namespace"
+[-] load /system/lib64/libgui.so failed: java.lang.UnsatisfiedLinkError: dlopen failed: library "libdl_android.so" needed or dlopened by "/system/lib64/libvndksupport.so" is not accessible for the namespace "classloader-namespace"
+[-] load /system/lib64/libhwui.so failed: java.lang.UnsatisfiedLinkError: dlopen failed: library "libandroidicu.so" not found: needed by /system/lib64/libminikin.so in namespace classloader-namespace
+[-] load /system/lib64/libandroid_runtime.so failed: java.lang.UnsatisfiedLinkError: dlopen failed: library "libandroidicu.so" not found: needed by /system/lib64/libandroid_runtime.so in namespace classloader-namespace
+
+[*] === iova-reuse-profiler case prealloc_1k_c32_i20 size=0x1000 replacements=32 iterations=20 precreate=1 delay_ms=0 ===
+[+] input image payload: first_u32=0x43444121 key_bytes=24 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510444297859
+[+] prealloc_1k_c32_i20_orig dmabuf fd=61
+[+] input image payload: first_u32=0x52555030 key_bytes=26 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510447579090
+[+] prealloc_1k_c32_i20_repl_0 dmabuf fd=66
+[+] input image payload: first_u32=0x52555031 key_bytes=26 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510448885244
+[+] prealloc_1k_c32_i20_repl_1 dmabuf fd=70
+[+] input image payload: first_u32=0x52555032 key_bytes=26 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510449957783
+[+] prealloc_1k_c32_i20_repl_2 dmabuf fd=74
+[+] input image payload: first_u32=0x52555033 key_bytes=26 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510450843321
+[+] prealloc_1k_c32_i20_repl_3 dmabuf fd=78
+[+] input image payload: first_u32=0x52555034 key_bytes=26 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510451759090
+[+] prealloc_1k_c32_i20_repl_4 dmabuf fd=82
+[+] input image payload: first_u32=0x52555035 key_bytes=26 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510452597475
+[+] prealloc_1k_c32_i20_repl_5 dmabuf fd=86
+[+] input image payload: first_u32=0x52555036 key_bytes=26 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510453331013
+[+] prealloc_1k_c32_i20_repl_6 dmabuf fd=90
+[+] input image payload: first_u32=0x52555037 key_bytes=26 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510454054475
+[+] prealloc_1k_c32_i20_repl_7 dmabuf fd=94
+[+] input image payload: first_u32=0x52555038 key_bytes=26 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510454692552
+[+] prealloc_1k_c32_i20_repl_8 dmabuf fd=98
+[+] input image payload: first_u32=0x52555039 key_bytes=26 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510455331629
+[+] prealloc_1k_c32_i20_repl_9 dmabuf fd=102
+[+] input image payload: first_u32=0x5255503a key_bytes=27 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510455975629
+[+] prealloc_1k_c32_i20_repl_10 dmabuf fd=106
+[+] input image payload: first_u32=0x5255503b key_bytes=27 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510456721244
+[+] prealloc_1k_c32_i20_repl_11 dmabuf fd=110
+[+] input image payload: first_u32=0x5255503c key_bytes=27 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510457409475
+[+] prealloc_1k_c32_i20_repl_12 dmabuf fd=114
+[+] input image payload: first_u32=0x5255503d key_bytes=27 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510458173783
+[+] prealloc_1k_c32_i20_repl_13 dmabuf fd=118
+[+] input image payload: first_u32=0x5255503e key_bytes=27 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510459634398
+[+] prealloc_1k_c32_i20_repl_14 dmabuf fd=122
+[+] input image payload: first_u32=0x5255503f key_bytes=27 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510460741167
+[+] prealloc_1k_c32_i20_repl_15 dmabuf fd=126
+[+] input image payload: first_u32=0x52555040 key_bytes=27 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510461591090
+[+] prealloc_1k_c32_i20_repl_16 dmabuf fd=130
+[+] input image payload: first_u32=0x52555041 key_bytes=27 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510462362167
+[+] prealloc_1k_c32_i20_repl_17 dmabuf fd=134
+[+] input image payload: first_u32=0x52555042 key_bytes=27 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510463124552
+[+] prealloc_1k_c32_i20_repl_18 dmabuf fd=138
+[+] input image payload: first_u32=0x52555043 key_bytes=27 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510463900013
+[+] prealloc_1k_c32_i20_repl_19 dmabuf fd=142
+[+] input image payload: first_u32=0x52555044 key_bytes=27 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510464602398
+[+] prealloc_1k_c32_i20_repl_20 dmabuf fd=146
+[+] input image payload: first_u32=0x52555045 key_bytes=27 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510465324321
+[+] prealloc_1k_c32_i20_repl_21 dmabuf fd=150
+[+] input image payload: first_u32=0x52555046 key_bytes=27 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510466066475
+[+] prealloc_1k_c32_i20_repl_22 dmabuf fd=154
+[+] input image payload: first_u32=0x52555047 key_bytes=27 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510466760013
+[+] prealloc_1k_c32_i20_repl_23 dmabuf fd=158
+[+] input image payload: first_u32=0x52555048 key_bytes=27 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510467481167
+[+] prealloc_1k_c32_i20_repl_24 dmabuf fd=162
+[+] input image payload: first_u32=0x52555049 key_bytes=27 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510468160321
+[+] prealloc_1k_c32_i20_repl_25 dmabuf fd=166
+[+] input image payload: first_u32=0x5255504a key_bytes=27 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510468884244
+[+] prealloc_1k_c32_i20_repl_26 dmabuf fd=170
+[+] input image payload: first_u32=0x5255504b key_bytes=27 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510469582090
+[+] prealloc_1k_c32_i20_repl_27 dmabuf fd=174
+[+] input image payload: first_u32=0x5255504c key_bytes=27 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510470251398
+[+] prealloc_1k_c32_i20_repl_28 dmabuf fd=178
+[+] input image payload: first_u32=0x5255504d key_bytes=27 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510470983013
+[+] prealloc_1k_c32_i20_repl_29 dmabuf fd=182
+[+] input image payload: first_u32=0x5255504e key_bytes=27 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510473399629
+[+] prealloc_1k_c32_i20_repl_30 dmabuf fd=186
+[+] input image payload: first_u32=0x5255504f key_bytes=27 plane_count=1 cap=4096 rowStride=128 pixelStride=4
+[+] acquired image: width=32 height=32 format=1 timestamp=214510474430090
+[+] prealloc_1k_c32_i20_repl_31 dmabuf fd=190
+[*] iova_reuse_iter prealloc_1k_c32_i20 iter=0 original=0xff9b5000 original_free=0 first_repl=0xffc1b000 exact=0/32 nearby=0/32 closest_idx=0 closest_delta=0x266000 import_fail=0
+[*] iova_reuse_iter prealloc_1k_c32_i20 iter=1 original=0xff9b5000 original_free=0 first_repl=0xffc1b000 exact=0/32 nearby=0/32 closest_idx=0 closest_delta=0x266000 import_fail=0
+[*] iova_reuse_iter prealloc_1k_c32_i20 iter=2 original=0xff9b5000 original_free=0 first_repl=0xffc1b000 exact=0/32 nearby=0/32 closest_idx=0 closest_delta=0x266000 import_fail=0
+[*] iova_reuse_iter prealloc_1k_c32_i20 iter=3 original=0xff9b5000 original_free=0 first_repl=0xffc1b000 exact=0/32 nearby=0/32 closest_idx=0 closest_delta=0x266000 import_fail=0
+[*] iova_reuse_iter prealloc_1k_c32_i20 iter=4 original=0xff9b5000 original_free=0 first_repl=0xffc1b000 exact=0/32 nearby=0/32 closest_idx=0 closest_delta=0x266000 import_fail=0
+[*] iova_reuse_iter prealloc_1k_c32_i20 iter=5 original=0xff9b5000 original_free=0 first_repl=0xffc1b000 exact=0/32 nearby=0/32 closest_idx=0 closest_delta=0x266000 import_fail=0
+[*] iova_reuse_iter prealloc_1k_c32_i20 iter=6 original=0xff9b5000 original_free=0 first_repl=0xffc1b000 exact=0/32 nearby=0/32 closest_idx=0 closest_delta=0x266000 import_fail=0
+[*] iova_reuse_iter prealloc_1k_c32_i20 iter=7 original=0xff9b5000 original_free=0 first_repl=0xffc1b000 exact=0/32 nearby=0/32 closest_idx=0 closest_delta=0x266000 import_fail=0
+[*] iova_reuse_iter prealloc_1k_c32_i20 iter=8 original=0xff9b5000 original_free=0 first_repl=0xffc1b000 exact=0/32 nearby=0/32 closest_idx=0 closest_delta=0x266000 import_fail=0
+[*] iova_reuse_iter prealloc_1k_c32_i20 iter=9 original=0xff9b5000 original_free=0 first_repl=0xffc1b000 exact=0/32 nearby=0/32 closest_idx=0 closest_delta=0x266000 import_fail=0
+[*] iova_reuse_iter prealloc_1k_c32_i20 iter=10 original=0xff9b5000 original_free=0 first_repl=0xffc1b000 exact=0/32 nearby=0/32 closest_idx=0 closest_delta=0x266000 import_fail=0
+[*] iova_reuse_iter prealloc_1k_c32_i20 iter=11 original=0xff9b5000 original_free=0 first_repl=0xffc1b000 exact=0/32 nearby=0/32 closest_idx=0 closest_delta=0x266000 import_fail=0
+[*] iova_reuse_iter prealloc_1k_c32_i20 iter=12 original=0xff9b5000 original_free=0 first_repl=0xffc1b000 exact=0/32 nearby=0/32 closest_idx=0 closest_delta=0x266000 import_fail=0
+[*] iova_reuse_iter prealloc_1k_c32_i20 iter=13 original=0xff9b5000 original_free=0 first_repl=0xffc1b000 exact=0/32 nearby=0/32 closest_idx=0 closest_delta=0x266000 import_fail=0
+[*] iova_reuse_iter prealloc_1k_c32_i20 iter=14 original=0xff9b5000 original_free=0 first_repl=0xffc1b000 exact=0/32 nearby=0/32 closest_idx=0 closest_delta=0x266000 import_fail=0
+[*] iova_reuse_iter prealloc_1k_c32_i20 iter=15 original=0xff9b5000 original_free=0 first_repl=0xffc1b000 exact=0/32 nearby=0/32 closest_idx=0 closest_delta=0x266000 import_fail=0
+[*] iova_reuse_iter prealloc_1k_c32_i20 iter=16 original=0xff9b5000 original_free=0 first_repl=0xffc1b000 exact=0/32 nearby=0/32 closest_idx=0 closest_delta=0x266000 import_fail=0
+[*] iova_reuse_iter prealloc_1k_c32_i20 iter=17 original=0xff9b5000 original_free=0 first_repl=0xffc1b000 exact=0/32 nearby=0/32 closest_idx=0 closest_delta=0x266000 import_fail=0
+[*] iova_reuse_iter prealloc_1k_c32_i20 iter=18 original=0xff9b5000 original_free=0 first_repl=0xffc1b000 exact=0/32 nearby=0/32 closest_idx=0 closest_delta=0x266000 import_fail=0
+[*] iova_reuse_iter prealloc_1k_c32_i20 iter=19 original=0xff9b5000 original_free=0 first_repl=0xffc1b000 exact=0/32 nearby=0/32 closest_idx=0 closest_delta=0x266000 import_fail=0
+[+] iova_reuse_summary prealloc_1k_c32_i20 size=0x1000 replacements=32 iterations=20 precreate=1 exact_total=0/640 exact_iterations=0/20 nearby_total=0/640 import_fail_total=0 original_import_fail_total=0 closest_iter=0 closest_idx=0 closest_delta=0x266000
+
+[*] === iova-reuse-profiler case prealloc_4k_c32_i50 size=0x4000 replacements=32 iterations=50 precreate=1 delay_ms=0 ===
+[+] input image payload: first_u32=0x43444121 key_bytes=24 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510499320936
+[+] prealloc_4k_c32_i50_orig dmabuf fd=63
+[+] input image payload: first_u32=0x52555030 key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510500832013
+[+] prealloc_4k_c32_i50_repl_0 dmabuf fd=69
+[+] input image payload: first_u32=0x52555031 key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510501668552
+[+] prealloc_4k_c32_i50_repl_1 dmabuf fd=75
+[+] input image payload: first_u32=0x52555032 key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510502331398
+[+] prealloc_4k_c32_i50_repl_2 dmabuf fd=80
+[+] input image payload: first_u32=0x52555033 key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510502966398
+[+] prealloc_4k_c32_i50_repl_3 dmabuf fd=85
+[+] input image payload: first_u32=0x52555034 key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510503679936
+[+] prealloc_4k_c32_i50_repl_4 dmabuf fd=91
+[+] input image payload: first_u32=0x52555035 key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510504336552
+[+] prealloc_4k_c32_i50_repl_5 dmabuf fd=96
+[+] input image payload: first_u32=0x52555036 key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510504976013
+[+] prealloc_4k_c32_i50_repl_6 dmabuf fd=101
+[+] input image payload: first_u32=0x52555037 key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510505607013
+[+] prealloc_4k_c32_i50_repl_7 dmabuf fd=107
+[+] input image payload: first_u32=0x52555038 key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510506247013
+[+] prealloc_4k_c32_i50_repl_8 dmabuf fd=112
+[+] input image payload: first_u32=0x52555039 key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510507095629
+[+] prealloc_4k_c32_i50_repl_9 dmabuf fd=117
+[+] input image payload: first_u32=0x5255503a key_bytes=27 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510507782706
+[+] prealloc_4k_c32_i50_repl_10 dmabuf fd=123
+[+] input image payload: first_u32=0x5255503b key_bytes=27 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510508422783
+[+] prealloc_4k_c32_i50_repl_11 dmabuf fd=128
+[+] input image payload: first_u32=0x5255503c key_bytes=27 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510509110167
+[+] prealloc_4k_c32_i50_repl_12 dmabuf fd=133
+[+] input image payload: first_u32=0x5255503d key_bytes=27 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510509711398
+[+] prealloc_4k_c32_i50_repl_13 dmabuf fd=139
+[+] input image payload: first_u32=0x5255503e key_bytes=27 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510510413167
+[+] prealloc_4k_c32_i50_repl_14 dmabuf fd=144
+[+] input image payload: first_u32=0x5255503f key_bytes=27 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510511070706
+[+] prealloc_4k_c32_i50_repl_15 dmabuf fd=149
+[+] input image payload: first_u32=0x52555040 key_bytes=27 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510511736859
+[+] prealloc_4k_c32_i50_repl_16 dmabuf fd=155
+[+] input image payload: first_u32=0x52555041 key_bytes=27 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510512555013
+[+] prealloc_4k_c32_i50_repl_17 dmabuf fd=160
+[+] input image payload: first_u32=0x52555042 key_bytes=27 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510513207090
+[+] prealloc_4k_c32_i50_repl_18 dmabuf fd=165
+[+] input image payload: first_u32=0x52555043 key_bytes=27 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510513933552
+[+] prealloc_4k_c32_i50_repl_19 dmabuf fd=171
+[+] input image payload: first_u32=0x52555044 key_bytes=27 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510514618090
+[+] prealloc_4k_c32_i50_repl_20 dmabuf fd=176
+[+] input image payload: first_u32=0x52555045 key_bytes=27 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510515283629
+[+] prealloc_4k_c32_i50_repl_21 dmabuf fd=181
+[+] input image payload: first_u32=0x52555046 key_bytes=27 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510516064629
+[+] prealloc_4k_c32_i50_repl_22 dmabuf fd=187
+[+] input image payload: first_u32=0x52555047 key_bytes=27 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510516731090
+[+] prealloc_4k_c32_i50_repl_23 dmabuf fd=192
+[+] input image payload: first_u32=0x52555048 key_bytes=27 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510517383321
+[+] prealloc_4k_c32_i50_repl_24 dmabuf fd=196
+[+] input image payload: first_u32=0x52555049 key_bytes=27 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510518259398
+[+] prealloc_4k_c32_i50_repl_25 dmabuf fd=200
+[+] input image payload: first_u32=0x5255504a key_bytes=27 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510518981783
+[+] prealloc_4k_c32_i50_repl_26 dmabuf fd=204
+[+] input image payload: first_u32=0x5255504b key_bytes=27 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510519686167
+[+] prealloc_4k_c32_i50_repl_27 dmabuf fd=208
+[+] input image payload: first_u32=0x5255504c key_bytes=27 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510520389244
+[+] prealloc_4k_c32_i50_repl_28 dmabuf fd=212
+[+] input image payload: first_u32=0x5255504d key_bytes=27 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510521064013
+[+] prealloc_4k_c32_i50_repl_29 dmabuf fd=216
+[+] input image payload: first_u32=0x5255504e key_bytes=27 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510521749859
+[+] prealloc_4k_c32_i50_repl_30 dmabuf fd=220
+[+] input image payload: first_u32=0x5255504f key_bytes=27 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510522430167
+[+] prealloc_4k_c32_i50_repl_31 dmabuf fd=224
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=0 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=1 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=2 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=3 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=4 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=5 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=6 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=7 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=8 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=9 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=10 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=11 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=12 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=13 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=14 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=15 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=16 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=17 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=18 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=19 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=20 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=21 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=22 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=23 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=24 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=25 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=26 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=27 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=28 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=29 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=30 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=31 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=32 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=33 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=34 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=35 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=36 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=37 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=38 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=39 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=40 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=41 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=42 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=43 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=44 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=45 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=46 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=47 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=48 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[*] iova_reuse_iter prealloc_4k_c32_i50 iter=49 original=0xfcf41000 original_free=0 first_repl=0xfcf21000 exact=0/32 nearby=19/32 closest_idx=4 closest_delta=-0x4000 import_fail=0
+[+] iova_reuse_summary prealloc_4k_c32_i50 size=0x4000 replacements=32 iterations=50 precreate=1 exact_total=0/1600 exact_iterations=0/50 nearby_total=950/1600 import_fail_total=0 original_import_fail_total=0 closest_iter=0 closest_idx=4 closest_delta=-0x4000
+
+[*] === iova-reuse-profiler case prealloc_64k_c16_i20 size=0x10000 replacements=16 iterations=20 precreate=1 delay_ms=0 ===
+[+] input image payload: first_u32=0x43444121 key_bytes=25 plane_count=1 cap=65536 rowStride=512 pixelStride=4
+[+] acquired image: width=128 height=128 format=1 timestamp=214510547998090
+[+] prealloc_64k_c16_i20_orig dmabuf fd=65
+[+] input image payload: first_u32=0x52555030 key_bytes=27 plane_count=1 cap=65536 rowStride=512 pixelStride=4
+[+] acquired image: width=128 height=128 format=1 timestamp=214510549032013
+[+] prealloc_64k_c16_i20_repl_0 dmabuf fd=72
+[+] input image payload: first_u32=0x52555031 key_bytes=27 plane_count=1 cap=65536 rowStride=512 pixelStride=4
+[+] acquired image: width=128 height=128 format=1 timestamp=214510549872321
+[+] prealloc_64k_c16_i20_repl_1 dmabuf fd=79
+[+] input image payload: first_u32=0x52555032 key_bytes=27 plane_count=1 cap=65536 rowStride=512 pixelStride=4
+[+] acquired image: width=128 height=128 format=1 timestamp=214510550656936
+[+] prealloc_64k_c16_i20_repl_2 dmabuf fd=87
+[+] input image payload: first_u32=0x52555033 key_bytes=27 plane_count=1 cap=65536 rowStride=512 pixelStride=4
+[+] acquired image: width=128 height=128 format=1 timestamp=214510551338090
+[+] prealloc_64k_c16_i20_repl_3 dmabuf fd=93
+[+] input image payload: first_u32=0x52555034 key_bytes=27 plane_count=1 cap=65536 rowStride=512 pixelStride=4
+[+] acquired image: width=128 height=128 format=1 timestamp=214510552089552
+[+] prealloc_64k_c16_i20_repl_4 dmabuf fd=100
+[+] input image payload: first_u32=0x52555035 key_bytes=27 plane_count=1 cap=65536 rowStride=512 pixelStride=4
+[+] acquired image: width=128 height=128 format=1 timestamp=214510552747706
+[+] prealloc_64k_c16_i20_repl_5 dmabuf fd=108
+[+] input image payload: first_u32=0x52555036 key_bytes=27 plane_count=1 cap=65536 rowStride=512 pixelStride=4
+[+] acquired image: width=128 height=128 format=1 timestamp=214510553466167
+[+] prealloc_64k_c16_i20_repl_6 dmabuf fd=115
+[+] input image payload: first_u32=0x52555037 key_bytes=27 plane_count=1 cap=65536 rowStride=512 pixelStride=4
+[+] acquired image: width=128 height=128 format=1 timestamp=214510554217783
+[+] prealloc_64k_c16_i20_repl_7 dmabuf fd=121
+[+] input image payload: first_u32=0x52555038 key_bytes=27 plane_count=1 cap=65536 rowStride=512 pixelStride=4
+[+] acquired image: width=128 height=128 format=1 timestamp=214510554878167
+[+] prealloc_64k_c16_i20_repl_8 dmabuf fd=129
+[+] input image payload: first_u32=0x52555039 key_bytes=27 plane_count=1 cap=65536 rowStride=512 pixelStride=4
+[+] acquired image: width=128 height=128 format=1 timestamp=214510555534167
+[+] prealloc_64k_c16_i20_repl_9 dmabuf fd=136
+[+] input image payload: first_u32=0x5255503a key_bytes=28 plane_count=1 cap=65536 rowStride=512 pixelStride=4
+[+] acquired image: width=128 height=128 format=1 timestamp=214510556217783
+[+] prealloc_64k_c16_i20_repl_10 dmabuf fd=143
+[+] input image payload: first_u32=0x5255503b key_bytes=28 plane_count=1 cap=65536 rowStride=512 pixelStride=4
+[+] acquired image: width=128 height=128 format=1 timestamp=214510556982090
+[+] prealloc_64k_c16_i20_repl_11 dmabuf fd=151
+[+] input image payload: first_u32=0x5255503c key_bytes=28 plane_count=1 cap=65536 rowStride=512 pixelStride=4
+[+] acquired image: width=128 height=128 format=1 timestamp=214510557653552
+[+] prealloc_64k_c16_i20_repl_12 dmabuf fd=157
+[+] input image payload: first_u32=0x5255503d key_bytes=28 plane_count=1 cap=65536 rowStride=512 pixelStride=4
+[+] acquired image: width=128 height=128 format=1 timestamp=214510558291398
+[+] prealloc_64k_c16_i20_repl_13 dmabuf fd=164
+[+] input image payload: first_u32=0x5255503e key_bytes=28 plane_count=1 cap=65536 rowStride=512 pixelStride=4
+[+] acquired image: width=128 height=128 format=1 timestamp=214510559000859
+[+] prealloc_64k_c16_i20_repl_14 dmabuf fd=172
+[+] input image payload: first_u32=0x5255503f key_bytes=28 plane_count=1 cap=65536 rowStride=512 pixelStride=4
+[+] acquired image: width=128 height=128 format=1 timestamp=214510559664321
+[+] prealloc_64k_c16_i20_repl_15 dmabuf fd=179
+[*] iova_reuse_iter prealloc_64k_c16_i20 iter=0 original=0xfca06000 original_free=0 first_repl=0xfc9f6000 exact=0/16 nearby=16/16 closest_idx=0 closest_delta=-0x10000 import_fail=0
+[*] iova_reuse_iter prealloc_64k_c16_i20 iter=1 original=0xfca06000 original_free=0 first_repl=0xfc9f6000 exact=0/16 nearby=16/16 closest_idx=0 closest_delta=-0x10000 import_fail=0
+[*] iova_reuse_iter prealloc_64k_c16_i20 iter=2 original=0xfca06000 original_free=0 first_repl=0xfc9f6000 exact=0/16 nearby=16/16 closest_idx=0 closest_delta=-0x10000 import_fail=0
+[*] iova_reuse_iter prealloc_64k_c16_i20 iter=3 original=0xfca06000 original_free=0 first_repl=0xfc9f6000 exact=0/16 nearby=16/16 closest_idx=0 closest_delta=-0x10000 import_fail=0
+[*] iova_reuse_iter prealloc_64k_c16_i20 iter=4 original=0xfca06000 original_free=0 first_repl=0xfc9f6000 exact=0/16 nearby=16/16 closest_idx=0 closest_delta=-0x10000 import_fail=0
+[*] iova_reuse_iter prealloc_64k_c16_i20 iter=5 original=0xfca06000 original_free=0 first_repl=0xfc9f6000 exact=0/16 nearby=16/16 closest_idx=0 closest_delta=-0x10000 import_fail=0
+[*] iova_reuse_iter prealloc_64k_c16_i20 iter=6 original=0xfca06000 original_free=0 first_repl=0xfc9f6000 exact=0/16 nearby=16/16 closest_idx=0 closest_delta=-0x10000 import_fail=0
+[*] iova_reuse_iter prealloc_64k_c16_i20 iter=7 original=0xfca06000 original_free=0 first_repl=0xfc9f6000 exact=0/16 nearby=16/16 closest_idx=0 closest_delta=-0x10000 import_fail=0
+[*] iova_reuse_iter prealloc_64k_c16_i20 iter=8 original=0xfca06000 original_free=0 first_repl=0xfc9f6000 exact=0/16 nearby=16/16 closest_idx=0 closest_delta=-0x10000 import_fail=0
+[*] iova_reuse_iter prealloc_64k_c16_i20 iter=9 original=0xfca06000 original_free=0 first_repl=0xfc9f6000 exact=0/16 nearby=16/16 closest_idx=0 closest_delta=-0x10000 import_fail=0
+[*] iova_reuse_iter prealloc_64k_c16_i20 iter=10 original=0xfca06000 original_free=0 first_repl=0xfc9f6000 exact=0/16 nearby=16/16 closest_idx=0 closest_delta=-0x10000 import_fail=0
+[*] iova_reuse_iter prealloc_64k_c16_i20 iter=11 original=0xfca06000 original_free=0 first_repl=0xfc9f6000 exact=0/16 nearby=16/16 closest_idx=0 closest_delta=-0x10000 import_fail=0
+[*] iova_reuse_iter prealloc_64k_c16_i20 iter=12 original=0xfca06000 original_free=0 first_repl=0xfc9f6000 exact=0/16 nearby=16/16 closest_idx=0 closest_delta=-0x10000 import_fail=0
+[*] iova_reuse_iter prealloc_64k_c16_i20 iter=13 original=0xfca06000 original_free=0 first_repl=0xfc9f6000 exact=0/16 nearby=16/16 closest_idx=0 closest_delta=-0x10000 import_fail=0
+[*] iova_reuse_iter prealloc_64k_c16_i20 iter=14 original=0xfca06000 original_free=0 first_repl=0xfc9f6000 exact=0/16 nearby=16/16 closest_idx=0 closest_delta=-0x10000 import_fail=0
+[*] iova_reuse_iter prealloc_64k_c16_i20 iter=15 original=0xfca06000 original_free=0 first_repl=0xfc9f6000 exact=0/16 nearby=16/16 closest_idx=0 closest_delta=-0x10000 import_fail=0
+[*] iova_reuse_iter prealloc_64k_c16_i20 iter=16 original=0xfca06000 original_free=0 first_repl=0xfc9f6000 exact=0/16 nearby=16/16 closest_idx=0 closest_delta=-0x10000 import_fail=0
+[*] iova_reuse_iter prealloc_64k_c16_i20 iter=17 original=0xfca06000 original_free=0 first_repl=0xfc9f6000 exact=0/16 nearby=16/16 closest_idx=0 closest_delta=-0x10000 import_fail=0
+[*] iova_reuse_iter prealloc_64k_c16_i20 iter=18 original=0xfca06000 original_free=0 first_repl=0xfc9f6000 exact=0/16 nearby=16/16 closest_idx=0 closest_delta=-0x10000 import_fail=0
+[*] iova_reuse_iter prealloc_64k_c16_i20 iter=19 original=0xfca06000 original_free=0 first_repl=0xfc9f6000 exact=0/16 nearby=16/16 closest_idx=0 closest_delta=-0x10000 import_fail=0
+[+] iova_reuse_summary prealloc_64k_c16_i20 size=0x10000 replacements=16 iterations=20 precreate=1 exact_total=0/320 exact_iterations=0/20 nearby_total=320/320 import_fail_total=0 original_import_fail_total=0 closest_iter=0 closest_idx=0 closest_delta=-0x10000
+
+[*] === iova-reuse-profiler case fresh_4k_c16_i10 size=0x4000 replacements=16 iterations=10 precreate=0 delay_ms=0 ===
+[+] input image payload: first_u32=0x70777212 key_bytes=23 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510567825859
+[+] fresh_4k_c16_i10_orig_0 dmabuf fd=67
+[+] input image payload: first_u32=0x52555030 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510568826783
+[+] fresh_4k_c16_i10_repl_0_0 dmabuf fd=76
+[+] input image payload: first_u32=0x52555031 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510569574706
+[+] fresh_4k_c16_i10_repl_0_1 dmabuf fd=84
+[+] input image payload: first_u32=0x52555032 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510570323321
+[+] fresh_4k_c16_i10_repl_0_2 dmabuf fd=95
+[+] input image payload: first_u32=0x52555033 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510571010706
+[+] fresh_4k_c16_i10_repl_0_3 dmabuf fd=104
+[+] input image payload: first_u32=0x52555034 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510571682167
+[+] fresh_4k_c16_i10_repl_0_4 dmabuf fd=113
+[+] input image payload: first_u32=0x52555035 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510572431936
+[+] fresh_4k_c16_i10_repl_0_5 dmabuf fd=124
+[+] input image payload: first_u32=0x52555036 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510573138167
+[+] fresh_4k_c16_i10_repl_0_6 dmabuf fd=132
+[+] input image payload: first_u32=0x52555037 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510573837783
+[+] fresh_4k_c16_i10_repl_0_7 dmabuf fd=141
+[+] input image payload: first_u32=0x52555038 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510574487321
+[+] fresh_4k_c16_i10_repl_0_8 dmabuf fd=152
+[+] input image payload: first_u32=0x52555039 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510575180629
+[+] fresh_4k_c16_i10_repl_0_9 dmabuf fd=161
+[+] input image payload: first_u32=0x5255503a key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510575812552
+[+] fresh_4k_c16_i10_repl_0_10 dmabuf fd=169
+[+] input image payload: first_u32=0x5255503b key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510576509244
+[+] fresh_4k_c16_i10_repl_0_11 dmabuf fd=180
+[+] input image payload: first_u32=0x5255503c key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510577204244
+[+] fresh_4k_c16_i10_repl_0_12 dmabuf fd=188
+[+] input image payload: first_u32=0x5255503d key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510577883936
+[+] fresh_4k_c16_i10_repl_0_13 dmabuf fd=194
+[+] input image payload: first_u32=0x5255503e key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510578532013
+[+] fresh_4k_c16_i10_repl_0_14 dmabuf fd=199
+[+] input image payload: first_u32=0x5255503f key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510579220321
+[+] fresh_4k_c16_i10_repl_0_15 dmabuf fd=205
+[*] iova_reuse_iter fresh_4k_c16_i10 iter=0 original=0xfcc65000 original_free=0 first_repl=0xfcd61000 exact=0/16 nearby=2/16 closest_idx=15 closest_delta=-0x4000 import_fail=0
+[+] input image payload: first_u32=0x70777212 key_bytes=23 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510582352859
+[+] fresh_4k_c16_i10_orig_1 dmabuf fd=68
+[+] input image payload: first_u32=0x52555030 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510583351398
+[+] fresh_4k_c16_i10_repl_1_0 dmabuf fd=81
+[+] input image payload: first_u32=0x52555031 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510584219936
+[+] fresh_4k_c16_i10_repl_1_1 dmabuf fd=92
+[+] input image payload: first_u32=0x52555032 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510584946398
+[+] fresh_4k_c16_i10_repl_1_2 dmabuf fd=105
+[+] input image payload: first_u32=0x52555033 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510585667013
+[+] fresh_4k_c16_i10_repl_1_3 dmabuf fd=119
+[+] input image payload: first_u32=0x52555034 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510586317167
+[+] fresh_4k_c16_i10_repl_1_4 dmabuf fd=131
+[+] input image payload: first_u32=0x52555035 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510587002398
+[+] fresh_4k_c16_i10_repl_1_5 dmabuf fd=145
+[+] input image payload: first_u32=0x52555036 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510587660936
+[+] fresh_4k_c16_i10_repl_1_6 dmabuf fd=156
+[+] input image payload: first_u32=0x52555037 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510588346706
+[+] fresh_4k_c16_i10_repl_1_7 dmabuf fd=168
+[+] input image payload: first_u32=0x52555038 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510588995936
+[+] fresh_4k_c16_i10_repl_1_8 dmabuf fd=183
+[+] input image payload: first_u32=0x52555039 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510589696936
+[+] fresh_4k_c16_i10_repl_1_9 dmabuf fd=191
+[+] input image payload: first_u32=0x5255503a key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510590338783
+[+] fresh_4k_c16_i10_repl_1_10 dmabuf fd=198
+[+] input image payload: first_u32=0x5255503b key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510591004013
+[+] fresh_4k_c16_i10_repl_1_11 dmabuf fd=206
+[+] input image payload: first_u32=0x5255503c key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510591625859
+[+] fresh_4k_c16_i10_repl_1_12 dmabuf fd=211
+[+] input image payload: first_u32=0x5255503d key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510592333167
+[+] fresh_4k_c16_i10_repl_1_13 dmabuf fd=217
+[+] input image payload: first_u32=0x5255503e key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510593624859
+[+] fresh_4k_c16_i10_repl_1_14 dmabuf fd=222
+[+] input image payload: first_u32=0x5255503f key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510594328321
+[+] fresh_4k_c16_i10_repl_1_15 dmabuf fd=227
+[*] iova_reuse_iter fresh_4k_c16_i10 iter=1 original=0xfcd85000 original_free=0 first_repl=0xfcc59000 exact=0/16 nearby=5/16 closest_idx=6 closest_delta=-0x4000 import_fail=0
+[+] input image payload: first_u32=0x70777212 key_bytes=23 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510598441475
+[+] fresh_4k_c16_i10_orig_2 dmabuf fd=71
+[+] input image payload: first_u32=0x52555030 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510599414090
+[+] fresh_4k_c16_i10_repl_2_0 dmabuf fd=88
+[+] input image payload: first_u32=0x52555031 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510600259706
+[+] fresh_4k_c16_i10_repl_2_1 dmabuf fd=103
+[+] input image payload: first_u32=0x52555032 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510601036629
+[+] fresh_4k_c16_i10_repl_2_2 dmabuf fd=120
+[+] input image payload: first_u32=0x52555033 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510601790167
+[+] fresh_4k_c16_i10_repl_2_3 dmabuf fd=137
+[+] input image payload: first_u32=0x52555034 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510602466398
+[+] fresh_4k_c16_i10_repl_2_4 dmabuf fd=153
+[+] input image payload: first_u32=0x52555035 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510603146398
+[+] fresh_4k_c16_i10_repl_2_5 dmabuf fd=173
+[+] input image payload: first_u32=0x52555036 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510603915013
+[+] fresh_4k_c16_i10_repl_2_6 dmabuf fd=185
+[+] input image payload: first_u32=0x52555037 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510604748013
+[+] fresh_4k_c16_i10_repl_2_7 dmabuf fd=197
+[+] input image payload: first_u32=0x52555038 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510605599629
+[+] fresh_4k_c16_i10_repl_2_8 dmabuf fd=207
+[+] input image payload: first_u32=0x52555039 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510606291706
+[+] fresh_4k_c16_i10_repl_2_9 dmabuf fd=214
+[+] input image payload: first_u32=0x5255503a key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510606933244
+[+] fresh_4k_c16_i10_repl_2_10 dmabuf fd=221
+[+] input image payload: first_u32=0x5255503b key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510607573167
+[+] fresh_4k_c16_i10_repl_2_11 dmabuf fd=228
+[+] input image payload: first_u32=0x5255503c key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510608256321
+[+] fresh_4k_c16_i10_repl_2_12 dmabuf fd=232
+[+] input image payload: first_u32=0x5255503d key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510608902090
+[+] fresh_4k_c16_i10_repl_2_13 dmabuf fd=236
+[+] input image payload: first_u32=0x5255503e key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510609597552
+[+] fresh_4k_c16_i10_repl_2_14 dmabuf fd=240
+[+] input image payload: first_u32=0x5255503f key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510610320321
+[+] fresh_4k_c16_i10_repl_2_15 dmabuf fd=244
+[*] iova_reuse_iter fresh_4k_c16_i10 iter=2 original=0xfd4b5000 original_free=0 first_repl=0xfd4a5000 exact=0/16 nearby=5/16 closest_idx=2 closest_delta=-0x8000 import_fail=0
+[+] input image payload: first_u32=0x70777212 key_bytes=23 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510618806090
+[+] fresh_4k_c16_i10_orig_3 dmabuf fd=73
+[+] input image payload: first_u32=0x52555030 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510619862398
+[+] fresh_4k_c16_i10_repl_3_0 dmabuf fd=97
+[+] input image payload: first_u32=0x52555031 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510620724936
+[+] fresh_4k_c16_i10_repl_3_1 dmabuf fd=116
+[+] input image payload: first_u32=0x52555032 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510621459013
+[+] fresh_4k_c16_i10_repl_3_2 dmabuf fd=140
+[+] input image payload: first_u32=0x52555033 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510622204629
+[+] fresh_4k_c16_i10_repl_3_3 dmabuf fd=163
+[+] input image payload: first_u32=0x52555034 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510622931090
+[+] fresh_4k_c16_i10_repl_3_4 dmabuf fd=184
+[+] input image payload: first_u32=0x52555035 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510623648936
+[+] fresh_4k_c16_i10_repl_3_5 dmabuf fd=201
+[+] input image payload: first_u32=0x52555036 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510624454167
+[+] fresh_4k_c16_i10_repl_3_6 dmabuf fd=210
+[+] input image payload: first_u32=0x52555037 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510625161859
+[+] fresh_4k_c16_i10_repl_3_7 dmabuf fd=219
+[+] input image payload: first_u32=0x52555038 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510625931398
+[+] fresh_4k_c16_i10_repl_3_8 dmabuf fd=229
+[+] input image payload: first_u32=0x52555039 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510626654398
+[+] fresh_4k_c16_i10_repl_3_9 dmabuf fd=234
+[+] input image payload: first_u32=0x5255503a key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510631463629
+[+] fresh_4k_c16_i10_repl_3_10 dmabuf fd=239
+[+] input image payload: first_u32=0x5255503b key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510632519013
+[+] fresh_4k_c16_i10_repl_3_11 dmabuf fd=245
+[+] input image payload: first_u32=0x5255503c key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510633607936
+[+] fresh_4k_c16_i10_repl_3_12 dmabuf fd=249
+[+] input image payload: first_u32=0x5255503d key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510634575936
+[+] fresh_4k_c16_i10_repl_3_13 dmabuf fd=253
+[+] input image payload: first_u32=0x5255503e key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510635719936
+[+] fresh_4k_c16_i10_repl_3_14 dmabuf fd=257
+[+] input image payload: first_u32=0x5255503f key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510636659936
+[+] fresh_4k_c16_i10_repl_3_15 dmabuf fd=261
+[*] iova_reuse_iter fresh_4k_c16_i10 iter=3 original=0xfcd2d000 original_free=0 first_repl=0xfcd11000 exact=0/16 nearby=12/16 closest_idx=1 closest_delta=-0x10000 import_fail=0
+[+] input image payload: first_u32=0x70777212 key_bytes=23 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510640579398
+[+] fresh_4k_c16_i10_orig_4 dmabuf fd=77
+[+] input image payload: first_u32=0x52555030 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510641866475
+[+] fresh_4k_c16_i10_repl_4_0 dmabuf fd=109
+[+] input image payload: first_u32=0x52555031 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510655102090
+[+] fresh_4k_c16_i10_repl_4_1 dmabuf fd=135
+[+] input image payload: first_u32=0x52555032 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510656948552
+[+] fresh_4k_c16_i10_repl_4_2 dmabuf fd=167
+[+] input image payload: first_u32=0x52555033 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510658209552
+[+] fresh_4k_c16_i10_repl_4_3 dmabuf fd=193
+[+] input image payload: first_u32=0x52555034 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510659312936
+[+] fresh_4k_c16_i10_repl_4_4 dmabuf fd=209
+[+] input image payload: first_u32=0x52555035 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510660128013
+[+] fresh_4k_c16_i10_repl_4_5 dmabuf fd=223
+[+] input image payload: first_u32=0x52555036 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510660914090
+[+] fresh_4k_c16_i10_repl_4_6 dmabuf fd=231
+[+] input image payload: first_u32=0x52555037 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510661585783
+[+] fresh_4k_c16_i10_repl_4_7 dmabuf fd=236
+[+] input image payload: first_u32=0x52555038 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510662288244
+[+] fresh_4k_c16_i10_repl_4_8 dmabuf fd=241
+[+] input image payload: first_u32=0x52555039 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510662954783
+[+] fresh_4k_c16_i10_repl_4_9 dmabuf fd=244
+[+] input image payload: first_u32=0x5255503a key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510663615706
+[+] fresh_4k_c16_i10_repl_4_10 dmabuf fd=250
+[+] input image payload: first_u32=0x5255503b key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510664385783
+[+] fresh_4k_c16_i10_repl_4_11 dmabuf fd=221
+[+] input image payload: first_u32=0x5255503c key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510665025552
+[+] fresh_4k_c16_i10_repl_4_12 dmabuf fd=259
+[+] input image payload: first_u32=0x5255503d key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510665792859
+[+] fresh_4k_c16_i10_repl_4_13 dmabuf fd=207
+[+] input image payload: first_u32=0x5255503e key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510666740321
+[+] fresh_4k_c16_i10_repl_4_14 dmabuf fd=266
+[+] input image payload: first_u32=0x5255503f key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510667523090
+[+] fresh_4k_c16_i10_repl_4_15 dmabuf fd=185
+[*] iova_reuse_iter fresh_4k_c16_i10 iter=4 original=0xfce79000 original_free=0 first_repl=0xfce81000 exact=0/16 nearby=6/16 closest_idx=2 closest_delta=-0x4000 import_fail=0
+[+] input image payload: first_u32=0x70777212 key_bytes=23 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510670615629
+[+] fresh_4k_c16_i10_orig_5 dmabuf fd=83
+[+] input image payload: first_u32=0x52555030 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510671641167
+[+] fresh_4k_c16_i10_repl_5_0 dmabuf fd=120
+[+] input image payload: first_u32=0x52555031 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510672489244
+[+] fresh_4k_c16_i10_repl_5_1 dmabuf fd=147
+[+] input image payload: first_u32=0x52555032 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510673270475
+[+] fresh_4k_c16_i10_repl_5_2 dmabuf fd=103
+[+] input image payload: first_u32=0x52555033 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510673956244
+[+] fresh_4k_c16_i10_repl_5_3 dmabuf fd=189
+[+] input image payload: first_u32=0x52555034 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510674640552
+[+] fresh_4k_c16_i10_repl_5_4 dmabuf fd=88
+[+] input image payload: first_u32=0x52555035 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510675343090
+[+] fresh_4k_c16_i10_repl_5_5 dmabuf fd=215
+[+] input image payload: first_u32=0x52555036 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510676062167
+[+] fresh_4k_c16_i10_repl_5_6 dmabuf fd=228
+[+] input image payload: first_u32=0x52555037 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510676732321
+[+] fresh_4k_c16_i10_repl_5_7 dmabuf fd=71
+[+] input image payload: first_u32=0x52555038 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510677371321
+[+] fresh_4k_c16_i10_repl_5_8 dmabuf fd=240
+[+] input image payload: first_u32=0x52555039 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510678204321
+[+] fresh_4k_c16_i10_repl_5_9 dmabuf fd=247
+[+] input image payload: first_u32=0x5255503a key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510678952321
+[+] fresh_4k_c16_i10_repl_5_10 dmabuf fd=254
+[+] input image payload: first_u32=0x5255503b key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510685013475
+[+] fresh_4k_c16_i10_repl_5_11 dmabuf fd=198
+[+] input image payload: first_u32=0x5255503c key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510687543321
+[+] fresh_4k_c16_i10_repl_5_12 dmabuf fd=191
+[+] input image payload: first_u32=0x5255503d key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510689036013
+[+] fresh_4k_c16_i10_repl_5_13 dmabuf fd=260
+[+] input image payload: first_u32=0x5255503e key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510689959398
+[+] fresh_4k_c16_i10_repl_5_14 dmabuf fd=168
+[+] input image payload: first_u32=0x5255503f key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510690654706
+[+] fresh_4k_c16_i10_repl_5_15 dmabuf fd=269
+[*] iova_reuse_iter fresh_4k_c16_i10 iter=5 original=0xfccd5000 original_free=0 first_repl=0xfccc9000 exact=0/16 nearby=11/16 closest_idx=1 closest_delta=-0x4000 import_fail=0
+[+] input image payload: first_u32=0x70777212 key_bytes=23 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510693637783
+[+] fresh_4k_c16_i10_orig_6 dmabuf fd=89
+[+] input image payload: first_u32=0x52555030 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510694533783
+[+] fresh_4k_c16_i10_repl_6_0 dmabuf fd=127
+[+] input image payload: first_u32=0x52555031 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510695261167
+[+] fresh_4k_c16_i10_repl_6_1 dmabuf fd=148
+[+] input image payload: first_u32=0x52555032 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510695959936
+[+] fresh_4k_c16_i10_repl_6_2 dmabuf fd=173
+[+] input image payload: first_u32=0x52555033 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510697113475
+[+] fresh_4k_c16_i10_repl_6_3 dmabuf fd=183
+[+] input image payload: first_u32=0x52555034 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510697866167
+[+] fresh_4k_c16_i10_repl_6_4 dmabuf fd=202
+[+] input image payload: first_u32=0x52555035 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510698519629
+[+] fresh_4k_c16_i10_repl_6_5 dmabuf fd=92
+[+] input image payload: first_u32=0x52555036 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510699212936
+[+] fresh_4k_c16_i10_repl_6_6 dmabuf fd=81
+[+] input image payload: first_u32=0x52555037 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510699853783
+[+] fresh_4k_c16_i10_repl_6_7 dmabuf fd=226
+[+] input image payload: first_u32=0x52555038 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510700550090
+[+] fresh_4k_c16_i10_repl_6_8 dmabuf fd=232
+[+] input image payload: first_u32=0x52555039 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510701261167
+[+] fresh_4k_c16_i10_repl_6_9 dmabuf fd=205
+[+] input image payload: first_u32=0x5255503a key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510701947013
+[+] fresh_4k_c16_i10_repl_6_10 dmabuf fd=246
+[+] input image payload: first_u32=0x5255503b key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510702596244
+[+] fresh_4k_c16_i10_repl_6_11 dmabuf fd=252
+[+] input image payload: first_u32=0x5255503c key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510703243398
+[+] fresh_4k_c16_i10_repl_6_12 dmabuf fd=262
+[+] input image payload: first_u32=0x5255503d key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510704016629
+[+] fresh_4k_c16_i10_repl_6_13 dmabuf fd=265
+[+] input image payload: first_u32=0x5255503e key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510704802398
+[+] fresh_4k_c16_i10_repl_6_14 dmabuf fd=188
+[+] input image payload: first_u32=0x5255503f key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510705459936
+[+] fresh_4k_c16_i10_repl_6_15 dmabuf fd=274
+[*] iova_reuse_iter fresh_4k_c16_i10 iter=6 original=0xfcc95000 original_free=0 first_repl=0xfcc9d000 exact=0/16 nearby=6/16 closest_idx=2 closest_delta=0x4000 import_fail=0
+[+] input image payload: first_u32=0x70777212 key_bytes=23 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510708652859
+[+] fresh_4k_c16_i10_orig_7 dmabuf fd=68
+[+] input image payload: first_u32=0x52555030 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510709563398
+[+] fresh_4k_c16_i10_repl_7_0 dmabuf fd=119
+[+] input image payload: first_u32=0x52555031 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510710322167
+[+] fresh_4k_c16_i10_repl_7_1 dmabuf fd=137
+[+] input image payload: first_u32=0x52555032 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510711002398
+[+] fresh_4k_c16_i10_repl_7_2 dmabuf fd=152
+[+] input image payload: first_u32=0x52555033 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510711661859
+[+] fresh_4k_c16_i10_repl_7_3 dmabuf fd=161
+[+] input image payload: first_u32=0x52555034 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510712369552
+[+] fresh_4k_c16_i10_repl_7_4 dmabuf fd=177
+[+] input image payload: first_u32=0x52555035 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510713127013
+[+] fresh_4k_c16_i10_repl_7_5 dmabuf fd=104
+[+] input image payload: first_u32=0x52555036 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510713973783
+[+] fresh_4k_c16_i10_repl_7_6 dmabuf fd=95
+[+] input image payload: first_u32=0x52555037 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510714704244
+[+] fresh_4k_c16_i10_repl_7_7 dmabuf fd=214
+[+] input image payload: first_u32=0x52555038 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510715379013
+[+] fresh_4k_c16_i10_repl_7_8 dmabuf fd=222
+[+] input image payload: first_u32=0x52555039 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510716105552
+[+] fresh_4k_c16_i10_repl_7_9 dmabuf fd=233
+[+] input image payload: first_u32=0x5255503a key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510716781244
+[+] fresh_4k_c16_i10_repl_7_10 dmabuf fd=238
+[+] input image payload: first_u32=0x5255503b key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510717461859
+[+] fresh_4k_c16_i10_repl_7_11 dmabuf fd=248
+[+] input image payload: first_u32=0x5255503c key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510728701783
+[+] fresh_4k_c16_i10_repl_7_12 dmabuf fd=256
+[+] input image payload: first_u32=0x5255503d key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510730185783
+[+] fresh_4k_c16_i10_repl_7_13 dmabuf fd=164
+[+] input image payload: first_u32=0x5255503e key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510731246398
+[+] fresh_4k_c16_i10_repl_7_14 dmabuf fd=157
+[+] input image payload: first_u32=0x5255503f key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510732192013
+[+] fresh_4k_c16_i10_repl_7_15 dmabuf fd=151
+[*] iova_reuse_iter fresh_4k_c16_i10 iter=7 original=0xfc8da000 original_free=0 first_repl=0xfc8d6000 exact=0/16 nearby=16/16 closest_idx=0 closest_delta=-0x4000 import_fail=0
+[+] input image payload: first_u32=0x70777212 key_bytes=23 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510736186167
+[+] fresh_4k_c16_i10_orig_8 dmabuf fd=67
+[+] input image payload: first_u32=0x52555030 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510744409859
+[+] fresh_4k_c16_i10_repl_8_0 dmabuf fd=65
+[+] input image payload: first_u32=0x52555031 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510745868244
+[+] fresh_4k_c16_i10_repl_8_1 dmabuf fd=99
+[+] input image payload: first_u32=0x52555032 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510746959629
+[+] fresh_4k_c16_i10_repl_8_2 dmabuf fd=111
+[+] input image payload: first_u32=0x52555033 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510747825783
+[+] fresh_4k_c16_i10_repl_8_3 dmabuf fd=124
+[+] input image payload: first_u32=0x52555034 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510748655706
+[+] fresh_4k_c16_i10_repl_8_4 dmabuf fd=132
+[+] input image payload: first_u32=0x52555035 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510749518090
+[+] fresh_4k_c16_i10_repl_8_5 dmabuf fd=145
+[+] input image payload: first_u32=0x52555036 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510750223629
+[+] fresh_4k_c16_i10_repl_8_6 dmabuf fd=169
+[+] input image payload: first_u32=0x52555037 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510750921783
+[+] fresh_4k_c16_i10_repl_8_7 dmabuf fd=180
+[+] input image payload: first_u32=0x52555038 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510751761475
+[+] fresh_4k_c16_i10_repl_8_8 dmabuf fd=196
+[+] input image payload: first_u32=0x52555039 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510752561167
+[+] fresh_4k_c16_i10_repl_8_9 dmabuf fd=204
+[+] input image payload: first_u32=0x5255503a key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510753461167
+[+] fresh_4k_c16_i10_repl_8_10 dmabuf fd=211
+[+] input image payload: first_u32=0x5255503b key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510754287706
+[+] fresh_4k_c16_i10_repl_8_11 dmabuf fd=181
+[+] input image payload: first_u32=0x5255503c key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510755131013
+[+] fresh_4k_c16_i10_repl_8_12 dmabuf fd=176
+[+] input image payload: first_u32=0x5255503d key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510755976244
+[+] fresh_4k_c16_i10_repl_8_13 dmabuf fd=225
+[+] input image payload: first_u32=0x5255503e key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510756761552
+[+] fresh_4k_c16_i10_repl_8_14 dmabuf fd=235
+[+] input image payload: first_u32=0x5255503f key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510757553244
+[+] fresh_4k_c16_i10_repl_8_15 dmabuf fd=243
+[*] iova_reuse_iter fresh_4k_c16_i10 iter=8 original=0xfc896000 original_free=0 first_repl=0xfc892000 exact=0/16 nearby=16/16 closest_idx=0 closest_delta=-0x4000 import_fail=0
+[+] input image payload: first_u32=0x70777212 key_bytes=23 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510761792244
+[+] fresh_4k_c16_i10_orig_9 dmabuf fd=72
+[+] input image payload: first_u32=0x52555030 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510762732244
+[+] fresh_4k_c16_i10_repl_9_0 dmabuf fd=87
+[+] input image payload: first_u32=0x52555031 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510763626783
+[+] fresh_4k_c16_i10_repl_9_1 dmabuf fd=108
+[+] input image payload: first_u32=0x52555032 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510764395629
+[+] fresh_4k_c16_i10_repl_9_2 dmabuf fd=107
+[+] input image payload: first_u32=0x52555033 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510765193475
+[+] fresh_4k_c16_i10_repl_9_3 dmabuf fd=123
+[+] input image payload: first_u32=0x52555034 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510766058706
+[+] fresh_4k_c16_i10_repl_9_4 dmabuf fd=91
+[+] input image payload: first_u32=0x52555035 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510766838090
+[+] fresh_4k_c16_i10_repl_9_5 dmabuf fd=133
+[+] input image payload: first_u32=0x52555036 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510767565475
+[+] fresh_4k_c16_i10_repl_9_6 dmabuf fd=75
+[+] input image payload: first_u32=0x52555037 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510768277859
+[+] fresh_4k_c16_i10_repl_9_7 dmabuf fd=69
+[+] input image payload: first_u32=0x52555038 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510768965859
+[+] fresh_4k_c16_i10_repl_9_8 dmabuf fd=155
+[+] input image payload: first_u32=0x52555039 key_bytes=25 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510769650475
+[+] fresh_4k_c16_i10_repl_9_9 dmabuf fd=165
+[+] input image payload: first_u32=0x5255503a key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510770336552
+[+] fresh_4k_c16_i10_repl_9_10 dmabuf fd=179
+[+] input image payload: first_u32=0x5255503b key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510772249552
+[+] fresh_4k_c16_i10_repl_9_11 dmabuf fd=154
+[+] input image payload: first_u32=0x5255503c key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510773134167
+[+] fresh_4k_c16_i10_repl_9_12 dmabuf fd=122
+[+] input image payload: first_u32=0x5255503d key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510773896629
+[+] fresh_4k_c16_i10_repl_9_13 dmabuf fd=90
+[+] input image payload: first_u32=0x5255503e key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510774646167
+[+] fresh_4k_c16_i10_repl_9_14 dmabuf fd=61
+[+] input image payload: first_u32=0x5255503f key_bytes=26 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=214510775440629
+[+] fresh_4k_c16_i10_repl_9_15 dmabuf fd=94
+[*] iova_reuse_iter fresh_4k_c16_i10 iter=9 original=0xfc852000 original_free=0 first_repl=0xfc84e000 exact=0/16 nearby=16/16 closest_idx=0 closest_delta=-0x4000 import_fail=0
+[+] iova_reuse_summary fresh_4k_c16_i10 size=0x4000 replacements=16 iterations=10 precreate=0 exact_total=0/160 exact_iterations=0/10 nearby_total=95/160 import_fail_total=0 original_import_fail_total=0 closest_iter=0 closest_idx=15 closest_delta=-0x4000
+
+[+] Probe completed. Interpret results as handler reachability only.
