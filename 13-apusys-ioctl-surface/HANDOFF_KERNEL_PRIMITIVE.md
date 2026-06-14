@@ -94,6 +94,55 @@ request tail state. More opcode/operand matrices are useful only if they create
 source-sensitive output, change host copyback contents, or alter async command
 lifetime.
 
+## Firmware image acquisition status
+
+The raw `apu_lib_apunn` firmware parser is not recovered yet. The current model
+is kernel-handoff accurate, but firmware-internal request interpretation still
+depends on acquiring a readable VPU preload image.
+
+Kernel source and device evidence now narrow the acquisition path:
+
+- `vpu_init_bin()` maps the VPU binary from device-tree properties
+  `bin-phy-addr`, `bin-size`, `img-head`, and `pre-bin`; this build does not
+  expose `apu_lib_apunn` as a standalone `/vendor/firmware` file.
+- The connected target exposes `cam_vpu1_a`, `cam_vpu2_a`, `cam_vpu3_a` and
+  matching `_b` slots under `/dev/block/by-name`; those are the current static
+  partition candidates for the packed VPU image.
+- The live reserved-memory candidate is
+  `/sys/firmware/devicetree/base/reserved-memory/mblock-18-vpu_binary`.
+- The current `user=1000` shell cannot read the partition block nodes,
+  reserved-memory properties, `/proc/vpu/vpu_memory`, or `/proc/vpu/vpu*/mesg`,
+  and `su` is not available. This is an acquisition blocker, not a parser
+  blocker.
+
+`tools/parse_vpu_image.py` scripts the next static step once a readable dump is
+available. It accepts either one merged VPU image or split `cam_vpu*` images in
+LK merge order, parses the packed `struct vpu_image_header` array, walks
+`struct vpu_pre_info`, locates `apu_lib_apunn`, computes the PROG entry offset
+from `pAddr - (start_addr & 0xffff0000)`, and carves the declared PROG/IRAM
+ranges.
+
+Merged dump:
+
+```
+13-apusys-ioctl-surface/tools/parse_vpu_image.py cam_vpu.bin \
+  --auto --algo apu_lib_apunn --json apunn_preload.json \
+  --carve-dir apunn_carve
+```
+
+Split partition dumps:
+
+```
+13-apusys-ioctl-surface/tools/parse_vpu_image.py \
+  cam_vpu1_a.bin cam_vpu2_a.bin cam_vpu3_a.bin \
+  --auto --algo apu_lib_apunn --json apunn_preload.json \
+  --carve-dir apunn_carve
+```
+
+The parser is verified on a synthetic preload-header sample, including split
+image concatenation. The goal is not complete until a real readable VPU image
+is parsed or another source provides the raw `apu_lib_apunn` payload.
+
 Practical next step: run at most one focused kernel-lifetime batch before
 closing this surface for now. Use timeout/abort copyback diff plus a small
 close-delay loop (`0/10/50/100/500/1000 ms`), then optionally two concurrent

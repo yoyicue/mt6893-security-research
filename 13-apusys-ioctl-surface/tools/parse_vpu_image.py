@@ -6,8 +6,8 @@ This parser follows the local kernel source layout:
   drivers/misc/mediatek/apusys/vpu/p1/vpu_hw.h
 
 It is meant for a readable merged VPU binary dump, such as the live
-reserved-memory VPU binary or a pulled cam_vpu* image that contains the merged
-image-header area.
+reserved-memory VPU binary. It can also concatenate split cam_vpu* partition
+images when they are passed in LK merge order.
 """
 
 from __future__ import annotations
@@ -31,6 +31,27 @@ PRELOAD_IRAM = 0xFFFFFFFF
 VPU_SIZE_BINARY_CODE = 0x02A10000
 VPU_OFFSET_IMAGE_HEADERS = VPU_SIZE_BINARY_CODE - 0x30000
 
+HEX_INT_KEYS = {
+    "off",
+    "paddr",
+    "mem_sz",
+    "file_sz",
+    "flag",
+    "info",
+    "start_addr",
+    "map_size",
+    "carve_size",
+    "version",
+    "build_date",
+    "header_size",
+    "image_size",
+    "pre_size",
+    "seg_size",
+    "alg_info",
+    "pre_info",
+    "size",
+}
+
 
 @dataclass
 class Header:
@@ -49,6 +70,13 @@ class Header:
     pre_size: int
     algo_info_count: int
     alg_info: int
+
+
+@dataclass
+class ImagePart:
+    path: str
+    offset: int
+    size: int
 
 
 @dataclass
@@ -99,6 +127,16 @@ def cstring(raw: bytes) -> str:
 def sanitize_name(name: str) -> str:
     cleaned = re.sub(r"[^A-Za-z0-9_.-]+", "_", name)
     return cleaned.strip("_") or "unnamed"
+
+
+def load_images(paths: list[Path]) -> tuple[bytes, list[ImagePart]]:
+    data = bytearray()
+    parts: list[ImagePart] = []
+    for path in paths:
+        raw = path.read_bytes()
+        parts.append(ImagePart(path=str(path), offset=len(data), size=len(raw)))
+        data.extend(raw)
+    return bytes(data), parts
 
 
 def parse_header(data: bytes, file_offset: int, index: int) -> Header:
@@ -275,7 +313,7 @@ def hex_dict(obj: object) -> dict[str, object]:
         if isinstance(value, int) and (
             key.endswith("offset")
             or key.endswith("addr")
-            or key in {"off", "paddr", "mem_sz", "file_sz", "flag", "info", "start_addr", "map_size", "carve_size", "version", "build_date", "header_size", "image_size", "pre_size", "seg_size", "alg_info", "pre_info"}
+            or key in HEX_INT_KEYS
         ):
             out[f"{key}_hex"] = f"0x{value:x}"
     return out
@@ -336,7 +374,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Parse MTK APUSYS VPU preload image metadata"
     )
-    parser.add_argument("image", type=Path, help="merged VPU binary or cam_vpu image")
+    parser.add_argument(
+        "images",
+        nargs="+",
+        type=Path,
+        help="merged VPU binary, or split cam_vpu images in LK merge order",
+    )
     parser.add_argument(
         "--head-offset",
         type=parse_int,
@@ -359,7 +402,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_arg_parser().parse_args(argv)
-    data = args.image.read_bytes()
+    data, image_parts = load_images(args.images)
+    if len(image_parts) > 1:
+        for part in image_parts:
+            print(
+                f"image-part {part.path} offset=0x{part.offset:x} "
+                f"size=0x{part.size:x}"
+            )
     headers = choose_headers(data, args)
     pre_entries = [e for h in headers for e in parse_pre_infos(data, h)]
     normal_entries = [e for h in headers for e in parse_algo_infos(data, h)]
@@ -385,7 +434,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.json:
         payload = {
-            "image": str(args.image),
+            "images": [hex_dict(part) for part in image_parts],
             "headers": [hex_dict(h) for h in headers],
             "preload_entries": [hex_dict(e) for e in pre_entries],
             "normal_entries": [hex_dict(e) for e in normal_entries],

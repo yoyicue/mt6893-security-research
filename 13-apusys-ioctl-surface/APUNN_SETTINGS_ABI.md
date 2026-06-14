@@ -1746,6 +1746,15 @@ direct firmware parser analysis.
   --carve-dir apunn_carve
 ```
 
+For split partition dumps, pass the parts in LK merge order:
+
+```
+13-apusys-ioctl-surface/tools/parse_vpu_image.py \
+  cam_vpu1_a.bin cam_vpu2_a.bin cam_vpu3_a.bin \
+  --auto --algo apu_lib_apunn --json apunn_preload.json \
+  --carve-dir apunn_carve
+```
+
 The parser was verified on a synthetic preload-header sample: it walks
 `struct vpu_image_header`, finds both PROG and IRAM `apu_lib_apunn`
 `struct vpu_pre_info` entries, computes the PROG entry offset, and carves the
