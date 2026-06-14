@@ -5,6 +5,55 @@ parameters. It separates the kernel APUSYS command wrapper, the native
 `libvpu5.so` VPU request, and the `libneuron_platform.vpu.so` XRP command
 buffer used by the direct settings-property experiments.
 
+## Current interpretation
+
+The strongest runtime model is the target-wrapper-shaped
+`settings5/no-settings` request. In that shape the firmware is not handed the
+raw user `struct vpu_request`; the kernel copies the five native VPU buffer
+descriptors into a D2D command buffer, writes the D2D register tuple, and the
+five descriptors all point at the same DSP command/settings buffer. The native
+request settings tuple (`request+0x38/+0x40`) is clear, matching the target
+`XrpVpuStream::CreateVpuRequest()` path that calls `vpuRequest_addBuffer()` five
+times and does not call `vpuRequest_setProperty()`.
+
+APUNN completion is visible as settings/output mutation, not merely as
+`wait_cmd` success. The stable completion signature is:
+
+- `run_cmd_async == 0` and `wait_cmd == 0`
+- settings flags change from `0x5` to `0x7`, satisfying the host predicate
+  `(settings[0] & 0x0a) == 0x02`
+- standard one-entry data descriptors clear settings `+0x30`
+- output bytes are written through the settings output IOVA and bounded by
+  settings `+0x08`
+- the code/input window and data payload window remain preserved for the tested
+  `XTENSA_ANN_VERSION` and internal-query shapes
+
+Current field interpretation in the completed shape:
+
+| Field | Runtime interpretation |
+|---:|---|
+| outer `cb_info_size` | Must be exactly `0xb70` for the VPU provider request path |
+| native `request+0x35` | Buffer count; completed wrapper replay uses `5` descriptors |
+| native `request+0x38/+0x40` | Real libvpu settings-property tuple, but unused by this target wrapper path |
+| native `request+0x50...` | Firmware-visible descriptor source after kernel D2D copy; descriptor target selection determines whether the request completes |
+| settings `+0x00` | Command/completion flags; APUNN sets bit `0x2` in the stable completed shape |
+| settings `+0x04` | Code-section size and a real firmware acceptance gate; `0..0x10` fail, `0x11` is the smallest tested completed size |
+| settings `+0x08` | Output-section size and maximum output-fill bound |
+| settings `+0x0c` | Data-descriptor byte size; `0x0c` is the standard one-entry consumption size |
+| settings `+0x10` | Code-section IOVA; code bytes are consumed for acceptance, but tested opcode/operand fields do not produce source-sensitive output |
+| settings `+0x20` | Output-section IOVA; APUNN writes completion/output bytes here |
+| settings `+0x30` | Data-descriptor IOVA; standard one-entry descriptors are consumed/cleared, two-entry descriptors have target/order-sensitive cleanup |
+| code entry `+0x00` | Operation id; `10001..10009` all complete in the stable shape |
+| code entry `+0x08` and operands | Operand-list offset and operand ids are accepted across tested in-bounds and one OOB placement; not a visible completion gate |
+| data payload contents | Preserved for tested patterns; no source-sensitive copy into output was observed |
+| command request tail | Provider/midware scalar state copyback, not a pointer leak in completed runs |
+
+This is enough to describe how the tested APUNN request is interpreted at the
+field level. It is not yet enough to name the semantic meaning of the output
+bytes or to prove an information leak: completed output currently looks like
+operation/status completion data, while tested data payload, descriptor target,
+and operand variations do not flow into output in a source-sensitive way.
+
 ## Layering
 
 The direct ioctl experiments use three nested formats:
