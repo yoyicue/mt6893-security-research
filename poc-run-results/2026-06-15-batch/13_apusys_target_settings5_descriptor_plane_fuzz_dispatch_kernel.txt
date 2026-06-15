@@ -1,0 +1,201 @@
+pattern=apusys|vpu|mdw|vpu_req_check|Data buffer|DRAM|iDMA|devapc|iommu|Unable to handle kernel|BUG|KASAN|Oops|panic|timeout|EIO
+source=adb logcat -b kernel or dmesg fallback
+
+06-15 16:49:38.721 18254 18254 I         : (4)[18254:main][apusys][warn] mdw_ioctl not support fw load
+06-15 16:49:38.721 18254 18254 I         : (4)[18254:main][apusys][warn] mdw_ioctl not suppot fw unload
+06-15 16:49:38.721 18254 18254 I         : (4)[18254:main][apusys][error] mdw_usr_run_cmd_async don't support offset(1)
+06-15 16:49:38.721 18254 18254 I         : (4)[18254:main][apusys][error] mdw_usr_run_cmd_async don't support offset(1)
+06-15 16:49:38.721 18254 18254 I         : (4)[18254:main][apusys][error] mdw_usr_ucmd don't support offset(1)
+06-15 16:49:38.792   378   378 I (2)[378:apusys_vpu0]vpu_dev_boot_sequence: vpu0: ALTRESETVEC: 0x7da00000
+06-15 16:49:39.822 11808 11808 I         : -(3)[11808:processThread_6]mtk_iommu_isr, irq=57
+06-15 16:49:39.822 11808 11808 I -(3)[11808:processThread_6]iommu: 2, bank:0, L2 int sta(0x130)=0x0, main sta(0x134)=0x5
+06-15 16:49:39.822 11808 11808 I -(3)[11808:processThread_6]iommu: 2, slave:0, port_id=673(21-1), tf_id:0x5000002
+06-15 16:49:39.822 11808 11808 I         : -(3)[11808:processThread_6]mtk_iommu_isr, 1461, fault_iova=3504c4000, regval=0x504c4610
+06-15 16:49:39.823 11808 11808 I -(3)[11808:processThread_6][MTK_IOMMU] error:
+06-15 16:49:39.823 11808 11808 E -(3)[11808:processThread_6]mtk-iommu-v2 19010000.m4u: iommu fault type=0x5 iova=0x3504c4000 pa=0x0 larb=21 port=1 is_vpu=1 layer=0 read
+06-15 16:49:39.823 11808 11808 I         : -(3)[11808:processThread_6]========= mtk_iommu_dump_iova_space++ total 8 domain ============
+06-15 16:49:39.831   814   814 I (0)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=3600/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=895592, RxOK=2519521, FcsErr=0
+06-15 16:49:43.513  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:49:43.769 17939 17939 I         : (4)[17939:kworker/4:1][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24163f3, req_sta =  0x15c00000 0x180000 0x7c000011 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf85255, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 16:49:45.561  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:49:45.896   814   814 I (0)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=4320/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=895595, RxOK=2519537, FcsErr=1
+06-15 16:49:47.098 17939 17939 I         : (4)[17939:kworker/4:1][pmic_debug] Raw=689, T=36492
+06-15 16:49:47.609  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:49:48.889   378   378 W -(0)[378:apusys_vpu0]vpu_execute_d2d: 2 callbacks suppressed
+06-15 16:49:48.894 18254 18254 I         : (4)[18254:main][apusys][error] mdw_wait_cmd cmd(0xffffff801f00d000) sc(0x1) fail
+06-15 16:49:51.954   814   814 I (0)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=4320/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=895597, RxOK=2519555, FcsErr=1
+06-15 16:49:52.218 17939 17939 I         : (4)[17939:kworker/4:1][pmic_debug] Raw=689, T=36492
+06-15 16:49:52.729  1345  1345 I (3)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:49:54.009 17939 17939 I         : (4)[17939:kworker/4:1][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24163f3, req_sta =  0x15c00000 0x180000 0x50000017 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf85a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 16:49:54.777  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:49:55.801  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:49:56.825  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:49:58.010   814   814 I (0)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=3600/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=895606, RxOK=2519581, FcsErr=3
+06-15 16:49:58.873  1345  1345 I (3)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:49:59.129 17939 17939 I         : (4)[17939:kworker/4:1][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24163f3, req_sta =  0x15c00000 0x180000 0x50000011 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf85a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 16:49:59.129   378   378 I (3)[378:apusys_vpu0]: request (D2D_EXT) timeout, priority: 0, algo: apu_lib_apunn
+06-15 16:49:59.132   378   378 I         : (3)[378:apusys_vpu0][apusys][error] mdw_sched_trace fail : pid(18254/18254) cmd(0x0/0xffffff801f085000-#0/1) dev(3/vpu-#0) mp(0x0/0/1/0x0) sched(0/0/0/0/0/0) mem(0/0/0x0/0x0) boost(0) time(9173534/9199504) ret(-110)
+06-15 16:50:00.186   378   378 I (3)[378:apusys_vpu0]vpu 19030000.vpu_core0: vpu_map_sg_to_iova: sg_dma_address: size: 500000, mapped iova: 0x37de00000 (static alloc)
+06-15 16:50:00.187   378   378 I (3)[378:apusys_vpu0]vpu_dev_boot_sequence: vpu0: ALTRESETVEC: 0x7da00000
+06-15 16:50:01.037   814   814 I (3)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=3600/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=895608, RxOK=2519587, FcsErr=0
+06-15 16:50:01.945  1345  1345 I (3)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:02.969  1345  1345 I (3)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:04.062   814   814 I (3)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=3600/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=895618, RxOK=2519598, FcsErr=0
+06-15 16:50:05.017  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:09.369 17939 17939 I         : (4)[17939:kworker/4:1][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24163f3, req_sta =  0x15c00000 0x180000 0x50000011 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf85a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 16:50:09.369   378   378 I (3)[378:apusys_vpu0]: request (D2D_EXT) timeout, priority: 0, algo: apu_lib_apunn
+06-15 16:50:09.372   378   378 I         : (3)[378:apusys_vpu0][apusys][error] mdw_sched_trace fail : pid(18254/18254) cmd(0x0/0xffffff801f30d000-#0/1) dev(3/vpu-#0) mp(0x0/0/1/0x0) sched(0/0/0/0/0/0) mem(0/0/0x0/0x0) boost(0) time(9181115/9201331) ret(-110)
+06-15 16:50:10.123   814   814 I (3)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=4320/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=895621, RxOK=2519608, FcsErr=0
+06-15 16:50:10.426   378   378 I (3)[378:apusys_vpu0]vpu_dev_boot_sequence: vpu0: ALTRESETVEC: 0x7da00000
+06-15 16:50:10.431 11772 11772 I         : -(4)[11772:OfflineAsrThrea]mtk_iommu_isr, irq=57
+06-15 16:50:10.431 11772 11772 I -(4)[11772:OfflineAsrThrea]iommu: 2, bank:0, L2 int sta(0x130)=0x0, main sta(0x134)=0x5
+06-15 16:50:10.431 11772 11772 I -(4)[11772:OfflineAsrThrea]iommu: 2, slave:0, port_id=673(21-1), tf_id:0x5000002
+06-15 16:50:10.431 11772 11772 I         : -(4)[11772:OfflineAsrThrea]mtk_iommu_isr, 1461, fault_iova=3504c4000, regval=0x504c4610
+06-15 16:50:10.431 11772 11772 E -(4)[11772:OfflineAsrThrea]mtk-iommu-v2 19010000.m4u: iommu fault type=0x5 iova=0x3504c4000 pa=0x0 larb=21 port=1 is_vpu=1 layer=0 read
+06-15 16:50:10.433 11772 11772 I         : -(4)[11772:OfflineAsrThrea]========= mtk_iommu_dump_iova_space-- ============
+06-15 16:50:12.153  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:12.698 17939 17939 I         : (4)[17939:kworker/4:1][pmic_debug] Raw=689, T=36492
+06-15 16:50:13.149   814   814 I (3)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=3600/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=895623, RxOK=2519619, FcsErr=0
+06-15 16:50:16.249  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:17.273  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:19.207   814   814 I (3)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=3600/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=895625, RxOK=2519633, FcsErr=0
+06-15 16:50:19.609 17939 17939 I         : (4)[17939:kworker/4:1][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24163f3, req_sta =  0x15c00000 0x180000 0x50000011 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf85a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 16:50:19.609   378   378 I (3)[378:apusys_vpu0]: request (D2D_EXT) timeout, priority: 0, algo: apu_lib_apunn
+06-15 16:50:19.612   378   378 I         : (3)[378:apusys_vpu0][apusys][error] mdw_sched_trace fail : pid(18254/18254) cmd(0x0/0xffffff801f395000-#0/1) dev(3/vpu-#0) mp(0x0/0/1/0x0) sched(0/0/0/0/0/0) mem(0/0/0x0/0x0) boost(0) time(9181601/9200642) ret(-110)
+06-15 16:50:19.614 18254 18254 I         : (5)[18254:main][apusys][error] mdw_wait_cmd cmd(0xffffff801f395000) sc(0x1) fail
+06-15 16:50:20.345  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:20.674   378   378 I (3)[378:apusys_vpu0]vpu 19030000.vpu_core0: vpu_map_sg_to_iova: sg_dma_address: size: 500000, mapped iova: 0x37de00000 (static alloc)
+06-15 16:50:20.675   378   378 I (3)[378:apusys_vpu0]vpu_dev_boot_sequence: vpu0: ALTRESETVEC: 0x7da00000
+06-15 16:50:22.393  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:23.417  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:24.441  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:24.729 17939 17939 I         : (4)[17939:kworker/4:1][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24143f3, req_sta =  0x17c00000 0x0 0x50000017 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf84a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 16:50:25.265   814   814 I (0)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=4320/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=895641, RxOK=2519658, FcsErr=0
+06-15 16:50:25.465  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:29.849 17939 17939 I         : (4)[17939:kworker/4:1][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24163f3, req_sta =  0x15c00000 0x0 0x50000011 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf85a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 16:50:29.849   378   378 I (3)[378:apusys_vpu0]: request (D2D_EXT) timeout, priority: 0, algo: apu_lib_apunn
+06-15 16:50:29.852   378   378 I         : (3)[378:apusys_vpu0][apusys][error] mdw_sched_trace fail : pid(18254/18254) cmd(0x0/0xffffff801f44d000-#0/1) dev(3/vpu-#0) mp(0x0/0/1/0x0) sched(0/0/0/0/0/0) mem(0/0/0x0/0x0) boost(0) time(9173738/9192728) ret(-110)
+06-15 16:50:29.853 18254 18254 I         : (5)[18254:main][apusys][error] mdw_wait_cmd cmd(0xffffff801f44d000) sc(0x1) fail
+06-15 16:50:30.585  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:30.906   378   378 I (1)[378:apusys_vpu0]vpu 19030000.vpu_core0: vpu_map_sg_to_iova: sg_dma_address: size: 500000, mapped iova: 0x37de00000 (static alloc)
+06-15 16:50:30.907   378   378 I (1)[378:apusys_vpu0]vpu_dev_boot_sequence: vpu0: ALTRESETVEC: 0x7da00000
+06-15 16:50:30.911 11762 11762 I         : -(1)[11762:TALRecordThread]mtk_iommu_isr, irq=57
+06-15 16:50:30.912 11762 11762 I -(1)[11762:TALRecordThread]iommu: 2, bank:0, L2 int sta(0x130)=0x0, main sta(0x134)=0x5
+06-15 16:50:30.912 11762 11762 I -(1)[11762:TALRecordThread]iommu: 2, slave:0, port_id=673(21-1), tf_id:0x5000002
+06-15 16:50:30.912 11762 11762 I         : -(1)[11762:TALRecordThread]mtk_iommu_isr, 1461, fault_iova=3504c4000, regval=0x504c4610
+06-15 16:50:30.912 11762 11762 I -(1)[11762:TALRecordThread][MTK_IOMMU] error:
+06-15 16:50:30.912 11762 11762 E -(1)[11762:TALRecordThread]mtk-iommu-v2 19010000.m4u: iommu fault type=0x5 iova=0x3504c4000 pa=0x0 larb=21 port=1 is_vpu=1 layer=0 read
+06-15 16:50:30.916 11762 11762 I         : -(1)[11762:TALRecordThread]========= mtk_iommu_dump_iova_space-- ============
+06-15 16:50:32.633  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:33.178 17939 17939 I         : (4)[17939:kworker/4:1][pmic_debug] Raw=689, T=36492
+06-15 16:50:33.657  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:34.344   814   814 I (0)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=3600/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=895645, RxOK=2519679, FcsErr=0
+06-15 16:50:34.681  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:34.969 17939 17939 I         : (4)[17939:kworker/4:1][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24163f3, req_sta =  0x15c00000 0x0 0x50000011 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf85a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 16:50:36.729  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:38.298 17939 17939 I         : (4)[17939:kworker/4:1][pmic_debug] Raw=689, T=36492
+06-15 16:50:39.801  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:40.089 17939 17939 I         : (4)[17939:kworker/4:1][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24163f3, req_sta =  0x15c00000 0x0 0x50000011 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf85a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 16:50:40.089   378   378 I (3)[378:apusys_vpu0]: request (D2D_EXT) timeout, priority: 0, algo: apu_lib_apunn
+06-15 16:50:40.093   378   378 I         : (3)[378:apusys_vpu0][apusys][error] mdw_sched_trace fail : pid(18254/18254) cmd(0x0/0xffffff801f4e5000-#0/1) dev(3/vpu-#0) mp(0x0/0/1/0x0) sched(0/0/0/0/0/0) mem(0/0/0x0/0x0) boost(0) time(9181805/9199544) ret(-110)
+06-15 16:50:40.094 18254 18254 I         : (5)[18254:main][apusys][error] mdw_wait_cmd cmd(0xffffff801f4e5000) sc(0x1) fail
+06-15 16:50:40.825  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:41.137   378   378 I (3)[378:apusys_vpu0]vpu_dev_boot_sequence: vpu0: ALTRESETVEC: 0x7da00000
+06-15 16:50:41.849  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:43.897  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:44.247 32655 32655 I         : -(7)[32655:main]mtk_iommu_isr, irq=57
+06-15 16:50:44.247 32655 32655 I -(7)[32655:main]iommu: 2, slave:0, port_id=673(21-1), tf_id:0x5000002
+06-15 16:50:44.247 32655 32655 E -(7)[32655:main]mtk-iommu-v2 19010000.m4u: iommu fault type=0x5 iova=0x3504c4000 pa=0x0 larb=21 port=1 is_vpu=1 layer=0 read
+06-15 16:50:44.248 32655 32655 I         : -(7)[32655:main]========= mtk_iommu_dump_iova_space-- ============
+06-15 16:50:44.921  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:45.209 17939 17939 I         : (4)[17939:kworker/4:1][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24163f3, req_sta =  0x15c00000 0x0 0x50000011 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf85a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 16:50:45.945  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:46.446   814   814 I (0)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=4320/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=895647, RxOK=2519708, FcsErr=0
+06-15 16:50:46.969  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:47.993  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:48.538 17939 17939 I         : (4)[17939:kworker/4:1][pmic_debug] Raw=689, T=36492
+06-15 16:50:50.329 17939 17939 I         : (4)[17939:kworker/4:1][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24543f3, req_sta =  0x17c00000 0x0 0x50000017 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf85a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 16:50:51.065  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:52.089  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:53.401   378   378 I (3)[378:apusys_vpu0]: request (D2D_EXT) timeout, priority: 0, algo: apu_lib_apunn
+06-15 16:50:53.404   378   378 I         : (3)[378:apusys_vpu0][apusys][error] mdw_sched_trace fail : pid(18254/18254) cmd(0x0/0xffffff801f6a5000-#0/1) dev(3/vpu-#0) mp(0x0/0/1/0x0) sched(0/0/0/0/0/0) mem(0/0/0x0/0x0) boost(0) time(9157658/9157737) ret(-110)
+06-15 16:50:53.406 18254 18254 I         : (5)[18254:main][apusys][error] mdw_wait_cmd cmd(0xffffff801f6a5000) sc(0x1) fail
+06-15 16:50:54.463 11808 11808 I         : -(1)[11808:processThread_6]mtk_iommu_isr, irq=57
+06-15 16:50:54.463 11808 11808 I -(1)[11808:processThread_6]iommu: 2, bank:0, L2 int sta(0x130)=0x0, main sta(0x134)=0x5
+06-15 16:50:54.463 11808 11808 I         : -(1)[11808:processThread_6]mtk_iommu_isr, 1461, fault_iova=3504c4000, regval=0x504c4610
+06-15 16:50:54.463 11808 11808 I -(1)[11808:processThread_6][MTK_IOMMU] error:
+06-15 16:50:54.463 11808 11808 I         : -(1)[11808:processThread_6]========= mtk_iommu_dump_iova_space++ total 8 domain ============
+06-15 16:50:55.161  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:55.449 17939 17939 I         : (4)[17939:kworker/4:1][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24143f3, req_sta =  0x17c00000 0x180000 0x50000017 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf84a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 16:50:56.185  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:58.233  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:50:58.569   814   814 I (0)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=3600/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=895658, RxOK=2519745, FcsErr=0
+06-15 16:50:58.778 17939 17939 I         : (4)[17939:kworker/4:1][pmic_debug] Raw=689, T=36492
+06-15 16:51:01.592   814   814 I (0)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=3600/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=895660, RxOK=2519752, FcsErr=0
+06-15 16:51:02.329  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:51:03.641   378   378 I (2)[378:apusys_vpu0]: request (D2D_EXT) timeout, priority: 0, algo: apu_lib_apunn
+06-15 16:51:03.644   378   378 I         : (2)[378:apusys_vpu0][apusys][error] mdw_sched_trace fail : pid(18254/18254) cmd(0x0/0xffffff801f715000-#0/1) dev(3/vpu-#0) mp(0x0/0/1/0x0) sched(0/0/0/0/0/0) mem(0/0/0x0/0x0) boost(0) time(9181819/9197067) ret(-110)
+06-15 16:51:03.645 18254 18254 I         : (5)[18254:main][apusys][error] mdw_wait_cmd cmd(0xffffff801f715000) sc(0x1) fail
+06-15 16:51:04.377  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:51:05.401  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:51:09.497  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:51:10.521  1345  1345 I (3)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:51:10.661   814   814 I (0)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=4320/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=895723, RxOK=2519838, FcsErr=0
+06-15 16:51:10.809 17939 17939 I         : (4)[17939:kworker/4:1][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24163f3, req_sta =  0x15c00000 0x0 0x50000011 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf85a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 16:51:12.569  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:51:13.593  1345  1345 I (3)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:51:13.881   378   378 I (2)[378:apusys_vpu0]: request (D2D_EXT) timeout, priority: 0, algo: apu_lib_apunn
+06-15 16:51:13.884   378   378 I         : (2)[378:apusys_vpu0][apusys][error] mdw_sched_trace fail : pid(18254/18254) cmd(0x0/0xffffff801f90d000-#0/1) dev(3/vpu-#0) mp(0x0/0/1/0x0) sched(0/0/0/0/0/0) mem(0/0/0x0/0x0) boost(0) time(9192352/9202013) ret(-110)
+06-15 16:51:13.884 18254 18254 I         : (5)[18254:main][apusys][error] mdw_wait_cmd cmd(0xffffff801f90d000) sc(0x1) fail
+06-15 16:51:14.617  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:51:14.933 11762 11762 I         : -(2)[11762:TALRecordThread]mtk_iommu_isr, irq=57
+06-15 16:51:14.933 11762 11762 I -(2)[11762:TALRecordThread]iommu: 2, bank:0, L2 int sta(0x130)=0x0, main sta(0x134)=0x5
+06-15 16:51:14.933 11762 11762 I -(2)[11762:TALRecordThread]iommu: 2, slave:0, port_id=673(21-1), tf_id:0x5000002
+06-15 16:51:14.933 11762 11762 I         : -(2)[11762:TALRecordThread]mtk_iommu_isr, 1461, fault_iova=3504c4000, regval=0x504c4610
+06-15 16:51:14.933 11762 11762 I -(2)[11762:TALRecordThread][MTK_IOMMU] error:
+06-15 16:51:14.933 11762 11762 E -(2)[11762:TALRecordThread]mtk-iommu-v2 19010000.m4u: iommu fault type=0x5 iova=0x3504c4000 pa=0x0 larb=21 port=1 is_vpu=1 layer=0 read
+06-15 16:51:14.933 11762 11762 I         : -(2)[11762:TALRecordThread]========= mtk_iommu_dump_iova_space++ total 8 domain ============
+06-15 16:51:14.938 11762 11762 I         : -(2)[11762:TALRecordThread]========= mtk_iommu_dump_iova_space-- ============
+06-15 16:51:15.641  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:51:16.715   814   814 I (0)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=3600/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=895730, RxOK=2519869, FcsErr=0
+06-15 16:51:17.689  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:51:18.713  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:51:19.258 17939 17939 I         : (4)[17939:kworker/4:1][pmic_debug] Raw=689, T=36492
+06-15 16:51:19.728  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:51:20.729  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:51:21.753  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:51:24.378 17939 17939 I         : (4)[17939:kworker/4:1][pmic_debug] Raw=689, T=36492
+06-15 16:51:25.176 11762 11762 I         : -(1)[11762:TALRecordThread]mtk_iommu_isr, irq=57
+06-15 16:51:25.176 11762 11762 I -(1)[11762:TALRecordThread]iommu: 2, bank:0, L2 int sta(0x130)=0x0, main sta(0x134)=0x5
+06-15 16:51:25.176 11762 11762 I -(1)[11762:TALRecordThread]iommu: 2, slave:0, port_id=673(21-1), tf_id:0x5000002
+06-15 16:51:25.176 11762 11762 I         : -(1)[11762:TALRecordThread]mtk_iommu_isr, 1461, fault_iova=3504c4000, regval=0x504c4610
+06-15 16:51:25.176 11762 11762 I -(1)[11762:TALRecordThread][MTK_IOMMU] error:
+06-15 16:51:25.176 11762 11762 E -(1)[11762:TALRecordThread]mtk-iommu-v2 19010000.m4u: iommu fault type=0x5 iova=0x3504c4000 pa=0x0 larb=21 port=1 is_vpu=1 layer=0 read
+06-15 16:51:25.176 11762 11762 I         : -(1)[11762:TALRecordThread]========= mtk_iommu_dump_iova_space++ total 8 domain ============
+06-15 16:51:25.181 11762 11762 I         : -(1)[11762:TALRecordThread]========= mtk_iommu_dump_iova_space-- ============
+06-15 16:51:27.833  1345  1345 I (3)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:51:29.849  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:51:30.873  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:51:31.289 17939 17939 I         : (4)[17939:kworker/4:1][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24143f3, req_sta =  0x17c00000 0x0 0x50000011 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf84a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 16:51:31.883  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:51:31.885   814   814 I (1)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=3600/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=895735, RxOK=2519900, FcsErr=0
+06-15 16:51:32.889  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:51:33.913  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:51:34.361   378   378 I (2)[378:apusys_vpu0]: request (D2D_EXT) timeout, priority: 0, algo: apu_lib_apunn
+06-15 16:51:34.364   378   378 I         : (2)[378:apusys_vpu0][apusys][error] mdw_sched_trace fail : pid(18254/18254) cmd(0x0/0xffffff801fa0d000-#0/1) dev(3/vpu-#0) mp(0x0/0/1/0x0) sched(0/0/0/0/0/0) mem(0/0/0x0/0x0) boost(0) time(9188829/9199892) ret(-110)
+06-15 16:51:34.365 18254 18254 I         : (5)[18254:main][apusys][error] mdw_wait_cmd cmd(0xffffff801fa0d000) sc(0x1) fail
+06-15 16:51:34.618 17939 17939 I         : (4)[17939:kworker/4:1][pmic_debug] Raw=689, T=36492
+06-15 16:51:34.937  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:51:35.406   378   378 I (2)[378:apusys_vpu0]vpu 19030000.vpu_core0: vpu_map_sg_to_iova: sg_dma_address: size: 500000, mapped iova: 0x37de00000 (static alloc)
+06-15 16:51:35.407   378   378 I (2)[378:apusys_vpu0]vpu_dev_boot_sequence: vpu0: ALTRESETVEC: 0x7da00000
+06-15 16:51:35.412 11762 11762 I -(2)[11762:TALRecordThread]iommu: 2, slave:0, port_id=673(21-1), tf_id:0x5000002
+06-15 16:51:35.412 11762 11762 E -(2)[11762:TALRecordThread]mtk-iommu-v2 19010000.m4u: iommu fault type=0x5 iova=0x3504c4000 pa=0x0 larb=21 port=1 is_vpu=1 layer=0 read
+06-15 16:51:35.417 11762 11762 I         : -(2)[11762:TALRecordThread]========= mtk_iommu_dump_iova_space-- ============
+06-15 16:51:35.961  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:51:36.985  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:51:39.738 17939 17939 I         : (4)[17939:kworker/4:1][pmic_debug] Raw=689, T=36492
+06-15 16:51:40.966   814   814 I (2)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=3600/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=895738, RxOK=2519920, FcsErr=0
+06-15 16:51:41.081  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:51:43.129  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 16:51:43.997   814   814 I (2)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=3600/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=895780, RxOK=2519956, FcsErr=5
+06-15 16:51:47.030   814   814 I (2)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=3600/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=895787, RxOK=2519960, FcsErr=0

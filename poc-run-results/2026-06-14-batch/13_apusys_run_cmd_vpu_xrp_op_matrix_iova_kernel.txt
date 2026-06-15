@@ -1,0 +1,62 @@
+pattern=apusys|vpu|mdw|xos|devapc|iommu|vpu_req_check|vpu_execute|sched_trace|cmd_done|timeout|Timeout|TIMEOUT|oops|panic
+source=adb logcat -b kernel or dmesg fallback
+
+06-14 18:15:49.301 26451 26451 I         : (7)[26451:main][apusys][warn] mdw_ioctl not support fw load
+06-14 18:15:49.301 26451 26451 I         : (7)[26451:main][apusys][warn] mdw_ioctl not suppot fw unload
+06-14 18:15:49.301 26451 26451 I         : (7)[26451:main][apusys][error] mdw_usr_run_cmd_async don't support offset(1)
+06-14 18:15:49.359   378   378 I (3)[378:apusys_vpu0]vpu 19030000.vpu_core0: vpu_map_sg_to_iova: sg_dma_address: size: 500000, mapped iova: 0x37de00000 (static alloc)
+06-14 18:15:49.721  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 18:15:51.769  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 18:15:52.384   380   380 I (0)[380:apusys_vpu1]vpu 19031000.vpu_core1: vpu_map_sg_to_iova: sg_dma_address: size: 500000, mapped iova: 0x37e700000 (static alloc)
+06-14 18:15:52.794  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 18:15:56.322   814   814 I (2)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=3600/0, bw=0/0, rssi=-64, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=797415, RxOK=2243038, FcsErr=0
+06-14 18:15:56.889  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 18:15:58.556   378   378 I         : (2)[378:apusys_vpu0][apusys][error] mdw_sched_trace fail : pid(26451/26451) cmd(0x0/0xffffff801f4ad000-#0/1) dev(3/vpu-#0) mp(0x0/0/1/0x0) sched(0/0/0/0/0/0) mem(0/0/0x0/0x0) boost(0) time(9188293/9202704) ret(-110)
+06-14 18:15:58.566   378   378 I (2)[378:apusys_vpu0]vpu 19030000.vpu_core0: vpu_map_sg_to_iova: sg_dma_address: size: 500000, mapped iova: 0x37de00000 (static alloc)
+06-14 18:15:58.937  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 18:16:00.985  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 18:16:01.640    81    81 I -(1)[81:kcompactd0]apusys_devapc_isr: VIO_SHIFT_STA=0x400, VIO_SHIFT_SEL=0x0, VIO_SHIFT_CON=0x0,
+06-14 18:16:01.640    81    81 I -(1)[81:kcompactd0]apusys_devapc_isr: Violation(R): transaction ID:0x2, Addr:0x19011000, HighAddr: 0, Domain: 0x0
+06-14 18:16:01.640    81    81 I -(1)[81:kcompactd0]apusys_devapc_isr: vio_sta device: 42, slave: apu_iommu0_r1
+06-14 18:16:01.640    81    81 W -(1)[81:kcompactd0]WARNING: CPU: 1 PID: 81 at apusys_devapc_isr+0x410/0x718
+06-14 18:16:01.640    81    81 W -(1)[81:kcompactd0]pc: apusys_devapc_isr+0x410/0x718
+06-14 18:16:01.640    81    81 W -(1)[81:kcompactd0]lr: apusys_devapc_isr+0x410/0x718
+06-14 18:16:01.640    81    81 W         : -(1)[81:kcompactd0] apusys_devapc_isr+0x410/0x718
+06-14 18:16:01.640 11808 11808 I -(2)[11808:processThread_6]apusys_devapc_isr: Violation(R): transaction ID:0x2, Addr:0x190115c0, HighAddr: 0, Domain: 0x0
+06-14 18:16:01.640 11808 11808 W -(2)[11808:processThread_6]pc: apusys_devapc_isr+0x410/0x718
+06-14 18:16:01.642    81    81 I -(1)[81:kcompactd0]apusys_devapc_isr: VIO_SHIFT_STA=0x400, VIO_SHIFT_SEL=0x0, VIO_SHIFT_CON=0x0,
+06-14 18:16:01.642    81    81 I -(1)[81:kcompactd0]apusys_devapc_isr: Violation(R): transaction ID:0x2, Addr:0x19016000, HighAddr: 0, Domain: 0x0
+06-14 18:16:01.642    81    81 I -(1)[81:kcompactd0]apusys_devapc_isr: vio_sta device: 47, slave: apu_iommu1_r1
+06-14 18:16:01.642    81    81 W -(1)[81:kcompactd0]WARNING: CPU: 1 PID: 81 at apusys_devapc_isr+0x410/0x718
+06-14 18:16:01.642    81    81 W -(1)[81:kcompactd0]pc: apusys_devapc_isr+0x410/0x718
+06-14 18:16:01.642    81    81 W -(1)[81:kcompactd0]lr: apusys_devapc_isr+0x410/0x718
+06-14 18:16:01.642    81    81 W         : -(1)[81:kcompactd0] apusys_devapc_isr+0x410/0x718
+06-14 18:16:01.642   380   380 W         : -(2)[380:apusys_vpu1] el1_irq+0xe8/0x190
+06-14 18:16:01.642   380   380 W         : -(2)[380:apusys_vpu1] vpu_dmp_create_locked+0x208/0x1118
+06-14 18:16:01.642   380   380 W         : -(2)[380:apusys_vpu1] vpu_execute+0x14c/0x1fc
+06-14 18:16:01.642   380   380 W         : -(2)[380:apusys_vpu1] mdw_sched_dev_routine+0x1ac/0x468
+06-14 18:16:01.642   380   380 W         : -(2)[380:apusys_vpu1] ret_from_fork+0x10/0x18
+06-14 18:16:01.642   599   599 I -(3)[599:tal_log]apusys_devapc_isr: Violation(R): transaction ID:0x2, Addr:0x190175b0, HighAddr: 0, Domain: 0x0
+06-14 18:16:01.642   599   599 W -(3)[599:tal_log]pc: apusys_devapc_isr+0x410/0x718
+06-14 18:16:01.643 11772 11772 I -(4)[11772:OfflineAsrThrea]apusys_devapc_isr: VIO_SHIFT_STA=0x400, VIO_SHIFT_SEL=0x0, VIO_SHIFT_CON=0x0,
+06-14 18:16:01.643 11772 11772 I -(4)[11772:OfflineAsrThrea]apusys_devapc_isr: vio_sta device: 48, slave: apu_iommu1_r2
+06-14 18:16:01.643 11772 11772 W -(4)[11772:OfflineAsrThrea]WARNING: CPU: 4 PID: 11772 at apusys_devapc_isr+0x410/0x718
+06-14 18:16:01.643 11772 11772 W -(4)[11772:OfflineAsrThrea]lr: apusys_devapc_isr+0x410/0x718
+06-14 18:16:01.643 11772 11772 W         : -(4)[11772:OfflineAsrThrea] apusys_devapc_isr+0x410/0x718
+06-14 18:16:01.643 11772 11772 I -(4)[11772:OfflineAsrThrea]apusys_devapc_isr: vio_sta device: 49, slave: apu_iommu1_r3
+06-14 18:16:01.651   380   380 I (2)[380:apusys_vpu1]vpu_dmp_is_alive: debug info05: 7e4101e5
+06-14 18:16:01.688   380   380 I         : (2)[380:apusys_vpu1][apusys][error] mdw_sched_trace fail : pid(26451/26451) cmd(0x0/0xffffff801f50d000-#0/1) dev(3/vpu-#1) mp(0x0/0/1/0x0) sched(0/0/0/0/0/0) mem(1/0/0x0/0x0) boost(0) time(9298706/9310462) ret(-110)
+06-14 18:16:01.693   380   380 I (5)[380:apusys_vpu1]vpu 19031000.vpu_core1: vpu_map_sg_to_iova: sg_dma_address: size: 500000, mapped iova: 0x37e700000 (static alloc)
+06-14 18:16:01.693   380   380 I (5)[380:apusys_vpu1]vpu_dev_boot_sequence: vpu1: ALTRESETVEC: 0x7e300000
+06-14 18:16:04.058  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 18:16:04.445   382   382 I (0)[382:apusys_vpu2]: request (D2D_EXT) timeout, priority: 0, algo: apu_lib_apunn
+06-14 18:16:04.446 11772 11772 I -(4)[11772:OfflineAsrThrea]apusys_devapc_isr: VIO_SHIFT_STA=0x400, VIO_SHIFT_SEL=0x0, VIO_SHIFT_CON=0x0,
+06-14 18:16:04.446 11772 11772 I -(4)[11772:OfflineAsrThrea]apusys_devapc_isr: Violation(R): transaction ID:0x2, Addr:0x19011000, HighAddr: 0, Domain: 0x0
+06-14 18:16:04.446 11772 11772 I -(4)[11772:OfflineAsrThrea]apusys_devapc_isr: vio_sta device: 42, slave: apu_iommu0_r1
+06-14 18:16:04.446 11772 11772 W -(4)[11772:OfflineAsrThrea]WARNING: CPU: 4 PID: 11772 at apusys_devapc_isr+0x410/0x718
+06-14 18:16:04.446 11772 11772 W -(4)[11772:OfflineAsrThrea]pc: apusys_devapc_isr+0x410/0x718
+06-14 18:16:04.446 11772 11772 W -(4)[11772:OfflineAsrThrea]lr: apusys_devapc_isr+0x410/0x718
+06-14 18:16:04.446 11772 11772 W         : -(4)[11772:OfflineAsrThrea] apusys_devapc_isr+0x410/0x718
+06-14 18:16:04.511   382   382 I         : (1)[382:apusys_vpu2][apusys][error] mdw_sched_trace fail : pid(26451/26451) cmd(0x0/0xffffff801f585000-#0/1) dev(3/vpu-#2) mp(0x0/0/1/0x0) sched(0/0/0/0/0/0) mem(2/0/0x0/0x0) boost(0) time(9091258/9103945) ret(-110)
+06-14 18:16:06.105  1345  1345 I (3)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 18:16:08.417   814   814 I (0)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=4320/0, bw=0/0, rssi=-64, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=797431, RxOK=2243075, FcsErr=5

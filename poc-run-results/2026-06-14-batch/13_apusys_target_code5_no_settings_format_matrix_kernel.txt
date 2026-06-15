@@ -1,0 +1,9 @@
+pattern=apusys|vpu|mdw|vpu_req_check
+source=adb logcat -b kernel or dmesg fallback
+
+06-15 01:28:28.723 21270 21270 I         : (4)[21270:main][apusys][warn] mdw_ioctl not support fw load
+06-15 01:28:28.723 21270 21270 I         : (4)[21270:main][apusys][warn] mdw_ioctl not suppot fw unload
+06-15 01:28:28.723 21270 21270 I         : (4)[21270:main][apusys][error] mdw_usr_run_cmd_async don't support offset(1)
+06-15 01:28:28.723 21270 21270 I         : (4)[21270:main][apusys][error] mdw_usr_run_cmd_async don't support offset(1)
+06-15 01:28:28.723 21270 21270 I         : (4)[21270:main][apusys][error] mdw_usr_ucmd don't support offset(1)
+06-15 01:28:28.772   378   378 I (0)[378:apusys_vpu0]vpu_dev_boot_sequence: vpu0: ALTRESETVEC: 0x7da00000

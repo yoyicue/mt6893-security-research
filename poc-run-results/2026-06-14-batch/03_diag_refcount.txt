@@ -1,0 +1,20 @@
+=== CVE-2022-36449 Diagnostic (D1/D5/D6/D7) ===
+[*] uid=2000
+
+[D1] MEM_FREE feasibility matrix
+    SAME_VA:     ret=-1 Invalid argument
+    USER_BUFFER: ret=0 OK
+
+[D5] User mmap persistence after MEM_FREE
+    After MEM_FREE: 0xcafebabedeadbeef SENTINEL INTACT (page NOT freed, refcount=1)
+
+[D6] Context close → new context page state
+    New context page: 0x0 ZEROED (buddy)
+
+[D7] New anon mmap after MEM_FREE operations
+    New anon mmap: ALL ZERO (buddy zeroes)
+
+=== Conclusion ===
+If D5 shows SENTINEL INTACT: page NOT freed by MEM_FREE.
+  → CVE-2022-36449 exploit chain assumption is FALSE.
+  → Physical page UAF requires refcount=0, not refcount=1.

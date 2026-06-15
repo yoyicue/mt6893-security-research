@@ -1,0 +1,6 @@
+pattern=apusys|vpu|mdw|xrp|neuron|binder|hidl|timeout|oops|panic|segv|crash
+source=adb logcat -b kernel or dmesg fallback
+
+06-15 02:56:17.974 29842 29842 I (4)[29842:main]binder: 29842:29842 ioctl 40046210 7fdb3e1084 returned -22
+06-15 02:56:18.489  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 02:56:20.537  1345  1345 I (3)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]

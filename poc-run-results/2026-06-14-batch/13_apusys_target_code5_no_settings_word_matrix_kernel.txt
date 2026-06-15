@@ -1,0 +1,12 @@
+pattern=apusys|vpu|mdw|vpu_req_check
+source=adb logcat -b kernel or dmesg fallback
+
+06-15 00:33:55.172 16745 16745 I         : (4)[16745:main][apusys][warn] mdw_ioctl not support fw load
+06-15 00:33:55.172 16745 16745 I         : (4)[16745:main][apusys][warn] mdw_ioctl not suppot fw unload
+06-15 00:33:55.172 16745 16745 I         : (4)[16745:main][apusys][error] mdw_usr_run_cmd_async don't support offset(1)
+06-15 00:33:55.172 16745 16745 I         : (4)[16745:main][apusys][error] mdw_usr_run_cmd_async don't support offset(1)
+06-15 00:33:55.173 16745 16745 I         : (4)[16745:main][apusys][error] mdw_usr_ucmd don't support offset(1)
+06-15 00:33:55.218   378   378 I (3)[378:apusys_vpu0]vpu 19030000.vpu_core0: vpu_map_sg_to_iova: sg_dma_address: size: 500000, mapped iova: 0x37de00000 (static alloc)
+06-15 00:33:55.220   378   378 I (3)[378:apusys_vpu0]vpu_dev_boot_sequence: vpu0: ALTRESETVEC: 0x7da00000
+06-15 00:34:08.348   378   378 I         : (2)[378:apusys_vpu0][apusys][error] mdw_sched_trace fail : pid(16745/16745) cmd(0x0/0xffffff8017fdd000-#0/1) dev(3/vpu-#0) mp(0x0/0/1/0x0) sched(0/0/0/0/0/0) mem(0/0/0x0/0x0) boost(0) time(9021365/9021441) ret(-110)
+06-15 00:34:08.350 16745 16745 I         : (4)[16745:main][apusys][error] mdw_wait_cmd cmd(0xffffff8017fdd000) sc(0x1) fail

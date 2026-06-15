@@ -1,0 +1,10 @@
+pattern=apusys|vpu|mdw|vpu_req_check
+source=adb logcat -b kernel or dmesg fallback
+
+06-14 15:44:23.328 19111 19111 I         : (7)[19111:main][apusys][warn] mdw_ioctl not support fw load
+06-14 15:44:23.328 19111 19111 I         : (7)[19111:main][apusys][warn] mdw_ioctl not suppot fw unload
+06-14 15:44:23.329 19111 19111 I         : (7)[19111:main][apusys][error] mdw_usr_run_cmd_async don't support offset(1)
+06-14 15:44:23.329 19111 19111 I         : (7)[19111:main][apusys][error] mdw_usr_run_cmd_async don't support offset(1)
+06-14 15:44:23.329 19111 19111 I         : (7)[19111:main][apusys][error] mdw_usr_ucmd don't support offset(1)
+06-14 15:44:23.412 19111 19111 I         : (4)[19111:main][apusys][error] mdw_cmd_sc_valid sc(0xffffff801e1f5000-#0) invalid type(32)
+06-14 15:44:23.412 19111 19111 I         : (4)[19111:main][apusys][error] mdw_usr_par_apu_cmd parse cmd fail(-22)

@@ -1,0 +1,37 @@
+pattern=mdw_usr_mem_free|mdw_mem_ion_unmap_iova|ion_free|request (D2D_EXT) timeout|mdw_sched_trace|mdw_wait_cmd|devapc|iommu|Unable to handle kernel|BUG|KASAN|vpu|APUSYS|apusys
+source=adb logcat -b kernel or dmesg fallback
+
+06-15 08:08:42.555   378   378 I (0)[378:apusys_vpu0]vpu 19030000.vpu_core0: vpu_map_sg_to_iova: sg_dma_address: size: 500000, mapped iova: 0x37de00000 (static alloc)
+06-15 08:08:46.169 21695 21695 I         : (4)[21695:kworker/4:0][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24163f3, req_sta =  0x15c00000 0x0 0x50000011 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf85a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 08:08:46.426 21695 21695 I         : (4)[21695:kworker/4:0][pmic_debug] Raw=690, T=35898
+06-15 08:08:51.289 20419 20419 I         : (4)[20419:kworker/4:2][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24163f3, req_sta =  0x15c00000 0x180000 0x50000017 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf85a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 08:08:51.546 21695 21695 I         : (4)[21695:kworker/4:0][pmic_debug] Raw=690, T=35898
+06-15 08:08:55.897   378   378 I (2)[378:apusys_vpu0]: request (D2D_EXT) timeout, priority: 0, algo: apu_lib_apunn
+06-15 08:08:55.987   378   378 I (2)[378:apusys_vpu0]vpu 19030000.vpu_core0: vpu_map_sg_to_iova: sg_dma_address: size: 500000, mapped iova: 0x37de00000 (static alloc)
+06-15 08:09:07.164   378   378 I         : (3)[378:apusys_vpu0][apusys][error] mdw_sched_trace fail : pid(21981/21981) cmd(0x0/0xffffff801dc89000-#0/1) dev(3/vpu-#0) mp(0x0/0/1/0x0) sched(0/0/0/0/0/0) mem(0/0/0x0/0x0) boost(0) time(9059170/9059248) ret(-110)
+06-15 08:09:07.165 21981 21981 I         : (5)[21981:main][apusys][error] mdw_wait_cmd cmd(0xffffff801dc89000) sc(0x1) fail
+06-15 08:09:07.258   378   378 I (3)[378:apusys_vpu0]vpu 19030000.vpu_core0: vpu_map_sg_to_iova: sg_dma_address: size: 500000, mapped iova: 0x37de00000 (static alloc)
+06-15 08:09:07.259   378   378 I (3)[378:apusys_vpu0]vpu_dev_boot_sequence: vpu0: ALTRESETVEC: 0x7da00000
+06-15 08:09:22.266 21695 21695 I         : (4)[21695:kworker/4:0][pmic_debug] Raw=690, T=35898
+06-15 08:09:24.825   378   378 I (1)[378:apusys_vpu0]: request (D2D_EXT) timeout, priority: 0, algo: apu_lib_apunn
+06-15 08:09:24.834 21981 21981 I         : (4)[21981:main][apusys][error] mdw_wait_cmd cmd(0xffffff801e073000) sc(0x1) fail
+06-15 08:09:24.921   378   378 I (1)[378:apusys_vpu0]vpu 19030000.vpu_core0: vpu_map_sg_to_iova: sg_dma_address: size: 500000, mapped iova: 0x37de00000 (static alloc)
+06-15 08:09:24.922   378   378 I (1)[378:apusys_vpu0]vpu_dev_boot_sequence: vpu0: ALTRESETVEC: 0x7da00000
+06-15 08:09:27.129 20419 20419 I         : (4)[20419:kworker/4:2][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24163f3, req_sta =  0x15c00000 0x180000 0x50000017 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf85a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 08:09:27.386 21695 21695 I         : (4)[21695:kworker/4:0][pmic_debug] Raw=690, T=35898
+06-15 08:09:32.249 20419 20419 I         : (4)[20419:kworker/4:2][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24163f3, req_sta =  0x15c00000 0x0 0x50000011 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf85a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 08:09:32.506 21695 21695 I         : (4)[21695:kworker/4:0][pmic_debug] Raw=690, T=35898
+06-15 08:09:35.065   378   378 I (0)[378:apusys_vpu0]: request (D2D_EXT) timeout, priority: 0, algo: apu_lib_apunn
+06-15 08:09:35.068   378   378 I         : (0)[378:apusys_vpu0][apusys][error] mdw_sched_trace fail : pid(21981/21981) cmd(0x0/0xffffff8009cfd000-#0/1) dev(3/vpu-#0) mp(0x0/0/1/0x0) sched(0/0/0/0/0/0) mem(0/0/0x0/0x0) boost(0) time(9035676/9035748) ret(-110)
+06-15 08:09:35.070 21981 21981 I         : (5)[21981:main][apusys][error] mdw_wait_cmd cmd(0xffffff8009cfd000) sc(0x1) fail
+06-15 08:09:35.145   378   378 I (2)[378:apusys_vpu0]vpu 19030000.vpu_core0: vpu_map_sg_to_iova: sg_dma_address: size: 500000, mapped iova: 0x37de00000 (static alloc)
+06-15 08:09:35.147   378   378 I (2)[378:apusys_vpu0]vpu_dev_boot_sequence: vpu0: ALTRESETVEC: 0x7da00000
+06-15 08:09:37.369 20419 20419 I         : (4)[20419:kworker/4:2][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24163f3, req_sta =  0x15c00000 0x180000 0x50000017 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf85a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 08:09:37.626 21695 21695 I         : (4)[21695:kworker/4:0][pmic_debug] Raw=691, T=35303
+06-15 08:09:42.746 21695 21695 I         : (4)[21695:kworker/4:0][pmic_debug] Raw=691, T=35303
+06-15 08:09:47.866 21695 21695 I         : (4)[21695:kworker/4:0][pmic_debug] Raw=691, T=35303
+06-15 08:09:49.657   378   378 I (2)[378:apusys_vpu0]: request (D2D_EXT) timeout, priority: 0, algo: apu_lib_apunn
+06-15 08:09:49.661   378   378 I         : (3)[378:apusys_vpu0][apusys][error] mdw_sched_trace fail : pid(21981/21981) cmd(0x0/0xffffff8015459000-#0/1) dev(3/vpu-#0) mp(0x0/0/1/0x0) sched(0/0/0/0/0/0) mem(0/0/0x0/0x0) boost(0) time(9163358/9163411) ret(-110)
+06-15 08:09:49.662 21981 21981 I         : (4)[21981:main][apusys][error] mdw_wait_cmd cmd(0xffffff8015459000) sc(0x1) fail
+06-15 08:09:52.729 20419 20419 I         : (4)[20419:kworker/4:2][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24163f3, req_sta =  0x15c00000 0x180000 0x50000017 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf85a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 08:09:52.986 21695 21695 I         : (4)[21695:kworker/4:0][pmic_debug] Raw=691, T=35303

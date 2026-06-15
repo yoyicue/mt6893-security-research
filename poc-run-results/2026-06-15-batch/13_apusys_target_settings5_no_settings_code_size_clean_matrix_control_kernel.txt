@@ -1,0 +1,16 @@
+pattern=apusys|vpu|mdw|xos|devapc|iommu|vpu_req_check|vpu_execute|sched_trace|cmd_done|timeout|Timeout|TIMEOUT|oops|panic
+source=adb logcat -b kernel or dmesg fallback
+
+06-15 05:40:44.653 12480 12480 I         : (4)[12480:main][apusys][warn] mdw_ioctl not support fw load
+06-15 05:40:44.653 12480 12480 I         : (4)[12480:main][apusys][warn] mdw_ioctl not suppot fw unload
+06-15 05:40:44.653 12480 12480 I         : (4)[12480:main][apusys][error] mdw_usr_run_cmd_async don't support offset(1)
+06-15 05:40:44.653 12480 12480 I         : (4)[12480:main][apusys][error] mdw_usr_run_cmd_async don't support offset(1)
+06-15 05:40:44.653 12480 12480 I         : (4)[12480:main][apusys][error] mdw_usr_ucmd don't support offset(1)
+06-15 05:40:44.697  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 05:40:47.769  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 05:40:48.793  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 05:40:49.817  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 05:40:52.532   814   814 I (0)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=3600/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=847081, RxOK=2372090, FcsErr=7
+06-15 05:40:52.889  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 05:40:54.937  1345  1345 I (1)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-15 05:40:55.563   814   814 I (1)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=3600/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=847081, RxOK=2372095, FcsErr=0

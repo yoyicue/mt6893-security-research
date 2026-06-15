@@ -1,0 +1,16 @@
+pattern=apusys|vpu|mdw|vpu_req_check
+source=adb logcat -b kernel or dmesg fallback
+
+06-15 02:05:04.482   378   378 I (1)[378:apusys_vpu0]vpu 19030000.vpu_core0: vpu_map_sg_to_iova: sg_dma_address: size: 500000, mapped iova: 0x37de00000 (static alloc)
+06-15 02:05:04.483   378   378 I (1)[378:apusys_vpu0]vpu_dev_boot_sequence: vpu0: ALTRESETVEC: 0x7da00000
+06-15 02:05:17.785   378   378 I (1)[378:apusys_vpu0]: request (D2D_EXT) timeout, priority: 0, algo: apu_lib_apunn
+06-15 02:05:17.788   378   378 I         : (1)[378:apusys_vpu0][apusys][error] mdw_sched_trace fail : pid(25490/25490) cmd(0x0/0xffffff8009e75000-#0/1) dev(3/vpu-#0) mp(0x0/0/1/0x0) sched(0/0/0/0/0/0) mem(0/0/0x0/0x0) boost(0) time(9195347/9195418) ret(-110)
+06-15 02:05:17.788 25490 25490 I         : (4)[25490:main][apusys][error] mdw_wait_cmd cmd(0xffffff8009e75000) sc(0x1) fail
+06-15 02:05:18.829   378   378 I (2)[378:apusys_vpu0]vpu_dev_boot_sequence: vpu0: ALTRESETVEC: 0x7da00000
+06-15 02:05:28.029   378   378 I         : (1)[378:apusys_vpu0][apusys][error] mdw_sched_trace fail : pid(25490/25490) cmd(0x0/0xffffff8009efd000-#0/1) dev(3/vpu-#0) mp(0x0/0/1/0x0) sched(0/0/0/0/0/0) mem(0/0/0x0/0x0) boost(0) time(9195341/9210493) ret(-110)
+06-15 02:05:28.029 25490 25490 I         : (4)[25490:main][apusys][error] mdw_wait_cmd cmd(0xffffff8009efd000) sc(0x1) fail
+06-15 02:05:29.070   378   378 I (3)[378:apusys_vpu0]vpu_dev_boot_sequence: vpu0: ALTRESETVEC: 0x7da00000
+06-15 02:05:38.265   378   378 I (2)[378:apusys_vpu0]: request (D2D_EXT) timeout, priority: 0, algo: apu_lib_apunn
+06-15 02:05:38.268   378   378 I         : (2)[378:apusys_vpu0][apusys][error] mdw_sched_trace fail : pid(25490/25490) cmd(0x0/0xffffff8009f7d000-#0/1) dev(3/vpu-#0) mp(0x0/0/1/0x0) sched(0/0/0/0/0/0) mem(0/0/0x0/0x0) boost(0) time(9195022/9206031) ret(-110)
+06-15 02:05:39.311   378   378 I (2)[378:apusys_vpu0]vpu 19030000.vpu_core0: vpu_map_sg_to_iova: sg_dma_address: size: 500000, mapped iova: 0x37de00000 (static alloc)
+06-15 02:05:39.312   378   378 I (2)[378:apusys_vpu0]vpu_dev_boot_sequence: vpu0: ALTRESETVEC: 0x7da00000

@@ -1,0 +1,16 @@
+pattern=apusys|vpu|mdw|xos|devapc|iommu|vpu_req_check|vpu_execute|sched_trace|cmd_done|timeout|Timeout|TIMEOUT|oops|panic
+source=adb logcat -b kernel or dmesg fallback
+
+06-14 18:23:55.069  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 18:23:55.203 27475 27475 I         : (7)[27475:main][apusys][warn] mdw_ioctl not support fw load
+06-14 18:23:55.203 27475 27475 I         : (7)[27475:main][apusys][warn] mdw_ioctl not suppot fw unload
+06-14 18:23:55.203 27475 27475 I         : (7)[27475:main][apusys][error] mdw_usr_run_cmd_async don't support offset(1)
+06-14 18:23:55.203 27475 27475 I         : (7)[27475:main][apusys][error] mdw_usr_run_cmd_async don't support offset(1)
+06-14 18:23:55.203 27475 27475 I         : (7)[27475:main][apusys][error] mdw_usr_ucmd don't support offset(1)
+06-14 18:23:56.089  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 18:23:57.117  1345  1345 I (3)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 18:23:59.161  1345  1345 I (3)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 18:24:04.281  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 18:24:05.244 27475 27475 I         : (4)[27475:main][apusys][warn] mdw_usr_destroy residual cmd(0xffffff8009db5000)
+06-14 18:24:06.329  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
+06-14 18:24:07.353  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]

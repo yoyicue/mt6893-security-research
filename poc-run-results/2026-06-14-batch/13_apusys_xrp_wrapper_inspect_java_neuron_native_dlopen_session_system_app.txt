@@ -1,0 +1,56 @@
+-rw------- 1 system system u:object_r:system_app_data_file:s0  58000 2026-06-14 22:52 /data/data/com.android.settings/cache/xrp_wrapper_inspect.dex
+c5e0d5ce5649026446a542dde775d162  /data/data/com.android.settings/cache/xrp_wrapper_inspect.dex
+SOCKET_STATUS 0
+uid=1000(system) gid=1000(system) groups=1000(system),3003(inet) context=u:r:system_app:s0
+u:r:system_app:s0
+c5e0d5ce5649026446a542dde775d162  /data/data/com.android.settings/cache/xrp_wrapper_inspect.dex
+[*] === XRP wrapper request inspector ===
+uid=1000 pid=12021
+context=u:r:system_app:s0
+[+] mode=neuron
+[+] loaded=/system/lib64/libneuron_platform.vpu.so
+[+] create_apusys_session=true
+symbol getpid value=0x58d20 bias=0x7003e3a000 addr=0x7003e92d20
+[+] Scratch buffer at 0x70116dd000
+[*] Trying anonymous PROT_RWX mmap...
+[+] Anonymous RWX page at 0x70116dc000
+[+] Wrote syscall stub: JNI@+0x00 (36B), call stub JNI@+0x80 (40B); entry_point left untouched
+[*] ArtMethod for nativeSyscall at 0x7003a68a40
+    access_flags = 0x10000108 [NATIVE]
+    data (JNI ptr) = 0x6d5dc1a2c0
+    entry_point    = 0x10380008766fc2d8
+[*] Patching data_ (JNI) → 0x70116dc000
+    data_       = 0x70116dc000 ✓
+    entry_point = 0x10380008766fc2d8 (unchanged)
+[+] ArtMethod patched
+[+] Syscall infrastructure ready
+
+[*] Patching nativeCall data_ 0x6d5dc1a2c0 -> 0x70116dc080, entry_point stays 0x10000108766fc2d8
+    call begin fn=0x7003e92d20 a0=0x0 a1=0x0 a2=0x0 a3=0x0 a4=0x0
+    call fn=0x7003e92d20 ret=0x2ef5
+native getpid()=12021
+symbol XRP_Create value=0xdb3c bias=0x6d385d6000 addr=0x6d385e3b3c
+symbol XRP_Release value=0xdc48 bias=0x6d385d6000 addr=0x6d385e3c48
+symbol XRP_CreateCommand value=0xe17c bias=0x6d385d6000 addr=0x6d385e417c
+symbol XRP_AllocateBuffer value=0xdd30 bias=0x6d385d6000 addr=0x6d385e3d30
+symbol XRP_UseInputBuffer value=0xe258 bias=0x6d385d6000 addr=0x6d385e4258
+symbol XRP_UseOutputBuffer value=0xe334 bias=0x6d385d6000 addr=0x6d385e4334
+symbol XRP_FinalizeCommand value=0xe410 bias=0x6d385d6000 addr=0x6d385e4410
+symbol XRP_GetPreparedRequests value=0xe5c8 bias=0x6d385d6000 addr=0x6d385e45c8
+[+] inspect_mem=0x700aa80000
+symbol dlopen value=0x1020 bias=0x7003cb3000 addr=0x7003cb4020
+    call begin fn=0x7003cb4020 a0=0x700aa83000 a1=0x102 a2=0x0 a3=0x0 a4=0x0
+    call fn=0x7003cb4020 ret=0x0
+native dlopen path=/system/lib64/libapu_mdw.so handle=0x0
+    call begin fn=0x7003cb4020 a0=0x700aa83000 a1=0x102 a2=0x0 a3=0x0 a4=0x0
+    call fn=0x7003cb4020 ret=0x0
+native dlopen path=/system/vendor/lib64/libapu_mdw.so handle=0x0
+    call begin fn=0x7003cb4020 a0=0x700aa83000 a1=0x102 a2=0x0 a3=0x0 a4=0x0
+    call fn=0x7003cb4020 ret=0x0
+native dlopen path=/vendor/lib64/libapu_mdw.so handle=0x0
+APUSYS native dlopen failed for all candidate paths.
+    call begin fn=0x6d385e3b3c a0=0x700aa80000 a1=0x700aa80040 a2=0x0 a3=0x0 a4=0x0
+    call fn=0x6d385e3b3c ret=0x4
+XRP_Create status=4 device=0xb400006d90f50690
+XRP_Create did not initialize; stop.
+JAVA_STATUS:0

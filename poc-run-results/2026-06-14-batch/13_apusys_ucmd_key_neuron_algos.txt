@@ -1,0 +1,35 @@
+APUSYS ucmd key lookup using libneuron_platform.vpu.so candidates
+
+Device/context:
+uid=1000(system) gid=1000(system) groups=1000(system),3003(inet) context=u:r:system_app:s0
+Android SPL: 2023-06-05
+SoC / hardware: mt6893 / mt8797
+
+Probe dex:
+/data/data/com.android.settings/cache/apusys_ioctl_probe.dex
+md5: 4039e4fa1ce7f2d3ef5efc47f7fa1aa2
+
+Candidate source:
+/system/lib64/libneuron_platform.vpu.so
+xrp::XrpVpuStream::kAlgoNames -> unknown, apu_lib_apunn, apu_lib_custom
+
+Command shape:
+CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex app_process64 /system/bin ApusysIoctlProbe --ucmd-key=<key>
+
+Key result:
+[*] --- ucmd HardwareBuffer case: key_apu_lib_apunn first_u32=0x8001 key="apu_lib_apunn" ---
+[+] input image payload: first_u32=0x8001 key_bytes=13 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] parcel_fd_pos_388 fd=60
+[*] hwb_key_apu_lib_apunn_mem2_pos388 cmd=0xc0384103 ret=0
+[*] hwb_key_apu_lib_apunn_mem3_pos388 cmd=0xc038410f ret=0
+[*] ucmd_hwb_key_apu_lib_apunn_c0_pos388 cmd=0x4014410e ret=0
+[*] ucmd_hwb_key_apu_lib_apunn_c1_pos388 cmd=0x4014410e ret=0
+
+Negative controls:
+[*] ucmd_hwb_key_apu_lib_custom_c0_pos388 cmd=0x4014410e ret=-2 (ENOENT)
+[*] ucmd_hwb_key_apu_lib_custom_c1_pos388 cmd=0x4014410e ret=-2 (ENOENT)
+[*] ucmd_hwb_key_unknown_c0_pos388 cmd=0x4014410e ret=-2 (ENOENT)
+[*] ucmd_hwb_key_unknown_c1_pos388 cmd=0x4014410e ret=-2 (ENOENT)
+
+Interpretation:
+The HardwareBuffer-backed fd source reaches APUSYS memory import and normal VPU opcode-7 ucmd dispatch. The payload format is the userspace-compatible getAlgo shape: u32 0x8001 at mapped_kva+0 and a NUL-terminated key at mapped_kva+4. apu_lib_apunn is a loaded VPU algorithm key on this firmware and returns provider success. unknown and apu_lib_custom miss the Normal/Preload lookup path with ENOENT.

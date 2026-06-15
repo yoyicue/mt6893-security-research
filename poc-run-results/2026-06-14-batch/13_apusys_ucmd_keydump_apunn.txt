@@ -1,0 +1,159 @@
+[*] === APUSYS ioctl probe ===
+[*] Mode: optional checks enabled; no secure alloc/free, no run_cmd cmdbuf
+
+[+] Scratch buffer at 0x7c10601000
+[*] Trying anonymous PROT_RWX mmap...
+[+] Anonymous RWX page at 0x7c10600000
+[+] Wrote syscall stub: JNI@+0x00 (36B); entry_point left untouched
+[*] ArtMethod for nativeSyscall at 0x7c068fd9f0
+    access_flags = 0x10000108 [NATIVE]
+    data (JNI ptr) = 0x796561a2c0
+    entry_point    = 0x103800087683c408
+[*] Patching data_ (JNI) → 0x7c10600000
+    data_       = 0x7c10600000 ✓
+    entry_point = 0x103800087683c408 (unchanged)
+[+] ArtMethod patched
+[+] Syscall infrastructure ready
+
+[+] Opened /dev/apusys fd=49
+[*] unknown            cmd=0x41414141 ret=-22 (EINVAL)
+[*] disabled_0c        cmd=0x4038410c ret=-22 (EINVAL)
+[*] disabled_0d        cmd=0x4038410d ret=-22 (EINVAL)
+[*] handshake_reject   cmd=0xc0284100 ret=-22 (EINVAL)
+[*] run_async_reject   cmd=0xc0184107 ret=-22 (EINVAL)
+[*] run_sync_reject    cmd=0x40184106 ret=-22 (EINVAL)
+[*] ucmd_reject        cmd=0x4014410e ret=-22 (EINVAL)
+
+[*] === Optional APUSYS ucmd key lookup dump probe ===
+[*] Mode: same as --ucmd-key, plus Image plane payload dump before/after each ucmd ioctl
+[+] loaded /apex/com.android.art/lib64/libnativehelper.so
+[-] load /system/lib64/libhidlbase.so failed: java.lang.UnsatisfiedLinkError: dlopen failed: library "libdl_android.so" needed or dlopened by "/system/lib64/libvndksupport.so" is not accessible for the namespace "classloader-namespace"
+[+] loaded /system/lib64/libhidltransport.so
+[-] load /system/lib64/libui.so failed: java.lang.UnsatisfiedLinkError: dlopen failed: library "libdl_android.so" needed or dlopened by "/system/lib64/libvndksupport.so" is not accessible for the namespace "classloader-namespace"
+[-] load /system/lib64/libgui.so failed: java.lang.UnsatisfiedLinkError: dlopen failed: library "libdl_android.so" needed or dlopened by "/system/lib64/libvndksupport.so" is not accessible for the namespace "classloader-namespace"
+[-] load /system/lib64/libhwui.so failed: java.lang.UnsatisfiedLinkError: dlopen failed: library "libandroidicu.so" not found: needed by /system/lib64/libminikin.so in namespace classloader-namespace
+[-] load /system/lib64/libandroid_runtime.so failed: java.lang.UnsatisfiedLinkError: dlopen failed: library "libandroidicu.so" not found: needed by /system/lib64/libandroid_runtime.so in namespace classloader-namespace
+[+] class android.hardware.HardwareBuffer present
+    field private java.lang.Runnable android.hardware.HardwareBuffer.mCleaner
+    field private final dalvik.system.CloseGuard android.hardware.HardwareBuffer.mCloseGuard
+    field private long android.hardware.HardwareBuffer.mNativeObject
+    field public static final int android.hardware.HardwareBuffer.BLOB
+    field public static final android.os.Parcelable$Creator android.hardware.HardwareBuffer.CREATOR
+    field public static final int android.hardware.HardwareBuffer.DS_24UI8
+    field public static final int android.hardware.HardwareBuffer.DS_FP32UI8
+    field public static final int android.hardware.HardwareBuffer.D_16
+    field public static final int android.hardware.HardwareBuffer.D_24
+    field public static final int android.hardware.HardwareBuffer.D_FP32
+    field public static final int android.hardware.HardwareBuffer.RGBA_1010102
+    field public static final int android.hardware.HardwareBuffer.RGBA_8888
+    method static long android.hardware.HardwareBuffer.-$$Nest$smnReadHardwareBufferFromParcel(android.os.Parcel)
+    method public static android.hardware.HardwareBuffer android.hardware.HardwareBuffer.create(int,int,int,int,long)
+    method public static android.hardware.HardwareBuffer android.hardware.HardwareBuffer.createFromGraphicBuffer(android.graphics.GraphicBuffer)
+    method public static boolean android.hardware.HardwareBuffer.isSupported(int,int,int,int,long)
+    method private static boolean android.hardware.HardwareBuffer.isSupportedFormat(int)
+    method private static native long android.hardware.HardwareBuffer.nCreateFromGraphicBuffer(android.graphics.GraphicBuffer)
+    method private static native long android.hardware.HardwareBuffer.nCreateHardwareBuffer(int,int,int,int,long)
+    method private static native long android.hardware.HardwareBuffer.nEstimateSize(long)
+    method private static native int android.hardware.HardwareBuffer.nGetFormat(long)
+    method private static native int android.hardware.HardwareBuffer.nGetHeight(long)
+    method private static native int android.hardware.HardwareBuffer.nGetLayers(long)
+    method private static native long android.hardware.HardwareBuffer.nGetNativeFinalizer()
+[+] class android.media.ImageReader present
+    field private java.util.List android.media.ImageReader.mAcquiredImages
+    field private final java.lang.Object android.media.ImageReader.mCloseLock
+    field private final int android.media.ImageReader.mDataSpace
+    field private int android.media.ImageReader.mEstimatedNativeAllocBytes
+    field private final int android.media.ImageReader.mFormat
+    field private final int android.media.ImageReader.mHardwareBufferFormat
+    field private final int android.media.ImageReader.mHeight
+    field private boolean android.media.ImageReader.mIsReaderValid
+    field private android.media.ImageReader$OnImageAvailableListener android.media.ImageReader.mListener
+    field private java.util.concurrent.Executor android.media.ImageReader.mListenerExecutor
+    field private android.media.ImageReader$ListenerHandler android.media.ImageReader.mListenerHandler
+    field private final java.lang.Object android.media.ImageReader.mListenerLock
+    method static int android.media.ImageReader.-$$Nest$fgetmDataSpace(android.media.ImageReader)
+    method static int android.media.ImageReader.-$$Nest$fgetmFormat(android.media.ImageReader)
+    method static int android.media.ImageReader.-$$Nest$fgetmHardwareBufferFormat(android.media.ImageReader)
+    method static int android.media.ImageReader.-$$Nest$fgetmNumPlanes(android.media.ImageReader)
+    method static long android.media.ImageReader.-$$Nest$fgetmUsage(android.media.ImageReader)
+    method static boolean android.media.ImageReader.-$$Nest$fgetmUseLegacyImageFormat(android.media.ImageReader)
+    method static void android.media.ImageReader.-$$Nest$mreleaseImage(android.media.ImageReader,android.media.Image)
+    method private int android.media.ImageReader.acquireNextSurfaceImage(android.media.ImageReader$SurfaceImage)
+    method public static android.media.ImageReader$ImagePlane[] android.media.ImageReader.initializeImagePlanes(int,android.graphics.GraphicBuffer,int,int,long,int,int,android.graphics.Rect)
+    method private void android.media.ImageReader.initializeImageReader(int,int,int,int,long,int,int,boolean)
+    method private boolean android.media.ImageReader.isImageOwnedbyMe(android.media.Image)
+    method private static native void android.media.ImageReader.nativeClassInit()
+[+] class android.media.ImageWriter present
+    field private int android.media.ImageWriter.mDataSpace
+    field private java.util.List android.media.ImageWriter.mDequeuedImages
+    field private int android.media.ImageWriter.mEstimatedNativeAllocBytes
+    field private int android.media.ImageWriter.mHardwareBufferFormat
+    field private int android.media.ImageWriter.mHeight
+    field private android.media.ImageWriter$OnImageReleasedListener android.media.ImageWriter.mListener
+    field private android.media.ImageWriter$ListenerHandler android.media.ImageWriter.mListenerHandler
+    field private final java.lang.Object android.media.ImageWriter.mListenerLock
+    field private final int android.media.ImageWriter.mMaxImages
+    field private long android.media.ImageWriter.mNativeContext
+    field private long android.media.ImageWriter.mUsage
+    field private int android.media.ImageWriter.mWidth
+    method static int android.media.ImageWriter.-$$Nest$fgetmDataSpace(android.media.ImageWriter)
+    method static int android.media.ImageWriter.-$$Nest$fgetmHeight(android.media.ImageWriter)
+    method static android.media.ImageWriter$OnImageReleasedListener android.media.ImageWriter.-$$Nest$fgetmListener(android.media.ImageWriter)
+    method static java.lang.Object android.media.ImageWriter.-$$Nest$fgetmListenerLock(android.media.ImageWriter)
+    method static int android.media.ImageWriter.-$$Nest$fgetmWidth(android.media.ImageWriter)
+    method static void android.media.ImageWriter.-$$Nest$mabortImage(android.media.ImageWriter,android.media.Image)
+    method private void android.media.ImageWriter.abortImage(android.media.Image)
+    method private void android.media.ImageWriter.attachAndQueueInputImage(android.media.Image)
+    method private native void android.media.ImageWriter.cancelImage(long,android.media.Image)
+    method private void android.media.ImageWriter.initializeImageWriter(android.view.Surface,int,boolean,boolean,int,int,int,int,int,long)
+    method private boolean android.media.ImageWriter.isImageOwnedByMe(android.media.Image)
+    method private native int android.media.ImageWriter.nativeAttachAndQueueGraphicBuffer(long,android.graphics.GraphicBuffer,int,long,int,int,int,int,int,int,int)
+
+[*] --- ucmd HardwareBuffer case: keydump_apu_lib_apunn first_u32=0x8001 key="apu_lib_apunn" ---
+[+] ImageReader created: width=64 height=64 format=1 hbFormat=1 usage=0x133
+[+] ImageWriter created: width=64 height=64 format=1 hbFormat=34 usage=0x30
+[+] input image payload: first_u32=0x8001 key_bytes=13 plane_count=1 cap=16384 rowStride=256 pixelStride=4
+[+] acquired image: width=64 height=64 format=1 timestamp=154274756298885
+[+] Output HardwareBuffer: width=64 height=64 format=1 layers=1 usage=0x133
+[*] HardwareBuffer parcel: dataSize=436 hasFd=true describe=0x1
+[+] AIDL HardwareBuffer readFromParcel succeeded
+    aidl_hardware_buffer class=android.hardware.graphics.common.HardwareBuffer
+    aidl_hardware_buffer.description=android.hardware.graphics.common.HardwareBufferDescription@5c7f008
+    aidl_hardware_buffer.description class=android.hardware.graphics.common.HardwareBufferDescription
+    aidl_hardware_buffer.description.format=1
+    aidl_hardware_buffer.description.height=64
+    aidl_hardware_buffer.description.layers=64
+    aidl_hardware_buffer.description.stride=16812
+    aidl_hardware_buffer.description.usage=1318554959873
+    aidl_hardware_buffer.description.width=64
+    aidl_hardware_buffer.description.CREATOR=android.hardware.graphics.common.HardwareBufferDescription$1@f73d3a1
+    aidl_hardware_buffer.description.CREATOR class=android.hardware.graphics.common.HardwareBufferDescription$1
+    aidl_hardware_buffer.handle=null
+    aidl_hardware_buffer.CREATOR=android.hardware.graphics.common.HardwareBuffer$1@e5259c6
+    aidl_hardware_buffer.CREATOR class=android.hardware.graphics.common.HardwareBuffer$1
+[+] parcel_fd_pos_364 fd=61
+[*] hwb_keydump_apu_lib_apunn_mem2_pos364 cmd=0xc0384103 ret=-12 (ENOMEM)
+[*] hwb_keydump_apu_lib_apunn_mem3_pos364 cmd=0xc038410f ret=-12 (ENOMEM)
+[+] parcel_fd_pos_388 fd=61
+[*] hwb_keydump_apu_lib_apunn_mem2_pos388 cmd=0xc0384103 ret=0
+    hwb_keydump_apu_lib_apunn_mem2_pos388_desc: [0]=0x0 [4]=0x0 [8]=0xfd7dc000 [12]=0x1000 [16]=0x4000 [20]=0x0 [24]=0x0 [28]=0x0 [32]=0x3d [36]=0x0 [40]=0x2d [44]=0x0 [48]=0x0 [52]=0x0
+[+] hwb_keydump_apu_lib_apunn_mem2_pos388 succeeded; id=0x2d, cleaning up
+[*] hwb_keydump_apu_lib_apunn_mem2_pos388_cleanup cmd=0xc0384102 ret=0
+[*] hwb_keydump_apu_lib_apunn_mem3_pos388 cmd=0xc038410f ret=0
+    hwb_keydump_apu_lib_apunn_mem3_pos388_desc: [0]=0x0 [4]=0x0 [8]=0xfd7dc000 [12]=0x1000 [16]=0x4000 [20]=0x0 [24]=0x0 [28]=0x0 [32]=0x3d [36]=0x0 [40]=0x2d [44]=0x0 [48]=0x0 [52]=0x0
+[+] hwb_keydump_apu_lib_apunn_mem3_pos388 succeeded; id=0x2d, cleaning up
+[*] hwb_keydump_apu_lib_apunn_mem3_pos388_cleanup cmd=0xc0384110 ret=0
+[*] payload_before_c0_hwb_keydump_apu_lib_apunn_pos388 first_64_hex=01 80 00 00 61 70 75 5f 6c 69 62 5f 61 70 75 6e 6e 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+[*] payload_before_c0_hwb_keydump_apu_lib_apunn_pos388 first_64_ascii=....apu_lib_apunn...............................................
+[*] ucmd_hwb_keydump_apu_lib_apunn_c0_pos388 cmd=0x4014410e ret=0
+[*] payload_after_c0_hwb_keydump_apu_lib_apunn_pos388 first_64_hex=01 80 00 00 61 70 75 5f 6c 69 62 5f 61 70 75 6e 6e 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+[*] payload_after_c0_hwb_keydump_apu_lib_apunn_pos388 first_64_ascii=....apu_lib_apunn...............................................
+[*] ucmd_hwb_keydump_apu_lib_apunn_c1_pos388 cmd=0x4014410e ret=0
+[*] payload_after_c1_hwb_keydump_apu_lib_apunn_pos388 first_64_hex=01 80 00 00 61 70 75 5f 6c 69 62 5f 61 70 75 6e 6e 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+[*] payload_after_c1_hwb_keydump_apu_lib_apunn_pos388 first_64_ascii=....apu_lib_apunn...............................................
+[+] parcel_fd_pos_412 fd=61
+[*] hwb_keydump_apu_lib_apunn_mem2_pos412 cmd=0xc0384103 ret=-12 (ENOMEM)
+[*] hwb_keydump_apu_lib_apunn_mem3_pos412 cmd=0xc038410f ret=-12 (ENOMEM)
+
+[+] Probe completed. Interpret results as handler reachability only.
+__APUSYS_DUMP_DONE__

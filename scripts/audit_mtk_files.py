@@ -124,21 +124,21 @@ def classify(rel_path: pathlib.Path, file_desc: str) -> tuple[str, str, str]:
             "Crash forensics and bugreport evidence referenced by exploit analysis.",
         )
 
-    if path_str.startswith("cve-2023-4622-arm64/forensics/"):
+    if path_str.startswith("00-cve-2023-4622-arm64/forensics/"):
         return (
             "High",
             "Archive",
             "Crash forensics and bugreport evidence referenced by exploit analysis.",
         )
 
-    if path_str.startswith("cve-2023-4622-arm64/reverse/vmlinux_rebuilt"):
+    if path_str.startswith("00-cve-2023-4622-arm64/reverse/vmlinux_rebuilt"):
         return (
             "High",
             "Keep",
             "Kernel image / IDA database; large, generated-looking, but usually the highest-value reverse-engineering state.",
         )
 
-    if path_str.startswith("cve-2023-4622-arm64/driver_research/ion/traces/"):
+    if path_str.startswith("00-cve-2023-4622-arm64/driver_research/ion/traces/"):
         return (
             "High",
             "Archive",
@@ -252,10 +252,10 @@ def summary_block(entries: list[Entry]) -> str:
         "",
         "## Directory Verdicts",
         "",
-        "- `cve-2023-4622-arm64`: highest-value workspace; source, exploit experiments, evidence, and reverse DB are mixed together and should be separated logically, not pruned aggressively.",
+        "- `00-cve-2023-4622-arm64`: highest-value workspace; source, exploit experiments, evidence, and reverse DB are mixed together and should be separated logically, not pruned aggressively.",
         "- `exploit-gatebench`: already well-structured; keep intact and avoid mixing generated run state with source.",
         "- Historical side-path PoCs should be archived or removed once their outcome is captured elsewhere, instead of staying at repo root.",
-        "- `cve-2023-4622-arm64/forensics`: high-value archived crash evidence; keep it grouped by date and experiment instead of leaving loose root-level dumps.",
+        "- `00-cve-2023-4622-arm64/forensics`: high-value archived crash evidence; keep it grouped by date and experiment instead of leaving loose root-level dumps.",
         "- `scripts`: keep scripts; delete caches only.",
         "",
         "## Immediate Safe Cleanup",

@@ -1,0 +1,5 @@
+pattern=apusys|vpu|mdw|vpu_req_check
+source=adb logcat -b kernel or dmesg fallback
+
+06-15 00:33:29.141 16545 16545 I         : (4)[16545:main][apusys][warn] mdw_ioctl not suppot fw unload
+06-15 00:33:29.141 16545 16545 I         : (4)[16545:main][apusys][error] mdw_usr_run_cmd_async don't support offset(1)

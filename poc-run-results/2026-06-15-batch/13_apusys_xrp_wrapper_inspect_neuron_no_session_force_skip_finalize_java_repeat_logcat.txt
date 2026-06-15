@@ -1,0 +1,73 @@
+06-15 02:59:17.158 30068 30068 W ziparchive: Unable to open '/data/data/com.android.settings/cache/xrp_wrapper_inspect.dm': No such file or directory
+06-15 02:59:17.239 30068 30068 I NN-VPUD : Create xrp instance with option size 24 (expected 24)
+06-15 02:59:17.239 30068 30068 I NN-VPUD : Create xrp executor with options: profiling [disabled], apusys session 0x0
+06-15 02:59:17.243 30068 30068 E NN-VPUD : VpuStreamLibManager::VpuStreamLibManager [96]: libvpu5.so does not exist
+06-15 02:59:17.243 30068 30068 E NN-VPUD : XrpVpuStream::CreateVpuInstance [54]: null apusys session
+06-15 02:59:17.243 30068 30068 E NN-VPUD : XrpIntrinsicExecutor::InitDriver [65]: Failed to create vpu stream instance
+06-15 02:59:17.243 30068 30068 I NN-VPUD : Created xrp device 0xb400006f626aa250, status 4
+--------- beginning of crash
+06-15 02:59:17.243 30068 30068 F libc    : Fatal signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr 0x10 in tid 30068 (main), pid 30068 (main)
+06-15 02:59:17.273 30087 30087 I crash_dump64: obtaining output fd from tombstoned, type: kDebuggerdTombstoneProto
+06-15 02:59:17.274   561   561 I tombstoned: received crash request for pid 30068
+06-15 02:59:17.275 30087 30087 I crash_dump64: performing dump of process 30068 (target tid = 30068)
+06-15 02:59:17.277 30068 30068 F libc    : failed to wait for crash_dump helper: No child processes
+06-15 02:59:17.399 30087 30087 F DEBUG   : *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+06-15 02:59:17.399 30087 30087 F DEBUG   : Build fingerprint: 'alps/vnd_ls12_mt8797_wifi_64/ls12_mt8797_wifi_64:13/TP1A.220624.014/239:user/release-keys'
+06-15 02:59:17.399 30087 30087 F DEBUG   : Revision: '0'
+06-15 02:59:17.399 30087 30087 F DEBUG   : ABI: 'arm64'
+06-15 02:59:17.399 30087 30087 F DEBUG   : Timestamp: 2026-06-15 02:59:17.288282945+0800
+06-15 02:59:17.399 30087 30087 F DEBUG   : Process uptime: 1s
+06-15 02:59:17.399 30087 30087 F DEBUG   : Cmdline: app_process64 /system/bin XrpWrapperInspect --no-create-apusys-session --force-after-create --skip-finalize --force-get-prepared
+06-15 02:59:17.399 30087 30087 F DEBUG   : pid: 30068, tid: 30068, name: main  >>> app_process64 <<<
+06-15 02:59:17.399 30087 30087 F DEBUG   : uid: 1000
+06-15 02:59:17.399 30087 30087 F DEBUG   : signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr 0x0000000000000010
+06-15 02:59:17.399 30087 30087 F DEBUG   : Cause: null pointer dereference
+06-15 02:59:17.399 30087 30087 F DEBUG   :     x0  0000000000000010  x1  0000000000000068  x2  0000000000000020  x3  0000000000000010
+06-15 02:59:17.399 30087 30087 F DEBUG   :     x4  0200006f42687b80  x5  0000000000000000  x6  0000000000000000  x7  0000000000000000
+06-15 02:59:17.399 30087 30087 F DEBUG   :     x8  0a0f115b83110786  x9  0000000000000001  x10 0000000000000001  x11 0000000000000001
+06-15 02:59:17.399 30087 30087 F DEBUG   :     x12 0000000000000001  x13 0000000000000001  x14 0000007fee801ba0  x15 00000000709ba838
+06-15 02:59:17.399 30087 30087 F DEBUG   :     x16 0000006f0a538710  x17 00000071d638f640  x18 00000071e0742000  x19 0000000000000010
+06-15 02:59:17.399 30087 30087 F DEBUG   :     x20 0000000000000000  x21 0000000000000068  x22 00000071de20a304  x23 00000071de213f16
+06-15 02:59:17.399 30087 30087 F DEBUG   :     x24 00000071e0176000  x25 0000007fee801e00  x26 0000007fee801e68  x27 0000007fee801e00
+06-15 02:59:17.399 30087 30087 F DEBUG   :     x28 0000007fee801ed0  x29 0000007fee801bd0
+06-15 02:59:17.399 30087 30087 F DEBUG   :     lr  0000006f0a524b5c  sp  0000007fee801bd0  pc  00000071d638f648  pst 0000000060001000
+06-15 02:59:17.399 30087 30087 F DEBUG   : backtrace:
+06-15 02:59:17.399 30087 30087 F DEBUG   :       #00 pc 00000000000c2648  /apex/com.android.runtime/lib64/bionic/libc.so (pthread_mutex_lock+8) (BuildId: b88c9224e813f06643d968bdc3c067f8)
+06-15 02:59:17.399 30087 30087 F DEBUG   :       #01 pc 0000000000098b58  /system/lib64/libc++.so (std::__1::mutex::lock()+8) (BuildId: 52654de605ee801e350f35c2b4557dfa)
+06-15 02:59:17.399 30087 30087 F DEBUG   :       #02 pc 0000000000013438  /system/lib64/libneuron_platform.vpu.so (xrp::memory::XrpMemoryManager::AllocateBuffer(unsigned int)+60) (BuildId: daf9b00c1e71eea0b6679f519b0ad33f)
+06-15 02:59:17.399 30087 30087 F DEBUG   :       #03 pc 000000000000f2d4  /system/lib64/libneuron_platform.vpu.so (xrp::XrpIntrinsicExecutor::CreateXrpCommand(unsigned long)+256) (BuildId: daf9b00c1e71eea0b6679f519b0ad33f)
+06-15 02:59:17.399 30087 30087 F DEBUG   :       #04 pc 0000000000011b9c  /system/lib64/libneuron_platform.vpu.so (xrp::XrpIntrinsicWrapper::CreateCommand(unsigned long)+288) (BuildId: daf9b00c1e71eea0b6679f519b0ad33f)
+06-15 02:59:17.399 30087 30087 F DEBUG   :       #05 pc 000000000000e19c  /system/lib64/libneuron_platform.vpu.so (XRP_CreateCommand+32) (BuildId: daf9b00c1e71eea0b6679f519b0ad33f)
+06-15 02:59:17.399 30087 30087 F DEBUG   :       #06 pc 000000000000009c  <anonymous:71df13b000>
+06-15 02:59:17.405 30087 30087 I crash_dump64: start notify aee_aed tombstone path: /data/tombstones/.temporary43
+06-15 02:59:17.406 30087 30087 I crash_dump64: socket name: android:aee_aed, sfd: 9
+06-15 02:59:17.414 30090 30090 I AEE_AED : read_request: receive requirement from crash_dump64
+06-15 02:59:17.415 30090 30090 I AEE_AED : parse_tombstone: the tombstone file '/data/tombstones/.temporary43' need to be parsed
+06-15 02:59:17.416 30090 30090 I AEE_AED : aed_crash_dump_session: aed_report_filter asked to skip
+06-15 02:59:17.417 30087 30087 I crash_dump64: crash_temporary_file_notify:
+06-15 02:59:17.418 30087 30087 I crash_dump64: crash_temporary_file_notify exit
+06-15 02:59:17.419  1050  1403 W NativeCrashListener: Couldn't find ProcessRecord for pid 30068
+06-15 02:59:17.420 30087 30087 E crash_dump64: AM data write failed: Broken pipe
+06-15 02:59:17.420 30087 30087 I crash_dump64: start aee dumping
+06-15 02:59:17.420 30087 30087 E crash_dump64: crash_mini_dump_notify: writing 'start dumping' fail: Broken pipe
+06-15 02:59:17.420 30087 30087 I crash_dump64: crash_mini_dump_notify exit!
+06-15 02:59:17.423   561   561 E tombstoned: Tombstone written to: tombstone_30
+06-15 02:59:17.424  1050  1225 W NativeTombstoneManager: failed to open /data/tombstones/tombstone_30.pb
+06-15 02:59:17.424  1050  1225 W NativeTombstoneManager: java.io.FileNotFoundException: open failed: ENOENT (No such file or directory)
+06-15 02:59:17.424  1050  1225 W NativeTombstoneManager: 	at android.os.ParcelFileDescriptor.openInternal(ParcelFileDescriptor.java:342)
+06-15 02:59:17.424  1050  1225 W NativeTombstoneManager: 	at android.os.ParcelFileDescriptor.open(ParcelFileDescriptor.java:229)
+06-15 02:59:17.424  1050  1225 W NativeTombstoneManager: 	at com.android.server.os.NativeTombstoneManager.handleProtoTombstone(NativeTombstoneManager.java:151)
+06-15 02:59:17.424  1050  1225 W NativeTombstoneManager: 	at com.android.server.os.NativeTombstoneManager.handleTombstone(NativeTombstoneManager.java:120)
+06-15 02:59:17.424  1050  1225 W NativeTombstoneManager: 	at com.android.server.os.NativeTombstoneManager.-$$Nest$mhandleTombstone(Unknown Source:0)
+06-15 02:59:17.424  1050  1225 W NativeTombstoneManager: 	at com.android.server.os.NativeTombstoneManager$TombstoneWatcher.lambda$onEvent$0$com-android-server-os-NativeTombstoneManager$TombstoneWatcher(NativeTombstoneManager.java:564)
+06-15 02:59:17.424  1050  1225 W NativeTombstoneManager: 	at com.android.server.os.NativeTombstoneManager$TombstoneWatcher$$ExternalSyntheticLambda0.run(Unknown Source:4)
+06-15 02:59:17.424  1050  1225 W NativeTombstoneManager: 	at android.os.Handler.handleCallback(Handler.java:942)
+06-15 02:59:17.424  1050  1225 W NativeTombstoneManager: 	at android.os.Handler.dispatchMessage(Handler.java:99)
+06-15 02:59:17.424  1050  1225 W NativeTombstoneManager: 	at android.os.Looper.loopOnce(Looper.java:201)
+06-15 02:59:17.424  1050  1225 W NativeTombstoneManager: 	at android.os.Looper.loop(Looper.java:288)
+06-15 02:59:17.424  1050  1225 W NativeTombstoneManager: 	at android.os.HandlerThread.run(HandlerThread.java:67)
+06-15 02:59:17.424  1050  1225 W NativeTombstoneManager: 	at com.android.server.ServiceThread.run(ServiceThread.java:44)
+06-15 02:59:17.434  1050  1225 I BootReceiver: Copying /data/tombstones/tombstone_30 to DropBox (SYSTEM_TOMBSTONE)
+06-15 02:59:17.434  1050  1225 I DropBoxManagerService: add tag=SYSTEM_TOMBSTONE isTagEnabled=true flags=0x6
+06-15 02:59:17.454  1050  1225 E NativeTombstoneManager: Tombstone's UID (1000) not an app, ignoring
+06-15 02:59:17.457  1050  1225 I DropBoxManagerService: add tag=SYSTEM_TOMBSTONE_PROTO isTagEnabled=true flags=0x4
