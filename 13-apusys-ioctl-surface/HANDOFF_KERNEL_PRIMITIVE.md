@@ -85,7 +85,7 @@ copied descriptor-array IOVA and settings tuple to VPU MMIO, and dispatches
 
 | Firmware-visible input | Kernel/user source | Primitive relevance |
 |---|---|---|
-| D2D command id `0x24` | `vpu_execute()` misses the Normal set, ORs bit `2` into `request+0x28`, then retries the Preload set | The current Java trigger reaches the same Preload/D2D_EXT class that runtime logs show; caller-supplied bit `2` is mainly a slot/lifetime selector |
+| D2D command id `0x24` | `vpu_execute()` misses the Normal set, ORs bit `2` into `request+0x28`, then retries the Preload set | The current Java trigger reaches the same Preload/D2D_EXT class that runtime logs show; this selector is likely consumed by resident VPU command firmware before APUNN entry, while caller-supplied bit `2` is mainly a slot/lifetime selector |
 | D2D_EXT entry / IRAM | Kernel-selected Preload object from packed firmware metadata: `INFO16 = pre->a.mva + pre->a.entry_off`, `INFO19 = pre->a.iram_mva` | Userland selects the `apu_lib_apunn` key, but does not directly control the firmware entry MVA or optional IRAM MVA |
 | `INFO12` / buffer count | `request+0x35`, bounded below `0x21` by the provider gate | `buffer_count=0` suppresses descriptor-following state writeback; the completed wrapper replay uses `5` |
 | `INFO13` / descriptor-array IOVA | Kernel copy of `request+0x50 + i*0x40`, not the original user buffer | Descriptor slot order and descriptor-0 target explain the observed status/writeback deltas; this is a real firmware input but not yet an arbitrary write primitive |
@@ -96,10 +96,11 @@ copied descriptor-array IOVA and settings tuple to VPU MMIO, and dispatches
 
 ## Current APUNN request interpretation model
 
-This is the strongest model available before recovering the raw
-`apu_lib_apunn` firmware body. It combines kernel handoff, wrapper static
-analysis, and direct runtime matrices; fields not listed here are not proven
-firmware semantics yet.
+This is the strongest model available after recovering the V260523
+`apu_lib_apunn` embedded Xtensa ELF, but before fully reconstructing its
+TIE/FLIX-heavy parser and DMA state machine. It combines kernel handoff, wrapper
+static analysis, direct runtime matrices, and the first ELF/property-table pass;
+fields not listed here are not proven firmware semantics yet.
 
 | Layer | Field / structure | Current interpretation |
 |---|---|---|
@@ -120,10 +121,10 @@ firmware semantics yet.
 | Output/data windows | output fill and data payloads | Output currently looks like deterministic completion data with tail variability. Tested data payload patterns and target windows are preserved and do not produce source-sensitive output. |
 | Command copyback | `request+0x34`, `+0xb60`, `+0xb68`, `+0xb6c` | Provider/kernel completion state copied back by midware. Current completed diffs expose scalar status/timing/slot-like words only, not kernel pointers or imported-buffer IOVAs. |
 
-The raw firmware is still required for the exact internal parser: opcode switch
-targets, per-opcode output schemas, true operand bounds checks, descriptor
-cleanup state machine, and any source-buffer binding paths not exercised by the
-current `XTENSA_ANN_VERSION`-style replay.
+Further firmware reconstruction is still required for the exact internal
+parser: opcode switch targets, per-opcode output schemas, true operand bounds
+checks, descriptor cleanup state machine, and any source-buffer binding paths
+not exercised by the current `XTENSA_ANN_VERSION`-style replay.
 
 The primitive interpretation is therefore narrow. APUNN is a stable firmware
 executor and completion oracle, but the demonstrated mutable channels are
@@ -134,60 +135,56 @@ lifetime.
 
 ## Firmware image acquisition status
 
-The raw `apu_lib_apunn` firmware parser is not recovered yet. The current model
-is kernel-handoff accurate, but firmware-internal request interpretation still
-depends on acquiring a readable VPU preload image.
+The V260523 APUNN firmware image is now acquired from the local OTA, so firmware
+acquisition is no longer the blocker.
 
-Kernel source and device evidence now narrow the acquisition path:
+| Artifact | Current value |
+|---|---|
+| OTA | `/private/tmp/nas_sync_powerctrl_23770/ota_V260523/V260523_FULL.zip` |
+| APUNN partition | `/tmp/ota_V260523_cam_vpu/cam_vpu2.img` |
+| APUNN preload header | raw partition header at `0x200`, one header |
+| Core-0 main PROG | raw offset `0x3b4`, load base `0x70000000`, `INFO16` target `0x70006794` |
+| Embedded ELF | main PROG `+0x234`, partition file offset `0x5e8`, ELF entry `0x70006794`, `e_shoff=0x32cc18` |
+| Full core-0 ELF | `/tmp/apunn_core0_full.elf`, SHA-256 `69658bfe18e8084e44da165ebc326c01ce9a2e672a059ae5a706ce5e397c3c88` |
 
-- `vpu_init_bin()` maps the VPU binary from device-tree properties
-  `bin-phy-addr`, `bin-size`, `img-head`, and `pre-bin`; this build does not
-  expose `apu_lib_apunn` as a standalone `/vendor/firmware` file.
-- The connected target exposes `cam_vpu1_a`, `cam_vpu2_a`, `cam_vpu3_a` and
-  matching `_b` slots under `/dev/block/by-name`; those are the current static
-  partition candidates for the packed VPU image.
-- The live reserved-memory candidate is
-  `/sys/firmware/devicetree/base/reserved-memory/mblock-18-vpu_binary`.
-- The current `user=1000` shell cannot read the partition block nodes,
-  reserved-memory properties, `/proc/vpu/vpu_memory`, or `/proc/vpu/vpu*/mesg`,
-  and `su` is not available. This is an acquisition blocker, not a parser
-  blocker.
-
-`tools/parse_vpu_image.py` scripts the next static step once a readable dump is
-available. It accepts either one merged VPU image or split `cam_vpu*` images in
-LK merge order, parses the packed `struct vpu_image_header` array, walks
-`struct vpu_pre_info`, locates `apu_lib_apunn`, computes the PROG entry offset
-from `pAddr - (start_addr & 0xffff0000)`, and carves the declared PROG/IRAM
-ranges.
-
-Merged dump:
+Reproduce the extraction:
 
 ```
-13-apusys-ioctl-surface/tools/parse_vpu_image.py cam_vpu.bin \
-  --auto --algo apu_lib_apunn --json apunn_preload.json \
-  --carve-dir apunn_carve
-```
+payload-dumper-go -p cam_vpu1,cam_vpu2,cam_vpu3 \
+  -o /tmp/ota_V260523_cam_vpu \
+  /private/tmp/nas_sync_powerctrl_23770/ota_V260523/V260523_FULL.zip
 
-Split partition dumps:
-
-```
 13-apusys-ioctl-surface/tools/parse_vpu_image.py \
-  cam_vpu1_a.bin cam_vpu2_a.bin cam_vpu3_a.bin \
-  --auto --algo apu_lib_apunn --json apunn_preload.json \
-  --carve-dir apunn_carve
+  /tmp/ota_V260523_cam_vpu/cam_vpu2.img \
+  --head-offset 0x200 --headers 1 --algo apu_lib_apunn \
+  --json /tmp/ota_V260523_cam_vpu/cam_vpu2_apunn_preload.json \
+  --list-all
+
+dd if=/tmp/ota_V260523_cam_vpu/cam_vpu2.img \
+  of=/tmp/apunn_core0_full.elf bs=1 skip=$((0x3b4+0x234)) status=none
 ```
 
-The parser is verified on a synthetic preload-header sample, including split
-image concatenation. The goal is not complete until a real readable VPU image
-is parsed or another source provides the raw `apu_lib_apunn` payload.
+Static firmware impact so far:
 
-Practical next step: run at most one focused kernel-lifetime batch before
-closing this surface for now. Use timeout/abort copyback diff plus a small
-close-delay loop (`0/10/50/100/500/1000 ms`), then optionally two concurrent
-commands sharing the same imported IOVA. A crash, KASAN report, stale command
-completion after destroy, pointer-shaped copyback, or freed-IOVA DMA symptom
-would reopen the primitive. Clean residual teardown keeps APUSYS at
-"reachable firmware execution without demonstrated kernel primitive".
+- The APUNN core-0 ELF imports in Ghidra as `Xtensa:LE:32:default`, with
+  `.rodata` at `0x70000000`, `.text` at `0x70006500`, `.data/.dram0.data` at
+  `0x7ff04000`, and `.dram_op.data` at `0x7ff3b000`.
+- `.xt.prop` marks `0x70006794` as a real `0xac`-byte instruction range, so
+  `INFO16` is a code entry, not a string/literal-table pointer.
+- `.dram_op.data` contains a 63-entry ANN op-name table, and strings confirm
+  the relevant APUNN paths: `process_command`, `execute_op`, `dma_barrier`,
+  buffer validation, and iDMA schedule/wait errors.
+- The model is corrected: `INFO01 == 0x24` is the kernel/resident-firmware
+  D2D_EXT selector. The APUNN preload ELF should be analyzed from the
+  `INFO16` entry and `INFO12..15`/descriptor boundary, not by requiring a direct
+  APUNN-side `INFO01` switch.
+
+Primitive impact is unchanged for now. The firmware image gives a better map,
+but it has not yet proved a slower DMA path, a missing descriptor cap, a
+source-sensitive output path, or a cross-buffer write. Kernel/provider
+`buffer_count` is still capped below `0x21`, and the runtime race result still
+dominates: completed firmware writes finish before the Java-layer `mem_free`
+round trip can replace the IOVA.
 
 ## Priority 1 — command buffer copyback pointer scan
 

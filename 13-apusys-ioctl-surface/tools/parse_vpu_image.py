@@ -39,8 +39,11 @@ HEX_INT_KEYS = {
     "flag",
     "info",
     "start_addr",
+    "entry_off",
     "map_size",
     "carve_size",
+    "embedded_elf_entry",
+    "embedded_elf_shoff",
     "version",
     "build_date",
     "header_size",
@@ -99,6 +102,10 @@ class PreInfo:
     entry_off: int | None
     carve_offset: int
     carve_size: int
+    embedded_elf_offset: int | None
+    embedded_elf_file_offset: int | None
+    embedded_elf_entry: int | None
+    embedded_elf_shoff: int | None
 
 
 @dataclass
@@ -225,6 +232,23 @@ def parse_pre_infos(data: bytes, header: Header) -> list[PreInfo]:
         kind = "IRAM" if paddr == PRELOAD_IRAM else "PROG"
         entry_off = None if kind == "IRAM" else (paddr - map_addr) & 0xFFFFFFFF
         carve_size = file_sz if file_sz else map_size
+        embedded_elf_offset = None
+        embedded_elf_file_offset = None
+        embedded_elf_entry = None
+        embedded_elf_shoff = None
+        if kind == "PROG" and bin_off < len(data):
+            scan_end = min(len(data), bin_off + min(file_sz or map_size, 0x1000))
+            rel = data.find(b"\x7fELF", bin_off, scan_end)
+            if rel >= 0 and rel + 0x34 <= len(data):
+                try:
+                    fields = struct.unpack_from("<16sHHIIIIIHHHHHH", data, rel)
+                except struct.error:
+                    fields = None
+                if fields and fields[0] == b"\x7fELF\x01\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00":
+                    embedded_elf_offset = rel - bin_off
+                    embedded_elf_file_offset = rel
+                    embedded_elf_entry = fields[4]
+                    embedded_elf_shoff = fields[6]
         entries.append(
             PreInfo(
                 header_index=header.index,
@@ -245,6 +269,10 @@ def parse_pre_infos(data: bytes, header: Header) -> list[PreInfo]:
                 entry_off=entry_off,
                 carve_offset=bin_off,
                 carve_size=carve_size,
+                embedded_elf_offset=embedded_elf_offset,
+                embedded_elf_file_offset=embedded_elf_file_offset,
+                embedded_elf_entry=embedded_elf_entry,
+                embedded_elf_shoff=embedded_elf_shoff,
             )
         )
     return entries
@@ -332,12 +360,21 @@ def print_headers(headers: Iterable[Header]) -> None:
 
 def print_pre(entry: PreInfo) -> None:
     entry_off = "n/a" if entry.entry_off is None else f"0x{entry.entry_off:x}"
+    elf = ""
+    if entry.embedded_elf_offset is not None:
+        elf = (
+            f" embedded_elf=+0x{entry.embedded_elf_offset:x}"
+            f"/file0x{entry.embedded_elf_file_offset:x}"
+            f" elf_entry=0x{entry.embedded_elf_entry:x}"
+            f" elf_shoff=0x{entry.embedded_elf_shoff:x}"
+        )
     print(
         f"pre[{entry.header_index}:{entry.entry_index}] {entry.name!r} "
         f"{entry.kind} vpu_core=0x{entry.vpu_core:x} off=0x{entry.off:x} "
         f"file_sz=0x{entry.file_sz:x} map_size=0x{entry.map_size:x} "
         f"paddr=0x{entry.paddr:x} start=0x{entry.start_addr:x} "
         f"entry_off={entry_off} flag=0x{entry.flag:x} info=0x{entry.info:x}"
+        f"{elf}"
     )
 
 
