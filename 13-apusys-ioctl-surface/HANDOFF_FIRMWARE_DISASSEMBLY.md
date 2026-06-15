@@ -258,6 +258,18 @@ Recovered pointer/name tables:
   `kernelProcess`, `dma_barrier`, `Invalid input/output buffer size`,
   `Data buffer does not fit in DRAM`, `iDMA schedule error`, `iDMA wait error`,
   `sDesc > eDesc`, and `eDesc >= TM_DMA_DESC_IDX_MAX`.
+- `.text` aligned 32-bit references into `.rodata` strings now recover `141`
+  references, `44` of them matching Invalid/Error/buffer/DMA-related tokens.
+- `ProcessTileWise.c` rodata refs resolve to owners `0x700c13b0`,
+  `0x7011be20`, and `0x70262690`.
+- `Invalid allocation alignment` rodata refs resolve to owners `0x70076d50`
+  and `0x70131c80`.
+- `Error processes function` rodata refs resolve to owners `0x700078a0`,
+  `0x70009bc0`, `0x70052650`, `0x70055990`, `0x7008fe80`, `0x700d4130`,
+  `0x70106c70`, `0x7011be20`, `0x7015d680`, `0x7015ffd0`, `0x701cf890`,
+  `0x7023eb10`, and `0x70249e10`.
+- The `iDMA schedule error` / `iDMA wait error` strings are present, but this
+  aligned-reference scan still does not resolve them to a reliable code owner.
 
 Manual entry-window observation, using radare2 only as an adjunct because this
 core has unresolved TIE/FLIX opcodes: the `0x70006794` property range starts
@@ -486,7 +498,7 @@ slow-opcode shape.
 | Tool | Path | Status |
 |---|---|---|
 | VPU image parser | `13-apusys-ioctl-surface/tools/parse_vpu_image.py` | Parses preload metadata, carves raw segments, and reports embedded ELF offsets; use `--head-offset 0x200 --headers 1` for V260523 `cam_vpu2.img` |
-| APUNN ELF analyzer | `13-apusys-ioctl-surface/tools/analyze_apunn_elf.py` | Emits section map, `.xt.prop` instruction ranges, `.xt.prop`-backed function-entry candidates, key address owners, pointer runs, ANN op name table, interesting strings, JSON, and Markdown |
+| APUNN ELF analyzer | `13-apusys-ioctl-surface/tools/analyze_apunn_elf.py` | Emits section map, `.xt.prop` instruction ranges, `.xt.prop`-backed function-entry candidates, key address owners, `.text`→`.rodata` suffix refs, pointer runs, ANN op name table, interesting strings, JSON, and Markdown |
 | Ghidra export script | `13-apusys-ioctl-surface/tools/GhidraApunnExport.java` | Headless adjunct for function/string/decompiler snapshots from `/tmp/apunn_core0_full.elf`; decompiler output is advisory only |
 | Allocator gap profiler | `13-apusys-ioctl-surface/poc/ApusysIoctlProbe.java` | Active; 8+ probe modes |
 | Firmware-coupled gap reuse | `--run-cmd-vpu-xrp-mem-free-race-completed-gap-reuse-iova` | Ready to re-run with new shapes |

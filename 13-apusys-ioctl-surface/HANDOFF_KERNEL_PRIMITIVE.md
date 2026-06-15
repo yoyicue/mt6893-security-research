@@ -174,6 +174,11 @@ Static firmware impact so far:
 - `.xt.prop`-constrained `entry` prologue scanning recovers `1019` firmware
   entry candidates. The FLK pointer runs resolve to owner `0x70015e98`; the
   31-entry ANN branch-table run at `0x70000b80` resolves to owner `0x70081d50`.
+- `.text`→`.rodata` suffix-reference scanning resolves several tile/arena
+  error paths to owner candidates, including `ProcessTileWise.c` owners
+  `0x700c13b0`, `0x7011be20`, `0x70262690` and `Invalid allocation alignment`
+  owners `0x70076d50`, `0x70131c80`; no reliable iDMA schedule/wait owner is
+  recovered yet.
 - `.dram_op.data` contains a 63-entry ANN op-name table, and strings confirm
   the relevant APUNN paths: `process_command`, `execute_op`, `dma_barrier`,
   buffer validation, and iDMA schedule/wait errors.

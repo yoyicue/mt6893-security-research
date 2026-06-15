@@ -132,6 +132,17 @@ class KeyAddress:
     prop_flags: str | None
 
 
+@dataclass
+class RodataReference:
+    ref_addr: int
+    value: int
+    string_addr: int
+    string_offset: int
+    string_value: str
+    owner_entry: int | None
+    owner_delta: int | None
+
+
 def parse_int(text: str) -> int:
     return int(text, 0)
 
@@ -502,6 +513,67 @@ def build_key_addresses(
     return out
 
 
+def string_containing_addr(strings: list[StringEntry], addr: int) -> StringEntry | None:
+    for entry in strings:
+        if entry.addr <= addr < entry.addr + len(entry.value):
+            return entry
+    return None
+
+
+def find_rodata_refs(
+    data: bytes,
+    sections: list[Section],
+    strings: list[StringEntry],
+    function_candidates: list[FunctionCandidate],
+) -> list[RodataReference]:
+    text = section_by_name(sections, ".text")
+    rodata = section_by_name(sections, ".rodata")
+    if text is None or rodata is None:
+        return []
+    blob = section_bytes(data, text)
+    out: list[RodataReference] = []
+    for off in range(0, len(blob) - 3, 4):
+        value = struct.unpack_from("<I", blob, off)[0]
+        if not (rodata.addr <= value < rodata.addr + rodata.size):
+            continue
+        entry = string_containing_addr(strings, value)
+        if entry is None:
+            continue
+        ref_addr = text.addr + off
+        owner_entry, owner_delta = owner_for_addr(function_candidates, ref_addr)
+        out.append(
+            RodataReference(
+                ref_addr=ref_addr,
+                value=value,
+                string_addr=entry.addr,
+                string_offset=value - entry.addr,
+                string_value=entry.value,
+                owner_entry=owner_entry,
+                owner_delta=owner_delta,
+            )
+        )
+    return out
+
+
+def is_interesting_rodata_ref(ref: RodataReference) -> bool:
+    tokens = (
+        "Invalid",
+        "Inconsistent",
+        "Error",
+        "buffer",
+        "Buffer",
+        "DMA",
+        "iDMA",
+        "ProcessTileWise",
+        "tileManager",
+        "cnnarena",
+        "cnnrt",
+        "dmaif",
+        "operations/",
+    )
+    return any(token in ref.string_value for token in tokens)
+
+
 def prop_near(props: list[XtProp], addr: int, window: int = 0x20) -> list[XtProp]:
     return [
         prop
@@ -612,6 +684,28 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
             f"`{item.get('prop_flags') or ''}:{hx(item.get('prop_size'))}` |"
         )
     lines.append("")
+    lines.append("## Rodata String References")
+    lines.append("")
+    lines.append(f"- `.text` 32-bit references into `.rodata` strings: {payload['rodata_ref_count']}")
+    lines.append(
+        f"- interesting refs: {len(payload['interesting_rodata_refs'])} "
+        "(table below is capped at 80)"
+    )
+    lines.append("")
+    lines.append("| ref | value | owner | string |")
+    lines.append("|---:|---:|---:|---|")
+    interesting_refs = payload["interesting_rodata_refs"]
+    assert isinstance(interesting_refs, list)
+    for ref in interesting_refs[:80]:
+        assert isinstance(ref, dict)
+        offset = int(ref["string_offset"])
+        suffix = "" if offset == 0 else f"+0x{offset:x}"
+        lines.append(
+            f"| `{hx(ref['ref_addr'])}` | `{hx(ref['value'])}` | "
+            f"`{hx(ref.get('owner_entry'))}` | "
+            f"`{hx(ref['string_addr'])}{suffix}` `{ref['string_value']}` |"
+        )
+    lines.append("")
     lines.append("## Pointer Runs")
     lines.append("")
     for run in payload["pointer_runs"]:
@@ -678,6 +772,7 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
         function_candidates=function_candidates,
         min_run=min_run,
     )
+    rodata_refs = find_rodata_refs(data, sections, strings, function_candidates)
 
     entry_props = []
     for prop in prop_near(props, eh.entry):
@@ -700,6 +795,11 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
         "function_candidates": to_jsonable(function_candidates),
         "key_addresses": to_jsonable(
             build_key_addresses(sections, props, function_candidates)
+        ),
+        "rodata_ref_count": len(rodata_refs),
+        "rodata_refs": to_jsonable(rodata_refs),
+        "interesting_rodata_refs": to_jsonable(
+            [ref for ref in rodata_refs if is_interesting_rodata_ref(ref)]
         ),
         "pointer_runs": to_jsonable(pointer_runs),
         "ann_op_name_table": op_name_table(
@@ -738,6 +838,11 @@ def print_summary(payload: dict[str, object]) -> None:
             f"owner={hx(item.get('owner_entry'))}+{hx(item.get('owner_delta'))} "
             f"prop={item.get('prop_flags') or ''}:{hx(item.get('prop_size'))}"
         )
+    print(
+        "rodata_refs="
+        f"{payload['rodata_ref_count']} "
+        f"interesting={len(payload['interesting_rodata_refs'])}"
+    )
     print(f"pointer_runs={len(payload['pointer_runs'])}")
     for run in payload["pointer_runs"]:
         assert isinstance(run, dict)
