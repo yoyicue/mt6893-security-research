@@ -320,6 +320,18 @@ from `a8+0x2c/+0x34`, branches toward the larger `0x70030240` owner
 (`0x70030a0c` landing point), and contains an indirect `callx8 a8` followed by
 `mov.n a2, a10; retw.n`.
 
+The `0x70030a0c` landing path is now the first byte-verified DSP
+command/operand parser island. It reads byte fields from `a2+0x49` and
+`a2+0x4a`, combines them into a 16-bit value, extracts bits `2..5` into `a10`,
+and later special-cases decoded values `1`, `5`, `6`, and `9`. The same island
+also reads little-endian byte pairs at `a2+0x0e/+0x0f`,
+`a2+0x12/+0x13`, `a2+0x2e/+0x2f`, and `a2+0x06/+0x07`, plus a 16-bit field at
+`a2+0x00`. These offsets line up with the wrapper-side Xtensa code/operand area
+(`entry+0x48+operand_off`) much better than the native 0x40-byte
+`struct vpu_buffer` array, so this connects the `locateBuffer` dispatcher to
+the descriptor-backed DSP command buffer parser, but not yet to the firmware's
+native `INFO12`/`INFO13` iteration bounds.
+
 IDA Pro MCP state after reloading the same ELF as **ELF for Xtensa** (not raw
 `Binary File`): processor `XTENSA`, 32-bit, sections mapped at the ELF VAs
 above, saved IDB
@@ -336,7 +348,7 @@ IDA count is `663` functions, including:
 | `0x70007440` | `apunn_early_dynamic_dispatch_70007440` | starts `entry a1, 0x60`, reads `ccount`, repeatedly calls function pointer from `a12+0`/`a8`, and calls local helper `0x700068c0` |
 | `0x70015e98` | `apunn_flk_pointer_table_owner_70015e98` | owner for the three 12-entry FLK pointer runs |
 | `0x70081d50` | `apunn_ann_pointer_table_owner_70081d50` | owner for the 31-entry ANN pointer run |
-| `0x700301d8` | `apunn_dispatcher_like_locateBuffer_700301d8` | byte-verified `locateBuffer` trampoline; loads rodata suffix `0x70001884`, reaches `0x70030a0c`, then `callx8 a8` |
+| `0x700301d8` | `apunn_dispatcher_like_locateBuffer_700301d8` | byte-verified `locateBuffer` trampoline; reaches operand parser at `0x70030a0c` |
 
 #### Path 2: Live memory dump (needs kernel read)
 
@@ -506,12 +518,16 @@ Current partial answers from the ELF pass:
 - Q2 has a real firmware-side op vocabulary now. The 63-entry
   `.dram_op.data` ANN table is distinct from the wrapper/runtime
   `10001..10009` query/status opcodes already tested. The byte-verified
-  `0x700301d8` `locateBuffer` trampoline narrows one mid-level dispatcher path,
-  but more work is needed to connect host opcodes to ANN kernel dispatch entries.
+  `0x700301d8` `locateBuffer` trampoline and `0x70030a0c` operand-record decode
+  island now connect one mid-level dispatcher path to the DSP command
+  code/operand region. More work is still needed to connect host opcodes to ANN
+  kernel dispatch entries.
 - Q3 is bounded at the kernel/provider boundary: `buffer_count` is capped below
   `0x21` before firmware, and runtime shows `0` suppresses descriptor-following
   state writeback while nonzero tested counts enter the descriptor path. A
-  firmware-internal cap/size check has not been proven yet.
+  firmware-internal cap/size check has not been proven yet. The new
+  `0x70030a0c` island is an operand/code-record parser, not the native
+  `INFO13` `struct vpu_buffer[]` loop.
 - Q4 has runtime evidence that `settings+0x08` bounds the visible output fill;
   the static output-size enforcement path is not identified yet.
 

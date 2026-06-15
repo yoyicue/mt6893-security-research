@@ -11378,6 +11378,295 @@
       "note": "Byte-verified standard island at the dispatcher-like locateBuffer candidate. The l32r at 0x700301e3 loads the rodata suffix `locateBuffer` from 0x70001884, then the island reaches a branch toward the 0x70030240/0x70030a0c owner and an indirect call.",
       "start": 1879245272,
       "verified": true
+    },
+    {
+      "end": 1879248272,
+      "instructions": [
+        {
+          "actual_bytes": "66 12 00",
+          "addr": 1879247372,
+          "effect": "branch on a2 != 1 special case",
+          "expected_bytes": "66 12 00",
+          "mnemonic": "bnei a2, 1, 0x70030a10",
+          "verified": true
+        },
+        {
+          "actual_bytes": "cc 13",
+          "addr": 1879247384,
+          "effect": "skip first high-byte load when a3 is nonzero",
+          "expected_bytes": "cc 13",
+          "mnemonic": "bnez.n a3, 0x70030a1d",
+          "verified": true
+        },
+        {
+          "actual_bytes": "a2 02 4a",
+          "addr": 1879247386,
+          "effect": "load byte field from a2+0x4a",
+          "expected_bytes": "a2 02 4a",
+          "mnemonic": "l8ui a10, a2, 0x4a",
+          "verified": true
+        },
+        {
+          "actual_bytes": "c2 02 49",
+          "addr": 1879247389,
+          "effect": "load byte field from a2+0x49",
+          "expected_bytes": "c2 02 49",
+          "mnemonic": "l8ui a12, a2, 0x49",
+          "verified": true
+        },
+        {
+          "actual_bytes": "80 aa 11",
+          "addr": 1879247392,
+          "effect": "shift high byte into a 16-bit field",
+          "expected_bytes": "80 aa 11",
+          "mnemonic": "slli a10, a10, 8",
+          "verified": true
+        },
+        {
+          "actual_bytes": "c0 aa 20",
+          "addr": 1879247395,
+          "effect": "combine bytes from a2+0x49/+0x4a",
+          "expected_bytes": "c0 aa 20",
+          "mnemonic": "or a10, a10, a12",
+          "verified": true
+        },
+        {
+          "actual_bytes": "a0 a2 34",
+          "addr": 1879247398,
+          "effect": "extract bits 2..5 from combined 16-bit field",
+          "expected_bytes": "a0 a2 34",
+          "mnemonic": "extui a10, a10, 2, 4",
+          "verified": true
+        },
+        {
+          "actual_bytes": "86 58 c0",
+          "addr": 1879247420,
+          "effect": "dispatch based on decoded operand field",
+          "expected_bytes": "86 58 c0",
+          "mnemonic": "j 0x70020ba2",
+          "verified": true
+        },
+        {
+          "actual_bytes": "06 04 02",
+          "addr": 1879247430,
+          "effect": "alternate jump into deeper operand parser",
+          "expected_bytes": "06 04 02",
+          "mnemonic": "j 0x7003125a",
+          "verified": true
+        },
+        {
+          "actual_bytes": "38 d8",
+          "addr": 1879247444,
+          "effect": "load table/context field before alternate parser",
+          "expected_bytes": "38 d8",
+          "mnemonic": "l32i.n a3, a8, 0x34",
+          "verified": true
+        },
+        {
+          "actual_bytes": "b2 02 0f",
+          "addr": 1879247625,
+          "effect": "load byte field from a2+0x0f",
+          "expected_bytes": "b2 02 0f",
+          "mnemonic": "l8ui a11, a2, 0x0f",
+          "verified": true
+        },
+        {
+          "actual_bytes": "c2 02 0e",
+          "addr": 1879247628,
+          "effect": "load byte field from a2+0x0e",
+          "expected_bytes": "c2 02 0e",
+          "mnemonic": "l8ui a12, a2, 0x0e",
+          "verified": true
+        },
+        {
+          "actual_bytes": "c0 bb 20",
+          "addr": 1879247639,
+          "effect": "combine bytes from a2+0x0e/+0x0f",
+          "expected_bytes": "c0 bb 20",
+          "mnemonic": "or a11, a11, a12",
+          "verified": true
+        },
+        {
+          "actual_bytes": "c2 02 13",
+          "addr": 1879247688,
+          "effect": "load byte field from a2+0x13",
+          "expected_bytes": "c2 02 13",
+          "mnemonic": "l8ui a12, a2, 0x13",
+          "verified": true
+        },
+        {
+          "actual_bytes": "d2 02 12",
+          "addr": 1879247691,
+          "effect": "load byte field from a2+0x12",
+          "expected_bytes": "d2 02 12",
+          "mnemonic": "l8ui a13, a2, 0x12",
+          "verified": true
+        },
+        {
+          "actual_bytes": "d0 cc 20",
+          "addr": 1879247702,
+          "effect": "combine bytes from a2+0x12/+0x13",
+          "expected_bytes": "d0 cc 20",
+          "mnemonic": "or a12, a12, a13",
+          "verified": true
+        },
+        {
+          "actual_bytes": "b9 0e",
+          "addr": 1879247787,
+          "effect": "store decoded field to output/result slot +0x00",
+          "expected_bytes": "b9 0e",
+          "mnemonic": "s32i.n a11, a14, 0x00",
+          "verified": true
+        },
+        {
+          "actual_bytes": "b9 1e",
+          "addr": 1879247789,
+          "effect": "store decoded field to output/result slot +0x04",
+          "expected_bytes": "b9 1e",
+          "mnemonic": "s32i.n a11, a14, 0x04",
+          "verified": true
+        },
+        {
+          "actual_bytes": "b9 2e",
+          "addr": 1879247791,
+          "effect": "store decoded field to output/result slot +0x08",
+          "expected_bytes": "b9 2e",
+          "mnemonic": "s32i.n a11, a14, 0x08",
+          "verified": true
+        },
+        {
+          "actual_bytes": "b9 3e",
+          "addr": 1879247793,
+          "effect": "store decoded field to output/result slot +0x0c",
+          "expected_bytes": "b9 3e",
+          "mnemonic": "s32i.n a11, a14, 0x0c",
+          "verified": true
+        },
+        {
+          "actual_bytes": "b9 4e",
+          "addr": 1879247795,
+          "effect": "store decoded field to output/result slot +0x10",
+          "expected_bytes": "b9 4e",
+          "mnemonic": "s32i.n a11, a14, 0x10",
+          "verified": true
+        },
+        {
+          "actual_bytes": "26 1a 32",
+          "addr": 1879247891,
+          "effect": "special-case decoded field value 1",
+          "expected_bytes": "26 1a 32",
+          "mnemonic": "beqi a10, 1, 0x70030c49",
+          "verified": true
+        },
+        {
+          "actual_bytes": "26 5a 2f",
+          "addr": 1879247894,
+          "effect": "special-case decoded field value 5",
+          "expected_bytes": "26 5a 2f",
+          "mnemonic": "beqi a10, 5, 0x70030c49",
+          "verified": true
+        },
+        {
+          "actual_bytes": "26 6a 2c",
+          "addr": 1879247897,
+          "effect": "special-case decoded field value 6",
+          "expected_bytes": "26 6a 2c",
+          "mnemonic": "beqi a10, 6, 0x70030c49",
+          "verified": true
+        },
+        {
+          "actual_bytes": "0c 9f",
+          "addr": 1879247900,
+          "effect": "load special-case decoded field value 9",
+          "expected_bytes": "0c 9f",
+          "mnemonic": "movi.n a15, 9",
+          "verified": true
+        },
+        {
+          "actual_bytes": "f7 1a 27",
+          "addr": 1879247902,
+          "effect": "special-case decoded field value 9",
+          "expected_bytes": "f7 1a 27",
+          "mnemonic": "beq a10, a15, 0x70030c49",
+          "verified": true
+        },
+        {
+          "actual_bytes": "62 12 00",
+          "addr": 1879248032,
+          "effect": "load 16-bit field from a2+0x00",
+          "expected_bytes": "62 12 00",
+          "mnemonic": "l16ui a6, a2, 0x00",
+          "verified": true
+        },
+        {
+          "actual_bytes": "82 02 2f",
+          "addr": 1879248082,
+          "effect": "load byte field from a2+0x2f",
+          "expected_bytes": "82 02 2f",
+          "mnemonic": "l8ui a8, a2, 0x2f",
+          "verified": true
+        },
+        {
+          "actual_bytes": "92 02 2e",
+          "addr": 1879248085,
+          "effect": "load byte field from a2+0x2e",
+          "expected_bytes": "92 02 2e",
+          "mnemonic": "l8ui a9, a2, 0x2e",
+          "verified": true
+        },
+        {
+          "actual_bytes": "90 88 20",
+          "addr": 1879248096,
+          "effect": "combine bytes from a2+0x2e/+0x2f",
+          "expected_bytes": "90 88 20",
+          "mnemonic": "or a8, a8, a9",
+          "verified": true
+        },
+        {
+          "actual_bytes": "80 88 11",
+          "addr": 1879248110,
+          "effect": "shift combined field for later use",
+          "expected_bytes": "80 88 11",
+          "mnemonic": "slli a8, a8, 8",
+          "verified": true
+        },
+        {
+          "actual_bytes": "92 02 07",
+          "addr": 1879248241,
+          "effect": "load byte field from a2+0x07",
+          "expected_bytes": "92 02 07",
+          "mnemonic": "l8ui a9, a2, 0x07",
+          "verified": true
+        },
+        {
+          "actual_bytes": "a2 02 06",
+          "addr": 1879248244,
+          "effect": "load byte field from a2+0x06",
+          "expected_bytes": "a2 02 06",
+          "mnemonic": "l8ui a10, a2, 0x06",
+          "verified": true
+        },
+        {
+          "actual_bytes": "a0 99 20",
+          "addr": 1879248255,
+          "effect": "combine bytes from a2+0x06/+0x07",
+          "expected_bytes": "a0 99 20",
+          "mnemonic": "or a9, a9, a10",
+          "verified": true
+        },
+        {
+          "actual_bytes": "80 99 11",
+          "addr": 1879248269,
+          "effect": "shift combined field for later use",
+          "expected_bytes": "80 99 11",
+          "mnemonic": "slli a9, a9, 8",
+          "verified": true
+        }
+      ],
+      "label": "dispatcher_operand_record_field_decode",
+      "note": "Byte-verified standard instructions reached from the locateBuffer trampoline landing path. They read byte/halfword-shaped fields from the a2 record at offsets matching the DSP command operation/operand area, including +0x49/+0x4a near the first operand slot, then test the extracted 4-bit value against 1, 5, 6, and 9. This ties the 0x700301d8 dispatcher path to command/operand parsing; it is not yet the native INFO13 vpu_buffer-array parser.",
+      "start": 1879247372,
+      "verified": true
     }
   ]
 }

@@ -197,10 +197,18 @@ Static firmware impact so far:
 - Byte-verified standard Xtensa islands now make the early path reproducible:
   `0x70006794` copies `a12+0x00..0x14` into `a10+0x04..0x18` and
   `a2+0x44/0x4c/0x50` into `a10+0x28/0x1c/0x20`; `0x70006590` loads
-  `*(a2+0x30)+0x18` into `a10`, calls `0x70007440`, and returns 0; and
-  `0x70007440` reads `ccount`, conditionally calls a function pointer from
-  `a12+0`, then reads `ccount` again near return. Unresolved TIE/FLIX
-  instructions still prevent a complete prototype.
+  `*(a2+0x30)+0x18` into `a10`, calls `0x70007440`, and returns 0;
+  `0x70007440` reads `ccount`, repeatedly calls function pointers, and reaches
+  a second callback/polling island at `0x7000750c..0x700075c4`; and
+  `0x700301d8` is now a verified `locateBuffer` trampoline into
+  `0x70030a0c`.
+- The `0x70030a0c` island is the first verified DSP command/operand parser
+  fragment: it reads `a2+0x49/+0x4a`, extracts bits `2..5`, special-cases values
+  `1/5/6/9`, and reads additional byte pairs at
+  `a2+0x0e/+0x0f`, `+0x12/+0x13`, `+0x2e/+0x2f`, and `+0x06/+0x07`. These
+  offsets match the wrapper's code/operand area, not the native 0x40-byte
+  `struct vpu_buffer` slots. Unresolved TIE/FLIX instructions still prevent a
+  complete prototype or native `INFO13` loop proof.
 - `.dram_op.data` contains a 63-entry ANN op-name table, and strings confirm
   the relevant APUNN paths: `process_command`, `execute_op`, `dma_barrier`,
   buffer validation, and iDMA schedule/wait errors.

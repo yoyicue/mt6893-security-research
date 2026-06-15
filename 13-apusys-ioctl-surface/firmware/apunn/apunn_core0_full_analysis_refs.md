@@ -223,6 +223,48 @@ Byte-verified standard island at the dispatcher-like locateBuffer candidate. The
 | `0x70030204` | `2d 0a` | `mov.n a2, a10` | move callback return value into a2 |
 | `0x70030206` | `1d f0` | `retw.n` | return |
 
+### `dispatcher_operand_record_field_decode` `0x70030a0c`-`0x70030d90` verified=True
+
+Byte-verified standard instructions reached from the locateBuffer trampoline landing path. They read byte/halfword-shaped fields from the a2 record at offsets matching the DSP command operation/operand area, including +0x49/+0x4a near the first operand slot, then test the extracted 4-bit value against 1, 5, 6, and 9. This ties the 0x700301d8 dispatcher path to command/operand parsing; it is not yet the native INFO13 vpu_buffer-array parser.
+
+| addr | bytes | mnemonic | effect |
+|---:|---|---|---|
+| `0x70030a0c` | `66 12 00` | `bnei a2, 1, 0x70030a10` | branch on a2 != 1 special case |
+| `0x70030a18` | `cc 13` | `bnez.n a3, 0x70030a1d` | skip first high-byte load when a3 is nonzero |
+| `0x70030a1a` | `a2 02 4a` | `l8ui a10, a2, 0x4a` | load byte field from a2+0x4a |
+| `0x70030a1d` | `c2 02 49` | `l8ui a12, a2, 0x49` | load byte field from a2+0x49 |
+| `0x70030a20` | `80 aa 11` | `slli a10, a10, 8` | shift high byte into a 16-bit field |
+| `0x70030a23` | `c0 aa 20` | `or a10, a10, a12` | combine bytes from a2+0x49/+0x4a |
+| `0x70030a26` | `a0 a2 34` | `extui a10, a10, 2, 4` | extract bits 2..5 from combined 16-bit field |
+| `0x70030a3c` | `86 58 c0` | `j 0x70020ba2` | dispatch based on decoded operand field |
+| `0x70030a46` | `06 04 02` | `j 0x7003125a` | alternate jump into deeper operand parser |
+| `0x70030a54` | `38 d8` | `l32i.n a3, a8, 0x34` | load table/context field before alternate parser |
+| `0x70030b09` | `b2 02 0f` | `l8ui a11, a2, 0x0f` | load byte field from a2+0x0f |
+| `0x70030b0c` | `c2 02 0e` | `l8ui a12, a2, 0x0e` | load byte field from a2+0x0e |
+| `0x70030b17` | `c0 bb 20` | `or a11, a11, a12` | combine bytes from a2+0x0e/+0x0f |
+| `0x70030b48` | `c2 02 13` | `l8ui a12, a2, 0x13` | load byte field from a2+0x13 |
+| `0x70030b4b` | `d2 02 12` | `l8ui a13, a2, 0x12` | load byte field from a2+0x12 |
+| `0x70030b56` | `d0 cc 20` | `or a12, a12, a13` | combine bytes from a2+0x12/+0x13 |
+| `0x70030bab` | `b9 0e` | `s32i.n a11, a14, 0x00` | store decoded field to output/result slot +0x00 |
+| `0x70030bad` | `b9 1e` | `s32i.n a11, a14, 0x04` | store decoded field to output/result slot +0x04 |
+| `0x70030baf` | `b9 2e` | `s32i.n a11, a14, 0x08` | store decoded field to output/result slot +0x08 |
+| `0x70030bb1` | `b9 3e` | `s32i.n a11, a14, 0x0c` | store decoded field to output/result slot +0x0c |
+| `0x70030bb3` | `b9 4e` | `s32i.n a11, a14, 0x10` | store decoded field to output/result slot +0x10 |
+| `0x70030c13` | `26 1a 32` | `beqi a10, 1, 0x70030c49` | special-case decoded field value 1 |
+| `0x70030c16` | `26 5a 2f` | `beqi a10, 5, 0x70030c49` | special-case decoded field value 5 |
+| `0x70030c19` | `26 6a 2c` | `beqi a10, 6, 0x70030c49` | special-case decoded field value 6 |
+| `0x70030c1c` | `0c 9f` | `movi.n a15, 9` | load special-case decoded field value 9 |
+| `0x70030c1e` | `f7 1a 27` | `beq a10, a15, 0x70030c49` | special-case decoded field value 9 |
+| `0x70030ca0` | `62 12 00` | `l16ui a6, a2, 0x00` | load 16-bit field from a2+0x00 |
+| `0x70030cd2` | `82 02 2f` | `l8ui a8, a2, 0x2f` | load byte field from a2+0x2f |
+| `0x70030cd5` | `92 02 2e` | `l8ui a9, a2, 0x2e` | load byte field from a2+0x2e |
+| `0x70030ce0` | `90 88 20` | `or a8, a8, a9` | combine bytes from a2+0x2e/+0x2f |
+| `0x70030cee` | `80 88 11` | `slli a8, a8, 8` | shift combined field for later use |
+| `0x70030d71` | `92 02 07` | `l8ui a9, a2, 0x07` | load byte field from a2+0x07 |
+| `0x70030d74` | `a2 02 06` | `l8ui a10, a2, 0x06` | load byte field from a2+0x06 |
+| `0x70030d7f` | `a0 99 20` | `or a9, a9, a10` | combine bytes from a2+0x06/+0x07 |
+| `0x70030d8d` | `80 99 11` | `slli a9, a9, 8` | shift combined field for later use |
+
 ## Rodata String References
 
 - `.text` 32-bit references into `.rodata` strings: 180
