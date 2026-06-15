@@ -480,6 +480,17 @@ IDA count is `663` functions, including:
 | `0x700301d8` | `apunn_dispatcher_like_locateBuffer_700301d8` | byte-verified `locateBuffer` trampoline; reaches operand parser at `0x70030a0c` |
 | `0x7003ce3c` | `apunn_buffer_record_high_field_validator_candidate_7003ce3c` | byte-verified 0x40-record-shaped high-field/null-check island |
 
+Additional functions identified during iDMA timing analysis (2026-06-15):
+
+| Address | Frame | Size | Role | Evidence |
+|---:|---:|---:|---|---|
+| `0x70044b74` | `sp+0x3A0` | 3880 B | **Top iDMA orchestration**: INPUT DMA schedule+wait (synchronous, early), 3× compute via `0x700a21b8`, dmaif call to `0x70044850`, 1× more compute; contains `iDMA schedule error` + `iDMA wait error` + `dmaif.c` + `sDesc > eDesc` L32R refs | FLIX128 boundary scan; call8 structure; IDA comments at `0x70044e3a/53` |
+| `0x70044850` | `sp+0x208` | 804 B | **dmaif utility / DMA barrier**: called from `0x70044b74` at +0xD14 (after 3× compute, before 4th compute); 33 FLIX128 bundles, **zero L32R to `.rodata`** → not a schedule/wait error handler → likely DMA flush/barrier or status check | L32R scan (zero `.rodata` refs); dmaif.c L32R string-cluster owner |
+| `0x700a21b8` | `sp+0x508` | ~20 KB | **Primary compute kernel** (output-fill probable source): called 4× from `0x70044b74`; largest function in the call chain; 64-byte aligned stack (SIMD); output fill to `settings+output_section` is likely CPU-store inside this function | entry byte `0x36`, frame size, call pattern; no iDMA error strings |
+| `0x70024710` | `sp+0x20` | 0x190 B | **iDMA diagnostic dump**: 9× `bbsi a8, 0x13, skip` + `rsr.*` (reads hw status registers); called on iDMA error to log state; NOT a schedule/wait primitive | Disassembly: `bbsi`-loop + `rsr.memctl/ccompare1/mesr` pattern; direct xref to "iDMA schedule error" |
+| `0x70035c64` | `sp+0x20` | ~680 B | **iDMA schedule candidate**: `l8ui a6, a4, 0x34` → `beqz skip`; loads descriptor control field, conditionally skips; only 3 visible basic blocks; no direct xrefs (called via function pointer) | Disassembly; L32R `iDMA schedule error` owner |
+| `0x70036110` | `sp+0x250` | >0x1550 B | **iDMA wait candidate**: `entry sp, 0x250`, 64-byte aligned stack, very large; `iDMA wait error` L32R at fn+0x751; no direct xrefs | Disassembly; L32R `iDMA wait error` + `dmaif.c` owner |
+
 #### Path 2: Live memory dump (needs kernel read)
 
 The VPU binary is mapped from reserved memory at boot:
@@ -636,15 +647,54 @@ priority order:
 
 Current partial answers from the ELF pass:
 
-- Q1 is closed at the current Java/HardwareBuffer visibility layer and still
-  open only below that layer. `0x70044b74` is now the top
-  DMA/iDMA schedule/wait owner: it contains the schedule error, wait error,
-  `dmaif.c`, descriptor range, and DRAM data-buffer validation string refs in
-  one FLIX-heavy owner. This identifies the firmware schedule/wait layer to
-  instrument. Runtime evidence now says the tested completed shapes expose no
-  post-`run_async`, pre-`wait_cmd` field sequencing to Java: a 10 ms busy-poll
-  saw no settings/output/data-desc mutation, and `wait_cmd` returned success
-  before the normal completion bytes were visible in the shared mapping.
+- Q1 is now further closed by IDA FLIX128-boundary byte analysis of
+  `0x70044b74`. The function is 3880 bytes with 139 FLIX128 bundle tails.
+  Reconstructed call structure (verified by `b0=0x36` entry-byte + FLIX128
+  tail scanning):
+
+  ```
+  0x70044b74: entry sp, 0x3A0  (INPUT DMA + COMPUTE + OUTPUT write)
+    [+0x000..+0x2C6] FLIX128 bundles: INPUT DMA setup
+    FLIX128 bundle [0x70044e2e..0x70044e3e]: iDMA_schedule()  + error L32R
+      ← 9-byte gap (≤3 core24 instructions: register arg load only)
+    FLIX128 bundle [0x70044e47..0x70044e57]: iDMA_wait()      + error L32R
+    [+0x2D0..+0xA26] FLIX128 heavy compute
+    +0xA41: call8 → 0x700a21b8  (20 KB compute fn, 1288B frame, 1st)
+    +0xA57: call8 → 0x700a21b8  (2nd)
+    +0xA6A: call8 → 0x700a21b8  (3rd)
+    +0xB26: call8 → 0x70006634  [IDA-confirmed] (60B helper)
+    +0xD14: call8 → 0x70044850  (804B dmaif.c owner, 520B frame)
+    +0xD45: call8 → 0x700a21b8  (4th, after dmaif call)
+  ```
+
+  Key findings from the byte analysis:
+
+  1. **INPUT DMA is synchronous**: schedule error and wait error L32Rs sit in
+     *consecutive* FLIX128 bundles separated by only 9 bytes (register arg
+     setup only). There is no computable work between `iDMA_schedule` and
+     `iDMA_wait` for the INPUT phase. Race window = zero.
+
+  2. **OUTPUT write path is CPU-store, not iDMA**: `0x70044850` (called at
+     +0xD14, immediately before the 4th compute pass) has 33 FLIX128 bundles
+     across 804 bytes but zero L32R refs to `.rodata`. Unlike `0x70044b74`,
+     it carries no iDMA error strings. The most likely interpretation is that
+     `0x70044850` is a DMA barrier/flush utility, and the actual output write
+     to `settings+output_section` is performed by CPU-store instructions
+     inside `0x700a21b8` (20 KB compute kernel called 4 times).
+
+  3. **`0x700a21b8`** (entry sp, 0x508, ~20 KB, called 4×) is the largest
+     unexplored function and the primary remaining Q4 target. If output fill
+     is via CPU stores inside this kernel, the write completes before VPU
+     signals done, and the Java-layer race window stays zero for the current
+     `XTENSA_ANN_VERSION` shape.
+
+  4. **Timing anomaly unresolved**: `ann_output40` (output_size=0x40) takes
+     14 ms while `ann_output100/400/1000` take 1–3 ms. This inverse-size
+     pattern is unexplained and may indicate a code-path branch in
+     `0x700a21b8` triggered by `output_size < threshold`.
+
+  IDA comments added at `0x70044e3a`, `0x70044e53`, `0x70044b74`, and
+  `0x70044850` capturing this structure. IDB saved.
 - Q2 has a real firmware-side op vocabulary now, but the 63-entry
   `.dram_op.data` ANN op-name table is not static dispatch proof. It is a table
   of `.rodata` strings followed by zero tail bytes; the analyzer finds no
@@ -676,22 +726,33 @@ Current partial answers from the ELF pass:
 
 #### Q1: DMA write timing and sequencing
 
-For the current wrapper-shaped `XTENSA_ANN_VERSION` trigger, the Java-visible
-answer is: no useful post-`run_async`, pre-`wait_cmd` completion-store window
-was observed. The new completion-poll probe tested `0x40` and `0x1000` output
-sizes and sampled settings flags, `settings+0x30`, output words, and data-desc
-word 0 for 10 ms after `run_async`; every field stayed at its pre-async value.
-After `wait_cmd`, normal completion was visible (`settings=0x7`, bounded output
-fill, descriptor cleanup).
+**Status: `synchronous_input_dma_confirmed_output_cpu_store_hypothesis`**
 
-The lower-level firmware question remains separate: whether the internal DMA
-engine performs one burst or sequenced stores before host wait/cache
-synchronization. That is now a FLIX/iDMA instrumentation question, not a blocker
-for the Java-layer allocator race ranking.
+Static FLIX128 boundary analysis (IDA byte scan, 2026-06-15) now closes Q1
+at the firmware-structure level for the current `XTENSA_ANN_VERSION` shape:
 
-Look for: loops that iterate over descriptor entries, conditional writes gated
-on intermediate results, explicit DSP wait/sleep/barrier instructions between
-DMA stores.
+| Sub-question | Answer | Evidence |
+|---|---|---|
+| Is INPUT DMA synchronous? | **Yes** | `iDMA_schedule` and `iDMA_wait` error L32Rs in consecutive FLIX128 bundles, only 9 bytes apart |
+| Is OUTPUT DMA asynchronous? | **Unlikely** | `0x70044850` (dmaif output candidate) has no iDMA error L32Rs; 0 `.rodata` refs in 804 bytes |
+| Is output fill via CPU store? | **Probable** | `0x700a21b8` (20 KB, 4×) is the only function large enough to contain the write; CPU store inside compute kernel is consistent with Java poll showing no pre-wait changes |
+| Is there any usable gap? | **No, for current opcode** | schedule→wait gap ≤9 bytes; no async DMA path identified |
+
+The Java-visible answer (10 ms poll showing no changes) is consistent with
+this model: the output write happens inside the compute kernel synchronously
+with CPU execution, completing well before the VPU signals done to the kernel.
+
+**Remaining open question**: What causes the `ann_output40` (0x40 bytes)
+14 ms anomaly vs `ann_output100`–`ann_output1000` at 1–3 ms? If a specific
+output-size threshold triggers a different, slower code path in `0x700a21b8`,
+that path might have a wider Java-observable window. This is the only live
+timing lead for Q1 from the static analysis.
+
+**What to look for next**: If TIE/FLIX slot decoding becomes available,
+focus on `0x700a21b8` (the 20 KB compute kernel) for:
+- CPU store patterns writing to imported plane address (output fill loop)
+- Any conditional DMA schedule triggered by `output_size` threshold
+- The branch that produces the 14 ms anomaly for output_size=0x40
 
 Current static anchor: `0x70044b74` is the best DMA/iDMA schedule/wait owner
 candidate. The corrected sweep confirms it starts on a standard entry core op
@@ -807,8 +868,9 @@ slow-opcode shape.
 | IDA `.xt.prop` applier | `../tools/ida_apply_apunn_xt_prop.py` | Applies analyzer JSON to an IDA Xtensa ELF IDB: bounded function creation, key names/comments, pointer-run dwords/xrefs plus reachability comments, critical-string annotations, selected `L32R` refs, loop-target candidates, focused loop notes, global FLIX length-rule and FLIX-correct sweep comments, L32R string-owner clusters, output-validation comments, `elf_verification_1234` comments, and byte-verified standard-island comments |
 | Ghidra export script | `../tools/GhidraApunnExport.java` | Headless adjunct for function/string/decompiler snapshots from `/tmp/apunn_core0_full.elf`; decompiler output is advisory only |
 | Allocator gap profiler | `../poc/ApusysIoctlProbe.java` | Active; 8+ probe modes |
-| Firmware-coupled gap reuse | `--run-cmd-vpu-xrp-mem-free-race-completed-gap-reuse-iova` | Ready to re-run with new shapes |
+| Firmware-coupled gap reuse | `--run-cmd-vpu-xrp-mem-free-race-completed-gap-reuse-iova` | Ready to re-run; re-entry gate not yet met (need `exact_iter/adjacent ≥ 10%`) |
 | Completion write poll | `--run-cmd-vpu-xrp-completion-poll-iova` | Runtime negative for Java-visible pre-wait field sequencing |
+| IDA FLIX128 call8 byte scan (ad-hoc) | `py_eval` in IDA MCP session | Recovers real call8 targets by `(b0 & 0x3F == 0x25) + b_tgt == 0x36`; found 6 real callees of `0x70044b74`: `0x700a21b8` (4×), `0x70044850` (1×), `0x70006634` (1×) |
 | Wrapper static analysis | `APUNN_SETTINGS_ABI.md` | Complete for current scope |
 | Kernel primitive handoff | `HANDOFF_KERNEL_PRIMITIVE.md` | Active closure artifact |
 | Allocator controllability | `ALLOCATOR_CONTROLLABILITY_OPPORTUNITY.md` | Active experiment loop |

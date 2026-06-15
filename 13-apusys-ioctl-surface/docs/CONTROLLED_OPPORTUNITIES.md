@@ -60,11 +60,20 @@ clean kernel logs. That leaves exact-reuse firmware timing, or a lower-level
 scheduler signal outside Java timing, as the only remaining ways to change this
 classification.
 
-Current practical ranking:
+Current practical ranking (updated 2026-06-15 after firmware iDMA timing analysis):
 
-1. exact-reuse firmware timing: make APUNN write after replacement import,
-2. kernel-side scheduler/lifetime evidence that Java cannot observe directly,
-3. `dev_ctrl` / `ucmd` side effects as lower-probability alternate ioctl paths.
+1. **plane-redirect + exact IOVA reuse (untested combination)**: descriptor-plane
+   redirect produces ~9 s timeout/EIO write — currently the only identified firmware
+   write path slower than the Java `mem_free` round-trip. Not yet combined with
+   `target_then_lower` gap shaping.
+2. **completed-path exact-reuse firmware timing** (demoted): firmware byte analysis
+   of `0x70044b74` shows INPUT DMA is synchronous (schedule→wait consecutive FLIX128
+   bundles, 9-byte gap) and OUTPUT write is likely CPU-store inside `0x700a21b8`.
+   Both complete before VPU signals done. The `free_after=0ms` Java race is always
+   lost. The `ann_output40` 14 ms anomaly (inverse of `ann_output100` 1 ms) is
+   unexplained and may indicate a slower branch worth probing.
+3. kernel-side scheduler/lifetime evidence that Java cannot observe directly,
+4. `dev_ctrl` / `ucmd` side effects as lower-probability alternate ioctl paths.
 
 ## Evidence-backed controls
 
@@ -86,6 +95,8 @@ Current practical ranking:
 | fd close teardown | Close APUSYS fd after async submit and leave residual command cleanup to `mdw_usr_destroy` | Residual teardown reachable; no crash/oops/KASAN | Lower confidence than explicit `mem_free` |
 | `dev_ctrl` provider path | ioctl `0x400C4109` reaches provider opcode `0` for VPU power/control bookkeeping | In-flight control matrix over `0/1/2/3/0xff` tested: completed shape returns `dev_ctrl=0, wait=0`; timeout shape returns `dev_ctrl=0, wait=-EIO`; no IOMMU/devapc/Oops | Reachable but now a controlled negative for this primitive search |
 | `ucmd` algorithm lookup | HardwareBuffer-backed `ucmd` opcode path reaches `vpu_alg_get` / `vpu_alg_put` for `apu_lib_apunn` | Success path exists; keydump does not mutate the first 64 bytes | Low-cost side-effect/refcount candidate |
+| iDMA write timing (firmware static) | FLIX128 boundary byte scan of `0x70044b74` (3880 B, iDMA orchestrator) | INPUT DMA: schedule+wait in consecutive FLIX128 bundles [e2e..e3e) and [e47..e57), only 9-byte gap; OUTPUT write: `0x70044850` (dmaif utility, 804 B, zero L32R to .rodata) called before 4th `0x700a21b8` compute pass; CPU-store inside `0x700a21b8` (20 KB, 4×) is most likely output fill path | Q1 answer for `XTENSA_ANN_VERSION`: fully synchronous, no Java-layer race window; `ann_output40=14ms` anomaly still unexplained |
+| Plane-redirect + IOVA reuse (proposed) | Combine descriptor `+0x20..+0x3b` plane fuzz (~9 s timeout write path) with `target_then_lower` gap allocator shape | Plane redirect: confirmed first-dword write of imported plane window (PLN0→PLN1), ~9 s timeout/EIO; target/lower gap: confirmed 5% hit rate 64K; **combination not yet tested** | New rank-1 candidate for cross-buffer write: plane-redirect write is ≫ Java `mem_free` latency, making the timing race winnable if exact IOVA reuse occurs |
 
 ## Best next experiments
 
@@ -578,6 +589,54 @@ Interpretation: nonzero provider controls are reachable during command
 lifetime, but the tested control-state race does not change the completion
 class, widen copyback, or produce a kernel fault.
 
+### 6. Plane-redirect + target/lower IOVA reuse (new, highest-priority)
+
+**Background**: iDMA timing firmware analysis (2026-06-15) shows the completed
+`XTENSA_ANN_VERSION` write path is fully synchronous and sub-Java-latency. The
+descriptor-plane redirect path produces ~9 s timeout/EIO but still writes the
+first dword of the imported plane window (PLN0→PLN1). This is the only
+identified firmware write path that is **slower than the Java `mem_free`
+round-trip**.
+
+**Hypothesis**: if the plane-redirect shape can be combined with the
+`target_then_lower` allocator shape, the firmware write (which takes ~9 s) will
+still be in-flight when the replacement import takes the freed IOVA. The
+replacement buffer would then receive the plane-redirect write instead of the
+original buffer.
+
+**Shape**:
+
+```
+// Set up the plane-redirect descriptor (fuzz field +0x20/+0x24 to redirect to PLN1)
+mem_create(type2, hwb_plane0_fd) -> iova_plane0
+mem_create(type2, hwb_plane1_fd) -> iova_plane1
+build plane-redirect VPU request pointing at iova_plane0 as descriptor plane
+
+// Apply target/lower gap shape around iova_plane1 (the write target)
+import pool of same-size buffers around iova_plane1
+find adjacent target/lower pair at or near iova_plane1
+run_cmd_async(plane-redirect request)      // firmware starts, will write to iova_plane1
+mem_free(iova_plane1_target)               // release write target IOVA
+mem_free(iova_plane1_lower)                // release lower neighbor
+mem_create2(replacement_fds) x N           // attempt exact reuse at freed iova_plane1
+wait_cmd / check replacement buffers
+```
+
+**Success signal**: replacement at exact `iova_plane1` IOVA, and replacement
+first dword changes from marker to `0x504c4e31` (PLN0→PLN1 redirect byte).
+
+**Negative signal**: exact reuse absent, or replacement first dword unchanged
+(write never arrived), or IOMMU fault in kernel log.
+
+**Implementation notes**:
+- Use 64K `p16/r8` target/lower gap shape (best allocator baseline: 5% hit rate)
+- Plane-redirect write window is ~9 s; `mem_free + replacement imports` need only
+  ~2 ms → timing is easily winnable once exact IOVA reuse occurs
+- Suggested mode name:
+  `--run-cmd-vpu-xrp-plane-redirect-gap-reuse-iova`
+
+**Status**: not yet implemented.
+
 ## Current stop conditions
 
 Stop spending time on these unless new evidence changes the decision:
@@ -588,6 +647,14 @@ Stop spending time on these unless new evidence changes the decision:
 - delay-only `mem_free` sweeps without allocator pressure.
 - two-command shared-IOVA retries without target/lower gap shaping or a new
   scheduler timing signal.
+- **completed-path exact-reuse firmware timing without a new opcode or timing
+  signal**: firmware byte analysis confirms `XTENSA_ANN_VERSION` INPUT DMA and
+  OUTPUT write are synchronous sub-Java-latency; repeating the
+  `--run-cmd-vpu-xrp-mem-free-race-completed-gap-reuse-iova` probe with the
+  same opcode shape will not produce a different result. Only re-enter this
+  path if: (a) TIE/FLIX analysis of `0x700a21b8` reveals an async DMA branch,
+  or (b) the `ann_output40` 14 ms anomaly is confirmed as a different code
+  path that can be raced.
 - completed latency variants under the same Java app-process timing, unless a
   lower-level timestamp shows firmware work lasting beyond the current ioctl
   round-trip.
