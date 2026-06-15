@@ -87,6 +87,11 @@ class XtProp:
 
 
 @dataclass
+class XtensaInfo:
+    fields: dict[str, str]
+
+
+@dataclass
 class StringEntry:
     addr: int
     value: str
@@ -204,6 +209,48 @@ class FieldAccessCluster:
     unique_offsets: list[int]
     vpu_buffer_offsets: list[int]
     sample_hits: list[StandardFieldAccess]
+
+
+@dataclass
+class L32RReference:
+    addr: int
+    bytes: str
+    target_reg: int
+    imm16: int
+    literal_addr: int
+    literal_section: str | None
+    literal_value: int | None
+    value_section: str | None
+    literal_string_addr: int | None
+    literal_string_offset: int | None
+    literal_string_value: str | None
+    value_string_addr: int | None
+    value_string_offset: int | None
+    value_string_value: str | None
+    prop_addr: int | None
+    prop_size: int | None
+    prop_flags: str | None
+    owner_entry: int | None
+    owner_delta: int | None
+
+
+@dataclass
+class CriticalL32RScan:
+    pattern: str
+    string_addr: int | None
+    string_value: str | None
+    hit_count: int
+    hits: list[L32RReference]
+
+
+@dataclass
+class LoopTargetCandidate:
+    addr: int
+    owner_entry: int | None
+    owner_delta: int | None
+    prop_size: int
+    prop_flags: str
+    matched_field_bases: list[int]
 
 
 CRITICAL_STRING_PATTERNS = (
@@ -579,6 +626,29 @@ def parse_xt_props(data: bytes, section: Section | None) -> list[XtProp]:
     return out
 
 
+def parse_xtensa_info(data: bytes, section: Section | None) -> XtensaInfo | None:
+    if section is None:
+        return None
+    blob = section_bytes(data, section)
+    text = blob.decode("ascii", "ignore")
+    start = text.find("HW_CONFIGID0=")
+    if start < 0:
+        start = text.find("Xtensa_Info")
+    if start < 0:
+        return XtensaInfo(fields={})
+    fields: dict[str, str] = {}
+    for line in text[start:].replace("\x00", "\n").splitlines():
+        line = line.strip()
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"')
+        if key and all(ch.isalnum() or ch == "_" for ch in key):
+            fields[key] = value
+    return XtensaInfo(fields=fields)
+
+
 def best_prop_for_addr(props: list[XtProp], addr: int) -> XtProp | None:
     exact = [prop for prop in props if prop.addr == addr and prop.flags & XT_PROP_INSN]
     if exact:
@@ -651,6 +721,13 @@ def owner_for_addr(
         return None, None
     owner = function_candidates[index].addr
     return owner, target - owner
+
+
+def read_u32_va(data: bytes, sections: Iterable[Section], addr: int) -> int | None:
+    raw = va_bytes(data, sections, addr, 4)
+    if raw is None:
+        return None
+    return struct.unpack_from("<I", raw, 0)[0]
 
 
 def ro_string_at(strings_by_addr: dict[int, str], addr: int) -> str | None:
@@ -829,6 +906,248 @@ def string_containing_addr(strings: list[StringEntry], addr: int) -> StringEntry
         if entry.addr <= addr < entry.addr + len(entry.value):
             return entry
     return None
+
+
+def xt_prop_insn_coverage(text: Section, props: list[XtProp]) -> bytearray:
+    coverage = bytearray(text.size)
+    for prop in props:
+        if not prop.flags & XT_PROP_INSN:
+            continue
+        start = max(prop.addr, text.addr) - text.addr
+        end = min(prop.addr + max(prop.size, 1), text.addr + text.size) - text.addr
+        if 0 <= start < end <= len(coverage):
+            coverage[start:end] = b"\x01" * (end - start)
+    return coverage
+
+
+def decode_l32r(
+    blob: bytes,
+    offset: int,
+    addr: int,
+    use_absolute_literals: bool,
+) -> tuple[int, int, int] | None:
+    if offset + 3 > len(blob):
+        return None
+    b0, b1, b2 = blob[offset], blob[offset + 1], blob[offset + 2]
+    if b0 & 0x0F != 0x01:
+        return None
+    target_reg = b0 >> 4
+    imm16 = b1 | (b2 << 8)
+    if use_absolute_literals:
+        literal_addr = imm16 << 2
+    else:
+        literal_addr = ((addr + 3) & ~3) + (imm16 << 2) - 0x40000
+    return target_reg, imm16, literal_addr
+
+
+def l32r_reference_from_addr(
+    data: bytes,
+    sections: list[Section],
+    strings: list[StringEntry],
+    function_candidates: list[FunctionCandidate],
+    text: Section,
+    text_blob: bytes,
+    text_offset: int,
+    prop: XtProp | None,
+    use_absolute_literals: bool,
+) -> L32RReference | None:
+    addr = text.addr + text_offset
+    decoded = decode_l32r(text_blob, text_offset, addr, use_absolute_literals)
+    if decoded is None:
+        return None
+    target_reg, imm16, literal_addr = decoded
+    literal_section = section_for_va(sections, literal_addr)
+    if literal_section is None:
+        return None
+    literal_value = read_u32_va(data, sections, literal_addr)
+    value_section = section_for_va(sections, literal_value & ~1) if literal_value is not None else None
+    literal_string = string_containing_addr(strings, literal_addr)
+    value_string = (
+        string_containing_addr(strings, literal_value)
+        if literal_value is not None
+        else None
+    )
+    owner_entry, owner_delta = owner_for_addr(function_candidates, addr)
+    return L32RReference(
+        addr=addr,
+        bytes=text_blob[text_offset : text_offset + 3].hex(" "),
+        target_reg=target_reg,
+        imm16=imm16,
+        literal_addr=literal_addr,
+        literal_section=literal_section.name,
+        literal_value=literal_value,
+        value_section=None if value_section is None else value_section.name,
+        literal_string_addr=None if literal_string is None else literal_string.addr,
+        literal_string_offset=None if literal_string is None else literal_addr - literal_string.addr,
+        literal_string_value=None if literal_string is None else literal_string.value,
+        value_string_addr=None if value_string is None else value_string.addr,
+        value_string_offset=None
+        if value_string is None or literal_value is None
+        else literal_value - value_string.addr,
+        value_string_value=None if value_string is None else value_string.value,
+        prop_addr=None if prop is None else prop.addr,
+        prop_size=None if prop is None else prop.size,
+        prop_flags=None if prop is None else flags_text(prop.flags),
+        owner_entry=owner_entry,
+        owner_delta=owner_delta,
+    )
+
+
+def is_interesting_l32r_ref(ref: L32RReference) -> bool:
+    if ref.literal_string_value or ref.value_string_value:
+        return True
+    if ref.literal_section in {".dram_op.data", ".rodata"}:
+        return True
+    if ref.value_section in {".dram_op.data", ".rodata", ".text"}:
+        return True
+    return False
+
+
+def l32r_ref_text(ref: L32RReference) -> str:
+    return " ".join(
+        value
+        for value in (ref.literal_string_value, ref.value_string_value)
+        if value
+    )
+
+
+def l32r_interest_priority(ref: L32RReference) -> tuple[int, int]:
+    text = l32r_ref_text(ref)
+    if "locateBuffer" in text:
+        return (0, ref.addr)
+    if any(pattern in text for pattern in CRITICAL_STRING_PATTERNS):
+        return (1, ref.addr)
+    if any(token in text for token in ("iDMA", "idma", "dmaif", "DMA", "Data buffer")):
+        return (2, ref.addr)
+    if ref.literal_section == ".dram_op.data" or ref.value_section == ".dram_op.data":
+        return (3, ref.addr)
+    if text:
+        return (4, ref.addr)
+    if ref.literal_section == ".rodata" or ref.value_section == ".rodata":
+        return (5, ref.addr)
+    return (6, ref.addr)
+
+
+def select_interesting_l32r_refs(
+    l32r_refs: list[L32RReference], limit: int
+) -> list[L32RReference]:
+    refs = [ref for ref in l32r_refs if is_interesting_l32r_ref(ref)]
+    refs.sort(key=l32r_interest_priority)
+    return refs[:limit]
+
+
+def find_l32r_references(
+    data: bytes,
+    sections: list[Section],
+    strings: list[StringEntry],
+    props: list[XtProp],
+    function_candidates: list[FunctionCandidate],
+    xtensa_info: XtensaInfo | None,
+    interesting_limit: int = 256,
+) -> tuple[int, list[L32RReference], list[L32RReference]]:
+    text = section_by_name(sections, ".text")
+    if text is None:
+        return 0, [], []
+    text_blob = section_bytes(data, text)
+    coverage = xt_prop_insn_coverage(text, props)
+    use_absolute_literals = False
+    if xtensa_info is not None:
+        use_absolute_literals = xtensa_info.fields.get("USE_ABSOLUTE_LITERALS") == "1"
+
+    count = 0
+    all_refs_for_scans: list[L32RReference] = []
+    visited = bytearray(len(text_blob))
+    for prop in props:
+        if not prop.flags & XT_PROP_INSN:
+            continue
+        start = max(prop.addr, text.addr) - text.addr
+        end = min(prop.addr + max(prop.size, 1), text.addr + text.size) - text.addr
+        if not (0 <= start < end <= len(text_blob)):
+            continue
+        for off in range(start, max(start, end - 2)):
+            if visited[off]:
+                continue
+            visited[off] = 1
+            if text_blob[off] & 0x0F != 0x01:
+                continue
+            if not coverage[off]:
+                continue
+            ref = l32r_reference_from_addr(
+                data,
+                sections,
+                strings,
+                function_candidates,
+                text,
+                text_blob,
+                off,
+                prop,
+                use_absolute_literals,
+            )
+            if ref is None:
+                continue
+            count += 1
+            all_refs_for_scans.append(ref)
+    interesting = select_interesting_l32r_refs(all_refs_for_scans, interesting_limit)
+    return count, interesting, all_refs_for_scans
+
+
+def find_critical_l32r_refs(
+    strings: list[StringEntry],
+    l32r_refs: list[L32RReference],
+    sample_limit: int = 16,
+) -> list[CriticalL32RScan]:
+    scans: list[CriticalL32RScan] = []
+    for pattern in CRITICAL_STRING_PATTERNS:
+        matches = [entry for entry in strings if pattern in entry.value]
+        if not matches:
+            scans.append(
+                CriticalL32RScan(
+                    pattern=pattern,
+                    string_addr=None,
+                    string_value=None,
+                    hit_count=0,
+                    hits=[],
+                )
+            )
+            continue
+        for entry in matches:
+            hits = [
+                ref
+                for ref in l32r_refs
+                if ref.literal_string_addr == entry.addr or ref.value_string_addr == entry.addr
+            ]
+            scans.append(
+                CriticalL32RScan(
+                    pattern=pattern,
+                    string_addr=entry.addr,
+                    string_value=entry.value,
+                    hit_count=len(hits),
+                    hits=hits[:sample_limit],
+                )
+            )
+    return scans
+
+
+def find_dram_op_l32r_refs(
+    sections: list[Section],
+    l32r_refs: list[L32RReference],
+    sample_limit: int = 64,
+) -> list[L32RReference]:
+    dram_op = section_by_name(sections, ".dram_op.data")
+    if dram_op is None:
+        return []
+    out: list[L32RReference] = []
+    for ref in l32r_refs:
+        literal_hit = dram_op.addr <= ref.literal_addr < dram_op.addr + dram_op.size
+        value_hit = (
+            ref.literal_value is not None
+            and dram_op.addr <= (ref.literal_value & ~1) < dram_op.addr + dram_op.size
+        )
+        if literal_hit or value_hit:
+            out.append(ref)
+            if len(out) >= sample_limit:
+                break
+    return out
 
 
 def find_rodata_refs(
@@ -1064,14 +1383,7 @@ def find_standard_field_access_clusters(
     if text is None:
         return []
     blob = section_bytes(data, text)
-    insn_coverage = bytearray(len(blob))
-    for prop in props:
-        if not prop.flags & XT_PROP_INSN:
-            continue
-        start = max(prop.addr, text.addr) - text.addr
-        end = min(prop.addr + max(prop.size, 1), text.addr + text.size) - text.addr
-        if 0 <= start < end <= len(insn_coverage):
-            insn_coverage[start:end] = b"\x01" * (end - start)
+    insn_coverage = xt_prop_insn_coverage(text, props)
     raw_clusters: dict[tuple[int, int], list[StandardFieldAccess]] = {}
     for off in range(0, len(blob) - 2):
         if not insn_coverage[off]:
@@ -1131,6 +1443,47 @@ def find_standard_field_access_clusters(
     return clusters[:cluster_limit]
 
 
+def find_loop_target_candidates(
+    sections: list[Section],
+    props: list[XtProp],
+    function_candidates: list[FunctionCandidate],
+    field_clusters: list[FieldAccessCluster],
+    sample_limit: int = 128,
+) -> tuple[int, list[LoopTargetCandidate]]:
+    text = section_by_name(sections, ".text")
+    if text is None:
+        return 0, []
+    field_bases_by_owner: dict[int, set[int]] = {}
+    for cluster in field_clusters:
+        field_bases_by_owner.setdefault(cluster.owner_entry, set()).add(cluster.base_reg)
+
+    count = 0
+    candidates: list[LoopTargetCandidate] = []
+    for prop in props:
+        if not prop.flags & XT_PROP_LOOP_TARGET:
+            continue
+        if not (text.addr <= prop.addr < text.addr + text.size):
+            continue
+        count += 1
+        owner_entry, owner_delta = owner_for_addr(function_candidates, prop.addr)
+        bases = sorted(field_bases_by_owner.get(owner_entry or -1, set()))
+        if not bases:
+            continue
+        candidates.append(
+            LoopTargetCandidate(
+                addr=prop.addr,
+                owner_entry=owner_entry,
+                owner_delta=owner_delta,
+                prop_size=prop.size,
+                prop_flags=flags_text(prop.flags),
+                matched_field_bases=bases,
+            )
+        )
+        if len(candidates) >= sample_limit:
+            break
+    return count, candidates
+
+
 def prop_near(props: list[XtProp], addr: int, window: int = 0x20) -> list[XtProp]:
     return [
         prop
@@ -1162,6 +1515,24 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
     lines.append(f"- machine: `{hx(eh['machine'])}`")
     lines.append(f"- flags: `{hx(eh['flags'])}`")
     lines.append("")
+    xtensa_info = payload.get("xtensa_info")
+    if isinstance(xtensa_info, dict):
+        fields = xtensa_info.get("fields")
+        if isinstance(fields, dict) and fields:
+            lines.append("## Xtensa Core Info")
+            lines.append("")
+            for key in (
+                "CORE_NAME",
+                "HW_VERSION",
+                "RELEASE_NAME",
+                "RELEASE_VERSION",
+                "ABI",
+                "USE_ABSOLUTE_LITERALS",
+                "SW_FLOATING_POINT_ABI",
+            ):
+                if key in fields:
+                    lines.append(f"- `{key}`: `{display_text(str(fields[key]))}`")
+            lines.append("")
     lines.append("## Sections")
     lines.append("")
     lines.append("| name | addr | file offset | size | flags |")
@@ -1301,6 +1672,107 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
             f"{offsets} | {display_text('; '.join(samples))} |"
         )
     lines.append("")
+    lines.append("## Loop Targets Near Field Clusters")
+    lines.append("")
+    lines.append(
+        f"- `.xt.prop` loop-target properties in `.text`: {payload['loop_target_count']}"
+    )
+    lines.append(
+        "- table is limited to loop targets whose owner also has a VPU-buffer-shaped "
+        "field-access cluster."
+    )
+    lines.append("")
+    lines.append("| addr | owner | owner delta | field bases | prop |")
+    lines.append("|---:|---:|---:|---|---|")
+    for item in payload["loop_target_candidates"]:
+        assert isinstance(item, dict)
+        bases = ", ".join(f"a{value}" for value in item["matched_field_bases"])
+        lines.append(
+            f"| `{hx(item['addr'])}` | `{hx(item.get('owner_entry'))}` | "
+            f"`{hx(item.get('owner_delta'))}` | `{bases}` | "
+            f"`{item['prop_flags']}:{hx(item['prop_size'])}` |"
+        )
+    lines.append("")
+    lines.append("## L32R Literal References")
+    lines.append("")
+    lines.append(
+        "These references are decoded only inside `.xt.prop` instruction-covered "
+        "`.text` ranges. `literal` is the PC-relative L32R literal address; "
+        "`value` is the 32-bit word stored there when it is readable."
+    )
+    lines.append(
+        "Because a property range can contain extension bundles, these are "
+        "section-filtered leads; high-value owners still need local byte or IDA "
+        "validation before treating them as control-flow facts."
+    )
+    lines.append("")
+    lines.append(f"- valid L32R refs with in-ELF literal address: {payload['l32r_ref_count']}")
+    lines.append(
+        f"- interesting L32R refs emitted: {len(payload['interesting_l32r_refs'])}"
+    )
+    lines.append("")
+    lines.append("| addr | reg | literal | value | owner | literal string | value string |")
+    lines.append("|---:|---:|---:|---:|---:|---|---|")
+    for ref in payload["interesting_l32r_refs"][:80]:
+        assert isinstance(ref, dict)
+        literal_string = ""
+        if ref.get("literal_string_value"):
+            suffix = "" if int(ref["literal_string_offset"]) == 0 else f"+0x{int(ref['literal_string_offset']):x}"
+            literal_string = (
+                f"`{hx(ref['literal_string_addr'])}{suffix}` "
+                f"`{display_text(str(ref['literal_string_value']))}`"
+            )
+        value_string = ""
+        if ref.get("value_string_value"):
+            suffix = "" if int(ref["value_string_offset"]) == 0 else f"+0x{int(ref['value_string_offset']):x}"
+            value_string = (
+                f"`{hx(ref['value_string_addr'])}{suffix}` "
+                f"`{display_text(str(ref['value_string_value']))}`"
+            )
+        lines.append(
+            f"| `{hx(ref['addr'])}` | `a{ref['target_reg']}` | "
+            f"`{hx(ref['literal_addr'])}` `{ref.get('literal_section') or ''}` | "
+            f"`{hx(ref.get('literal_value'))}` `{ref.get('value_section') or ''}` | "
+            f"`{hx(ref.get('owner_entry'))}` | {literal_string} | {value_string} |"
+        )
+    lines.append("")
+    lines.append("### Critical String L32R References")
+    lines.append("")
+    lines.append("| pattern | string | hits | samples |")
+    lines.append("|---|---:|---:|---|")
+    for item in payload["critical_l32r_refs"]:
+        assert isinstance(item, dict)
+        samples: list[str] = []
+        hits = item["hits"]
+        assert isinstance(hits, list)
+        for hit in hits[:4]:
+            assert isinstance(hit, dict)
+            literal_suffix = ""
+            if hit.get("literal_string_offset") is not None:
+                literal_suffix = "+0x%x" % int(hit["literal_string_offset"])
+            samples.append(
+                f"{hx(hit['addr'])}:a{hit['target_reg']} "
+                f"lit={hx(hit['literal_addr'])}{literal_suffix} "
+                f"owner={hx(hit.get('owner_entry'))}"
+            )
+        lines.append(
+            f"| `{display_text(str(item['pattern']))}` | `{hx(item.get('string_addr'))}` | "
+            f"{item['hit_count']} | {display_text('; '.join(samples))} |"
+        )
+    lines.append("")
+    lines.append("### `.dram_op.data` L32R References")
+    lines.append("")
+    lines.append("| addr | reg | literal | value | owner |")
+    lines.append("|---:|---:|---:|---:|---:|")
+    for ref in payload["dram_op_l32r_refs"]:
+        assert isinstance(ref, dict)
+        lines.append(
+            f"| `{hx(ref['addr'])}` | `a{ref['target_reg']}` | "
+            f"`{hx(ref['literal_addr'])}` `{ref.get('literal_section') or ''}` | "
+            f"`{hx(ref.get('literal_value'))}` `{ref.get('value_section') or ''}` | "
+            f"`{hx(ref.get('owner_entry'))}` |"
+        )
+    lines.append("")
     lines.append("## Rodata String References")
     lines.append("")
     lines.append(f"- `.text` 32-bit references into `.rodata` strings: {payload['rodata_ref_count']}")
@@ -1398,11 +1870,13 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
     strings = find_strings(data, rodata, min_string)
     strings_by_addr = {entry.addr: entry.value for entry in strings}
     props = parse_xt_props(data, section_by_name(sections, ".xt.prop"))
+    xtensa_info = parse_xtensa_info(data, section_by_name(sections, ".xtensa.info"))
     function_candidates = find_function_candidates(data, sections, props)
     prop_counts: dict[str, int] = {
         "total": len(props),
         "insn": sum(1 for prop in props if prop.flags & XT_PROP_INSN),
         "data": sum(1 for prop in props if prop.flags & XT_PROP_DATA),
+        "loop_target": sum(1 for prop in props if prop.flags & XT_PROP_LOOP_TARGET),
         "branch_target": sum(1 for prop in props if prop.flags & XT_PROP_BRANCH_TARGET),
         "unreachable": sum(1 for prop in props if prop.flags & XT_PROP_UNREACHABLE),
     }
@@ -1424,6 +1898,14 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
     standard_field_access_clusters = find_standard_field_access_clusters(
         data, sections, props, function_candidates
     )
+    l32r_ref_count, interesting_l32r_refs, l32r_refs_for_scans = find_l32r_references(
+        data, sections, strings, props, function_candidates, xtensa_info
+    )
+    critical_l32r_refs = find_critical_l32r_refs(strings, l32r_refs_for_scans)
+    dram_op_l32r_refs = find_dram_op_l32r_refs(sections, l32r_refs_for_scans)
+    loop_target_count, loop_target_candidates = find_loop_target_candidates(
+        sections, props, function_candidates, standard_field_access_clusters
+    )
 
     entry_props = []
     for prop in prop_near(props, eh.entry):
@@ -1440,6 +1922,7 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
         "input": str(path),
         "elf_header": to_jsonable(eh),
         "sections": to_jsonable(sections),
+        "xtensa_info": to_jsonable(xtensa_info) if xtensa_info is not None else None,
         "property_counts": prop_counts,
         "entry_properties": entry_props,
         "function_candidate_count": len(function_candidates),
@@ -1455,6 +1938,12 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
             [ref for ref in rodata_refs if is_interesting_rodata_ref(ref)]
         ),
         "critical_string_refs": to_jsonable(critical_string_refs),
+        "l32r_ref_count": l32r_ref_count,
+        "interesting_l32r_refs": to_jsonable(interesting_l32r_refs),
+        "critical_l32r_refs": to_jsonable(critical_l32r_refs),
+        "dram_op_l32r_refs": to_jsonable(dram_op_l32r_refs),
+        "loop_target_count": loop_target_count,
+        "loop_target_candidates": to_jsonable(loop_target_candidates),
         "pointer_runs": to_jsonable(pointer_runs),
         "ann_op_name_table": op_name_table(
             data, sections, section_by_name(sections, ".dram_op.data"), strings_by_addr
@@ -1475,6 +1964,17 @@ def print_summary(payload: dict[str, object]) -> None:
         f"entry={hx(eh['entry'])} "
         f"machine={hx(eh['machine'])} flags={hx(eh['flags'])}"
     )
+    xtensa_info = payload.get("xtensa_info")
+    if isinstance(xtensa_info, dict):
+        fields = xtensa_info.get("fields")
+        if isinstance(fields, dict) and fields:
+            print(
+                "xtensa_info "
+                f"core={fields.get('CORE_NAME')} "
+                f"hw={fields.get('HW_VERSION')} "
+                f"release={fields.get('RELEASE_NAME')}/{fields.get('RELEASE_VERSION')} "
+                f"use_absolute_literals={fields.get('USE_ABSOLUTE_LITERALS')}"
+            )
     for section in payload["sections"]:
         assert isinstance(section, dict)
         print(
@@ -1510,6 +2010,42 @@ def print_summary(payload: dict[str, object]) -> None:
             f"owner={hx(cluster['owner_entry'])} base=a{cluster['base_reg']} "
             f"hits={cluster['hit_count']} vpu_offsets={offsets}"
         )
+    loop_targets = payload["loop_target_candidates"]
+    assert isinstance(loop_targets, list)
+    print(
+        f"loop_targets={payload['loop_target_count']} "
+        f"near_field_clusters={len(loop_targets)}"
+    )
+    for item in loop_targets[:10]:
+        assert isinstance(item, dict)
+        bases = ",".join(f"a{value}" for value in item["matched_field_bases"])
+        print(
+            "  loop_target "
+            f"addr={hx(item['addr'])} owner={hx(item.get('owner_entry'))}+"
+            f"{hx(item.get('owner_delta'))} bases={bases}"
+        )
+    interesting_l32r = payload["interesting_l32r_refs"]
+    assert isinstance(interesting_l32r, list)
+    print(
+        f"l32r_refs={payload['l32r_ref_count']} "
+        f"interesting={len(interesting_l32r)}"
+    )
+    for ref in interesting_l32r[:10]:
+        assert isinstance(ref, dict)
+        lit_string = ref.get("literal_string_value") or ""
+        val_string = ref.get("value_string_value") or ""
+        print(
+            "  l32r "
+            f"addr={hx(ref['addr'])} a{ref['target_reg']} "
+            f"literal={hx(ref['literal_addr'])}:{ref.get('literal_section')} "
+            f"value={hx(ref.get('literal_value'))}:{ref.get('value_section')} "
+            f"owner={hx(ref.get('owner_entry'))} "
+            f"literal_string={display_text(str(lit_string))[:48]} "
+            f"value_string={display_text(str(val_string))[:48]}"
+        )
+    dram_op_l32r = payload["dram_op_l32r_refs"]
+    assert isinstance(dram_op_l32r, list)
+    print(f"dram_op_l32r_refs={len(dram_op_l32r)}")
     print(
         "rodata_refs="
         f"{payload['rodata_ref_count']} "
@@ -1521,6 +2057,13 @@ def print_summary(payload: dict[str, object]) -> None:
             "  critical "
             f"{item['pattern']} addr={hx(item.get('string_addr'))} "
             f"aligned={item['aligned_hit_count']} byte={item['byte_hit_count']}"
+        )
+    for item in payload["critical_l32r_refs"]:
+        assert isinstance(item, dict)
+        print(
+            "  critical_l32r "
+            f"{item['pattern']} addr={hx(item.get('string_addr'))} "
+            f"hits={item['hit_count']}"
         )
     print(f"pointer_runs={len(payload['pointer_runs'])}")
     for run in payload["pointer_runs"]:

@@ -12,9 +12,9 @@ Usage from command line/headless IDA:
 
 The JSON is produced by analyze_apunn_elf.py. This script intentionally applies
 only high-confidence facts: .xt.prop-backed entry candidates, known key owners,
-pointer tables, strings, and critical-string direct-ref scan status. It does not
-force every .xt.prop instruction range into code because this APUNN core uses
-Xtensa TIE/FLIX encodings that IDA may not decode cleanly.
+pointer tables, strings, L32R literal refs, and critical-string scan status. It
+does not force every .xt.prop instruction range into code because this APUNN core
+uses Xtensa TIE/FLIX encodings that IDA may not decode cleanly.
 """
 
 from __future__ import annotations
@@ -288,6 +288,95 @@ def apply_standard_islands(payload: dict[str, object]) -> int:
     return comments
 
 
+def collect_l32r_refs(payload: dict[str, object]) -> list[dict[str, object]]:
+    refs: list[dict[str, object]] = []
+    seen: set[int] = set()
+
+    def add(ref: dict[str, object]) -> None:
+        ea = int(ref["addr"])
+        if ea in seen:
+            return
+        seen.add(ea)
+        refs.append(ref)
+
+    for ref in payload.get("interesting_l32r_refs", [])[:256]:
+        add(ref)
+    for ref in payload.get("dram_op_l32r_refs", []):
+        add(ref)
+    for scan in payload.get("critical_l32r_refs", []):
+        for ref in scan.get("hits", []):
+            add(ref)
+    return refs
+
+
+def apply_l32r_refs(payload: dict[str, object]) -> tuple[int, int]:
+    comments = 0
+    refs = 0
+    for ref in collect_l32r_refs(payload):
+        ea = int(ref["addr"])
+        literal = int(ref["literal_addr"])
+        if not has_segment(ea):
+            continue
+        try_create_insn(ea)
+        if has_segment(literal) and ida_xref.add_dref(ea, literal, ida_xref.dr_R):
+            refs += 1
+        value_text = fmt_hex(ref.get("literal_value"))
+        string_value = ref.get("literal_string_value") or ref.get("value_string_value")
+        if string_value:
+            text = (
+                "APUNN L32R ref; a%d literal=%s[%s] value=%s[%s] string=%s"
+                % (
+                    int(ref["target_reg"]),
+                    fmt_hex(ref.get("literal_addr")),
+                    ref.get("literal_section"),
+                    value_text,
+                    ref.get("value_section"),
+                    str(string_value)[:96],
+                )
+            )
+        else:
+            text = (
+                "APUNN L32R ref; a%d literal=%s[%s] value=%s[%s]"
+                % (
+                    int(ref["target_reg"]),
+                    fmt_hex(ref.get("literal_addr")),
+                    ref.get("literal_section"),
+                    value_text,
+                    ref.get("value_section"),
+                )
+            )
+        if append_comment(ea, text):
+            comments += 1
+    return comments, refs
+
+
+def apply_loop_targets(payload: dict[str, object]) -> int:
+    comments = 0
+    for item in payload.get("loop_target_candidates", []):
+        ea = int(item["addr"])
+        if not has_segment(ea):
+            continue
+        try_create_insn(ea)
+        comment_ea = idc.get_item_head(ea)
+        if comment_ea == idc.BADADDR or not has_segment(comment_ea):
+            comment_ea = ea
+        bases = ",".join("a%d" % int(value) for value in item.get("matched_field_bases", []))
+        if append_comment(
+            comment_ea,
+            "APUNN loop-target candidate at %s near field-access cluster; owner=%s+%s bases=%s prop=%s:%s"
+            % (
+                fmt_hex(ea),
+                fmt_hex(item.get("owner_entry")),
+                fmt_hex(item.get("owner_delta")),
+                bases,
+                item.get("prop_flags"),
+                fmt_hex(item.get("prop_size")),
+            ),
+        ):
+            comments += 1
+    return comments
+
+
 def fmt_hex(value: object) -> str:
     if value is None:
         return "None"
@@ -309,11 +398,14 @@ def main() -> None:
     data_items, data_refs = apply_pointer_runs(payload)
     strings = apply_strings(payload)
     island_comments = apply_standard_islands(payload)
+    l32r_comments, l32r_refs = apply_l32r_refs(payload)
+    loop_comments = apply_loop_targets(payload)
     ida_auto.auto_wait()
 
     print(
         "[APUNN] functions_created=%d bounded_functions=%d function_names=%d inside_existing=%d "
-        "key_names=%d pointer_dwords=%d pointer_refs=%d strings=%d island_comments=%d"
+        "key_names=%d pointer_dwords=%d pointer_refs=%d strings=%d island_comments=%d "
+        "l32r_comments=%d l32r_refs=%d loop_comments=%d"
         % (
             fn_created,
             fn_bounded,
@@ -324,6 +416,9 @@ def main() -> None:
             data_refs,
             strings,
             island_comments,
+            l32r_comments,
+            l32r_refs,
+            loop_comments,
         )
     )
 

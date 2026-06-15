@@ -194,6 +194,13 @@ Static firmware impact so far:
   `eDesc >= TM_DMA_DESC_IDX_MAX`, `_DMA_STALL`, or `No error`. So the iDMA
   schedule/wait strings are present, but no reliable owner is recovered through
   the direct literal-pointer method.
+- `.xtensa.info` confirms `USE_ABSOLUTE_LITERALS=0`; the string owners need
+  PC-relative `L32R` literal-slot recovery. The new `L32R` pass recovers
+  owner candidates for `iDMA schedule error` (`0x70024710`, `0x70035c64`,
+  `0x700414d0`, `0x70044b74`), `iDMA wait error` (`0x70024710`,
+  `0x70036110`, `0x70044b74`), and `dmaif.c` (`0x70036110`, `0x70044850`,
+  `0x70044b74`). These are leads for local validation, not a closed DMA timing
+  answer.
 - Byte-verified standard Xtensa islands now make the early path reproducible:
   `0x70006794` copies `a12+0x00..0x14` into `a10+0x04..0x18` and
   `a2+0x44/0x4c/0x50` into `a10+0x28/0x1c/0x20`; `0x70006590` loads
@@ -220,6 +227,9 @@ Static firmware impact so far:
   `0x70039cfc/a2`, and the verified `0x7003ce3c/a2`, giving reproducible
   next-hop targets for the descriptor loop pass. Unresolved TIE/FLIX
   instructions still prevent complete prototypes.
+- `.xt.prop` loop-target candidates now narrow the next pass further:
+  `0x7003c102` inside `0x7003b468/a2` and `0x7003d423` inside
+  `0x7003ce3c/a2` are the current record-loop/count follow-up addresses.
 - `.dram_op.data` contains a 63-entry ANN op-name table, and strings confirm
   the relevant APUNN paths: `process_command`, `execute_op`, `dma_barrier`,
   buffer validation, and iDMA schedule/wait errors.

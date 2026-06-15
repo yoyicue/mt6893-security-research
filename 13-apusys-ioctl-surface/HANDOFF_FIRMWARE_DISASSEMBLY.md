@@ -269,6 +269,11 @@ Recovered pointer/name tables:
   `ERROR CALLBACK: iDMA in Error`,
   `INTERRUPT CALLBACK : processing iDMA interrupt`, `iDMA schedule error`,
   `iDMA wait error`, `sDesc > eDesc`, and `eDesc >= TM_DMA_DESC_IDX_MAX`.
+- `.xtensa.info` identifies the core as `MVPU6F_1214_Prod`, Xtensa
+  `LX7.0.10`, release `RG-2018.10/12.0.10`, with
+  `USE_ABSOLUTE_LITERALS=0`. That makes PC-relative `L32R` literal-slot
+  recovery mandatory; raw `.text` pointer scans are insufficient for string
+  owner recovery.
 - `.text` aligned 32-bit references into `.rodata` strings now recover `180`
   references after accepting newline-bearing log strings, `45` of them
   matching Invalid/Error/buffer/DMA-related tokens.
@@ -290,6 +295,14 @@ Recovered pointer/name tables:
   `eDesc >= TM_DMA_DESC_IDX_MAX`, `_DMA_STALL`, and `No error`. This makes the
   current iDMA owner gap reproducible: the strings are present in `.rodata`,
   but not reachable through the direct literal-pointer method.
+- `.xt.prop`-covered `L32R` literal-slot scanning now recovers owner candidates
+  for several of those same strings. High-value samples include
+  `iDMA schedule error` at owners `0x70024710`, `0x70035c64`, `0x700414d0`,
+  and `0x70044b74`; `iDMA wait error` at owners `0x70024710`, `0x70036110`,
+  and `0x70044b74`; and `../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c` at
+  owners `0x70036110`, `0x70044850`, and `0x70044b74`. These are
+  section-filtered decode leads from property-covered ranges, not complete CFG
+  proof yet.
 - `Data buffer does not fit in DRAM` has no aligned refs but has six all-byte
   suffix-pointer samples at owners `0x700c13b0`, `0x700cc080`, `0x700cda20`,
   `0x7016bc40`, `0x70262690`, and `0x70262a00`. Because these are unaligned
@@ -349,6 +362,9 @@ instructions and groups them by `.xt.prop` owner plus base register. The current
 top clusters include `0x7003b468/a2`, `0x70039cfc/a2`, and the byte-verified
 `0x7003ce3c/a2`, giving a prioritized list of 0x40-record-shaped leads for the
 next INFO13 loop pass without depending on a decompiler.
+The same pass now emits `.xt.prop` loop-target candidates near those owners:
+`0x7003c102` inside the `0x7003b468/a2` cluster and `0x7003d423` inside the
+`0x7003ce3c/a2` cluster are the current first-pass loop/count follow-up points.
 
 IDA Pro MCP state after reloading the same ELF as **ELF for Xtensa** (not raw
 `Binary File`): processor `XTENSA`, 32-bit, sections mapped at the ELF VAs
@@ -490,9 +506,10 @@ exec(open(
 
 The script creates/names only `.xt.prop`-backed `entry` candidates with a
 bounded `next_entry_delta <= 0x2000` by default, defines the pointer runs, names
-critical strings, and annotates the known APUNN entry/dispatch addresses. This
-keeps the IDB useful without forcing every TIE/FLIX-heavy `.xt.prop` range into
-IDA code items.
+critical strings, annotates selected `L32R` literal refs and loop-target
+candidates, and annotates the known APUNN entry/dispatch addresses. This keeps
+the IDB useful without forcing every TIE/FLIX-heavy `.xt.prop` range into IDA
+code items.
 
 ### Step 2: Map the MMIO dispatch interface
 
@@ -526,14 +543,16 @@ Current partial answers from the ELF pass:
 - Q1 is still unresolved statically. The ELF contains `dma_barrier`,
   `iDMA schedule error`, `iDMA wait error`, and
   `../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c`, so the right DMA subsystem is
-  present. However, the critical-string direct-reference scan finds no aligned
-  or all-byte `.text` pointer to the iDMA/dmaif/descriptor assertion strings,
-  and Ghidra does not yet produce a reliable schedule/wait loop decompilation
-  on the TIE/FLIX-heavy ranges. The newly verified `0x70007440` callback loop is
-  a timing/dispatcher lead because it uses `ccount`, repeated `callx8 a8`, and
-  `0x700068c0`, but it is not yet tied to the descriptor DMA writeback path.
-  Runtime remains the strongest evidence: the tested completed shape finishes
-  before the Java-layer `mem_free` round trip can replace the IOVA.
+  present. The direct-reference scan finds no aligned or all-byte `.text`
+  pointer to those strings, but the PC-relative `L32R` pass now recovers
+  section-filtered owner candidates for the iDMA schedule/wait and dmaif
+  strings. Ghidra still does not produce a reliable schedule/wait loop
+  decompilation on the TIE/FLIX-heavy ranges. The newly verified `0x70007440`
+  callback loop is a timing/dispatcher lead because it uses `ccount`, repeated
+  `callx8 a8`, and `0x700068c0`, but it is not yet tied to the descriptor DMA
+  writeback path. Runtime remains the strongest evidence: the tested completed
+  shape finishes before the Java-layer `mem_free` round trip can replace the
+  IOVA.
 - Q2 has a real firmware-side op vocabulary now. The 63-entry
   `.dram_op.data` ANN table is distinct from the wrapper/runtime
   `10001..10009` query/status opcodes already tested. The byte-verified
@@ -628,8 +647,8 @@ slow-opcode shape.
 | Tool | Path | Status |
 |---|---|---|
 | VPU image parser | `13-apusys-ioctl-surface/tools/parse_vpu_image.py` | Parses preload metadata, carves raw segments, and reports embedded ELF offsets; use `--head-offset 0x200 --headers 1` for V260523 `cam_vpu2.img` |
-| APUNN ELF analyzer | `13-apusys-ioctl-surface/tools/analyze_apunn_elf.py` | Emits section map, `.xt.prop` instruction ranges, `.xt.prop`-backed function-entry candidates, key address owners, byte-verified standard Xtensa islands, `.text`→`.rodata` suffix refs, DMA/descriptor critical-string direct-ref status, pointer runs, ANN op name table, interesting strings, JSON, and Markdown |
-| IDA `.xt.prop` applier | `13-apusys-ioctl-surface/tools/ida_apply_apunn_xt_prop.py` | Applies analyzer JSON to an IDA Xtensa ELF IDB: bounded function creation, key names/comments, pointer-run dwords/xrefs, critical-string annotations, and byte-verified standard-island comments |
+| APUNN ELF analyzer | `13-apusys-ioctl-surface/tools/analyze_apunn_elf.py` | Emits section map, `.xtensa.info`, `.xt.prop` instruction ranges, `.xt.prop`-backed function-entry candidates, key address owners, byte-verified standard Xtensa islands, `.text`→`.rodata` suffix refs, PC-relative `L32R` literal refs, loop-target candidates near field clusters, DMA/descriptor critical-string status, pointer runs, ANN op name table, interesting strings, JSON, and Markdown |
+| IDA `.xt.prop` applier | `13-apusys-ioctl-surface/tools/ida_apply_apunn_xt_prop.py` | Applies analyzer JSON to an IDA Xtensa ELF IDB: bounded function creation, key names/comments, pointer-run dwords/xrefs, critical-string annotations, selected `L32R` refs, loop-target candidates, and byte-verified standard-island comments |
 | Ghidra export script | `13-apusys-ioctl-surface/tools/GhidraApunnExport.java` | Headless adjunct for function/string/decompiler snapshots from `/tmp/apunn_core0_full.elf`; decompiler output is advisory only |
 | Allocator gap profiler | `13-apusys-ioctl-surface/poc/ApusysIoctlProbe.java` | Active; 8+ probe modes |
 | Firmware-coupled gap reuse | `--run-cmd-vpu-xrp-mem-free-race-completed-gap-reuse-iova` | Ready to re-run with new shapes |

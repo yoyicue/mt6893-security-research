@@ -6,6 +6,16 @@
 - machine: `0x5e`
 - flags: `0x300`
 
+## Xtensa Core Info
+
+- `CORE_NAME`: `MVPU6F_1214_Prod`
+- `HW_VERSION`: `LX7.0.10`
+- `RELEASE_NAME`: `RG-2018.10`
+- `RELEASE_VERSION`: `12.0.10`
+- `ABI`: `0`
+- `USE_ABSOLUTE_LITERALS`: `0`
+- `SW_FLOATING_POINT_ABI`: `1`
+
 ## Sections
 
 | name | addr | file offset | size | flags |
@@ -28,6 +38,7 @@
 - `total`: 63374
 - `insn`: 54282
 - `data`: 21806
+- `loop_target`: 1154
 - `branch_target`: 14383
 - `unreachable`: 8838
 
@@ -334,6 +345,168 @@ These clusters are produced by a lightweight standard Xtensa 24-bit load/store d
 | `0x70015e98` | `a2` | 42 | 15 | 0x0, 0x2, 0x4, 0x8, 0x10, 0x18, 0x20, 0x24 | 0x70015f74:l16ui a6,a2+0x0; 0x70015fa0:s8i a0,a2+0x2b; 0x70016026:l32i a13,a2+0x8; 0x70016027:l8ui a2,a2+0x4; 0x7001602f:l16ui a6,a2+0x0; 0x700160e8:s8i a0,a2+0x61; 0x700160fe:s8i a13,a2+0x9; 0x70016138:l16ui a6,a2+0x0 |
 | `0x700ae090` | `a2` | 29 | 15 | 0x0, 0x8, 0xc, 0x10, 0x18, 0x20, 0x30, 0x34 | 0x700ae109:l16ui a6,a2+0x0; 0x700ae129:l16ui a15,a2+0x1a; 0x700ae169:l16ui a6,a2+0x0; 0x700ae1c8:s16i a0,a2+0x34; 0x700ae381:l16ui a6,a2+0x0; 0x700ae394:l16ui a6,a2+0x0; 0x700ae3c2:l16ui a6,a2+0x0; 0x700ae439:s16i a0,a2+0x42 |
 | `0x7001b040` | `a10` | 15 | 14 | 0x0, 0x4, 0x8, 0xc, 0x10, 0x30, 0x34, 0x38 | 0x7001b6ee:s16i a0,a10+0x0; 0x7001b704:s32i a14,a10+0x38; 0x7001b707:s32i a14,a10+0x7c; 0x7001b736:s32i a7,a10+0xc; 0x7001b739:s32i a7,a10+0x10; 0x7001b73c:s32i a7,a10+0x50; 0x7001b74f:s16i a8,a10+0x34; 0x7001b75a:s32i a9,a10+0x44 |
+
+## Loop Targets Near Field Clusters
+
+- `.xt.prop` loop-target properties in `.text`: 1154
+- table is limited to loop targets whose owner also has a VPU-buffer-shaped field-access cluster.
+
+| addr | owner | owner delta | field bases | prop |
+|---:|---:|---:|---|---|
+| `0x70016f0e` | `0x70015e98` | `0x1076` | `a2, a9` | `insn|data|loop_target|no_reorder|no_transform:0x5f6` |
+| `0x7003c102` | `0x7003b468` | `0xc9a` | `a2` | `insn|loop_target|no_reorder:0xaa` |
+| `0x7003d423` | `0x7003ce3c` | `0x5e6` | `a2` | `insn|loop_target|no_reorder:0x3` |
+| `0x700ae6c0` | `0x700ae090` | `0x630` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x83` |
+| `0x700ae9d4` | `0x700ae090` | `0x944` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x28` |
+| `0x700aebd4` | `0x700ae090` | `0xb44` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x10` |
+| `0x700aeeab` | `0x700ae090` | `0xe1a` | `a2` | `insn|loop_target|no_reorder:0x27` |
+| `0x700aefa0` | `0x700ae090` | `0xf10` | `a2` | `insn|loop_target|no_reorder:0x36` |
+| `0x700af39d` | `0x700ae090` | `0x130c` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0xea` |
+| `0x700b039b` | `0x700ae090` | `0x230a` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0xb` |
+| `0x700b053a` | `0x700ae090` | `0x24aa` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x8` |
+| `0x700b40f0` | `0x700b3d00` | `0x3f0` | `a2` | `insn|loop_target|no_reorder:0x50` |
+| `0x700b4170` | `0x700b3d00` | `0x470` | `a2` | `insn|loop_target|no_reorder:0x2` |
+| `0x700b4808` | `0x700b3d00` | `0xb08` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x148` |
+| `0x700b4d30` | `0x700b3d00` | `0x1030` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x249` |
+| `0x700b4f79` | `0x700b3d00` | `0x1278` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x50` |
+| `0x700b5b60` | `0x700b3d00` | `0x1e60` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x1a8` |
+| `0x700b61e8` | `0x700b3d00` | `0x24e8` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x2d0` |
+| `0x700b64b8` | `0x700b3d00` | `0x27b8` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x210` |
+| `0x700b66c8` | `0x700b3d00` | `0x29c8` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x63` |
+| `0x700b6d90` | `0x700b3d00` | `0x3090` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x153` |
+| `0x700b7710` | `0x700b3d00` | `0x3a10` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x120` |
+| `0x700b7bb8` | `0x700b3d00` | `0x3eb8` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x200` |
+| `0x700b7db8` | `0x700b3d00` | `0x40b8` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x53` |
+| `0x700b8500` | `0x700b8100` | `0x400` | `a2` | `insn|loop_target|no_reorder:0x25` |
+| `0x700b8580` | `0x700b8100` | `0x480` | `a2` | `insn|loop_target|no_reorder:0x2` |
+| `0x700b8c28` | `0x700b8100` | `0xb28` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x148` |
+| `0x700b9150` | `0x700b8100` | `0x1050` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x239` |
+| `0x700b9389` | `0x700b8100` | `0x1288` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x50` |
+| `0x700b9f60` | `0x700b8100` | `0x1e60` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x1a8` |
+| `0x700ba5e8` | `0x700b8100` | `0x24e8` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x2d0` |
+| `0x700ba8b8` | `0x700b8100` | `0x27b8` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x210` |
+| `0x700baac8` | `0x700b8100` | `0x29c8` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x63` |
+| `0x700bb180` | `0x700b8100` | `0x3080` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x153` |
+| `0x700bbb00` | `0x700b8100` | `0x3a00` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x120` |
+| `0x700bbfa8` | `0x700b8100` | `0x3ea8` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x200` |
+| `0x700bc1a8` | `0x700b8100` | `0x40a8` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x53` |
+| `0x7014c2d0` | `0x70149790` | `0x2b40` | `a2` | `insn|loop_target|no_reorder:0x40` |
+| `0x7014ebd0` | `0x70149790` | `0x5440` | `a2` | `insn|loop_target|no_reorder:0x10` |
+| `0x70150020` | `0x70149790` | `0x6890` | `a2` | `insn|loop_target|no_reorder:0xa` |
+
+## L32R Literal References
+
+These references are decoded only inside `.xt.prop` instruction-covered `.text` ranges. `literal` is the PC-relative L32R literal address; `value` is the 32-bit word stored there when it is readable.
+Because a property range can contain extension bundles, these are section-filtered leads; high-value owners still need local byte or IDA validation before treating them as control-flow facts.
+
+- valid L32R refs with in-ELF literal address: 161731
+- interesting L32R refs emitted: 256
+
+| addr | reg | literal | value | owner | literal string | value string |
+|---:|---:|---:|---:|---:|---|---|
+| `0x700301e3` | `a3` | `0x70001884` `.rodata` | `0x61636f6c` `` | `0x700301d8` | `0x70001880+0x4` `xvAllocateBuffer` |  |
+| `0x7000947a` | `a2` | `0x70005f60` `.rodata` | `0x203e2063` `` | `0x70007e24` | `0x70005f5c+0x4` `sDesc > eDesc` |  |
+| `0x70017b22` | `a3` | `0x70005928` `.rodata` | `0x20726566` `` | `0x70015e98` | `0x70005920+0x8` `Data buffer does not fit in DRAM` |  |
+| `0x7001972a` | `a8` | `0x70005f98` `.rodata` | `0x65206f4e` `` | `0x700184b4` | `0x70005f98` `No error` |  |
+| `0x7001be9b` | `a8` | `0x70005f60` `.rodata` | `0x203e2063` `` | `0x7001b040` | `0x70005f5c+0x4` `sDesc > eDesc` |  |
+| `0x7001beab` | `a0` | `0x70005f70` `.rodata` | `0x3d3e2063` `` | `0x7001b040` | `0x70005f6c+0x4` `eDesc >= TM_DMA_DESC_IDX_MAX` |  |
+| `0x7001fd67` | `a2` | `0x70005f94` `.rodata` | `0x4c4c` `.xt.prop` | `0x7001dffc` | `0x70005f8c+0x8` `_DMA_STALL` |  |
+| `0x700247ad` | `a3` | `0x70005e50` `.rodata` | `0x414d4469` `` | `0x70024710` | `0x70005e50` `iDMA schedule error` |  |
+| `0x700247bd` | `a3` | `0x70005e60` `.rodata` | `0x726f72` `` | `0x70024710` | `0x70005e50+0x10` `iDMA schedule error` |  |
+| `0x700247cd` | `a3` | `0x70005e70` `.rodata` | `0x726f72` `` | `0x70024710` | `0x70005e64+0xc` `iDMA wait error` |  |
+| `0x700248de` | `a3` | `0x70005f80` `.rodata` | `0x5844495f` `` | `0x700248a0` | `0x70005f6c+0x14` `eDesc >= TM_DMA_DESC_IDX_MAX` |  |
+| `0x700248ee` | `a3` | `0x70005f90` `.rodata` | `0x4154535f` `` | `0x700248a0` | `0x70005f8c+0x4` `_DMA_STALL` |  |
+| `0x70025111` | `a9` | `0x70005934` `.rodata` | `0x74696620` `` | `0x70024b10` | `0x70005920+0x14` `Data buffer does not fit in DRAM` |  |
+| `0x700260ef` | `a6` | `0x70005908` `.rodata` | `0x73656f64` `` | `0x70024b10` | `0x700058fc+0xc` `Data buffer does not start in DRAM` |  |
+| `0x7002de1f` | `a2` | `0x70005f90` `.rodata` | `0x4154535f` `` | `0x7002d88c` | `0x70005f8c+0x4` `_DMA_STALL` |  |
+| `0x700335e2` | `a11` | `0x70005918` `.rodata` | `0x5244206e` `` | `0x700304f8` | `0x700058fc+0x1c` `Data buffer does not start in DRAM` |  |
+| `0x70035e60` | `a8` | `0x70005e60` `.rodata` | `0x726f72` `` | `0x70035c64` | `0x70005e50+0x10` `iDMA schedule error` |  |
+| `0x70036861` | `a2` | `0x70005e68` `.rodata` | `0x69617720` `` | `0x70036110` | `0x70005e64+0x4` `iDMA wait error` |  |
+| `0x7003693e` | `a2` | `0x70005f44` `.rodata` | `0x6372732f` `` | `0x70036110` | `0x70005f30+0x14` `../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c` |  |
+| `0x70038f14` | `a6` | `0x700057a0` `.rodata` | `0x41432054` `` | `0x70038378` | `0x70005798+0x8` `INTERRUPT CALLBACK : processing iDMA interrupt\n` |  |
+| `0x70039b66` | `a6` | `0x70005f6c` `.rodata` | `0x73654465` `` | `0x70039b40` | `0x70005f6c` `eDesc >= TM_DMA_DESC_IDX_MAX` |  |
+| `0x70043834` | `a0` | `0x70005934` `.rodata` | `0x74696620` `` | `0x700414d0` | `0x70005920+0x14` `Data buffer does not fit in DRAM` |  |
+| `0x7004429c` | `a0` | `0x70005e5c` `.rodata` | `0x72652065` `` | `0x700414d0` | `0x70005e50+0xc` `iDMA schedule error` |  |
+| `0x7004445b` | `a0` | `0x70005f7c` `.rodata` | `0x43534544` `` | `0x700414d0` | `0x70005f6c+0x10` `eDesc >= TM_DMA_DESC_IDX_MAX` |  |
+| `0x7004489d` | `a3` | `0x70005f40` `.rodata` | `0x6e6f6d6d` `` | `0x70044850` | `0x70005f30+0x10` `../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c` |  |
+| `0x700448dd` | `a3` | `0x70005f80` `.rodata` | `0x5844495f` `` | `0x70044850` | `0x70005f6c+0x14` `eDesc >= TM_DMA_DESC_IDX_MAX` |  |
+| `0x70044e3a` | `a15` | `0x70005e54` `.rodata` | `0x68637320` `` | `0x70044b74` | `0x70005e50+0x4` `iDMA schedule error` |  |
+| `0x70044e53` | `a15` | `0x70005e6c` `.rodata` | `0x72652074` `` | `0x70044b74` | `0x70005e64+0x8` `iDMA wait error` |  |
+| `0x70044f1f` | `a15` | `0x70005f38` `.rodata` | `0x6c2f6e6e` `` | `0x70044b74` | `0x70005f30+0x8` `../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c` |  |
+| `0x70044f45` | `a15` | `0x70005f60` `.rodata` | `0x203e2063` `` | `0x70044b74` | `0x70005f5c+0x4` `sDesc > eDesc` |  |
+| `0x700452ef` | `a11` | `0x70005900` `.rodata` | `0x66756220` `` | `0x70044b74` | `0x700058fc+0x4` `Data buffer does not start in DRAM` |  |
+| `0x70045319` | `a14` | `0x7000592c` `.rodata` | `0x73656f64` `` | `0x70044b74` | `0x70005920+0xc` `Data buffer does not fit in DRAM` |  |
+| `0x700065d1` | `a0` | `0x70002648` `.rodata` | `0x6d207475` `` | `0x700065a0` | `0x7000263c+0xc` `Invalid output multiplier` |  |
+| `0x70006a9b` | `a8` | `0x7000269c` `.rodata` | `0x6e6f6d6d` `` | `0x70006a78` | `0x7000268c+0x10` `../vp6-ann/libcommon/include/cnnrt_xi_p6.h` |  |
+| `0x70006c06` | `a4` | `0x700030c0` `.rodata` | `0x6e6f6974` `` | `0x70006a78` | `0x700030b0+0x10` `../vp6-ann/operations/depthnspace.c` |  |
+| `0x70006e5e` | `a10` | `0x700035c0` `.rodata` | `0x65206562` `` | `0x70006a78` | `0x700035a4+0x1c` `Inconsistent order must not be equal` |  |
+| `0x7000702d` | `a1` | `0x70003340` `.rodata` | `0x61746f74` `` | `0x70006ed8` | `0x70003338+0x8` `Invalid total number of rois` |  |
+| `0x7000703f` | `a14` | `0x70000144` `.rodata` | `0x77746c65` `` | `0x70006ed8` | `0x70000140+0x4` `flk_eltwiseCompare` |  |
+| `0x700071e8` | `a11` | `0x70002568` `.rodata` | `0x2064696c` `` | `0x70006ed8` | `0x70002564+0x4` `Invalid element size` |  |
+| `0x7000728e` | `a12` | `0x70003660` `.rodata` | `0x74757074` `` | `0x70006ed8` | `0x70003650+0x10` `Invalid input/output buffer size` |  |
+| `0x700074f4` | `a5` | `0x70001ff4` `.rodata` | `0x4e485449` `` | `0x70007440` | `0x70001ff0+0x4` `BOXWITHNMS` |  |
+| `0x700074f9` | `a5` | `0x70003570` `.rodata` | `0x70736e61` `` | `0x70007440` | `0x70003558+0x18` `../vp6-ann/operations/transpose4D.c` |  |
+| `0x700076d9` | `a0` | `0x7000489c` `.rodata` | `0x5f564358` `` | `0x70007440` | `0x70004868+0x34` `Unsupported srcElemSize = %d or dstElemSize = %d forXCV_THRESH_TOZERO\n` |  |
+| `0x700076f4` | `a0` | `0x700048b4` `.rodata` | `0x726f7070` `` | `0x70007440` | `0x700048b0+0x4` `Unsupported thresholdType = %d\n` |  |
+| `0x7000780b` | `a0` | `0x700049cc` `.rodata` | `0x61726570` `` | `0x70007440` | `0x700049c0+0xc` `../vp6-ann/operations/cv/xcvFrameLib/imgproc/src/xcvErode.c` |  |
+| `0x70007a91` | `a6` | `0x70000294` `.rodata` | `0x635f7265` `` | `0x70007a90` | `0x70000280+0x14` `flk_depthwise_conv_per_chan` |  |
+| `0x70007d3f` | `a7` | `0x70005450` `.rodata` | `0x6e6f6974` `` | `0x70007c88` | `0x70005440+0x10` `../vp6-ann/operations/cv/xcvFrameLib/imgproc/src/xcvGaussian.c` |  |
+| `0x70008560` | `a1` | `0x7000491c` `.rodata` | `0x61757165` `` | `0x70007e24` | `0x70004910+0xc` `: %d is not equal to ` |  |
+| `0x70008668` | `a4` | `0x70001908` `.rodata` | `0x6172466c` `` | `0x70007e24` | `0x70001900+0x8` `xvFreeAllFrames` |  |
+| `0x70008703` | `a12` | `0x700019a4` `.rodata` | `0x496b6365` `` | `0x70007e24` | `0x700019a0+0x4` `xvCheckInputTileFree` |  |
+| `0x70008770` | `a4` | `0x70001a10` `.rodata` | `0x7865746e` `` | `0x70007e24` | `0x70001a00+0x10` `xvGetArgParamsContext` |  |
+| `0x7000880b` | `a12` | `0x70001aac` `.rodata` | `0x4b` `.xt.prop` | `0x70007e24` | `0x70001a80+0x2c` `xvProcessTileWiseFastSequential_AccOutput_MTK` |  |
+| `0x70008971` | `a1` | `0x70004234` `.rodata` | `0x73697774` `` | `0x70007e24` | `0x7000421c+0x18` `../vp6-ann/operations/eltwiseOp.c` |  |
+| `0x700089cf` | `a10` | `0x700019d8` `.rodata` | `0x656c69` `` | `0x70007e24` | `0x700019d0+0x8` `xvSetupTile` |  |
+| `0x700089ea` | `a5` | `0x700019f0` `.rodata` | `0x72467678` `` | `0x70007e24` | `0x700019f0` `xvFreeBuffers` |  |
+| `0x70008a0d` | `a9` | `0x70001a14` `.rodata` | `0x74` `.xt.prop` | `0x70007e24` | `0x70001a00+0x14` `xvGetArgParamsContext` |  |
+| `0x70008a3d` | `a4` | `0x70003f00` `.rodata` | `0x6f2f6e6e` `` | `0x70007e24` | `0x70003ef8+0x8` `../vp6-ann/operations/pool.c` |  |
+| `0x70008c55` | `a2` | `0x70003638` `.rodata` | `0x75706e69` `` | `0x70007e24` | `0x70003630+0x8` `Invalid input/output dimensions` |  |
+| `0x700090e1` | `a9` | `0x70001920` `.rodata` | `0x72467678` `` | `0x70007e24` | `0x70001920` `xvFreeTile` |  |
+| `0x700091d8` | `a12` | `0x70005d08` `.rodata` | `0x2079726f` `` | `0x70007e24` | `0x70005ce0+0x28` `Cannot find free space for requested memory allocation` |  |
+| `0x700091f8` | `a3` | `0x70001af8` `.rodata` | `0x646574` `` | `0x70007e24` | `0x70001ae0+0x18` `arena_check_space_allocated` |  |
+| `0x70009228` | `a2` | `0x700053f0` `.rodata` | `0x61662074` `` | `0x70007e24` | `0x700053d0+0x20` `xiConnectedComponents_FIK_FoldLut fail in %s\n` |  |
+| `0x700092ec` | `a15` | `0x70005df4` `.rodata` | `0x6d756772` `` | `0x70007e24` | `0x70005de8+0xc` `free_space argument cannot be NULL` |  |
+| `0x700093db` | `a2` | `0x70005bdc` `.rodata` | `0x746e656d` `` | `0x70007e24` | `0x70005bd0+0xc` `Bank 0 alignment must be power of two` |  |
+| `0x70009548` | `a6` | `0x700005a0` `.rodata` | `0x5f6b6c66` `` | `0x70007e24` | `0x700005a0` `flk_softmax` |  |
+| `0x700096ed` | `a8` | `0x70001fbc` `.rodata` | `0x4432564e` `` | `0x70007e24` | `0x70001fb4+0x8` `DIPCDWCONV2D` |  |
+| `0x70009ec5` | `a14` | `0x70003548` `.rodata` | `0x6e6f6974` `` | `0x70009db0` | `0x70003534+0x14` `Inconsistent convolution parameters` |  |
+| `0x70009ece` | `a1` | `0x7000108c` `.rodata` | `0x6666416c` `` | `0x70009db0` | `0x70001080+0xc` `ProcessKernelAffine_Nearest` |  |
+| `0x7000a17a` | `a1` | `0x70005b7c` `.rodata` | `0x65636170` `` | `0x70009eec` | `0x70005b70+0xc` `Not enough space to allocate` |  |
+| `0x7000a345` | `a1` | `0x70001948` `.rodata` | `0x656c6954` `` | `0x70009eec` | `0x70001940+0x8` `xvCreateTileManager` |  |
+| `0x7000a464` | `a0` | `0x70003708` `.rodata` | `0x74756d72` `` | `0x70009eec` | `0x70003704+0x4` `xiPermuteA3D_U8_ref: input failed\n` |  |
+| `0x7000a4af` | `a4` | `0x70003754` `.rodata` | `0x44334165` `` | `0x70009eec` | `0x7000374c+0x8` `xiPermuteA3D_I8_ref: output failed\n` |  |
+| `0x7000a4fa` | `a8` | `0x700037a0` `.rodata` | `0x6f2f7475` `` | `0x70009eec` | `0x70003790+0x10` `Inconsistent input/output dimensions` |  |
+| `0x7000a54f` | `a12` | `0x700037f4` `.rodata` | `0x6f622f73` `` | `0x70009eec` | `0x700037e0+0x14` `../vp6-ann/operations/boxNMSlimit.c` |  |
+| `0x7000a632` | `a1` | `0x70004f2c` `.rodata` | `0x76632f73` `` | `0x70009eec` | `0x70004f18+0x14` `../vp6-ann/operations/cv/xcvFrameLib/imgproc/src/mtk_UVResize.c` |  |
+| `0x7000a804` | `a9` | `0x700030d0` `.rodata` | `0x632e65` `` | `0x70009eec` | `0x700030b0+0x20` `../vp6-ann/operations/depthnspace.c` |  |
+| `0x7000a927` | `a5` | `0x7000078c` `.rodata` | `0x68` `.xt.prop` | `0x70009eec` | `0x70000780+0xc` `flk_hardSwish` |  |
+| `0x7000ab65` | `a11` | `0x700033c8` `.rodata` | `0x2064696c` `` | `0x70009eec` | `0x700033c4+0x4` `Invalid input bbox delta size` |  |
+| `0x7000ad67` | `a1` | `0x700024e8` `.rodata` | `0x6e617571` `` | `0x70009eec` | `0x700024e0+0x8` `Invalid quant scale` |  |
+| `0x7000ad96` | `a1` | `0x70002150` `.rodata` | `0x72726520` `` | `0x70009eec` | `0x70002138+0x18` `%s: op[%d] %s encounters error: %s(%d)\n` |  |
+
+### Critical String L32R References
+
+| pattern | string | hits | samples |
+|---|---:|---:|---|
+| `add idma request fail in %s` | `0x70004adc` | 0 |  |
+| `ERROR CALLBACK: iDMA in Error` | `0x70005778` | 0 |  |
+| `INTERRUPT CALLBACK : processing iDMA interrupt` | `0x70005798` | 1 | 0x70038f14:a6 lit=0x700057a0+0x8 owner=0x70038378 |
+| `iDMA error` | `0x70005e44` | 0 |  |
+| `iDMA schedule error` | `0x70005e50` | 5 | 0x700247ad:a3 lit=0x70005e50+0x0 owner=0x70024710; 0x700247bd:a3 lit=0x70005e60+0x10 owner=0x70024710; 0x70035e60:a8 lit=0x70005e60+0x10 owner=0x70035c64; 0x7004429c:a0 lit=0x70005e5c+0xc owner=0x700414d0 |
+| `iDMA wait error` | `0x70005e64` | 3 | 0x700247cd:a3 lit=0x70005e70+0xc owner=0x70024710; 0x70036861:a2 lit=0x70005e68+0x4 owner=0x70036110; 0x70044e53:a15 lit=0x70005e6c+0x8 owner=0x70044b74 |
+| `../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c` | `0x70005f30` | 3 | 0x7003693e:a2 lit=0x70005f44+0x14 owner=0x70036110; 0x7004489d:a3 lit=0x70005f40+0x10 owner=0x70044850; 0x70044f1f:a15 lit=0x70005f38+0x8 owner=0x70044b74 |
+| `sDesc > eDesc` | `0x70005f5c` | 3 | 0x7000947a:a2 lit=0x70005f60+0x4 owner=0x70007e24; 0x7001be9b:a8 lit=0x70005f60+0x4 owner=0x7001b040; 0x70044f45:a15 lit=0x70005f60+0x4 owner=0x70044b74 |
+| `eDesc >= TM_DMA_DESC_IDX_MAX` | `0x70005f6c` | 5 | 0x7001beab:a0 lit=0x70005f70+0x4 owner=0x7001b040; 0x700248de:a3 lit=0x70005f80+0x14 owner=0x700248a0; 0x70039b66:a6 lit=0x70005f6c+0x0 owner=0x70039b40; 0x7004445b:a0 lit=0x70005f7c+0x10 owner=0x700414d0 |
+| `_DMA_STALL` | `0x70005f8c` | 3 | 0x7001fd67:a2 lit=0x70005f94+0x8 owner=0x7001dffc; 0x700248ee:a3 lit=0x70005f90+0x4 owner=0x700248a0; 0x7002de1f:a2 lit=0x70005f90+0x4 owner=0x7002d88c |
+| `No error` | `0x70005f98` | 1 | 0x7001972a:a8 lit=0x70005f98+0x0 owner=0x700184b4 |
+| `Data buffer does not start in DRAM` | `0x700058fc` | 3 | 0x700260ef:a6 lit=0x70005908+0xc owner=0x70024b10; 0x700335e2:a11 lit=0x70005918+0x1c owner=0x700304f8; 0x700452ef:a11 lit=0x70005900+0x4 owner=0x70044b74 |
+| `Data buffer does not fit in DRAM` | `0x70005920` | 4 | 0x70017b22:a3 lit=0x70005928+0x8 owner=0x70015e98; 0x70025111:a9 lit=0x70005934+0x14 owner=0x70024b10; 0x70043834:a0 lit=0x70005934+0x14 owner=0x700414d0; 0x70045319:a14 lit=0x7000592c+0xc owner=0x70044b74 |
+
+### `.dram_op.data` L32R References
+
+| addr | reg | literal | value | owner |
+|---:|---:|---:|---:|---:|
 
 ## Rodata String References
 
