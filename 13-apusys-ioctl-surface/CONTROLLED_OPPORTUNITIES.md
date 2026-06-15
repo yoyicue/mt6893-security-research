@@ -20,28 +20,42 @@ check whether late firmware completion writes land on replacement memory
 ```
 
 This is stronger than pure delay racing because exact IOVA reuse would turn the
-lifetime gap into a cross-buffer firmware write. The current implementation
-does not yet produce that primitive. The first firmware reuse-pressure sweep
-created 12 replacement imports and got `exact_reuse=0/12`; the standalone IOVA
-reuse profiler later expanded this to `exact_reuse=0/2720` across 1K, 4K, and
-64K import sizes.
+lifetime gap into a cross-buffer firmware write. The first simple reuse
+pressure sweeps did not produce that primitive: firmware reuse pressure got
+`exact_reuse=0/12`, and the standalone immediate-reuse profiler expanded this
+to `exact_reuse=0/2720` across 1K, 4K, and 64K import sizes.
 
 The profiler did show nearby allocator behavior: 4K and 64K replacements often
 land one buffer below the freed IOVA (`closest_delta=-0x4000` or `-0x10000`),
-but not at the exact freed IOVA. That downgrades the direct cross-buffer-write
-route on this build unless a new allocation pattern can force exact reuse.
+but not at the exact freed IOVA.
+
+That changed with targeted gap shaping. If a pool contains a target IOVA and
+the exact lower neighbor, freeing `target` first and the lower neighbor second
+can produce exact target reuse:
+
+```
+4K target_then_lower gap:  exact_target=2/448
+64K target_then_lower gap: exact_target=1/96
+```
+
+The firmware-coupled version of that 4K shape also produced one exact target
+reuse in 464 replacement imports. The replacement stayed marker/zero and did
+not receive APUNN completion bytes; that exact-hit iteration ended as
+`wait=-EIO`. This keeps the APUSYS surface below "proven cross-buffer write",
+but it raises the allocator side from "not observed" to "conditionally
+reachable".
 
 The latest follow-up runs also tested the two natural window-amplification
 ideas. Two queued commands sharing the same IOVA did not produce exact
 replacement reuse or stale APUNN bytes in replacement buffers. The completed
 latency matrix kept all tested completed shapes in the `1..14 ms` range, with
-clean kernel logs. That leaves exact allocator reuse, or a lower-level scheduler
-signal outside Java timing, as the only remaining ways to change this
+clean kernel logs. That leaves exact-reuse firmware timing, or a lower-level
+scheduler signal outside Java timing, as the only remaining ways to change this
 classification.
 
 Current practical ranking:
 
-1. exact allocator reuse after `mem_free(shared_iova)`,
+1. exact-reuse firmware timing: make APUNN write after replacement import,
 2. kernel-side scheduler/lifetime evidence that Java cannot observe directly,
 3. `dev_ctrl` / `ucmd` side effects as lower-probability alternate ioctl paths.
 
@@ -56,7 +70,9 @@ Current practical ranking:
 | APUNN data descriptor shape | Standard one-entry descriptor clears `settings+0x30`; two-entry/target/order matrices change descriptor cleanup behavior | Payload bytes do not flow into output in tested matrices | Good oracle, no leak shown |
 | Command-buffer copyback | Kernel/provider updates copied back to user command buffer after provider return | Full `0xb70` diff shows scalar tail state only | No kernel pointer or imported IOVA leak shown |
 | In-flight `mem_free` | Same fd can `mem_free(shared_iova)` after async submit while command is outstanding | Timeout shape returns controlled `wait=-EIO`; completed shape still returns `wait=0` | Real lifetime gap, not yet won as UAF/write |
-| Replacement import pressure | After `mem_free`, import same-size replacement HardwareBuffers and dump them after completion | Firmware race: `exact_reuse=0/12`; standalone profiler: `exact_reuse=0/2720`; no stale APUNN write in replacement buffers | Largest theoretical opportunity, downgraded on this allocator profile |
+| Replacement import pressure | After `mem_free`, import same-size replacement HardwareBuffers and dump them after completion | Firmware race: `exact_reuse=0/12`; standalone profiler: `exact_reuse=0/2720`; no stale APUNN write in replacement buffers | Immediate same-size reuse is negative; superseded by target/lower gap shaping |
+| Target/lower gap reuse | Import a pool, find target plus exact lower neighbor, free `target` then lower, then import replacements | 4K gap profiler: `exact_target=2/448`; 64K: `exact_target=1/96`; opposite free order stayed zero | Exact IOVA reuse is conditionally reachable |
+| Firmware gap reuse | Same target/lower gap, but target is the live APUNN settings/output IOVA after `run_cmd_async` | 4K firmware gap: `exact_target=1/464`, `completion_like_hits=0`, exact-hit wait `-EIO`; no IOMMU/devapc/Oops | Allocator half works; firmware write timing not won |
 | Two-command shared IOVA | Submit two commands referencing one imported IOVA, free it, import replacements, then wait both commands | `completed/completed`, `completed/timeout`, and `timeout/completed` all submitted; replacement exact reuse `0/12`; completed command still writes original shared buffer; timeout command returns `-EIO` | Window amplification tested, no primitive signal |
 | Completed latency variants | Change output size/opcode while keeping completed settings5/no-settings shape | `ANN_VERSION` output `0x40/0x100/0x400/0x1000`, `LOCAL_MEM_INFO`, and `GET_DETAILED_OP_INFO` all complete with wait time `1..14 ms` | No slower completed writeback window found |
 | fd close teardown | Close APUSYS fd after async submit and leave residual command cleanup to `mdw_usr_destroy` | Residual teardown reachable; no crash/oops/KASAN | Lower confidence than explicit `mem_free` |
@@ -166,12 +182,93 @@ Negative signal:
 - exact reuse occurs but replacement bytes remain unchanged and kernel log is
   clean.
 
-Status: deferred after the profiler. Pre-creating replacement buffers removes
-Java allocation overhead, but the no-firmware profiler already shows exact IOVA
-reuse is not happening with immediate same-size imports on this build. This
-mode should be implemented only if a new allocator pattern first demonstrates
-exact reuse, or if the two-command shared-IOVA experiment creates a wider
-lifetime window worth retesting.
+Status: superseded by targeted gap reuse. Pre-creating replacement buffers alone
+does not force exact reuse. The useful allocator variable is the free order of
+an exact lower neighbor next to the target IOVA.
+
+### 2a. Target/lower gap reuse profiler
+
+Purpose: test whether the nearby `-size` reuse pattern can be turned into exact
+reuse by explicitly freeing both the target and its lower neighbor.
+
+Implemented and run as:
+
+```
+poc/ApusysIoctlProbe.java --apusys-iova-gap-profiler
+```
+
+Result:
+
+```
+result=poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler.txt
+kernel=poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler_kernel_relevant.txt
+
+gap_4k_p16_r16_i30_lower_then_target:
+  adjacent_found=30/30, exact_target=0/480
+
+gap_4k_p16_r16_i30_target_then_lower:
+  adjacent_found=28/30, exact_target=2/448
+
+gap_64k_p12_r8_i12_lower_then_target:
+  adjacent_found=12/12, exact_target=0/96
+
+gap_64k_p12_r8_i12_target_then_lower:
+  adjacent_found=12/12, exact_target=1/96
+```
+
+Kernel log: no `devapc`, IOMMU fault, panic/Oops, `BUG`, or `KASAN`.
+
+Interpretation: exact target IOVA reuse is possible, but only with the
+target-then-lower free order in this run. This reopens the firmware-coupled
+cross-buffer-write hypothesis.
+
+### 2b. Firmware-coupled target/lower gap reuse
+
+Purpose: combine the exact-reuse allocator shape with the live APUNN completion
+writeback path.
+
+Implemented and run as:
+
+```
+poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-mem-free-race-completed-gap-reuse-iova
+```
+
+Result:
+
+```
+result=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova.txt
+kernel=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_kernel_relevant.txt
+
+pair_found=29/30
+run_ok=29
+exact_target=1/464
+completion_like_hits=0
+wait_ok=24
+wait_eio=5
+```
+
+Exact-hit iteration:
+
+```
+iter=25 repl=6 same_as_freed=1
+replacement before wait: marker/zero
+replacement after wait:  marker/zero
+completion_like=0
+wait=-EIO
+```
+
+The original target buffer still shows the APUNN input/header state, but in the
+exact-hit iteration settings remain `0x5` and the replacement does not receive
+settings `0x7`, output fill, or data descriptor cleanup.
+
+Kernel log: timeout cases show expected `request (D2D_EXT) timeout`,
+`mdw_sched_trace ret(-110)`, and `mdw_wait_cmd ... fail`. There is no
+`devapc`, IOMMU fault, panic/Oops, `BUG`, or `KASAN`.
+
+Interpretation: the allocator half of the primitive is now real, but the
+firmware writeback half is not won. In the exact-hit case, replacement import
+appears to happen before firmware consumes a valid APUNN settings buffer, so the
+command times out instead of writing completion bytes into the replacement.
 
 ### 3. Slower completed writeback shape
 
@@ -301,7 +398,8 @@ dev_ctrl(device=3, core=0)
 wait/dump/kernel log
 ```
 
-Priority: after the IOVA reuse profiler unless profiler shows exact reuse.
+Priority: lower than the target/lower exact-reuse firmware timing work. Keep it
+only as an alternate side-effect path if new provider-control state appears.
 
 Status: implemented and run as:
 
@@ -329,7 +427,7 @@ no `devapc`, IOMMU fault, panic/Oops, `BUG`, or `KASAN`.
 
 Interpretation: `dev_ctrl` is reachable during the command lifetime window, but
 the tested control value does not produce a reset/copyback/lifetime primitive.
-It currently ranks below exact allocator reuse and kernel-side scheduler
+It currently ranks below exact-reuse firmware timing and kernel-side scheduler
 instrumentation, but remains a low-cost alternate ioctl side-effect path.
 
 ## Current stop conditions
@@ -340,11 +438,14 @@ Stop spending time on these unless new evidence changes the decision:
 - synthetic payload leak tests after the current data-payload matrices,
 - display ioctl paths for this APUSYS objective,
 - delay-only `mem_free` sweeps without allocator pressure.
-- two-command shared-IOVA retries with the same 4K same-fd allocation pattern,
-  unless exact reuse is first observed in a standalone allocator profile.
+- two-command shared-IOVA retries without target/lower gap shaping or a new
+  scheduler timing signal.
 - completed latency variants under the same Java app-process timing, unless a
   lower-level timestamp shows firmware work lasting beyond the current ioctl
   round-trip.
+- allocator-only gap profiling with the same `target_then_lower` order; exact
+  reuse has already been observed. Further work must combine that shape with a
+  wider firmware/scheduler window.
 
 ## Files to keep linked
 
@@ -359,6 +460,14 @@ Stop spending time on these unless new evidence changes the decision:
   `poc-run-results/2026-06-15-batch/13_apusys_iova_reuse_profiler.txt`
 - IOVA reuse profiler kernel log:
   `poc-run-results/2026-06-15-batch/13_apusys_iova_reuse_profiler_kernel_relevant.txt`
+- IOVA gap profiler:
+  `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler.txt`
+- IOVA gap profiler kernel log:
+  `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler_kernel_relevant.txt`
+- Firmware-coupled gap reuse:
+  `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova.txt`
+- Firmware-coupled gap reuse kernel log:
+  `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_kernel_relevant.txt`
 - Dev-ctrl race:
   `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_dev_ctrl_race_iova.txt`
 - Dev-ctrl race kernel log:

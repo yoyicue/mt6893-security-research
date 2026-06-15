@@ -69,7 +69,7 @@ step.
 | Completed output/writeback leak | De-prioritize for synthetic payloads | Output is bounded by `settings+0x08`; tested data payload patterns and data/plane target windows do not flow into output; descriptor-slot deltas behave like provider status words |
 | Timeout/abort lifetime | Remaining kernel-side candidate, currently low confidence | fd close after async dispatch reliably reaches residual command teardown, including the timeout shape, but the first completed and timeout windows show no oops/KASAN/panic and no stale object copyback |
 | Service-wrapper path | Supportive, not a blocker for kernel primitive triage | Direct ioctl already reproduces the wrapper-shaped completed request. A positive wrapper dump is useful for real NN binding semantics, but not required to classify completed-path copyback or the first teardown race |
-| Concurrent submissions | First pass de-prioritized | Two in-flight commands sharing one imported IOVA can mix completed and timeout outcomes, but the tested freed-IOVA replacement pressure had exact reuse `0/12`, no replacement writeback, and no kernel fault |
+| Concurrent submissions | First pass de-prioritized | Two in-flight commands sharing one imported IOVA can mix completed and timeout outcomes, but the tested same-pattern freed-IOVA replacement pressure had no replacement writeback and no kernel fault |
 
 ## Firmware-visible boundary for primitive work
 
@@ -581,6 +581,63 @@ and 64K imports. The allocator often returns nearby IOVAs for 4K/64K
 (`closest_delta=-0x4000` / `-0x10000`), but not the exact freed IOVA required
 for the current cross-buffer write hypothesis. Full result:
 `poc-run-results/2026-06-15-batch/13_apusys_iova_reuse_profiler.txt`.
+
+Targeted gap profiling changes the allocator side of that conclusion. The
+nearby `-size` behavior can be turned into exact target reuse if the pool
+contains both the target IOVA and its exact lower neighbor, and the target is
+freed before the lower neighbor:
+
+```
+poc/ApusysIoctlProbe.java --apusys-iova-gap-profiler
+
+result=poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler.txt
+kernel=poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler_kernel_relevant.txt
+
+4K lower_then_target:  adjacent_found=30/30, exact_target=0/480
+4K target_then_lower:  adjacent_found=28/30, exact_target=2/448
+64K lower_then_target: adjacent_found=12/12, exact_target=0/96
+64K target_then_lower: adjacent_found=12/12, exact_target=1/96
+```
+
+Kernel log is clean for the allocator-only run: no `devapc`, IOMMU fault,
+panic/Oops, `BUG`, or `KASAN`. Interpretation: exact IOVA reuse is
+conditionally reachable on this build. The highest-risk APUSYS shape is no
+longer "can exact reuse happen"; it is whether firmware completion can be made
+to write after that exact replacement import.
+
+The firmware-coupled gap-reuse probe is implemented as:
+
+```
+poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-mem-free-race-completed-gap-reuse-iova
+
+result=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova.txt
+kernel=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_kernel_relevant.txt
+
+pair_found=29/30
+run_ok=29
+exact_target=1/464
+completion_like_hits=0
+wait_ok=24
+wait_eio=5
+```
+
+The exact-hit iteration (`iter=25`, `repl=6`) imported a replacement at the
+freed target IOVA. Before and after the wait, that replacement remained
+marker/zero: no settings `0x7`, no output fill, and no data descriptor cleanup.
+The same iteration ended with `wait=-EIO`. The original target buffer shows the
+pre-completion state (`settings=0x5`) plus initialized output header, which
+means the replacement import likely happened before firmware consumed a valid
+APUNN settings buffer.
+
+Kernel log for the firmware-coupled run shows timeout-class lines
+(`request (D2D_EXT) timeout`, `mdw_sched_trace ret(-110)`,
+`mdw_wait_cmd ... fail`) for the failed cases, but no `devapc`, IOMMU fault,
+panic/Oops, `BUG`, or `KASAN`.
+
+Current interpretation: the allocator half of the cross-buffer-write primitive
+is demonstrated, but the firmware writeback half is not. Exact reuse by itself
+turns the command into timeout/EIO when firmware has not already consumed the
+valid settings buffer; it does not yet produce a replacement-buffer write.
 
 Two-command shared-IOVA pressure is also implemented and currently negative:
 
