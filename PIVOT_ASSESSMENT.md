@@ -1,6 +1,54 @@
 # Pivot Assessment: Next Target for Kernel Write
 
-Updated: 2026-06-14
+Updated: 2026-06-16
+
+## Post-CVE-Search Update (2026-06-16)
+
+A full CVE search was run covering MediaTek bulletins from January 2024 through
+March 2025 for MT6893 / Android 13 / System privilege. Full results in
+[`docs/CVE_SEARCH_2024_2026.md`](docs/CVE_SEARCH_2024_2026.md).
+
+**New write-what-where primitives found (CWE-123 — all unpatched on target):**
+
+| CVE | Driver | Type | Fix SPL | Directory |
+|---|---|---|---|---|
+| CVE-2024-20037 | pq | write-what-where | Mar 2024 | `16-cve-2024-20037-pq/` |
+| CVE-2024-20118 | mms | write-what-where | Nov 2024 | `18-cve-2024-20118-mms/` |
+| CVE-2024-20119 | mms | write-what-where (2nd) | Nov 2024 | `18-cve-2024-20118-mms/` |
+
+**Other high-value new candidates:**
+
+| CVE | Driver | Type | Fix SPL | Directory |
+|---|---|---|---|---|
+| CVE-2023-32849 | cmdq | OOB write (type confusion) | Oct 2023 | `19-cve-2023-32849-cmdq/` |
+| CVE-2024-20032 | aee | Permission bypass | Mar 2024 | `20-cve-2024-20032-aee/` |
+| CVE-2024-20109–20115 | ccu | OOB write ×6 | Nov 2024 | `21-cve-2024-20109-ccu/` |
+
+**KASLR defeat primitives (info leaks, all unpatched):**
+CVE-2024-20084/85 (power), CVE-2024-20088 (keyinstall), CVE-2024-20095/96 (m4u).
+
+**Updated decision** (supersedes the "Decision" section below):
+
+CVE-2024-20037 **DOWNGRADED** after exhaustive IDA analysis (Tasks 1–6):
+- All PQ/AAL/CCORR/GAMMA/COLOR write paths confirmed as cmdq display MMIO writes
+- `sub_FFFFFFC0084C089C` confirmed: MMIO-only cmdq write, never kernel memory
+- `u4PartialY` OOB is the only user-controlled index; sink is display MMIO
+- write-what-where NOT confirmed in any analyzed kernel path
+- Remaining candidates (Tasks 7–8: SLD path, set_pqindex→consumer chain)
+  are lower probability than mms
+
+**Priority 1 → CVE-2024-20118 mms (GED ring buffer OOB write)**:
+- Entry: `/proc/ged` ioctl 0x6701 (cmd 1), directly accessible from `system_app`
+- Mechanism: fill GPU KPI ring buffer (max_count times) then one more call with
+  `user_input[1] & 0x300 == 0` → bounds check bypassed → OOB write 32 bytes at
+  `ring_buffer_base + 32 * max_count` = adjacent kernel heap
+- IDA: `ged_kpi_record_ring_buffer_VULN_CVE_2024_20118` at `0xffffffc00860dc68`
+- Remaining: confirm max_count, what follows ring buffer in kmalloc, CVE-2024-20119 site
+Priority 2 → CVE-2024-20032 aee permission bypass (entry discovery needed).
+Priority 3 → CVE-2024-20037 remaining tasks (SLD, pqindex consumer chain).
+Mali candidates are all confirmed dead; APUSYS plane-redirect is suspended.
+
+---
 
 ## Current Position
 

@@ -40,6 +40,35 @@ Regenerate the analysis JSON/Markdown:
   --markdown /tmp/apunn_core0_full_analysis_refs.md
 ```
 
+Generate the FLIX bundle-learning baseline:
+
+```sh
+13-apusys-ioctl-surface/tools/flix_bundle_learn.py \
+  13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf \
+  --out-dir 13-apusys-ioctl-surface/firmware/apunn/flix_bundle_learning
+```
+
+The bundle learner is intentionally not a disassembler. It uses dispatch-table
+targets, `.xt.prop` metadata, repeated raw chunks, byte-stability masks, and
+8/16-byte phase scores to decide whether FLIX targets look like bundle starts,
+landing pads, or slot-level branch targets before assigning opcode semantics.
+
+Run autoresearch-style FLIX learning iterations. This records the fixed
+baseline `flix_score`, tries learner profiles, and stops after five consecutive
+non-improving rounds. The current score version is `v7_block_extent`, which treats
+standard-`j`-looking bytes as constrained PC-relative slot candidates rather
+than direct opcode proof, then tests whether those candidates can infer
+dense-region internal control boundaries, stable slot templates, and
+PC-relative operand families with explicit negative guards. Accepted operand
+families are then materialized into CFG edges/nodes and basic-block extent
+hypotheses for dense-region review:
+
+```sh
+13-apusys-ioctl-surface/tools/flix_autoresearch_loop.py \
+  13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf \
+  --out-dir 13-apusys-ioctl-surface/firmware/apunn/flix_bundle_learning
+```
+
 ## IDA Notes
 
 Open `apunn_core0_full.elf` as **ELF for Xtensa**, not as raw `Binary File`.
