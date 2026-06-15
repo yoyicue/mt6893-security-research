@@ -529,6 +529,8 @@ Stop spending time on these unless new evidence changes the decision:
 ## Files to keep linked
 
 - Main handoff: `13-apusys-ioctl-surface/HANDOFF_KERNEL_PRIMITIVE.md`
+- Allocator controllability target:
+  `13-apusys-ioctl-surface/ALLOCATOR_CONTROLLABILITY_OPPORTUNITY.md`
 - ABI log: `13-apusys-ioctl-surface/APUNN_SETTINGS_ABI.md`
 - Current probe: `13-apusys-ioctl-surface/poc/ApusysIoctlProbe.java`
 - Latest reuse-pressure result:

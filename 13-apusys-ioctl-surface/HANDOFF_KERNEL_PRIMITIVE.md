@@ -658,6 +658,8 @@ Current interpretation: the allocator half of the cross-buffer-write primitive
 is demonstrated, but the firmware writeback half is not. Exact reuse by itself
 turns the command into timeout/EIO when firmware has not already consumed the
 valid settings buffer; it does not yet produce a replacement-buffer write.
+The allocator-control follow-up target is tracked in
+`13-apusys-ioctl-surface/ALLOCATOR_CONTROLLABILITY_OPPORTUNITY.md`.
 
 The firmware follow-up with exact-index histograms kept that conclusion:
 
