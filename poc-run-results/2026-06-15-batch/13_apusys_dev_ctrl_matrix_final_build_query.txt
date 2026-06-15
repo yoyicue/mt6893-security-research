@@ -1,0 +1,40 @@
+command=CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex app_process64 /system/bin ApusysIoctlProbe --query
+probe=apusys
+dex_md5=6c00aed7f9c5f747623f7ab008e44103
+dex_sha256=7df03b2d9a2690100fb53aa42c59c21db67b095d7c3d8ea90cf80db32fb9260d
+remote_dex=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex
+shell_port=127.0.0.1:48888
+exit_status=0
+
+uid=1000(system) gid=1000(system) groups=1000(system),3003(inet) context=u:r:system_app:s0
+u:r:system_app:s0
+6c00aed7f9c5f747623f7ab008e44103  /data/data/com.android.settings/cache/apusys_ioctl_probe.dex
+[*] === APUSYS ioctl probe ===
+[*] Mode: reject/query paths only; no memory create/free, no dev-ctrl, no valid cmdbuf
+
+[+] Scratch buffer at 0x763daef000
+[*] Trying anonymous PROT_RWX mmap...
+[+] Anonymous RWX page at 0x763daee000
+[+] Wrote syscall stub: JNI@+0x00 (36B), call stub JNI@+0x80 (40B); entry_point left untouched
+[*] ArtMethod for nativeSyscall at 0x76332efbe0
+    access_flags = 0x10000108 [NATIVE]
+    data (JNI ptr) = 0x738841a180
+    entry_point    = 0x103800080f7bc888
+[*] Patching data_ (JNI) → 0x763daee000
+    data_       = 0x763daee000 ✓
+    entry_point = 0x103800080f7bc888 (unchanged)
+[+] ArtMethod patched
+[+] Syscall infrastructure ready
+
+[+] Opened /dev/apusys fd=48
+[*] unknown            cmd=0x41414141 ret=-22 (EINVAL)
+[*] disabled_0c        cmd=0x4038410c ret=-22 (EINVAL)
+[*] disabled_0d        cmd=0x4038410d ret=-22 (EINVAL)
+[*] handshake_reject   cmd=0xc0284100 ret=-22 (EINVAL)
+[*] run_async_reject   cmd=0xc0184107 ret=-22 (EINVAL)
+[*] run_sync_reject    cmd=0x40184106 ret=-22 (EINVAL)
+[*] ucmd_reject        cmd=0x4014410e ret=-22 (EINVAL)
+[*] handshake_query    cmd=0xc0284100 ret=0
+    handshake: [0]=0xe309c231 [4]=0x3d2070ec [8]=0x1 [12]=0x1 [16]=0x1e [20]=0xc [24]=0x40 [28]=0x5 [32]=0x1d800000 [36]=0x100000
+
+[+] Probe completed. Interpret results as handler reachability only.

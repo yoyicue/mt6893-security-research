@@ -412,11 +412,13 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIova = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIovaControl = false;
         boolean runCmdVpuXrpCloseRaceIova = false;
+        boolean runCmdVpuXrpCloseRaceDelayMatrixIova = false;
         boolean runCmdVpuXrpMemFreeRaceIova = false;
         boolean runCmdVpuXrpMemFreeRaceCompletedIova = false;
         boolean runCmdVpuXrpMemFreeRaceCompletedReuseIova = false;
         boolean runCmdVpuXrpMemFreeRaceCompletedGapReuseIova = false;
         boolean runCmdVpuXrpDevCtrlRaceIova = false;
+        boolean runCmdVpuXrpDevCtrlMatrixIova = false;
         boolean runCmdVpuXrpTwoCommandSharedIova = false;
         boolean runCmdVpuXrpCompletedLatencyMatrixIova = false;
         boolean apusysIovaReuseProfiler = false;
@@ -642,6 +644,8 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIovaControl = true;
             } else if ("--run-cmd-vpu-xrp-close-race-iova".equals(arg)) {
                 runCmdVpuXrpCloseRaceIova = true;
+            } else if ("--run-cmd-vpu-xrp-close-race-delay-matrix-iova".equals(arg)) {
+                runCmdVpuXrpCloseRaceDelayMatrixIova = true;
             } else if ("--run-cmd-vpu-xrp-mem-free-race-iova".equals(arg)) {
                 runCmdVpuXrpMemFreeRaceIova = true;
             } else if ("--run-cmd-vpu-xrp-mem-free-race-completed-iova".equals(arg)) {
@@ -652,6 +656,8 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpMemFreeRaceCompletedGapReuseIova = true;
             } else if ("--run-cmd-vpu-xrp-dev-ctrl-race-iova".equals(arg)) {
                 runCmdVpuXrpDevCtrlRaceIova = true;
+            } else if ("--run-cmd-vpu-xrp-dev-ctrl-matrix-iova".equals(arg)) {
+                runCmdVpuXrpDevCtrlMatrixIova = true;
             } else if ("--run-cmd-vpu-xrp-two-command-shared-iova".equals(arg)) {
                 runCmdVpuXrpTwoCommandSharedIova = true;
             } else if ("--run-cmd-vpu-xrp-completed-latency-matrix-iova".equals(arg)) {
@@ -806,11 +812,13 @@ public final class ApusysIoctlProbe {
                 || runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIova
                 || runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIovaControl
                 || runCmdVpuXrpCloseRaceIova
+                || runCmdVpuXrpCloseRaceDelayMatrixIova
                 || runCmdVpuXrpMemFreeRaceIova
                 || runCmdVpuXrpMemFreeRaceCompletedIova
                 || runCmdVpuXrpMemFreeRaceCompletedReuseIova
                 || runCmdVpuXrpMemFreeRaceCompletedGapReuseIova
                 || runCmdVpuXrpDevCtrlRaceIova
+                || runCmdVpuXrpDevCtrlMatrixIova
                 || runCmdVpuXrpTwoCommandSharedIova
                 || runCmdVpuXrpCompletedLatencyMatrixIova
                 || apusysIovaReuseProfiler
@@ -1383,6 +1391,10 @@ public final class ApusysIoctlProbe {
                 runRunCmdVpuXrpCloseRaceHardwareBufferProbe();
             }
 
+            if (runCmdVpuXrpCloseRaceDelayMatrixIova) {
+                runRunCmdVpuXrpCloseRaceDelayMatrixProbe();
+            }
+
             if (runCmdVpuXrpMemFreeRaceIova) {
                 runRunCmdVpuXrpMemFreeRaceHardwareBufferProbe();
             }
@@ -1401,6 +1413,10 @@ public final class ApusysIoctlProbe {
 
             if (runCmdVpuXrpDevCtrlRaceIova) {
                 runRunCmdVpuXrpDevCtrlRaceHardwareBufferProbe();
+            }
+
+            if (runCmdVpuXrpDevCtrlMatrixIova) {
+                runRunCmdVpuXrpDevCtrlControlMatrixHardwareBufferProbe();
             }
 
             if (runCmdVpuXrpTwoCommandSharedIova) {
@@ -1598,7 +1614,8 @@ public final class ApusysIoctlProbe {
         DrmTrigger.unsafePutInt(devCtrl + 0x04, coreId);
         DrmTrigger.unsafePutInt(devCtrl + 0x08, control);
 
-        String name = "devctl_" + provider + "_c" + coreId;
+        String name = "devctl_" + provider + "_c" + coreId
+            + "_ctrl" + Integer.toHexString(control);
         return ioctlAndPrint(fd, name, APUSYS_CMD_DEV_CTRL, devCtrl);
     }
 
@@ -2392,7 +2409,8 @@ public final class ApusysIoctlProbe {
             descriptorPlaneCountOverride, descriptorHeightOverride,
             outerCodebufSizeOverride, dataPayloadWordBaseOverride,
             dataDescEntriesOverride, fullCommandCopybackDiff,
-            closeApusysFdAfterAsyncMs, freeSharedIovaAfterAsyncMs, 0, null);
+            closeApusysFdAfterAsyncMs, freeSharedIovaAfterAsyncMs, 0, null,
+            null);
     }
 
     private static void runRunCmdVpuIovaHardwareBufferProbe(int apusysFd,
@@ -2426,7 +2444,8 @@ public final class ApusysIoctlProbe {
                                                             Integer closeApusysFdAfterAsyncMs,
                                                             Integer freeSharedIovaAfterAsyncMs,
                                                             int replacementImportCountAfterFree,
-                                                            Integer devCtrlAfterAsyncMs)
+                                                            Integer devCtrlAfterAsyncMs,
+                                                            Integer devCtrlControlAfterAsync)
             throws Exception {
         System.out.println("\n[*] === Optional APUSYS run_cmd VPU IOVA chained probe ===");
         if (xrpSettings) {
@@ -2588,7 +2607,12 @@ public final class ApusysIoctlProbe {
             if (devCtrlAfterAsyncMs != null) {
                 System.out.println("[*] Dev-ctrl race mode: run_cmd_async,"
                     + " sleep " + devCtrlAfterAsyncMs.intValue()
-                    + "ms, issue dev_ctrl(vpu, core0, control0) while the"
+                    + "ms, issue dev_ctrl(vpu, core0, control0x"
+                    + Integer.toHexString(
+                        devCtrlControlAfterAsync != null
+                            ? devCtrlControlAfterAsync.intValue()
+                            : 0)
+                    + ") while the"
                     + " APUSYS fd stays open, keep buffers alive for "
                     + waitMs + "ms, then issue wait_cmd.");
             }
@@ -2928,13 +2952,18 @@ public final class ApusysIoctlProbe {
                         + " mdw_usr_destroy should own residual cmd/mem cleanup");
                 } else if (devCtrlAfterAsyncMs != null && runRet >= 0) {
                     int devCtrlDelayMs = devCtrlAfterAsyncMs.intValue();
+                    int devCtrlControl = devCtrlControlAfterAsync != null
+                        ? devCtrlControlAfterAsync.intValue() : 0;
                     System.out.println("[*] dev-ctrl-race: sleeping "
                         + devCtrlDelayMs
-                        + "ms before device-control ioctl after async submit");
+                        + "ms before device-control ioctl control=0x"
+                        + Integer.toHexString(devCtrlControl)
+                        + " after async submit");
                     Thread.sleep(devCtrlDelayMs);
                     long devCtrlRet = probeDevCtrl(apusysFd,
-                        "vpu_race", 0x03, 0, 0);
+                        "vpu_race", 0x03, 0, devCtrlControl);
                     System.out.println("[*] dev_ctrl_after_async_vpu_iova"
+                        + "_ctrl0x" + Integer.toHexString(devCtrlControl)
                         + " ret=" + retText(devCtrlRet));
                 } else if (waitAfterAsync && runRet >= 0) {
                     long waitStartMs = System.currentTimeMillis();
@@ -4115,14 +4144,44 @@ public final class ApusysIoctlProbe {
         runRunCmdVpuXrpCloseRaceTimeoutCase();
     }
 
+    private static void runRunCmdVpuXrpCloseRaceDelayMatrixProbe()
+            throws Exception {
+        System.out.println("\n[*] === APUSYS run_cmd VPU close-race delay"
+            + " matrix probe ===");
+        System.out.println("[*] Mode: focused lifetime/copyback risk batch."
+            + " For each close delay, submit run_cmd_async, skip wait_cmd,"
+            + " close the APUSYS fd, keep buffers alive, and diff the full"
+            + " 0xb70 command request after scheduler/provider cleanup.");
+
+        int[] closeDelaysMs = {0, 10, 50, 100, 500, 1000};
+        for (int delayMs : closeDelaysMs) {
+            runRunCmdVpuXrpCloseRaceCompletedDelayCase(delayMs);
+        }
+        for (int delayMs : closeDelaysMs) {
+            runRunCmdVpuXrpCloseRaceTimeoutDelayCase(delayMs);
+        }
+    }
+
     private static void runRunCmdVpuXrpCloseRaceCompletedCase()
             throws Exception {
+        runRunCmdVpuXrpCloseRaceCompletedDelayCase(100, false);
+    }
+
+    private static void runRunCmdVpuXrpCloseRaceCompletedDelayCase(
+            int closeDelayMs) throws Exception {
+        runRunCmdVpuXrpCloseRaceCompletedDelayCase(closeDelayMs, true);
+    }
+
+    private static void runRunCmdVpuXrpCloseRaceCompletedDelayCase(
+            int closeDelayMs, boolean fullCopybackDiff) throws Exception {
         int raceFd = -1;
         try {
             raceFd = DrmTrigger.openDev(APUSYS_DEV);
             System.out.println("\n[*] === close-race case A:"
-                + " completed settings5/no-settings close_after=100ms"
-                + " post_close_wait=5000ms ===");
+                + " completed settings5/no-settings close_after="
+                + closeDelayMs + "ms post_close_wait=5000ms"
+                + " copyback_diff=" + (fullCopybackDiff ? 1 : 0)
+                + " ===");
             int ownedFd = raceFd;
             raceFd = -1;
             runRunCmdVpuIovaHardwareBufferProbe(ownedFd, true, true, true,
@@ -4131,8 +4190,8 @@ public final class ApusysIoctlProbe {
                 XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
                 XrpSettingsShape.WRAPPER_ONE_DATA, false,
                 VPU_REQUEST_FLAGS_DEFAULT, false, null, null, null, null,
-                null, null, null, null, null, null, null, false,
-                Integer.valueOf(100), null);
+                null, null, null, null, null, null, null, fullCopybackDiff,
+                Integer.valueOf(closeDelayMs), null);
         } finally {
             if (raceFd >= 0) {
                 DrmTrigger.closeFd(raceFd);
@@ -4142,12 +4201,24 @@ public final class ApusysIoctlProbe {
 
     private static void runRunCmdVpuXrpCloseRaceTimeoutCase()
             throws Exception {
+        runRunCmdVpuXrpCloseRaceTimeoutDelayCase(500, false);
+    }
+
+    private static void runRunCmdVpuXrpCloseRaceTimeoutDelayCase(
+            int closeDelayMs) throws Exception {
+        runRunCmdVpuXrpCloseRaceTimeoutDelayCase(closeDelayMs, true);
+    }
+
+    private static void runRunCmdVpuXrpCloseRaceTimeoutDelayCase(
+            int closeDelayMs, boolean fullCopybackDiff) throws Exception {
         int raceFd = -1;
         try {
             raceFd = DrmTrigger.openDev(APUSYS_DEV);
             System.out.println("\n[*] === close-race case B:"
-                + " timeout minimal/split ANN_VERSION close_after=500ms"
-                + " post_close_wait=15000ms ===");
+                + " timeout minimal/split ANN_VERSION close_after="
+                + closeDelayMs + "ms post_close_wait=15000ms"
+                + " copyback_diff=" + (fullCopybackDiff ? 1 : 0)
+                + " ===");
             int ownedFd = raceFd;
             raceFd = -1;
             runRunCmdVpuIovaHardwareBufferProbe(ownedFd, true, true, true,
@@ -4156,7 +4227,8 @@ public final class ApusysIoctlProbe {
                 XRP_SETTINGS_LEN, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
                 XrpSettingsShape.CURRENT, false, VPU_REQUEST_FLAGS_DEFAULT,
                 true, null, null, null, null, null, null, null, null, null,
-                null, null, false, Integer.valueOf(500), null);
+                null, null, fullCopybackDiff, Integer.valueOf(closeDelayMs),
+                null);
         } finally {
             if (raceFd >= 0) {
                 DrmTrigger.closeFd(raceFd);
@@ -4266,7 +4338,8 @@ public final class ApusysIoctlProbe {
                 XrpSettingsShape.WRAPPER_ONE_DATA, false,
                 VPU_REQUEST_FLAGS_DEFAULT, false, null, null, null, null,
                 null, null, null, null, null, null, null, false, null,
-                Integer.valueOf(freeDelayMs), replacementImportCount, null);
+                Integer.valueOf(freeDelayMs), replacementImportCount, null,
+                null);
         } finally {
             if (raceFd >= 0) {
                 DrmTrigger.closeFd(raceFd);
@@ -4539,20 +4612,30 @@ public final class ApusysIoctlProbe {
 
     private static void runRunCmdVpuXrpDevCtrlRaceCompletedCase(
             int devCtrlDelayMs) throws Exception {
+        runRunCmdVpuXrpDevCtrlRaceCompletedCase(devCtrlDelayMs, 0, false);
+    }
+
+    private static void runRunCmdVpuXrpDevCtrlRaceCompletedCase(
+            int devCtrlDelayMs, int devCtrlControl,
+            boolean fullCommandCopybackDiff) throws Exception {
         int raceFd = -1;
         try {
             raceFd = DrmTrigger.openDev(APUSYS_DEV);
             System.out.println("\n[*] === dev-ctrl-race completed case:"
                 + " settings5/no-settings ANN_VERSION dev_ctrl_after="
-                + devCtrlDelayMs + "ms post_ctrl_wait=1000ms ===");
+                + devCtrlDelayMs + "ms control=0x"
+                + Integer.toHexString(devCtrlControl)
+                + " post_ctrl_wait=1000ms ===");
             runRunCmdVpuIovaHardwareBufferProbe(raceFd, true, true, true,
                 XRP_OP_ANN_VERSION, 1000, true, VPU_DESC_LIBVPU_SETTINGS5,
                 XRP_CMD_FLAGS_SEND, VPU_DESC_ORDER_CODE_OUTPUT,
                 XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
                 XrpSettingsShape.WRAPPER_ONE_DATA, false,
                 VPU_REQUEST_FLAGS_DEFAULT, false, null, null, null, null,
-                null, null, null, null, null, null, null, false, null,
-                null, 0, Integer.valueOf(devCtrlDelayMs));
+                null, null, null, null, null, null, null,
+                fullCommandCopybackDiff, null, null, 0,
+                Integer.valueOf(devCtrlDelayMs),
+                Integer.valueOf(devCtrlControl));
         } finally {
             if (raceFd >= 0) {
                 DrmTrigger.closeFd(raceFd);
@@ -4562,23 +4645,57 @@ public final class ApusysIoctlProbe {
 
     private static void runRunCmdVpuXrpDevCtrlRaceTimeoutCase(
             int devCtrlDelayMs) throws Exception {
+        runRunCmdVpuXrpDevCtrlRaceTimeoutCase(devCtrlDelayMs, 0, false);
+    }
+
+    private static void runRunCmdVpuXrpDevCtrlRaceTimeoutCase(
+            int devCtrlDelayMs, int devCtrlControl,
+            boolean fullCommandCopybackDiff) throws Exception {
         int raceFd = -1;
         try {
             raceFd = DrmTrigger.openDev(APUSYS_DEV);
             System.out.println("\n[*] === dev-ctrl-race timeout case:"
                 + " minimal/split ANN_VERSION dev_ctrl_after="
-                + devCtrlDelayMs + "ms post_ctrl_wait=15000ms ===");
+                + devCtrlDelayMs + "ms control=0x"
+                + Integer.toHexString(devCtrlControl)
+                + " post_ctrl_wait=15000ms ===");
             runRunCmdVpuIovaHardwareBufferProbe(raceFd, true, true, true,
                 XRP_OP_ANN_VERSION, 15000, false, VPU_DESC_MINIMAL,
                 XRP_CMD_FLAGS_INITIAL, VPU_DESC_ORDER_CODE_OUTPUT,
                 XRP_SETTINGS_LEN, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
                 XrpSettingsShape.CURRENT, false, VPU_REQUEST_FLAGS_DEFAULT,
                 true, null, null, null, null, null, null, null, null, null,
-                null, null, false, null, null, 0,
-                Integer.valueOf(devCtrlDelayMs));
+                null, null, fullCommandCopybackDiff, null, null, 0,
+                Integer.valueOf(devCtrlDelayMs),
+                Integer.valueOf(devCtrlControl));
         } finally {
             if (raceFd >= 0) {
                 DrmTrigger.closeFd(raceFd);
+            }
+        }
+    }
+
+    private static void runRunCmdVpuXrpDevCtrlControlMatrixHardwareBufferProbe()
+            throws Exception {
+        System.out.println("\n[*] === APUSYS run_cmd VPU dev-ctrl control matrix probe ===");
+        System.out.println("[*] Mode: constrained control-state competition"
+            + " matrix. IDA shows ioctl 0x400c4109 forwards arg+8 into"
+            + " vpu_send_cmd_op0; op0 touches vpu_pwr_get_locked,"
+            + " vpu_pwr_param and vpu_pwr_release. Controls are limited to"
+            + " values that exercise those branches.");
+        int[] controls = {0, 1, 2, 3, 0xff};
+        int[] completedDelaysMs = {0, 1, 10};
+        int[] timeoutDelaysMs = {0, 10};
+        for (int ci = 0; ci < controls.length; ci++) {
+            for (int di = 0; di < completedDelaysMs.length; di++) {
+                runRunCmdVpuXrpDevCtrlRaceCompletedCase(
+                    completedDelaysMs[di], controls[ci], true);
+            }
+        }
+        for (int ci = 0; ci < controls.length; ci++) {
+            for (int di = 0; di < timeoutDelaysMs.length; di++) {
+                runRunCmdVpuXrpDevCtrlRaceTimeoutCase(
+                    timeoutDelaysMs[di], controls[ci], true);
             }
         }
     }

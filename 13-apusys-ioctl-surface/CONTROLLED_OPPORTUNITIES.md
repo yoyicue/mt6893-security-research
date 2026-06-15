@@ -83,7 +83,7 @@ Current practical ranking:
 | Two-command shared IOVA | Submit two commands referencing one imported IOVA, free it, import replacements, then wait both commands | `completed/completed`, `completed/timeout`, and `timeout/completed` all submitted; replacement exact reuse `0/12`; completed command still writes original shared buffer; timeout command returns `-EIO` | Window amplification tested, no primitive signal |
 | Completed latency variants | Change output size/opcode while keeping completed settings5/no-settings shape | `ANN_VERSION` output `0x40/0x100/0x400/0x1000`, `LOCAL_MEM_INFO`, and `GET_DETAILED_OP_INFO` all complete with wait time `1..14 ms` | No slower completed writeback window found |
 | fd close teardown | Close APUSYS fd after async submit and leave residual command cleanup to `mdw_usr_destroy` | Residual teardown reachable; no crash/oops/KASAN | Lower confidence than explicit `mem_free` |
-| `dev_ctrl` provider path | ioctl `0x400C4109` reaches provider opcode `0` for VPU control bookkeeping | In-flight race tested: completed shape returns `dev_ctrl=0, wait=0`; timeout shape returns `dev_ctrl=0, wait=-EIO`; no IOMMU/devapc/Oops | Reachable but no new primitive signal |
+| `dev_ctrl` provider path | ioctl `0x400C4109` reaches provider opcode `0` for VPU power/control bookkeeping | In-flight control matrix over `0/1/2/3/0xff` tested: completed shape returns `dev_ctrl=0, wait=0`; timeout shape returns `dev_ctrl=0, wait=-EIO`; no IOMMU/devapc/Oops | Reachable but now a controlled negative for this primitive search |
 | `ucmd` algorithm lookup | HardwareBuffer-backed `ucmd` opcode path reaches `vpu_alg_get` / `vpu_alg_put` for `apu_lib_apunn` | Success path exists; keydump does not mutate the first 64 bytes | Low-cost side-effect/refcount candidate |
 
 ## Best next experiments
@@ -363,8 +363,8 @@ Try only shapes that still complete:
 | `GET_DETAILED_OP_INFO` / `LOCAL_MEM_INFO` | May have heavier internal query path than `XTENSA_ANN_VERSION` |
 | two queued commands sharing one IOVA | Keeps the shared IOVA referenced across more scheduler time |
 
-Do not treat this as broad fuzzing. The only useful shape is one that remains
-stable, writes back, and takes longer than the current fast completion.
+Useful shapes are the ones that remain stable, write back, and take longer than
+the current fast completion.
 
 Status: implemented and run as:
 
@@ -477,8 +477,8 @@ dev_ctrl(device=3, core=0)
 wait/dump/kernel log
 ```
 
-Priority: lower than the target/lower exact-reuse firmware timing work. Keep it
-only as an alternate side-effect path if new provider-control state appears.
+Priority: lowered after the control matrix. Keep it only as a reference
+side-effect path unless new provider-control state appears.
 
 Status: implemented and run as:
 
@@ -508,6 +508,27 @@ Interpretation: `dev_ctrl` is reachable during the command lifetime window, but
 the tested control value does not produce a reset/copyback/lifetime primitive.
 It currently ranks below exact-reuse firmware timing and kernel-side scheduler
 instrumentation, but remains a low-cost alternate ioctl side-effect path.
+
+Follow-up matrix:
+
+```
+result=poc-run-results/2026-06-15-batch/13_apusys_xrp_dev_ctrl_control_matrix.txt
+kernel=poc-run-results/2026-06-15-batch/13_apusys_xrp_dev_ctrl_control_matrix_kernel_relevant.txt
+
+controls: 0/1/2/3/0xff
+completed delays: 0/1/10 ms
+timeout delays: 0/10 ms
+```
+
+All 25 `dev_ctrl` calls returned `0`. Completed cases had 15/15 `wait=0` and
+the usual single tail scalar copyback. Timeout cases had 10/10 `wait=-EIO` and
+the usual `result_status=0x2` copyback. The filtered kernel log contains
+expected timeout lines and a few `vpu_pwr_off_locked: vpu0: not in idle state`
+messages, with no `devapc`, IOMMU fault, panic/Oops, `BUG`, or `KASAN`.
+
+Interpretation: nonzero provider controls are reachable during command
+lifetime, but the tested control-state race does not change the completion
+class, widen copyback, or produce a kernel fault.
 
 ## Current stop conditions
 

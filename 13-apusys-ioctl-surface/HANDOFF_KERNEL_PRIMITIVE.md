@@ -42,10 +42,12 @@ reachability. Firmware-side work should now be limited to experiments that feed
 the kernel primitive questions directly, such as wrapper-generated real
 operation bindings.
 
-The first command-lifetime close-race pass is also implemented. It proves that
-`system_app` can leave residual in-flight APUSYS commands by closing the fd
-after `run_cmd_async`, but the tested completed and timeout windows did not
-produce a crash, KASAN report, panic, or kernel-pointer copyback.
+The command-lifetime close-race and provider-control race passes are also
+implemented. They prove that `system_app` can leave residual in-flight APUSYS
+commands by closing the fd after `run_cmd_async`, and can issue VPU `dev_ctrl`
+while opcode-4 execution is in flight. The tested completed/timeout close
+windows and the `dev_ctrl` control matrix did not produce a crash, KASAN report,
+panic, IOMMU/devapc fault, or kernel-pointer copyback.
 
 This handoff note is now the APUSYS closure artifact. `APUNN_SETTINGS_ABI.md`
 stays as the long-form ABI/evidence log; new APUNN facts belong here only when
@@ -67,7 +69,8 @@ step.
 | Firmware interaction | Keep as a stable trigger, not the primary primitive | `settings5/no-settings` completes from `system_app`, with exact `0xb70` VPU request size, five native descriptors, settings `0x5 -> 0x7`, output write, and standard data descriptor cleanup |
 | Completed command-buffer copyback leak | De-prioritize | Full `0xb70` before/after diff changes only scalar tail state (`request+0xb60`, and preload-slot `request+0xb68 = 1`); no kernel pointer, slab address, imported-buffer IOVA, or pointer-shaped copyback |
 | Completed output/writeback leak | De-prioritize for synthetic payloads | Output is bounded by `settings+0x08`; tested data payload patterns and data/plane target windows do not flow into output; descriptor-slot deltas behave like provider status words |
-| Timeout/abort lifetime | Remaining kernel-side candidate, currently low confidence | fd close after async dispatch reliably reaches residual command teardown, including the timeout shape, but the first completed and timeout windows show no oops/KASAN/panic and no stale object copyback |
+| Timeout/abort lifetime | De-prioritize for current close windows | fd close after async dispatch reliably reaches residual command teardown, including timeout shapes, but the `0/10/50/100/500/1000 ms` close-delay matrix shows only normal scalar copyback and expected timeout teardown; no oops/KASAN/panic or stale object copyback |
+| Provider control race (`dev_ctrl`) | De-prioritize after control matrix | IDA shows `arg+8` reaches `vpu_send_cmd_op0` and the VPU power/control path; runtime matrix over controls `0/1/2/3/0xff` during completed and timeout commands returns cleanly with the same completion/timeout copyback as baseline |
 | Service-wrapper path | Supportive, not a blocker for kernel primitive triage | Direct ioctl already reproduces the wrapper-shaped completed request. A positive wrapper dump is useful for real NN binding semantics, but not required to classify completed-path copyback or the first teardown race |
 | Concurrent submissions | First pass de-prioritized | Two in-flight commands sharing one imported IOVA can mix completed and timeout outcomes, but the tested same-pattern freed-IOVA replacement pressure had no replacement writeback and no kernel fault |
 
@@ -320,15 +323,26 @@ teardown.
 | A | completed `settings5/no-settings` | close 100 ms after `run_async=0`, dump after 5 s | output completes: settings `0x5 -> 0x7`, output filled, request tail `+0xb60 = 0xe699a` | `mdw_usr_destroy residual cmd(0xffffff8018275000)`, residual mem for original IOVA and cmd IOVA; no oops/KASAN/panic | fd close races with an in-flight or just-finished command, but this completed path is cleaned up without visible UAF |
 | B | timeout/minimal split ANN_VERSION | close 500 ms after `run_async=0`, dump after 15 s | settings/output mostly unchanged, command request has `result_status=0x2`, tail `+0xb60 = 0x215606bb`, `+0xb64 = 0x2` | `mdw_usr_destroy residual cmd(0xffffff8018705000)`, residual cmd mem; no oops/KASAN/panic | abort/timeout cleanup reaches user-mapped cmd status without a visible dangling scheduler use in this single run |
 
-This first pass moves the lifetime finding from "theoretical race" to
-"reachable residual command teardown". The tested windows do not confirm a UAF.
-If this path is pursued further, vary close delay (`0/10/50/100/500/1000 ms`)
-and loop the timeout shape while collecting less-filtered scheduler/VPU logs.
+This first pass moved the lifetime finding from "theoretical race" to
+"reachable residual command teardown". The follow-up delay matrix has now run
+the close delays `0/10/50/100/500/1000 ms` for both shapes. Completed cases all
+returned the normal bounded APUNN completion and full request diff
+`dword_changes=1, qword_changes=1` at `request+0xb60`. Timeout cases all showed
+`result_status=0x2`, `wait=-EIO` class cleanup, and full request diff
+`dword_changes=3, qword_changes=2` at `request+0x34`, `+0xb60`, and `+0xb64`.
+The filtered kernel log contains residual teardown and timeout lines, but no
+`devapc`, IOMMU fault, panic/Oops, `BUG`, or `KASAN`.
+
+Interpretation: close teardown is reachable and should remain useful as a
+kernel lifetime tracer, but these close windows do not confirm a UAF or stale
+copyback primitive on this build.
 
 Result files:
 
 - `poc-run-results/2026-06-15-batch/13_apusys_xrp_close_race.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_xrp_close_race_kernel.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_close_race_delay_matrix.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_xrp_close_race_delay_matrix_kernel_relevant.txt`
 
 ### IDA reference
 
@@ -732,11 +746,20 @@ they do not create a longer user-visible `mem_free` race window.
 provider handler opcode `0` with timeout `0xbb8`. For VPU, opcode `0` is
 `vpu_send_cmd_op0` — a power-on/control path.
 
-Hypothesis: issuing `dev_ctrl` while a VPU command is executing may force a
-power cycle, reset, or state flush that collides with the in-flight D2D_EXT
-provider call. The scheduler holds `sc+0xF8` during provider opcode 4, but
-`dev_ctrl` goes through a separate ioctl path that does not acquire the sc
-mutex.
+IDA details:
+
+- `mdw_usr_dev_ctrl_4109` reads `{dev_id, core_id, control}` from the 0x0c user
+  argument and passes `arg+8` as the provider control value.
+- `mdw_rsc_dev_op0_ctrl` builds the provider argument `{0, control, 0xbb8}` and
+  dispatches opcode `0`.
+- `vpu_send_cmd_op0` calls the VPU power/control path. It reaches
+  `vpu_pwr_get_locked`, conditionally reaches `vpu_pwr_param` for control
+  values other than `0xff`, and then reaches `vpu_pwr_release`.
+
+Hypothesis: issuing `dev_ctrl` while a VPU command is executing may perturb VPU
+power/control state while opcode `4` D2D_EXT execution is in flight. The
+scheduler holds `sc+0xF8` during provider opcode 4, but `dev_ctrl` goes through
+a separate ioctl path that does not acquire the sc mutex.
 
 Implemented mode:
 
@@ -763,6 +786,37 @@ Kernel-side signal is controlled: timeout cases show the expected
 IOMMU fault, panic/Oops, `BUG`, or `KASAN`. Interpretation: `dev_ctrl` is
 reachable during the command lifetime window, but this control value does not
 produce a reset/copyback/lifetime primitive in the tested windows.
+
+Follow-up matrix implemented and run:
+
+```
+poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-dev-ctrl-matrix-iova
+
+result=poc-run-results/2026-06-15-batch/13_apusys_xrp_dev_ctrl_control_matrix.txt
+kernel=poc-run-results/2026-06-15-batch/13_apusys_xrp_dev_ctrl_control_matrix_kernel_relevant.txt
+
+controls: 0/1/2/3/0xff
+completed delays: 0/1/10 ms
+timeout delays: 0/10 ms
+```
+
+Matrix result:
+
+- all 25 `dev_ctrl` calls returned `0`
+- completed shape: 15/15 waits returned `0`; copyback stayed at
+  `dword_changes=1, qword_changes=1`, only `request+0xb60`
+- timeout shape: 10/10 waits returned `-EIO`; copyback stayed at
+  `dword_changes=3, qword_changes=2`, changing `request+0x34`, `+0xb60`, and
+  `+0xb64`
+- no pointer-like or kernel-pointer-like copyback classification
+- filtered kernel log contains expected timeout lines and a few
+  `vpu_pwr_off_locked: vpu0: not in idle state` messages, but no `devapc`,
+  IOMMU fault, panic/Oops, `BUG`, or `KASAN`
+
+Interpretation: nonzero provider control values are reachable during command
+lifetime, but the tested control-state race does not change the command
+completion class, widen copyback, or produce a kernel fault. This path is now a
+controlled negative for the current APUSYS primitive search.
 
 ### 3. `ucmd` opcode-7 side effects beyond algorithm lookup
 
