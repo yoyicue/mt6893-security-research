@@ -11,7 +11,7 @@ source=adb logcat -b kernel or dmesg fallback
 06-15 16:49:39.822 11808 11808 I -(3)[11808:processThread_6]iommu: 2, bank:0, L2 int sta(0x130)=0x0, main sta(0x134)=0x5
 06-15 16:49:39.822 11808 11808 I -(3)[11808:processThread_6]iommu: 2, slave:0, port_id=673(21-1), tf_id:0x5000002
 06-15 16:49:39.822 11808 11808 I         : -(3)[11808:processThread_6]mtk_iommu_isr, 1461, fault_iova=3504c4000, regval=0x504c4610
-06-15 16:49:39.823 11808 11808 I -(3)[11808:processThread_6][MTK_IOMMU] error:  
+06-15 16:49:39.823 11808 11808 I -(3)[11808:processThread_6][MTK_IOMMU] error:
 06-15 16:49:39.823 11808 11808 E -(3)[11808:processThread_6]mtk-iommu-v2 19010000.m4u: iommu fault type=0x5 iova=0x3504c4000 pa=0x0 larb=21 port=1 is_vpu=1 layer=0 read
 06-15 16:49:39.823 11808 11808 I         : -(3)[11808:processThread_6]========= mtk_iommu_dump_iova_space++ total 8 domain ============
 06-15 16:49:39.831   814   814 I (0)[814:wificond][wlan][814]mtk_cfg80211_get_station: (REQ INFO) link speed=3600/0, bw=0/0, rssi=-62, BSSID:[d0:21:**:**:**:b5],TxFail=0, TxTimeOut=0, TxOK=895592, RxOK=2519521, FcsErr=0
@@ -83,7 +83,7 @@ source=adb logcat -b kernel or dmesg fallback
 06-15 16:50:30.912 11762 11762 I -(1)[11762:TALRecordThread]iommu: 2, bank:0, L2 int sta(0x130)=0x0, main sta(0x134)=0x5
 06-15 16:50:30.912 11762 11762 I -(1)[11762:TALRecordThread]iommu: 2, slave:0, port_id=673(21-1), tf_id:0x5000002
 06-15 16:50:30.912 11762 11762 I         : -(1)[11762:TALRecordThread]mtk_iommu_isr, 1461, fault_iova=3504c4000, regval=0x504c4610
-06-15 16:50:30.912 11762 11762 I -(1)[11762:TALRecordThread][MTK_IOMMU] error:  
+06-15 16:50:30.912 11762 11762 I -(1)[11762:TALRecordThread][MTK_IOMMU] error:
 06-15 16:50:30.912 11762 11762 E -(1)[11762:TALRecordThread]mtk-iommu-v2 19010000.m4u: iommu fault type=0x5 iova=0x3504c4000 pa=0x0 larb=21 port=1 is_vpu=1 layer=0 read
 06-15 16:50:30.916 11762 11762 I         : -(1)[11762:TALRecordThread]========= mtk_iommu_dump_iova_space-- ============
 06-15 16:50:32.633  1345  1345 I (2)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
@@ -123,7 +123,7 @@ source=adb logcat -b kernel or dmesg fallback
 06-15 16:50:54.463 11808 11808 I         : -(1)[11808:processThread_6]mtk_iommu_isr, irq=57
 06-15 16:50:54.463 11808 11808 I -(1)[11808:processThread_6]iommu: 2, bank:0, L2 int sta(0x130)=0x0, main sta(0x134)=0x5
 06-15 16:50:54.463 11808 11808 I         : -(1)[11808:processThread_6]mtk_iommu_isr, 1461, fault_iova=3504c4000, regval=0x504c4610
-06-15 16:50:54.463 11808 11808 I -(1)[11808:processThread_6][MTK_IOMMU] error:  
+06-15 16:50:54.463 11808 11808 I -(1)[11808:processThread_6][MTK_IOMMU] error:
 06-15 16:50:54.463 11808 11808 I         : -(1)[11808:processThread_6]========= mtk_iommu_dump_iova_space++ total 8 domain ============
 06-15 16:50:55.161  1345  1345 I (0)[1345:main_thread][wlan][1345]cnmTimerDoTimeOutCheck: (CNM INFO) timer timeout, timer 0000000043d4334b func kalPerMonHandler [wlan_drv_gen4m]
 06-15 16:50:55.449 17939 17939 I         : (4)[17939:kworker/4:1][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24143f3, req_sta =  0x17c00000 0x180000 0x50000017 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf84a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
@@ -152,7 +152,7 @@ source=adb logcat -b kernel or dmesg fallback
 06-15 16:51:14.933 11762 11762 I -(2)[11762:TALRecordThread]iommu: 2, bank:0, L2 int sta(0x130)=0x0, main sta(0x134)=0x5
 06-15 16:51:14.933 11762 11762 I -(2)[11762:TALRecordThread]iommu: 2, slave:0, port_id=673(21-1), tf_id:0x5000002
 06-15 16:51:14.933 11762 11762 I         : -(2)[11762:TALRecordThread]mtk_iommu_isr, 1461, fault_iova=3504c4000, regval=0x504c4610
-06-15 16:51:14.933 11762 11762 I -(2)[11762:TALRecordThread][MTK_IOMMU] error:  
+06-15 16:51:14.933 11762 11762 I -(2)[11762:TALRecordThread][MTK_IOMMU] error:
 06-15 16:51:14.933 11762 11762 E -(2)[11762:TALRecordThread]mtk-iommu-v2 19010000.m4u: iommu fault type=0x5 iova=0x3504c4000 pa=0x0 larb=21 port=1 is_vpu=1 layer=0 read
 06-15 16:51:14.933 11762 11762 I         : -(2)[11762:TALRecordThread]========= mtk_iommu_dump_iova_space++ total 8 domain ============
 06-15 16:51:14.938 11762 11762 I         : -(2)[11762:TALRecordThread]========= mtk_iommu_dump_iova_space-- ============
@@ -169,7 +169,7 @@ source=adb logcat -b kernel or dmesg fallback
 06-15 16:51:25.176 11762 11762 I -(1)[11762:TALRecordThread]iommu: 2, bank:0, L2 int sta(0x130)=0x0, main sta(0x134)=0x5
 06-15 16:51:25.176 11762 11762 I -(1)[11762:TALRecordThread]iommu: 2, slave:0, port_id=673(21-1), tf_id:0x5000002
 06-15 16:51:25.176 11762 11762 I         : -(1)[11762:TALRecordThread]mtk_iommu_isr, 1461, fault_iova=3504c4000, regval=0x504c4610
-06-15 16:51:25.176 11762 11762 I -(1)[11762:TALRecordThread][MTK_IOMMU] error:  
+06-15 16:51:25.176 11762 11762 I -(1)[11762:TALRecordThread][MTK_IOMMU] error:
 06-15 16:51:25.176 11762 11762 E -(1)[11762:TALRecordThread]mtk-iommu-v2 19010000.m4u: iommu fault type=0x5 iova=0x3504c4000 pa=0x0 larb=21 port=1 is_vpu=1 layer=0 read
 06-15 16:51:25.176 11762 11762 I         : -(1)[11762:TALRecordThread]========= mtk_iommu_dump_iova_space++ total 8 domain ============
 06-15 16:51:25.181 11762 11762 I         : -(1)[11762:TALRecordThread]========= mtk_iommu_dump_iova_space-- ============

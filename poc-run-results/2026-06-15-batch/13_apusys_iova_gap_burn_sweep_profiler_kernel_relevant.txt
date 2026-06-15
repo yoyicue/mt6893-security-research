@@ -1,0 +1,8 @@
+pattern=apusys|vpu|mdw|devapc|iommu|BUG|KASAN|panic|Oops|Unable to handle|D2D_EXT
+source=adb logcat -b kernel or dmesg fallback
+
+06-15 18:45:40.058 24997 24997 I         : (4)[24997:kworker/4:2][pmic_debug] Raw=689, T=36492
+06-15 18:45:41.849 24997 24997 I         : (4)[24997:kworker/4:2][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24163f3, req_sta =  0x15c00000 0x182c00 0x50000011 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf85a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 18:45:50.298 24997 24997 I         : (4)[24997:kworker/4:2][pmic_debug] Raw=685, T=38872
+06-15 18:46:00.538 24997 24997 I         : (4)[24997:kworker/4:2][pmic_debug] Raw=684, T=39467
+06-15 18:46:02.329 24997 24997 I         : (4)[24997:kworker/4:2][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x8400ec90, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24163f3, req_sta =  0x15c3d000 0x180000 0x50000017 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf85a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,

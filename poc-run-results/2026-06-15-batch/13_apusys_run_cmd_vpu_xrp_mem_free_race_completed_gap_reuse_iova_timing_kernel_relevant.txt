@@ -1,0 +1,21 @@
+pattern=apusys|vpu|mdw|devapc|iommu|BUG|KASAN|panic|Oops|Unable to handle|D2D_EXT
+source=adb logcat -b kernel or dmesg fallback
+
+06-15 18:31:24.262 24383 24383 I         : (4)[24383:main][apusys][warn] mdw_ioctl not support fw load
+06-15 18:31:24.262 24383 24383 I         : (4)[24383:main][apusys][warn] mdw_ioctl not suppot fw unload
+06-15 18:31:24.262 24383 24383 I         : (4)[24383:main][apusys][error] mdw_usr_run_cmd_async don't support offset(1)
+06-15 18:31:24.393   378   378 I (0)[378:apusys_vpu0]vpu 19030000.vpu_core0: vpu_map_sg_to_iova: sg_dma_address: size: 500000, mapped iova: 0x37de00000 (static alloc)
+06-15 18:31:24.394   378   378 I (3)[378:apusys_vpu0]vpu_dev_boot_sequence: vpu0: ALTRESETVEC: 0x7da00000
+06-15 18:31:26.809 23910 23910 I         : (4)[23910:kworker/4:1][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24143f3, req_sta =  0x17c00000 0x180000 0x50000011 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf84a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 18:31:30.138 23910 23910 I         : (4)[23910:kworker/4:1][pmic_debug] Raw=689, T=36492
+06-15 18:31:31.929 23910 23910 I         : (4)[23910:kworker/4:1][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24163f3, req_sta =  0x15c00000 0x180000 0x7c000011 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf85255, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 18:31:35.258 23910 23910 I         : (4)[23910:kworker/4:1][pmic_debug] Raw=689, T=36492
+06-15 18:31:42.169 23910 23910 I         : (4)[23910:kworker/4:1][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24163f3, req_sta =  0x15c00000 0x0 0x50000011 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf85a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 18:31:45.498 23910 23910 I         : (4)[23910:kworker/4:1][pmic_debug] Raw=689, T=36492
+06-15 18:31:46.012   378   378 I         : (1)[378:apusys_vpu0][apusys][error] mdw_sched_trace fail : pid(24383/24383) cmd(0x0/0xffffff8009df3000-#0/1) dev(3/vpu-#0) mp(0x0/0/1/0x0) sched(0/0/0/0/0/0) mem(0/0/0x0/0x0) boost(0) time(9204460/9204533) ret(-110)
+06-15 18:31:46.111   378   378 I (0)[378:apusys_vpu0]vpu 19030000.vpu_core0: vpu_map_sg_to_iova: sg_dma_address: size: 500000, mapped iova: 0x37de00000 (static alloc)
+06-15 18:31:46.112   378   378 I (0)[378:apusys_vpu0]vpu_dev_boot_sequence: vpu0: ALTRESETVEC: 0x7da00000
+06-15 18:31:47.289 23910 23910 I         : (4)[23910:kworker/4:1][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24163f3, req_sta =  0x15c00000 0x0 0x50000017 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf85a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 18:31:50.618 23910 23910 I         : (4)[23910:kworker/4:1][pmic_debug] Raw=689, T=36492
+06-15 18:31:52.409 23910 23910 I         : (4)[23910:kworker/4:1][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24163f3, req_sta =  0x15c00000 0x180000 0x50000017 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf85a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
+06-15 18:32:00.858 23910 23910 I         : (4)[23910:kworker/4:1][pmic_debug] Raw=689, T=36492

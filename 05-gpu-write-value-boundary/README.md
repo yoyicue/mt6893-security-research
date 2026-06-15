@@ -68,7 +68,7 @@ Even though WRITE_VALUE bypasses CPU page protections, it cannot target addresse
 CPU page tables:              GPU page tables (Mali MMU):
   0x7fa4c00000 → phys_A        0x7fa4c00000 → phys_A  (SAME_VA)
   [PROT_READ after mprotect]    [GPU_RD|GPU_WR unchanged]
-  
+
 CPU write → SIGBUS              GPU WRITE_VALUE → succeeds
                                  (GPU checks GPU page table, not CPU)
 ```

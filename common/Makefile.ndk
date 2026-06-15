@@ -10,6 +10,7 @@
 # Override example:
 #   make -f ../common/Makefile.ndk CC=/path/to/aarch64-linux-android33-clang
 
+COMMON_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 NDK_HOME ?= $(or $(ANDROID_NDK_HOME),$(NDK))
 
 ifdef NDK_HOME
@@ -19,7 +20,7 @@ else
 CC        ?= aarch64-linux-android33-clang
 endif
 
-CFLAGS  := -O2 -Wall -Wextra -static -I../common
+CFLAGS  := -O2 -Wall -Wextra -static -I$(COMMON_DIR)
 LDFLAGS := -static -pthread
 
 SRCS := $(wildcard *.c)

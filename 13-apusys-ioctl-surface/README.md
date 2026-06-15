@@ -19,7 +19,7 @@ This directory documents the ioctl surface and current runtime probes. The Java 
 
 ## IDA handler map
 
-The kernel image under analysis is `07-cve-2023-32836-display-overflow/vmlinux.bin.i64`. The relevant APUSYS functions were renamed in IDA and the IDB was saved.
+The kernel image under analysis is `../07-cve-2023-32836-display-overflow/vmlinux.bin.i64`. The relevant APUSYS functions were renamed in IDA and the IDB was saved.
 
 | Function | Address | Role |
 |---|---:|---|
@@ -342,12 +342,12 @@ The matching no-dispatch control leaves all cases unchanged.
 
 Result files:
 
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_codebuf_size_matrix_control.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_codebuf_size_matrix_control_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_codebuf_size_matrix.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_codebuf_size_matrix_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_codebuf_size_matrix_repeat.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_codebuf_size_matrix_repeat_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_codebuf_size_matrix_control.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_codebuf_size_matrix_control_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_codebuf_size_matrix.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_codebuf_size_matrix_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_codebuf_size_matrix_repeat.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_codebuf_size_matrix_repeat_kernel.txt`
 
 The optional `--run-cmd-invalid-sc` probe uses the same fd source but writes a non-executing command buffer that satisfies the top-level magic/version/count/offset gates and deliberately sets the first subcommand type to `0x20`. Runtime and kernel-log evidence show this reaches `mdw_cmd_sc_valid` and fails at `invalid type(32)`, then returns through `mdw_usr_par_apu_cmd parse cmd fail(-22)`.
 
@@ -547,10 +547,10 @@ per-case timestamps.
 
 Additional matrix result files:
 
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_matrix_iova.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_matrix_iova_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_matrix_iova_control.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_matrix_iova_control_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_matrix_iova.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_matrix_iova_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_matrix_iova_control.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_matrix_iova_control_kernel.txt`
 
 The single-case mode `--run-cmd-vpu-xrp-op-case-iova=<case>` reruns one matrix
 case with a longer wait before dumping buffers. The first four cases already
@@ -575,18 +575,18 @@ output/data windows unchanged, and times out on the worker side.
 
 Additional single-case result files:
 
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_get_algo_info_out0.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_get_algo_info_out0_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_local_mem_info_out0.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_local_mem_info_out0_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_ann_version_out0.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_ann_version_out0_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_detailed_op_info_out0.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_detailed_op_info_out0_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_ann_version_no_output_20s.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_ann_version_no_output_20s_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_ann_version_out1_20s.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_ann_version_out1_20s_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_get_algo_info_out0.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_get_algo_info_out0_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_local_mem_info_out0.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_local_mem_info_out0_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_ann_version_out0.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_ann_version_out0_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_detailed_op_info_out0.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_detailed_op_info_out0_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_ann_version_no_output_20s.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_ann_version_no_output_20s_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_ann_version_out1_20s.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_op_case_ann_version_out1_20s_kernel.txt`
 
 The earlier 10s `ann_version_no_output` and `ann_version_out1` single-case
 captures are retained in the result directory, but the `_20s` reruns supersede
@@ -618,12 +618,12 @@ logging the command/subcommand failure, and mapping the result to `-EIO`.
 
 Additional wrapper-default result files:
 
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_wrapper_zero_data_iova.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_wrapper_zero_data_iova_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_wrapper_zero_data_iova_control.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_wrapper_zero_data_iova_control_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_wrapper_zero_data_wait_iova.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_wrapper_zero_data_wait_iova_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_wrapper_zero_data_iova.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_wrapper_zero_data_iova_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_wrapper_zero_data_iova_control.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_wrapper_zero_data_iova_control_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_wrapper_zero_data_wait_iova.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_ann_version_wrapper_zero_data_wait_iova_kernel.txt`
 
 The internal `XTENSA_ANN_VERSION` follow-up switches from one native VPU buffer
 to host-wrapper-style input/output descriptors. The minimal two-buffer run and
@@ -637,18 +637,18 @@ Neither variant changes the completion/output boundary.
 
 Additional internal-descriptor result files:
 
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc_control.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc_control_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc5.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc5_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc5_control.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc5_control_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_output_first.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_output_first_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_output_first_control.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_output_first_control_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc_control.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc_control_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc5.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc5_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc5_control.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_iova_libvpu_desc5_control_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_output_first.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_output_first_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_output_first_control.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_run_cmd_vpu_xrp_internal_ann_version_output_first_control_kernel.txt`
 
 ## Ioctl command map
 
@@ -834,10 +834,10 @@ unchanged.
 
 Result files:
 
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_wait_repeat.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_wait_repeat_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_wait_control_repeat.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_wait_control_repeat_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_wait_repeat.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_wait_repeat_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_wait_control_repeat.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_wait_control_repeat_kernel.txt`
 
 The completed-shape opcode matrix
 `--run-cmd-vpu-xrp-target-settings5-no-settings-opcode-matrix-iova` repeats
@@ -854,10 +854,10 @@ descriptor-target behavior, not the completed settings-backed opcode behavior.
 
 Result files:
 
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_opcode_matrix.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_opcode_matrix_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_opcode_matrix_control.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_opcode_matrix_control_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_opcode_matrix.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_opcode_matrix_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_opcode_matrix_control.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_opcode_matrix_control_kernel.txt`
 
 The completed-shape output-operand-id matrix
 `--run-cmd-vpu-xrp-target-settings5-no-settings-operand-id-matrix-iova`
@@ -875,12 +875,12 @@ label for output semantics.
 
 Result files:
 
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_id_matrix.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_id_matrix_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_id_matrix_control.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_id_matrix_control_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_id_matrix_repeat.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_id_matrix_repeat_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_id_matrix.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_id_matrix_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_id_matrix_control.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_id_matrix_control_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_id_matrix_repeat.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_id_matrix_repeat_kernel.txt`
 
 The completed-shape operand-list offset matrix
 `--run-cmd-vpu-xrp-target-settings5-no-settings-operand-offset-matrix-iova`
@@ -899,12 +899,12 @@ the operand list.
 
 Result files:
 
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_offset_matrix.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_offset_matrix_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_offset_matrix_control.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_offset_matrix_control_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_offset_matrix_repeat.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_offset_matrix_repeat_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_offset_matrix.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_offset_matrix_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_offset_matrix_control.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_offset_matrix_control_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_offset_matrix_repeat.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_operand_offset_matrix_repeat_kernel.txt`
 
 The completed-shape operation-count matrix
 `--run-cmd-vpu-xrp-target-settings5-no-settings-op-shape-matrix-iova` keeps the
@@ -922,12 +922,12 @@ gate completion; output-size and data-source semantics remain separate work.
 
 Result files:
 
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix_control.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix_control_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix_repeat.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix_repeat_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix_control.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix_control_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix_repeat.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_op_shape_matrix_repeat_kernel.txt`
 
 The completed-shape code-size matrices keep opcode `XTENSA_ANN_VERSION`, one
 standard APUNN data descriptor, output size `0x40`, and the settings-backed
@@ -954,24 +954,24 @@ show timeout/error lines for the rejected tiny code sizes and no oops or panic.
 
 Result files:
 
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_matrix.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_matrix_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_matrix_control.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_matrix_control_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_matrix_repeat.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_matrix_repeat_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_range_matrix.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_range_matrix_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_range_matrix_control.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_range_matrix_control_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_range_matrix_repeat.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_range_matrix_repeat_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_clean_matrix.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_clean_matrix_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_clean_matrix_control.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_clean_matrix_control_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_clean_matrix_repeat.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_clean_matrix_repeat_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_matrix.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_matrix_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_matrix_control.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_matrix_control_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_matrix_repeat.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_matrix_repeat_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_range_matrix.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_range_matrix_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_range_matrix_control.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_range_matrix_control_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_range_matrix_repeat.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_range_matrix_repeat_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_clean_matrix.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_clean_matrix_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_clean_matrix_control.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_clean_matrix_control_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_clean_matrix_repeat.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_code_size_clean_matrix_repeat_kernel.txt`
 
 The completed-shape output-size/header matrix
 `--run-cmd-vpu-xrp-target-settings5-no-settings-output-shape-matrix-iova`
@@ -992,12 +992,12 @@ rewritten on every run.
 
 Result files:
 
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_output_shape_matrix.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_output_shape_matrix_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_output_shape_matrix_control.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_output_shape_matrix_control_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_output_shape_matrix_repeat.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_output_shape_matrix_repeat_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_output_shape_matrix.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_output_shape_matrix_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_output_shape_matrix_control.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_output_shape_matrix_control_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_output_shape_matrix_repeat.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_output_shape_matrix_repeat_kernel.txt`
 
 The completed-shape data-descriptor matrix
 `--run-cmd-vpu-xrp-target-settings5-no-settings-data-desc-matrix-iova` varies
@@ -1016,12 +1016,12 @@ cleanup path without making output source-sensitive.
 
 Result files:
 
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_desc_matrix.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_desc_matrix_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_desc_matrix_control.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_desc_matrix_control_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_desc_matrix_repeat.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_desc_matrix_repeat_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_desc_matrix.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_desc_matrix_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_desc_matrix_control.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_desc_matrix_control_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_desc_matrix_repeat.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_desc_matrix_repeat_kernel.txt`
 
 The completed-shape data-entry matrix
 `--run-cmd-vpu-xrp-target-settings5-no-settings-data-entry-matrix-iova`
@@ -1040,10 +1040,10 @@ remain unchanged in every tested data-entry case.
 
 Result files:
 
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_entry_matrix.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_entry_matrix_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_entry_matrix_control.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_entry_matrix_control_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_entry_matrix.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_entry_matrix_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_entry_matrix_control.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_entry_matrix_control_kernel.txt`
 
 The completed-shape data-target matrix
 `--run-cmd-vpu-xrp-target-settings5-no-settings-data-target-matrix-iova`
@@ -1062,10 +1062,10 @@ completion-style and no tested section target is copied into output.
 
 Result files:
 
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_target_matrix.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_target_matrix_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_target_matrix_control.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_target_matrix_control_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_target_matrix.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_target_matrix_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_target_matrix_control.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_target_matrix_control_kernel.txt`
 
 The completed-shape data-payload pattern matrix
 `--run-cmd-vpu-xrp-target-settings5-no-settings-data-payload-matrix-iova`
@@ -1081,12 +1081,12 @@ leak in the tested completed `XTENSA_ANN_VERSION` shape.
 
 Result files:
 
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_payload_matrix.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_payload_matrix_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_payload_matrix_control.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_payload_matrix_control_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_payload_matrix_repeat.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_payload_matrix_repeat_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_payload_matrix.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_payload_matrix_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_payload_matrix_control.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_payload_matrix_control_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_payload_matrix_repeat.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_data_payload_matrix_repeat_kernel.txt`
 
 The descriptor-0 first-word matrix
 `--run-cmd-vpu-xrp-target-code5-no-settings-word-matrix-iova` keeps that same
@@ -1150,12 +1150,12 @@ wait was run twice with identical user-visible results:
 
 Result files:
 
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_buffer_count_matrix_control.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_buffer_count_matrix_control_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_buffer_count_matrix.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_buffer_count_matrix_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_buffer_count_matrix_repeat.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_buffer_count_matrix_repeat_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_buffer_count_matrix_control.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_buffer_count_matrix_control_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_buffer_count_matrix.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_buffer_count_matrix_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_buffer_count_matrix_repeat.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_buffer_count_matrix_repeat_kernel.txt`
 
 Therefore `buffer_count=0` is a real liveness gate for the current descriptor-0
 state writeback path. Once at least one descriptor is copied, the exact count up
@@ -1175,12 +1175,12 @@ for every port, including `1`.
 
 Result files:
 
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_port_matrix_control.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_port_matrix_control_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_port_matrix.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_port_matrix_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_port_matrix_repeat.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_port_matrix_repeat_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_port_matrix_control.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_port_matrix_control_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_port_matrix.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_port_matrix_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_port_matrix_repeat.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_port_matrix_repeat_kernel.txt`
 
 Therefore descriptor `+0x00` is not a hard role/acceptance gate for the current
 state writeback path. The stable signal still follows copied descriptor `0`, but
@@ -1198,12 +1198,12 @@ settings/output/data windows unchanged.
 
 Result files:
 
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_format_matrix_control.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_format_matrix_control_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_format_matrix.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_format_matrix_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_format_matrix_repeat.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_format_matrix_repeat_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_format_matrix_control.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_format_matrix_control_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_format_matrix.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_format_matrix_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_format_matrix_repeat.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_format_matrix_repeat_kernel.txt`
 
 Therefore descriptor `+0x01` is not a hard format/direction gate for the current
 state writeback path and does not reveal the missing APUNN completion/output
@@ -1222,12 +1222,12 @@ descriptor-0 writeback for `plane_count=4`, but the immediate repeat wrote
 
 Result files:
 
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_plane_count_matrix_control.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_plane_count_matrix_control_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_plane_count_matrix.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_plane_count_matrix_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_plane_count_matrix_repeat.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_plane_count_matrix_repeat_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_plane_count_matrix_control.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_plane_count_matrix_control_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_plane_count_matrix.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_plane_count_matrix_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_plane_count_matrix_repeat.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_plane_count_matrix_repeat_kernel.txt`
 
 Therefore descriptor `+0x02` is not the liveness gate for the current
 descriptor-0 state writeback path. It also does not reveal the missing APUNN
@@ -1247,14 +1247,14 @@ height remains accepted and no APUNN completion/output signal appears.
 
 Result files:
 
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_height_matrix_control.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_height_matrix_control_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_height_matrix.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_height_matrix_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_height_matrix_repeat.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_height_matrix_repeat_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_height_matrix_repeat2.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_height_matrix_repeat2_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_height_matrix_control.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_height_matrix_control_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_height_matrix.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_height_matrix_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_height_matrix_repeat.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_height_matrix_repeat_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_height_matrix_repeat2.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_height_matrix_repeat2_kernel.txt`
 
 Therefore descriptor `+0x08` is accepted as ordinary copied metadata, but it is
 not the missing APUNN completion/output condition. The height matrix reinforces
@@ -1276,12 +1276,12 @@ for `1` and `0xffff`, matching the already-observed unstable state-write oracle.
 
 Result files:
 
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_operand_id_matrix_control.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_operand_id_matrix_control_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_operand_id_matrix.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_operand_id_matrix_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_operand_id_matrix_repeat.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_operand_id_matrix_repeat_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_operand_id_matrix_control.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_operand_id_matrix_control_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_operand_id_matrix.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_operand_id_matrix_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_operand_id_matrix_repeat.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_operand_id_matrix_repeat_kernel.txt`
 
 Therefore the output operand id is accepted as part of the copied XRP operation
 description, but the tested ids are not the missing APUNN completion/output
@@ -1309,12 +1309,12 @@ input/output counts, and leave APUNN settings/output/data unchanged.
 
 Result files:
 
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_op_shape_matrix_control.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_op_shape_matrix_control_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_op_shape_matrix.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_op_shape_matrix_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_op_shape_matrix_repeat.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_op_shape_matrix_repeat_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_op_shape_matrix_control.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_op_shape_matrix_control_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_op_shape_matrix.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_op_shape_matrix_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_op_shape_matrix_repeat.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_op_shape_matrix_repeat_kernel.txt`
 
 Therefore the tested input/output count combinations are accepted operation
 metadata for this request shape, but they are not the missing APUNN
@@ -1347,12 +1347,12 @@ the `10005..10007` wait-failure cases.
 
 Result files:
 
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_opcode_matrix_control.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_opcode_matrix_control_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_opcode_matrix.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_opcode_matrix_kernel.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_opcode_matrix_repeat.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_opcode_matrix_repeat_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_opcode_matrix_control.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_opcode_matrix_control_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_opcode_matrix.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_opcode_matrix_kernel.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_opcode_matrix_repeat.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_target_code5_no_settings_opcode_matrix_repeat_kernel.txt`
 
 Therefore `apu_lib_apunn` does parse the operation opcode in this request
 shape. The current request is still missing the normal completion/output
@@ -1439,7 +1439,7 @@ ANDROID_JAR=/opt/homebrew/share/android-commandlinetools/platforms/android-34/an
 rm -rf /tmp/apusys-build /tmp/apusys-dex
 mkdir -p /tmp/apusys-build /tmp/apusys-dex
 javac -source 8 -target 8 -cp "$ANDROID_JAR" -d /tmp/apusys-build \
-  07-cve-2023-32836-display-overflow/poc/DrmTrigger.java \
+  ../07-cve-2023-32836-display-overflow/poc/DrmTrigger.java \
   13-apusys-ioctl-surface/poc/ApusysIoctlProbe.java
 d8 --min-api 29 --output /tmp/apusys-dex /tmp/apusys-build/*.class
 adb push /tmp/apusys-dex/classes.dex /data/local/tmp/apusys_ioctl_probe.dex
@@ -1459,7 +1459,7 @@ python3 13-apusys-ioctl-surface/poc/run_system_app_probe.py \
   -s 7FPE0824B0801372 --local-port 48888 --rebuild-shell
 ```
 
-The runner can call `06-cve-2024-31317-zygote-injection/poc/rebuild_bind_shell.py`, then builds the selected Java probe dex, uploads it through the `uid=1000(system)` shell, verifies the remote md5, runs `app_process64`, and saves stdout plus filtered kernel logs under `poc-run-results/`. Use `--rebuild-if-needed` instead of `--rebuild-shell` when the existing shell should be reused if it is still valid. `--probe=apusys` is the default and runs `ApusysIoctlProbe`; `--probe=xrp-wrapper` builds and runs `XrpWrapperInspect`.
+The runner can call `../06-cve-2024-31317-zygote-injection/poc/rebuild_bind_shell.py`, then builds the selected Java probe dex, uploads it through the `uid=1000(system)` shell, verifies the remote md5, runs `app_process64`, and saves stdout plus filtered kernel logs under `../poc-run-results/`. Use `--rebuild-if-needed` instead of `--rebuild-shell` when the existing shell should be reused if it is still valid. `--probe=apusys` is the default and runs `ApusysIoctlProbe`; `--probe=xrp-wrapper` builds and runs `XrpWrapperInspect`.
 
 Wrapper request inspection helper:
 
@@ -1497,10 +1497,10 @@ The current interpretation is that direct `libneuron_platform.vpu.so`
 wrapper-generated request dumping requires a process context that already has a
 valid `libapu_mdw` session, or a hook inside such a process. Result files:
 
-- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_control.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_neuron_apu_mdw_session.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_java_neuron_native_dlopen_session_system_app.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_java_neuron_maps_session_system_app.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_control.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_neuron_apu_mdw_session.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_java_neuron_native_dlopen_session_system_app.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_java_neuron_maps_session_system_app.txt`
 
 The same helper can also target the APUWARE HIDL wrapper:
 
@@ -1561,15 +1561,15 @@ The saved logcat for the latest rerun contains only a binder ioctl `-EINVAL`
 from the helper process and no VPU/APUNN worker activity, so this is a
 wrapper/HIDL initialization boundary rather than firmware request parsing.
 
-- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_shell.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_matrix.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_buffer_id_retry.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_finalize_slot_index.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_finalize_slot_index_lazy.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_finalize_slot_index_rerun.txt`
-- `poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_finalize_slot_index_rerun_logcat.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_apuware_dlopen_timeout.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_apuware_dlopen_timeout_logcat.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_shell.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_matrix.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_buffer_id_retry.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_finalize_slot_index.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_finalize_slot_index_lazy.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_finalize_slot_index_rerun.txt`
+- `../poc-run-results/2026-06-14-batch/13_apusys_xrp_wrapper_inspect_apuware_finalize_slot_index_rerun_logcat.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_apuware_dlopen_timeout.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_apuware_dlopen_timeout_logcat.txt`
 
 The pure Java `app_process64` inspector is `poc/XrpWrapperInspect.java`. It
 loads the installed system wrapper, resolves exported function addresses from
@@ -1599,15 +1599,15 @@ where `XRP_Create()` returns `0` and the wrapper's memory manager exists before
 
 Additional Java wrapper result files:
 
-- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_java.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_java_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_force_skip_finalize_java.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_force_skip_finalize_java_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_force_skip_finalize_java_repeat.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_force_skip_finalize_java_repeat_kernel.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_force_skip_finalize_java_repeat_logcat.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_create_session_java.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_create_session_java_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_java.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_java_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_force_skip_finalize_java.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_force_skip_finalize_java_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_force_skip_finalize_java_repeat.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_force_skip_finalize_java_repeat_kernel.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_no_session_force_skip_finalize_java_repeat_logcat.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_create_session_java.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_xrp_wrapper_inspect_neuron_create_session_java_kernel.txt`
 
 Run from the existing `uid=1000(system)` / `u:r:system_app:s0` dalvikvm context:
 

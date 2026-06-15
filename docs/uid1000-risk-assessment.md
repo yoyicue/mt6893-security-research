@@ -1,0 +1,130 @@
+# uid=1000 System Privilege Risk Assessment
+
+## Summary
+
+The target device reports Android security patch level `2023-06-05` on MT6893/MT8797. CVE-2024-31317 has already provided code execution as `uid=1000(system)` in the `system_app` SELinux domain.
+
+This changes the risk model for MediaTek vendor vulnerabilities whose advisory precondition is `System execution privileges needed` or `already obtained the System privilege`. Those bugs were not practically reachable from ordinary app/shell contexts, but the privilege precondition is now partially satisfied.
+
+This does not mean every listed CVE is exploitable. Each candidate still needs a reachable entry point, compatible SELinux allow rules, correct device node or service access, and a matching vulnerable code path in the actual firmware binary.
+
+Runtime update: after the 2026-06-14 and 2026-06-15 ioctl runs, the risk model has narrowed from broad theoretical reachability to three practical tracks:
+
+- APUSYS lifetime / IOVA-reuse research, where the strongest open question is whether in-flight firmware writeback can land in an exact-reused replacement buffer.
+- Display DRM PQPARAM, where a real missing-bounds check is confirmed but the sink is display MMIO/register state rather than kernel memory.
+- CVE-2023-32834 secmem through the camera secure-memory stack, where the device has secure-camera support and GZ/UREE camera clients, but no confirmed `system_app` method reaches the sink yet.
+
+These runtime results supersede the earlier theoretical ordering when they differ.
+
+## Confirmed Runtime Access
+
+Current `system_app` context:
+
+```text
+uid=1000(system) gid=1000(system) groups=1000(system),3003(inet)
+context=u:r:system_app:s0
+```
+
+Device state:
+
+```text
+ro.build.version.security_patch = 2023-06-05
+ro.board.platform = mt6893
+ro.hardware = mt8797
+ro.product.board = ls12_mt8797_wifi_64
+```
+
+Confirmed useful device access from `system_app`:
+
+```text
+/dev/dri/card0
+/dev/mali0
+/dev/apusys
+```
+
+Visible but direct-open denied from `system_app`:
+
+```text
+/dev/ion
+/dev/ashmem
+```
+
+Important permissions observed on device:
+
+```text
+/dev/dri/card0  crw-rw---- system system  u:object_r:dri_device:s0
+/dev/ion        crw-rw-rw- system graphics u:object_r:ion_device:s0
+/dev/ashmem     crw-rw-rw- root   root     u:object_r:ashmem_device:s0
+/dev/mali0      crw-rw-rw- root   root     u:object_r:gpu_device:s0
+/dev/apusys     crw-rw---- system camera   u:object_r:apusys_device:s0
+```
+
+## Current Risk Ordering
+
+| CVE / Area | Risk Change | Rationale |
+|---|---|---|
+| CVE-2024-31317 Framework/Zygote | Confirmed exploited bridge | Runtime `uid=1000 system_app` shell obtained. This is the second-stage enabler, not a remaining vendor target. |
+| APUSYS ioctl surface | Highest current practical opportunity, not a demonstrated primitive | `/dev/apusys` opens from `system_app`, HardwareBuffer-backed dmabuf import works, APUNN completion is reachable, and descriptor-plane fields can redirect a firmware-visible write inside the imported IOVA. The strongest open bridge is in-flight `mem_free(shared_iova)` plus exact IOVA reuse by a replacement HardwareBuffer; replacement-buffer mutation is still unconfirmed. |
+| Display DRM `MTK_SET_PQPARAM` / likely CVE-2023-32867/32868 class | Confirmed real bug, lower exploitation ceiling | `u4PartialY` is missing bounds validation and OOB indexes return success. The OOB data is written into display COLOR Y-slope registers through cmdq; CPU readback is currently blocked by display clock gating, and no kernel-memory corruption sink is confirmed. |
+| CVE-2023-32834 secmem | Medium-high candidate through camera secure memory | MediaTek lists High EoP with System privileges and the device is affected. Current evidence shifts the best broker from keystore/keymaster to camera secure memory: `ro.vendor.mtk_cam_security_support=1`, `camerahalserver` runs in `mtk_hal_camera`, and camera libraries link/use GZ/UREE secure-memory paths. Direct `system_app` nodes remain blocked and `ISecureCamera` is not registered on the current boot. |
+| CVE-2023-32863 / 32864 / 32865 display DRM | Partially reachable, shape unconfirmed | Safe probes show several DRM/display ioctls are reachable from `system_app`, but the tested guards reject invalid physical addresses or unsupported offsets. No OOB read/write primitive is confirmed yet. |
+| CVE-2024-20037 PQ | Downgraded after HAL attribution | The PQ HIDL service is reachable, but `PictureQuality::execIoctl` is a stub on this build. The useful PQ-related evidence currently folds back into the confirmed display DRM PQPARAM path rather than a broader PQ HAL write-what-where. |
+| CVE-2023-32835 keyinstall | Downgraded on this image | The named MediaTek `vendor.mediatek.hardware.keyinstall@1.0-service` is absent. AndroidKeyStore is reachable, but the extracted keymaster service uses `libpuresoftkeymasterdevice.so` and does not link `libgz_uree.so` / `libgz_gp_client.so`; this does not prove reachability of the MediaTek keyinstall sink. |
+| CVE-2024-20005 DA / CVE-2024-20025 / 20027 / 20028 DA | System precondition satisfied, entry unknown | MediaTek 2024-03 lists EoP after obtaining System privilege on MT6893/Android 13. Keep as entry-discovery candidates until a runtime service, update parser, or DA-facing broker is found. |
+| CVE-2024-20022 LK | System precondition satisfied, special entry point | Affects MT8797/Android 13 and requires System privilege, but LK/bootloader paths may not be ordinary runtime ioctls. |
+
+## Display / DRM Priority Set
+
+Because `/dev/dri/card0` is now reachable from `system_app`, display/display-drm CVEs with System privilege requirements deserve a higher priority than before.
+
+| CVE | Area | Why It Matters |
+|---|---|---|
+| CVE-2023-20775 | display | Classic buffer overflow; MT6893 and Android 13 affected in the MediaTek 2023-07 bulletin. |
+| CVE-2023-32860 | display | Classic buffer overflow; MT6893 and Android 13 affected in the MediaTek 2023-12 bulletin. |
+| CVE-2023-32863 | display drm | OOB read; MT6893 and Android 13 affected. Current safe probe shows partial reachability: `GET_DISPLAY_CAPS`/`GET_SESSION_INFO` return `EACCES`, while `GET_MASTER_INFO`/`GET_LCM_INDEX`/`AAL_GET_SIZE` succeed. No OOB-read shape confirmed yet. |
+| CVE-2023-32864 | display drm | OOB write; MT6893 and Android 13 affected. Current register-write guard probe shows `WRITE_REG`/`READ_REG` are reachable but invalid physical addresses are rejected with `EFAULT`; `WRITE_SW_REG` unknown ids do not hit bounded table writes. |
+| CVE-2023-32865 | display drm | OOB write; MT6893 and Android 13 affected. Current safe probe confirms `MTK_SUPPORT_COLOR_TRANSFORM` is reachable from `system_app`: zero matrix returns success, unsupported offset returns `EFAULT`. No exploitable write path is confirmed yet. |
+| CVE-2023-32867 | display drm | Likely maps to the confirmed `MTK_SET_PQPARAM` missing-bounds class. Runtime accepts `u4PartialY >= 22`, causing OOB reads from display global tables and cmdq writes into DISP_COLOR Y-slope registers. Current readback/leak path is blocked by clock gating. |
+| CVE-2023-32868 | display drm | Same current treatment as CVE-2023-32867 until the exact ALPS fix mapping is pinned down: real PQPARAM bug confirmed, but current sink is display register state, not kernel memory. |
+
+The current CVE-2023-32836 checks disprove both tested direct paths on this firmware: `CREATE_DUMB` uses the MTK 64-bit size calculation, and direct atomic commit from `system_app` is denied with `-EACCES`. The PQPARAM finding keeps the broader display DRM family security-relevant, but its current exploitation ceiling is limited by the MMIO-only sink and blocked CPU readback.
+
+## Medium-High Priority Candidates
+
+| CVE / Area | Risk Change | Rationale |
+|---|---|---|
+| CVE-2023-32849 cmdq | Increased | MT6893/MT8797/Android 13 affected. CMDQ is commonly tied to display/MDP paths. |
+| CVE-2023-32866 mmp | Increased | MT6893/Android 13 affected; needs `/dev/mmp` or related service/path validation. |
+| CVE-2024-20032 aee | Increased | MT6893/Android 13 affected; System privilege prerequisite satisfied. |
+| CVE-2023-20761 ril | Increased, likely service path | MT6893/MT8797/Android 13 affected; likely binder/socket/service rather than direct device-node ioctl. |
+| CVE-2023-20766 gps | Increased, likely service path | MT6893/MT8797/Android 13 affected; likely service path. |
+| CVE-2023-20768 ion | Lower for direct node access | `/dev/ion` is visible and DAC-permissive, but dedicated old-ION probing from `system_app` returns `EACCES` at open. Revisit only through framework/HAL dmabuf paths or another lab context. |
+
+## Not Significantly Changed
+
+| Area | Reason |
+|---|---|
+| Mali CVE-2022-38181 / CVE-2023-4211 | `/dev/mali0` was already world-writable from shell. Existing analysis shows `no_user_free_count` blocks the key JIT free/change path. |
+| CVE-2022-36449 Mali | Existing refcount retraction still stands: `MEM_FREE` drops the GPU ref but the user mmap still holds the page. |
+| CVE-2023-33200 Mali | Downgraded to patched/dead on this target. `kbase_vmap_prot` rejects non-NATIVE allocations, so imported USER_BUF regions cannot enter the soft-event vmap path required for the race. |
+| CVE-2023-4622 AF_UNIX | Not gated by `uid=1000`; existing blocker is the `SOCK_DEAD` ordering constraint. |
+| sk_buff offset divergence | This is an exploit-porting correction, not a newly reachable bug. |
+| GPU WRITE_VALUE boundary | Primitive already available from shell via `/dev/mali0`; still bounded to GPU-mapped userspace VA. |
+
+## Recommended Next Triage
+
+1. APUSYS: focus on the only current cross-boundary opportunity: `run_cmd_async`, `mem_free(shared_iova)` while in flight, exact IOVA reuse by a replacement HardwareBuffer, then replacement-buffer inspection after firmware completion or timeout. Descriptor-plane redirect is useful only if it can be combined with post-free exact reuse or normal completion into a replacement import.
+2. Display/display-drm: keep `MTK_SET_PQPARAM` as the confirmed 32867/32868-class finding, but treat it as low-to-medium exploitation value until a clock-open readback, cmdq readback, display side channel, or secondary kernel-memory sink is found. Continue exact ALPS/CVE mapping for CVE-2023-32863/32864/32865/32867/32868.
+3. secmem: continue from [`../14-cve-2023-32834-secmem/`](../14-cve-2023-32834-secmem/). Prioritize camera secure-memory discovery: non-destructive `ISecureCamera` service resolution, Camera2 secure logical-device metadata, and IDA mapping of `MtkSecISP_tlc*`, `ISecureImageBufferHeap`, and `UREE_*` call sites.
+4. keyinstall: continue from [`../15-cve-2023-32835-keyinstall/`](../15-cve-2023-32835-keyinstall/) only as a variant/OTA lead. On this device image, the named keyinstall HAL is absent and the present keymaster path does not link the GZ/UREE bridge.
+5. PQ/CMDQ/MMP: continue from [`../16-cve-2024-20037-pq/`](../16-cve-2024-20037-pq/) and the display DRM IDA handoff. For CVE-2024-20037, keep the HAL-stub downgrade in mind and prioritize exact native handler attribution over broad state-changing ioctl fuzzing.
+6. DA/AEE/LK: continue from [`../17-cve-2024-20005-da/`](../17-cve-2024-20005-da/). Treat DA/LK as update/boot-flow entry-discovery candidates until a runtime service or parser path is proven reachable.
+7. RIL/GPS: check binder/socket/service permissions under `system_app`, not just device nodes.
+
+## Sources
+
+- Android Security Bulletin, June 2024: `https://source.android.com/docs/security/bulletin/2024-06-01`
+- MediaTek Product Security Bulletin, July 2023: `https://corp.mediatek.com/product-security-bulletin/July-2023`
+- MediaTek Product Security Bulletin, November 2023: `https://corp.mediatek.com/product-security-bulletin/November-2023`
+- MediaTek Product Security Bulletin, December 2023: `https://corp.mediatek.com/product-security-bulletin/December-2023`
+- MediaTek Product Security Bulletin, March 2024: `https://corp.mediatek.com/product-security-bulletin/March-2024`

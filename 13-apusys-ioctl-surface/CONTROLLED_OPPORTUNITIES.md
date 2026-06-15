@@ -131,8 +131,8 @@ poc/ApusysIoctlProbe.java --apusys-iova-reuse-profiler
 Result:
 
 ```
-result=poc-run-results/2026-06-15-batch/13_apusys_iova_reuse_profiler.txt
-kernel=poc-run-results/2026-06-15-batch/13_apusys_iova_reuse_profiler_kernel_relevant.txt
+result=../poc-run-results/2026-06-15-batch/13_apusys_iova_reuse_profiler.txt
+kernel=../poc-run-results/2026-06-15-batch/13_apusys_iova_reuse_profiler_kernel_relevant.txt
 
 prealloc_1k_c32_i20:  exact=0/640,  nearby=0/640,   closest_delta=0x266000
 prealloc_4k_c32_i50:  exact=0/1600, nearby=950/1600, closest_delta=-0x4000
@@ -208,8 +208,8 @@ poc/ApusysIoctlProbe.java --apusys-iova-gap-profiler
 Result:
 
 ```
-result=poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler.txt
-kernel=poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler_kernel_relevant.txt
+result=../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler.txt
+kernel=../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler_kernel_relevant.txt
 
 gap_4k_p16_r16_i30_lower_then_target:
   adjacent_found=30/30, exact_target=0/480
@@ -244,8 +244,8 @@ poc/ApusysIoctlProbe.java --apusys-iova-gap-control-profiler
 Result:
 
 ```
-result=poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler.txt
-kernel=poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler_kernel_relevant.txt
+result=../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler.txt
+kernel=../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler_kernel_relevant.txt
 
 4K p16/r16 first:
   adjacent_found=78/80, exact_target=3/1248
@@ -285,11 +285,17 @@ Implemented and run as:
 poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-mem-free-race-completed-gap-reuse-iova
 ```
 
+Current implementation focus: the same mode now runs the old `output_size=0x40`
+baseline plus `output_size=0x1000` gap-reuse cases, including a `250 us`
+post-`run_cmd_async` delay before freeing target/lower. This directly tests the
+best remaining window: firmware has consumed valid APUNN settings, but output
+writeback may not have finished before exact replacement reuse.
+
 Result:
 
 ```
-result=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova.txt
-kernel=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_kernel_relevant.txt
+result=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova.txt
+kernel=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_kernel_relevant.txt
 
 pair_found=29/30
 run_ok=29
@@ -325,8 +331,8 @@ command times out instead of writing completion bytes into the replacement.
 Follow-up with exact-index histograms:
 
 ```
-result=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup.txt
-kernel=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup_kernel_relevant.txt
+result=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup.txt
+kernel=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup_kernel_relevant.txt
 
 4K p16/r16:
   pair_found=13/30
@@ -349,6 +355,25 @@ The exact p16/r16 hit was again marker/zero before and after wait, with
 over to a firmware exact hit in this run. Kernel log contains timeout-class VPU
 messages for failed waits, but no `devapc`, IOMMU fault, panic/Oops, `BUG`, or
 `KASAN`.
+
+Timing-variant run:
+
+```
+result=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_timing.txt
+kernel=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_timing_kernel_relevant.txt
+
+4K p16/r16 output40 delay0:    pair_found=6/30, exact_target=0/96, completion_like=0, wait=6/0
+4K p12/r20 output40 delay0:    pair_found=3/40, exact_target=0/60, completion_like=0, wait=3/0
+4K p16/r16 output1000 delay0:  pair_found=7/30, exact_target=0/112, completion_like=0, wait=6/1
+4K p16/r16 output1000 delay250us:
+  pair_found=5/30, exact_target=0/80, completion_like=0, wait=5/0
+```
+
+Interpretation: the larger `settings+0x08` output window and `250 us` free
+delay did not reproduce exact target reuse in this run, so they did not produce
+a replacement-buffer completion write. Kernel signal stayed controlled: one
+timeout-class `mdw_sched_trace ret(-110)`, no `devapc`, IOMMU fault,
+panic/Oops, `BUG`, or `KASAN`.
 
 ### 3. Slower completed writeback shape
 
@@ -376,8 +401,8 @@ poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-completed-latency-matrix-iova
 Result:
 
 ```
-result=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completed_latency_matrix_iova.txt
-kernel=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completed_latency_matrix_iova_kernel_relevant.txt
+result=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completed_latency_matrix_iova.txt
+kernel=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completed_latency_matrix_iova_kernel_relevant.txt
 
 ann_output40:              run_async=0 in 1 ms, wait=0 in 14 ms
 ann_output100:             run_async=0 in 1 ms, wait=0 in 1 ms
@@ -405,8 +430,8 @@ poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-completion-poll-iova
 Result:
 
 ```
-result=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completion_poll_iova.txt
-kernel=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completion_poll_iova_kernel_relevant.txt
+result=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completion_poll_iova.txt
+kernel=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completion_poll_iova_kernel_relevant.txt
 
 ann_output40:   run_async=0 in 1 ms, 10 ms poll, changed_fields=0, wait=0 in 1 ms
 ann_output1000: run_async=0 in 2 ms, 10 ms poll, changed_fields=0, wait=0 in 1 ms
@@ -451,8 +476,8 @@ poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-two-command-shared-iova
 Result:
 
 ```
-result=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_two_command_shared_iova.txt
-kernel=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_two_command_shared_iova_kernel_relevant.txt
+result=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_two_command_shared_iova.txt
+kernel=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_two_command_shared_iova_kernel_relevant.txt
 
 completed_completed:
   cmd1 run_async=0, cmd2 run_async=0
@@ -512,8 +537,8 @@ poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-dev-ctrl-race-iova
 Result:
 
 ```
-result=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_dev_ctrl_race_iova.txt
-kernel=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_dev_ctrl_race_iova_kernel_relevant.txt
+result=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_dev_ctrl_race_iova.txt
+kernel=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_dev_ctrl_race_iova_kernel_relevant.txt
 
 completed settings5/no-settings, dev_ctrl_after=0/1/10/50ms:
   run_async=0, dev_ctrl=0, settings=0x7, wait=0
@@ -535,8 +560,8 @@ instrumentation, but remains a low-cost alternate ioctl side-effect path.
 Follow-up matrix:
 
 ```
-result=poc-run-results/2026-06-15-batch/13_apusys_xrp_dev_ctrl_control_matrix.txt
-kernel=poc-run-results/2026-06-15-batch/13_apusys_xrp_dev_ctrl_control_matrix_kernel_relevant.txt
+result=../poc-run-results/2026-06-15-batch/13_apusys_xrp_dev_ctrl_control_matrix.txt
+kernel=../poc-run-results/2026-06-15-batch/13_apusys_xrp_dev_ctrl_control_matrix_kernel_relevant.txt
 
 controls: 0/1/2/3/0xff
 completed delays: 0/1/10 ms
@@ -572,44 +597,44 @@ Stop spending time on these unless new evidence changes the decision:
 
 ## Files to keep linked
 
-- Main handoff: `13-apusys-ioctl-surface/HANDOFF_KERNEL_PRIMITIVE.md`
+- Main handoff: `../13-apusys-ioctl-surface/HANDOFF_KERNEL_PRIMITIVE.md`
 - Allocator controllability target:
-  `13-apusys-ioctl-surface/ALLOCATOR_CONTROLLABILITY_OPPORTUNITY.md`
-- ABI log: `13-apusys-ioctl-surface/APUNN_SETTINGS_ABI.md`
-- Current probe: `13-apusys-ioctl-surface/poc/ApusysIoctlProbe.java`
+  `../13-apusys-ioctl-surface/ALLOCATOR_CONTROLLABILITY_OPPORTUNITY.md`
+- ABI log: `../13-apusys-ioctl-surface/APUNN_SETTINGS_ABI.md`
+- Current probe: `../13-apusys-ioctl-surface/poc/ApusysIoctlProbe.java`
 - Latest reuse-pressure result:
-  `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_reuse_iova.txt`
+  `../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_reuse_iova.txt`
 - Latest reuse-pressure kernel log:
-  `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_reuse_iova_kernel_relevant.txt`
+  `../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_reuse_iova_kernel_relevant.txt`
 - IOVA reuse profiler:
-  `poc-run-results/2026-06-15-batch/13_apusys_iova_reuse_profiler.txt`
+  `../poc-run-results/2026-06-15-batch/13_apusys_iova_reuse_profiler.txt`
 - IOVA reuse profiler kernel log:
-  `poc-run-results/2026-06-15-batch/13_apusys_iova_reuse_profiler_kernel_relevant.txt`
+  `../poc-run-results/2026-06-15-batch/13_apusys_iova_reuse_profiler_kernel_relevant.txt`
 - IOVA gap profiler:
-  `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler.txt`
+  `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler.txt`
 - IOVA gap profiler kernel log:
-  `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler_kernel_relevant.txt`
+  `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler_kernel_relevant.txt`
 - IOVA gap control profiler:
-  `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler.txt`
+  `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler.txt`
 - IOVA gap control profiler kernel log:
-  `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler_kernel_relevant.txt`
+  `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler_kernel_relevant.txt`
 - Firmware-coupled gap reuse:
-  `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova.txt`
+  `../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova.txt`
 - Firmware-coupled gap reuse kernel log:
-  `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_kernel_relevant.txt`
+  `../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_kernel_relevant.txt`
 - Firmware-coupled gap reuse follow-up:
-  `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup.txt`
+  `../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup.txt`
 - Firmware-coupled gap reuse follow-up kernel log:
-  `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup_kernel_relevant.txt`
+  `../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup_kernel_relevant.txt`
 - Dev-ctrl race:
-  `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_dev_ctrl_race_iova.txt`
+  `../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_dev_ctrl_race_iova.txt`
 - Dev-ctrl race kernel log:
-  `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_dev_ctrl_race_iova_kernel_relevant.txt`
+  `../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_dev_ctrl_race_iova_kernel_relevant.txt`
 - Two-command shared IOVA:
-  `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_two_command_shared_iova.txt`
+  `../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_two_command_shared_iova.txt`
 - Two-command shared IOVA kernel log:
-  `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_two_command_shared_iova_kernel_relevant.txt`
+  `../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_two_command_shared_iova_kernel_relevant.txt`
 - Completed latency matrix:
-  `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completed_latency_matrix_iova.txt`
+  `../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completed_latency_matrix_iova.txt`
 - Completed latency matrix kernel log:
-  `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completed_latency_matrix_iova_kernel_relevant.txt`
+  `../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completed_latency_matrix_iova_kernel_relevant.txt`

@@ -1239,9 +1239,9 @@ These records map static output-shape validation owners from rodata32 and L32R-b
 - source trampoline: `0x700301d8`
 - decoded a2 offsets: 0x49, 0x4a bits 2..5
 - special decoded values: 1, 5, 6, 9
-- assessment: The 0x700304f8 owner now ties the locateBuffer trampoline landing to a concrete a2-record field decode and to direct L32R loads from FLK and ANN code-pointer table slots. This is stronger Q2 dispatch evidence than the standalone ANN op-name vocabulary table.
+- assessment: The 0x700304f8 owner now ties the locateBuffer trampoline landing to a concrete a2-record field decode and to FLIX-bundle-interior L32R literal-slot signatures for FLK and ANN code-pointer table slots. This is stronger Q2 dispatch evidence than the standalone ANN op-name vocabulary table, while still short of indexed wrapper opcode mapping.
 - Q2 status: parser_owner_links_record_decode_to_pointer_run_slots; no table-base value or wrapper 10001..10009 index mapping is proven yet.
-- next action: Validate the 0x700304f8 slot-ref sites locally or with runtime traces to determine whether these direct slot loads are bounds, cases, or opcode-indexed table accesses.
+- next action: Use runtime traces or deeper FLIX/TIE slot semantics to connect specific wrapper opcodes 10001..10009 to these parser paths.
 
 | branch target | owner | prop | sweep counts | core mem samples | note |
 |---:|---:|---|---|---|---|
@@ -1249,13 +1249,60 @@ These records map static output-shape validation owners from rodata32 and L32R-b
 | `0x7003125a` `alternate_deeper_parser` | `0x700304f8`+`0xd62` | `insn|branch_target|no_reorder:0x44` | core24=20, dens16=7, flix64=3, flix128=3, bad=1 | `0x70031285` s32i a14,a1+`0x3c8`<br>`0x70031298` l8ui a8,a2+`0x2f`<br>`0x7003129b` l8ui a9,a2+`0x2e`<br>`0x700312bf` s32i a9,a1+`0x33c` | Jump target from 0x70030a46 into the same 0x700304f8 owner. |
 | `0x7003126a` `post_context_load_deeper_parser` | `0x700304f8`+`0xd72` | `insn|branch_target|no_reorder:0xf` | core24=24, dens16=8, flix64=3, flix128=2, bad=0 | `0x70031285` s32i a14,a1+`0x3c8`<br>`0x70031298` l8ui a8,a2+`0x2f`<br>`0x7003129b` l8ui a9,a2+`0x2e`<br>`0x700312bf` s32i a9,a1+`0x33c` | Jump target from 0x70030a56 after loading a8+0x34 context/table field. |
 
-| pointer run | ref | literal slot | target value | target owners | status |
-|---:|---:|---:|---:|---|---|
-| `0x70000180` count 12 | `0x70033d9e`+`0x38a6` | `0x700001a4` | `0x70017d62` | `0x70015e98`:12 | pointer_run_has_direct_slot_refs; validate source owners and local instructions before assigning index semantics. |
-| `0x70000180` count 12 | `0x7003418f`+`0x3c96` | `0x7000019c` | `0x70017d78` | `0x70015e98`:12 | pointer_run_has_direct_slot_refs; validate source owners and local instructions before assigning index semantics. |
-| `0x700001c0` count 12 | `0x70033db9`+`0x38c0` | `0x700001c0` | `0x70017dc5` | `0x70015e98`:12 | pointer_run_has_direct_slot_refs; validate source owners and local instructions before assigning index semantics. |
-| `0x70000b80` count 31 | `0x70032e97`+`0x299e` | `0x70000bc4` | `0x700823f4` | `0x70081d50`:31 | ann_code_pointer_run_has_direct_slot_refs_no_indexed_base; L32R refs load individual 0x70000b80 slots, but no table-base value ref proving indexed opcode dispatch was found. |
-| `0x70000b80` count 31 | `0x700336d8`+`0x31e0` | `0x70000b84` | `0x70082aac` | `0x70081d50`:31 | ann_code_pointer_run_has_direct_slot_refs_no_indexed_base; L32R refs load individual 0x70000b80 slots, but no table-base value ref proving indexed opcode dispatch was found. |
+| pointer run | ref | reg | prop | context | literal slot | target value | target owners | local classification | indexed evidence | status |
+|---:|---:|---:|---|---|---:|---:|---|---|---|---|
+| `0x70000180` count 12 | `0x70033d9e`+`0x38a6` | `a2` | `insn|data|no_reorder|no_transform:0x18` | FLIX bundle interior | `0x700001a4` | `0x70017d62` | `0x70015e98`:12 | flix_bundle_interior_l32r_literal_slot_signature | not_found | pointer_run_has_direct_slot_refs; validate source owners and local instructions before assigning index semantics. |
+| `0x70000180` count 12 | `0x7003418f`+`0x3c96` | `a6` | `insn|no_reorder:0x46` | FLIX bundle interior | `0x7000019c` | `0x70017d78` | `0x70015e98`:12 | flix_bundle_interior_l32r_literal_slot_signature | not_found | pointer_run_has_direct_slot_refs; validate source owners and local instructions before assigning index semantics. |
+| `0x700001c0` count 12 | `0x70033db9`+`0x38c0` | `a2` | `insn|data|no_reorder|no_transform:0x18` | FLIX bundle interior | `0x700001c0` | `0x70017dc5` | `0x70015e98`:12 | flix_bundle_interior_l32r_literal_slot_signature | not_found | pointer_run_has_direct_slot_refs; validate source owners and local instructions before assigning index semantics. |
+| `0x70000b80` count 31 | `0x70032e97`+`0x299e` | `a0` | `insn|no_reorder:0x36` | FLIX bundle interior | `0x70000bc4` | `0x700823f4` | `0x70081d50`:31 | flix_bundle_interior_l32r_literal_slot_signature | not_found | ann_code_pointer_run_has_direct_slot_refs_no_indexed_base; L32R refs load individual 0x70000b80 slots, but no table-base value ref proving indexed opcode dispatch was found. |
+| `0x70000b80` count 31 | `0x700336d8`+`0x31e0` | `a0` | `insn|no_reorder:0x13` | FLIX bundle interior | `0x70000b84` | `0x70082aac` | `0x70081d50`:31 | flix_bundle_interior_l32r_literal_slot_signature | not_found | ann_code_pointer_run_has_direct_slot_refs_no_indexed_base; L32R refs load individual 0x70000b80 slots, but no table-base value ref proving indexed opcode dispatch was found. |
+
+## ELF Verification 1-4
+
+This section closes the current source-risk-to-ELF verification pass for the four active firmware questions. A negative or partial result is still a completed ELF verification result when the current static refs do not prove the stronger runtime claim.
+
+| id | source risks | README priorities | ELF status | IDA targets | decision |
+|---|---|---|---|---|---|
+| `EV1_SETTINGS_OUTPUT_FILL` | SR4 | 2, 4 | `static_output_validators_mapped_fill_loop_not_identified` | `0x700184b4`, `0x70015e98`, `0x70040430`, `0x700a7be0`, `0x700414d0`, `0x700405bc` | ELF verification is complete for the current static refs: output shape validators are mapped, but the exact runtime settings+0x08 fill loop is not identified in this ELF-only pass. |
+| `EV2_DESCRIPTOR_VALIDATION_USE` | SR1, SR2, SR3 | 1, 4 | `descriptor_count_layout_closed_validation_use_pairing_partial` | `0x7003b468`, `0x7003c102`, `0x7003ce3c` | INFO12/INFO13 are closed at the ABI/provider plus 0x40-record layout level. ELF refs identify the record walk and a high-field validator island, but they do not yet prove every validated field is the same field later consumed by output/DMA use. |
+| `EV3_IDMA_OWNER_SEQUENCING` | SR7 | 3, 4 | `idma_owner_anchor_closed_timing_not_static` | `0x70044b74` | The top iDMA schedule/wait owner is closed as an ELF anchor. The static ELF does not prove whether completion/output stores are single-burst or sequenced after a host-visible state change. |
+| `EV4_OPCODE_PARSER_CORRELATION` | SR8 | 1, 6 | `parser_path_closed_opcode_index_mapping_not_found` | `0x700301d8`, `0x70030a0c`, `0x700304f8` | The locateBuffer/parser path and FLK/ANN pointer-run slot refs are mapped in the ELF. Static evidence still does not prove an indexed wrapper opcode table for 10001..10009. |
+
+### `EV1_SETTINGS_OUTPUT_FILL`
+
+- topic: INFO14/INFO15 settings tuple and settings+0x08 output fill
+- status: `static_output_validators_mapped_fill_loop_not_identified`
+- decision: ELF verification is complete for the current static refs: output shape validators are mapped, but the exact runtime settings+0x08 fill loop is not identified in this ELF-only pass.
+- negative/partial evidence: output_validation_investigations explicitly map validators rather than the runtime fill loop; no current parser/DMA owner record proves that settings+0x08 alone selects the fill length
+- next action: Keep runtime settings/output matrices as authority for fill bounds; use these owners only as FLIX/TIE or trace anchors if exact fill-loop attribution becomes necessary.
+- evidence summary: output_size_validation_owner@0x700184b4; output_size_validation_owner@0x70015e98; output_size_validation_owner@0x70040430; output_size_validation_owner@0x700a7be0; output_height_validation_owner@0x700414d0; output_height_validation_owner@0x700405bc
+
+### `EV2_DESCRIPTOR_VALIDATION_USE`
+
+- topic: INFO12/INFO13 descriptor count, 0x40 record layout, and validation/use pairing
+- status: `descriptor_count_layout_closed_validation_use_pairing_partial`
+- decision: INFO12/INFO13 are closed at the ABI/provider plus 0x40-record layout level. ELF refs identify the record walk and a high-field validator island, but they do not yet prove every validated field is the same field later consumed by output/DMA use.
+- negative/partial evidence: 0x7003d423 remains downgraded local control-flow evidence and is not the INFO13 record walk; the validator island at 0x7003ce3c is field-validation evidence, not a full DMA-use pairing proof
+- next action: Treat INFO12/INFO13 and record stride as closed for this stage. Only reopen validation/use pairing if a concrete exploit argument needs a specific plane field to be paired with a later DMA use site.
+- evidence summary: focused_loop@0x7003b468; clusters=0x7003b468,0x7003ce3c,0x70039cfc; downgraded_non_info13_loop@0x7003ce3c
+
+### `EV3_IDMA_OWNER_SEQUENCING`
+
+- topic: iDMA schedule/wait owner and completion/writeback sequencing
+- status: `idma_owner_anchor_closed_timing_not_static`
+- decision: The top iDMA schedule/wait owner is closed as an ELF anchor. The static ELF does not prove whether completion/output stores are single-burst or sequenced after a host-visible state change.
+- negative/partial evidence: string-cluster ownership does not encode inter-store timing; current Java-visible completion polling is runtime evidence, not an ELF-static fact
+- next action: Use the owner as an instrumentation anchor only if later runtime data shows a slow or raceable completed opcode shape.
+- evidence summary: dma_owner_investigation@0x70044b74
+
+### `EV4_OPCODE_PARSER_CORRELATION`
+
+- topic: wrapper opcode 10001..10009 parser path and code-pointer correlation
+- status: `parser_path_closed_opcode_index_mapping_not_found`
+- decision: The locateBuffer/parser path and FLK/ANN pointer-run slot refs are mapped in the ELF. Static evidence still does not prove an indexed wrapper opcode table for 10001..10009.
+- negative/partial evidence: pointer-run refs are classified as direct literal-slot signatures, not table-base indexed dispatch; the ANN op-name table remains vocabulary/reachability evidence, not wrapper opcode index proof
+- next action: Keep runtime opcode matrices as the opcode-specific authority. Do not claim 10001..10009 static index mapping without table-base or live index evidence.
+- evidence summary: dispatcher_parser_investigation@0x700304f8
 
 ## ANN Op Name Table Reachability
 

@@ -2686,6 +2686,215 @@ def build_output_validation_investigations(
     return investigations
 
 
+def owner_cluster_summary(
+    clusters: list[FieldAccessCluster],
+    owner: int,
+) -> dict[str, object] | None:
+    for cluster in clusters:
+        if cluster.owner_entry == owner:
+            return {
+                "owner_entry": cluster.owner_entry,
+                "base_reg": cluster.base_reg,
+                "hit_count": cluster.hit_count,
+                "unique_offsets": cluster.unique_offsets,
+                "vpu_buffer_offsets": cluster.vpu_buffer_offsets,
+                "sample_hits": cluster.sample_hits[:8],
+            }
+    return None
+
+
+def output_validation_summary(
+    investigations: list[OutputValidationInvestigation],
+    limit: int = 6,
+) -> list[dict[str, object]]:
+    out: list[dict[str, object]] = []
+    for item in investigations[:limit]:
+        out.append(
+            {
+                "label": item.label,
+                "owner_entry": item.owner_entry,
+                "analysis_start": item.analysis_start,
+                "analysis_end": item.analysis_end,
+                "referenced_patterns": item.referenced_patterns,
+                "q4_status": item.q4_status,
+                "sample_refs": item.evidence_refs[:4],
+            }
+        )
+    return out
+
+
+def build_elf_verification_1234(
+    standard_field_access_clusters: list[FieldAccessCluster],
+    focused_loop_investigations: list[FocusedLoopInvestigation],
+    output_validation_investigations: list[OutputValidationInvestigation],
+    dma_owner_investigations: list[DmaOwnerInvestigation],
+    dispatcher_parser_investigation: DispatcherParserInvestigation,
+) -> list[dict[str, object]]:
+    focused_by_label = {
+        item.label: item for item in focused_loop_investigations
+    }
+    info13_loop = focused_by_label.get("flix_assisted_INFO13_record_lead")
+    downgraded_loop = focused_by_label.get("downgraded_error_tail_loop_target")
+    dma_owner = dma_owner_investigations[0] if dma_owner_investigations else None
+    parser = dispatcher_parser_investigation
+
+    descriptor_clusters = [
+        owner_cluster_summary(standard_field_access_clusters, owner)
+        for owner in (0x7003B468, 0x7003CE3C, 0x70039CFC)
+    ]
+    descriptor_clusters = [item for item in descriptor_clusters if item is not None]
+
+    return [
+        {
+            "id": "EV1_SETTINGS_OUTPUT_FILL",
+            "topic": "INFO14/INFO15 settings tuple and settings+0x08 output fill",
+            "source_risk_ids": ["SR4"],
+            "readme_priority_ids": [2, 4],
+            "elf_status": "static_output_validators_mapped_fill_loop_not_identified",
+            "decision": (
+                "ELF verification is complete for the current static refs: output "
+                "shape validators are mapped, but the exact runtime settings+0x08 "
+                "fill loop is not identified in this ELF-only pass."
+            ),
+            "evidence": output_validation_summary(output_validation_investigations),
+            "negative_evidence": [
+                "output_validation_investigations explicitly map validators rather than the runtime fill loop",
+                "no current parser/DMA owner record proves that settings+0x08 alone selects the fill length",
+            ],
+            "ida_targets": [
+                item.owner_entry for item in output_validation_investigations[:6]
+            ],
+            "next_action": (
+                "Keep runtime settings/output matrices as authority for fill bounds; "
+                "use these owners only as FLIX/TIE or trace anchors if exact fill-loop "
+                "attribution becomes necessary."
+            ),
+        },
+        {
+            "id": "EV2_DESCRIPTOR_VALIDATION_USE",
+            "topic": "INFO12/INFO13 descriptor count, 0x40 record layout, and validation/use pairing",
+            "source_risk_ids": ["SR1", "SR2", "SR3"],
+            "readme_priority_ids": [1, 4],
+            "elf_status": "descriptor_count_layout_closed_validation_use_pairing_partial",
+            "decision": (
+                "INFO12/INFO13 are closed at the ABI/provider plus 0x40-record "
+                "layout level. ELF refs identify the record walk and a high-field "
+                "validator island, but they do not yet prove every validated field "
+                "is the same field later consumed by output/DMA use."
+            ),
+            "evidence": [
+                {
+                    "kind": "focused_loop",
+                    "label": None if info13_loop is None else info13_loop.label,
+                    "owner_entry": None if info13_loop is None else info13_loop.owner_entry,
+                    "loop_target": None if info13_loop is None else info13_loop.loop_target,
+                    "count_status": None if info13_loop is None else info13_loop.count_status,
+                    "stride_0x40_status": None if info13_loop is None else info13_loop.stride_0x40_status,
+                    "loop_body_core_mem_accesses": []
+                    if info13_loop is None
+                    else info13_loop.loop_body_core_mem_accesses[:8],
+                },
+                {
+                    "kind": "field_access_clusters",
+                    "clusters": descriptor_clusters,
+                },
+                {
+                    "kind": "downgraded_non_info13_loop",
+                    "label": None if downgraded_loop is None else downgraded_loop.label,
+                    "owner_entry": None if downgraded_loop is None else downgraded_loop.owner_entry,
+                    "loop_target": None if downgraded_loop is None else downgraded_loop.loop_target,
+                    "count_status": None if downgraded_loop is None else downgraded_loop.count_status,
+                },
+            ],
+            "negative_evidence": [
+                "0x7003d423 remains downgraded local control-flow evidence and is not the INFO13 record walk",
+                "the validator island at 0x7003ce3c is field-validation evidence, not a full DMA-use pairing proof",
+            ],
+            "ida_targets": [0x7003B468, 0x7003C102, 0x7003CE3C],
+            "next_action": (
+                "Treat INFO12/INFO13 and record stride as closed for this stage. "
+                "Only reopen validation/use pairing if a concrete exploit argument "
+                "needs a specific plane field to be paired with a later DMA use site."
+            ),
+        },
+        {
+            "id": "EV3_IDMA_OWNER_SEQUENCING",
+            "topic": "iDMA schedule/wait owner and completion/writeback sequencing",
+            "source_risk_ids": ["SR7"],
+            "readme_priority_ids": [3, 4],
+            "elf_status": "idma_owner_anchor_closed_timing_not_static",
+            "decision": (
+                "The top iDMA schedule/wait owner is closed as an ELF anchor. "
+                "The static ELF does not prove whether completion/output stores are "
+                "single-burst or sequenced after a host-visible state change."
+            ),
+            "evidence": []
+            if dma_owner is None
+            else [
+                {
+                    "kind": "dma_owner_investigation",
+                    "label": dma_owner.label,
+                    "owner_entry": dma_owner.owner_entry,
+                    "analysis_start": dma_owner.analysis_start,
+                    "analysis_end": dma_owner.analysis_end,
+                    "cluster_rank": dma_owner.cluster_rank,
+                    "cluster_patterns": dma_owner.cluster_patterns,
+                    "q1_status": dma_owner.q1_status,
+                    "evidence_refs": dma_owner.evidence_refs[:8],
+                }
+            ],
+            "negative_evidence": [
+                "string-cluster ownership does not encode inter-store timing",
+                "current Java-visible completion polling is runtime evidence, not an ELF-static fact",
+            ],
+            "ida_targets": [] if dma_owner is None else [dma_owner.owner_entry],
+            "next_action": (
+                "Use the owner as an instrumentation anchor only if later runtime "
+                "data shows a slow or raceable completed opcode shape."
+            ),
+        },
+        {
+            "id": "EV4_OPCODE_PARSER_CORRELATION",
+            "topic": "wrapper opcode 10001..10009 parser path and code-pointer correlation",
+            "source_risk_ids": ["SR8"],
+            "readme_priority_ids": [1, 6],
+            "elf_status": "parser_path_closed_opcode_index_mapping_not_found",
+            "decision": (
+                "The locateBuffer/parser path and FLK/ANN pointer-run slot refs are "
+                "mapped in the ELF. Static evidence still does not prove an indexed "
+                "wrapper opcode table for 10001..10009."
+            ),
+            "evidence": [
+                {
+                    "kind": "dispatcher_parser_investigation",
+                    "owner_entry": parser.owner_entry,
+                    "parser_landing": parser.parser_landing,
+                    "source_trampoline": parser.source_trampoline,
+                    "extracted_field_offsets": parser.extracted_field_offsets,
+                    "special_values": parser.special_values,
+                    "branch_targets": parser.branch_targets,
+                    "pointer_run_slot_refs": parser.pointer_run_slot_refs,
+                    "q2_status": parser.q2_status,
+                }
+            ],
+            "negative_evidence": [
+                "pointer-run refs are classified as direct literal-slot signatures, not table-base indexed dispatch",
+                "the ANN op-name table remains vocabulary/reachability evidence, not wrapper opcode index proof",
+            ],
+            "ida_targets": [
+                parser.source_trampoline,
+                parser.parser_landing,
+                parser.owner_entry,
+            ],
+            "next_action": (
+                "Keep runtime opcode matrices as the opcode-specific authority. "
+                "Do not claim 10001..10009 static index mapping without table-base "
+                "or live index evidence."
+            ),
+        },
+    ]
+
+
 def raw_u32_refs_to_range(
     data: bytes,
     sections: list[Section],
@@ -3076,6 +3285,20 @@ def build_dispatcher_parser_investigation(
                 if run.table_base_value_ref_count or hit.get("value_hit")
                 else "not_found"
             )
+            ref_item_found = bool(context["ref_item_found"])
+            local_classification = (
+                "boundary_direct_l32r_literal_slot_load"
+                if ref_item_found
+                else "flix_bundle_interior_l32r_literal_slot_signature"
+            )
+            local_assessment = (
+                "The byte-level L32R decoder finds one aligned literal slot in "
+                "the code-pointer run. The FLIX-correct local sweep also shows "
+                "whether the byte offset is a boundary-visible core instruction "
+                "or a bundle-interior signature. The current static scan has no "
+                "table-base value reference or local indexed-dispatch proof for "
+                "this site."
+            )
             slot_refs.append(
                 {
                     "run_start": run.start,
@@ -3098,15 +3321,10 @@ def build_dispatcher_parser_investigation(
                     "context_counts": context["context_counts"],
                     "context_bad_framing_count": context["context_bad_framing_count"],
                     "context_items": context["context_items"],
-                    "ref_item_found": context["ref_item_found"],
-                    "local_classification": "direct_l32r_literal_slot_load",
+                    "ref_item_found": ref_item_found,
+                    "local_classification": local_classification,
                     "indexed_dispatch_evidence": indexed_evidence,
-                    "local_assessment": (
-                        "The ref site is a direct L32R load from one aligned "
-                        "literal slot in the code-pointer run. The current "
-                        "static scan has no table-base value reference or "
-                        "local indexed-dispatch proof for this site."
-                    ),
+                    "local_assessment": local_assessment,
                     "q2_status": run.q2_status,
                 }
             )
@@ -3123,9 +3341,11 @@ def build_dispatcher_parser_investigation(
         pointer_run_slot_refs=slot_refs,
         assessment=(
             "The 0x700304f8 owner now ties the locateBuffer trampoline landing "
-            "to a concrete a2-record field decode and to direct L32R loads from "
-            "FLK and ANN code-pointer table slots. This is stronger Q2 dispatch "
-            "evidence than the standalone ANN op-name vocabulary table."
+            "to a concrete a2-record field decode and to FLIX-bundle-interior "
+            "L32R literal-slot signatures for FLK and ANN code-pointer table "
+            "slots. This is stronger Q2 dispatch evidence than the standalone "
+            "ANN op-name vocabulary table, while still short of indexed wrapper "
+            "opcode mapping."
         ),
         q2_status=(
             "parser_owner_links_record_decode_to_pointer_run_slots; no table-base "
@@ -4039,10 +4259,10 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
             )
         lines.append("")
         lines.append(
-            "| pointer run | ref | reg | prop | literal slot | target value | "
+            "| pointer run | ref | reg | prop | context | literal slot | target value | "
             "target owners | local classification | indexed evidence | status |"
         )
-        lines.append("|---:|---:|---:|---|---:|---:|---|---|---|---|")
+        lines.append("|---:|---:|---:|---|---|---:|---:|---|---|---|---|")
         slot_refs = dispatcher_parser["pointer_run_slot_refs"]
         assert isinstance(slot_refs, list)
         for item in slot_refs:
@@ -4058,6 +4278,7 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
                 f"`{hx(item['ref_addr'])}`+`{hx(item.get('owner_delta'))}` | "
                 f"`a{item.get('target_reg')}` | "
                 f"`{item.get('prop_flags') or ''}:{hx(item.get('prop_size'))}` | "
+                f"{'boundary item' if item.get('ref_item_found') else 'FLIX bundle interior'} | "
                 f"`{hx(item.get('literal_addr'))}` | `{hx(item.get('literal_value'))}` | "
                 f"{', '.join(owner_text)} | "
                 f"{display_text(str(item.get('local_classification', '')))} | "
@@ -4065,6 +4286,89 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
                 f"{display_text(str(item['q2_status']))} |"
             )
         lines.append("")
+    elf_verification = payload.get("elf_verification_1234")
+    if isinstance(elf_verification, list):
+        lines.append("## ELF Verification 1-4")
+        lines.append("")
+        lines.append(
+            "This section closes the current source-risk-to-ELF verification pass "
+            "for the four active firmware questions. A negative or partial result "
+            "is still a completed ELF verification result when the current static "
+            "refs do not prove the stronger runtime claim."
+        )
+        lines.append("")
+        lines.append(
+            "| id | source risks | README priorities | ELF status | IDA targets | decision |"
+        )
+        lines.append("|---|---|---|---|---|---|")
+        for point in elf_verification:
+            assert isinstance(point, dict)
+            targets = point.get("ida_targets", [])
+            assert isinstance(targets, list)
+            source_ids = point.get("source_risk_ids", [])
+            assert isinstance(source_ids, list)
+            readme_ids = point.get("readme_priority_ids", [])
+            assert isinstance(readme_ids, list)
+            target_text = ", ".join(
+                f"`{hx(int(value))}`" for value in targets[:8]
+            )
+            lines.append(
+                f"| `{point['id']}` | "
+                f"{display_text(', '.join(str(value) for value in source_ids))} | "
+                f"{display_text(', '.join(str(value) for value in readme_ids))} | "
+                f"`{display_text(str(point['elf_status']))}` | "
+                f"{target_text or 'none'} | "
+                f"{display_text(str(point['decision']))} |"
+            )
+        lines.append("")
+        for point in elf_verification:
+            assert isinstance(point, dict)
+            lines.append(f"### `{point['id']}`")
+            lines.append("")
+            lines.append(f"- topic: {display_text(str(point['topic']))}")
+            lines.append(f"- status: `{display_text(str(point['elf_status']))}`")
+            lines.append(f"- decision: {display_text(str(point['decision']))}")
+            negative = point.get("negative_evidence", [])
+            assert isinstance(negative, list)
+            if negative:
+                lines.append(
+                    "- negative/partial evidence: "
+                    + display_text("; ".join(str(value) for value in negative))
+                )
+            lines.append(f"- next action: {display_text(str(point['next_action']))}")
+            evidence = point.get("evidence", [])
+            assert isinstance(evidence, list)
+            evidence_summaries: list[str] = []
+            for entry in evidence[:6]:
+                if not isinstance(entry, dict):
+                    continue
+                kind = str(entry.get("kind") or entry.get("label") or "evidence")
+                owner = entry.get("owner_entry")
+                if owner is not None:
+                    evidence_summaries.append(f"{kind}@{hx(int(owner))}")
+                    continue
+                if entry.get("clusters"):
+                    clusters = entry["clusters"]
+                    assert isinstance(clusters, list)
+                    evidence_summaries.append(
+                        "clusters="
+                        + ",".join(
+                            hx(int(cluster["owner_entry"]))
+                            for cluster in clusters[:4]
+                            if isinstance(cluster, dict)
+                            and cluster.get("owner_entry") is not None
+                        )
+                    )
+                    continue
+                if entry.get("parser_landing") is not None:
+                    evidence_summaries.append(
+                        f"parser_landing={hx(int(entry['parser_landing']))}"
+                    )
+            lines.append(
+                "- evidence summary: "
+                + display_text("; ".join(evidence_summaries) or "see JSON")
+            )
+            lines.append("")
     ann_table = payload.get("ann_op_table_investigation")
     if isinstance(ann_table, dict):
         lines.append("## ANN Op Name Table Reachability")
@@ -4189,6 +4493,13 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
     focused_loop_investigations = build_focused_loop_investigations(
         data, sections, props
     )
+    elf_verification_1234 = build_elf_verification_1234(
+        standard_field_access_clusters=standard_field_access_clusters,
+        focused_loop_investigations=focused_loop_investigations,
+        output_validation_investigations=output_validation_investigations,
+        dma_owner_investigations=dma_owner_investigations,
+        dispatcher_parser_investigation=dispatcher_parser_investigation,
+    )
     flix_sweeps = build_flix_sweeps(data, sections, props, function_candidates)
 
     entry_props = []
@@ -4231,6 +4542,7 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
         "dispatcher_parser_investigation": to_jsonable(dispatcher_parser_investigation),
         "dma_owner_investigations": to_jsonable(dma_owner_investigations),
         "output_validation_investigations": to_jsonable(output_validation_investigations),
+        "elf_verification_1234": to_jsonable(elf_verification_1234),
         "ann_op_table_investigation": to_jsonable(ann_op_table_investigation),
         "dram_op_l32r_refs": to_jsonable(dram_op_l32r_refs),
         "loop_target_count": loop_target_count,
@@ -4465,6 +4777,18 @@ def print_summary(payload: dict[str, object]) -> None:
             f"pointer_run_slot_refs={len(dispatcher_parser['pointer_run_slot_refs'])} "
             f"status={dispatcher_parser['q2_status']}"
         )
+    elf_verification = payload.get("elf_verification_1234")
+    if isinstance(elf_verification, list):
+        print(f"elf_verification_1234={len(elf_verification)}")
+        for point in elf_verification:
+            assert isinstance(point, dict)
+            targets = point.get("ida_targets", [])
+            assert isinstance(targets, list)
+            print(
+                "  elf_verification "
+                f"{point['id']} status={point['elf_status']} "
+                f"targets={','.join(hx(int(value)) or '' for value in targets[:8])}"
+            )
     ann_investigation = payload.get("ann_op_table_investigation")
     if isinstance(ann_investigation, dict):
         print(

@@ -9,7 +9,7 @@ machine-readable refs, and this handoff. This stage is sufficient for the
 kernel-primitive decision loop and for later deeper reverse engineering:
 
 - the persistent ELF/IDB artifacts under
-  `13-apusys-ioctl-surface/firmware/apunn/` are the current OTA
+  `../13-apusys-ioctl-surface/firmware/apunn/` are the current OTA
   `apunn_core0_full.elf` and saved IDA database
 - `analyze_apunn_elf.py` regenerates the JSON/Markdown refs from the ELF and
   `.xt.prop` without relying on decompiler output
@@ -21,6 +21,10 @@ kernel-primitive decision loop and for later deeper reverse engineering:
 - current Q1/Q2/Q3/Q4 evidence is captured below; full FLIX slot semantics,
   full decompilation, and the final `10001..10009` indexed-dispatch map are
   follow-up work rather than prerequisites for this foundation handoff
+- the generated refs now include `elf_verification_1234` and the Markdown
+  section "ELF Verification 1-4", which records the completed static result for
+  settings/output-fill, descriptor validation/use, iDMA owner sequencing, and
+  opcode parser correlation
 
 ## Why this is the blocker
 
@@ -92,6 +96,22 @@ request has `ALG_PRELOAD`, the driver issues `VPU_CMD_DO_D2D_EXT` (`0x24`),
 writes the selected preload entry to `XTENSA_INFO16`, writes IRAM MVA to
 `XTENSA_INFO19`, then passes `buffer_count`, the copied `struct vpu_buffer[]`
 IOVA, and the optional settings tuple through `XTENSA_INFO12..15`.
+
+The first source-vs-firmware comparison pass is captured in
+`MTK_SOURCE_FIRMWARE_COMPARISON_MATRIX.md`. It accepts the INFO12/INFO13
+descriptor contract and INFO16 APUNN entry binding against current firmware
+refs, keeps INFO14/INFO15 settings/output-fill as only partially statically
+mapped, treats INFO01 `0x24` as a kernel/resident-firmware selector until a
+direct APUNN-side read is found, and rejects the ANN op-name table / FLK-ANN
+slot signatures as proof of wrapper opcode index mapping. The current ELF refs
+materialize the active 1-4 verification pass as:
+
+| ID | Result |
+|---|---|
+| `EV1_SETTINGS_OUTPUT_FILL` | static output validators mapped; exact runtime `settings+0x08` fill loop not identified in ELF-only refs |
+| `EV2_DESCRIPTOR_VALIDATION_USE` | INFO12/INFO13 count and 0x40 layout closed; validation/use pairing remains partial |
+| `EV3_IDMA_OWNER_SEQUENCING` | top iDMA schedule/wait owner `0x70044b74` closed as an anchor; timing remains runtime/FLIX-slot evidence |
+| `EV4_OPCODE_PARSER_CORRELATION` | locateBuffer/parser path mapped; indexed `10001..10009` opcode table evidence not found |
 
 ## Current OTA artifacts
 
@@ -209,18 +229,18 @@ A live physical reserved-memory dump is still useful to verify the exact
 LK-merged layout, but it is no longer a blocker for core-0 static analysis.
 
 The current ELF, IDA IDB, and analyzer outputs are persisted under
-`13-apusys-ioctl-surface/firmware/apunn/`:
+`../13-apusys-ioctl-surface/firmware/apunn/`:
 
 | Artifact | Path | Notes |
 |---|---|---|
-| Core-0 full ELF | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf` | persistent analysis baseline |
-| IDA Pro Xtensa IDB | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf.i64` | mutable analysis database |
-| IDA sidecars | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf.{id0,id1,id2,nam,til}` | mutable analysis database sidecars |
-| Analyzer JSON | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full_analysis_refs.json` | mutable generated analysis input for IDA apply script |
-| Analyzer Markdown | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full_analysis_refs.md` | mutable generated analysis summary |
+| Core-0 full ELF | `../13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf` | persistent analysis baseline |
+| IDA Pro Xtensa IDB | `../13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf.i64` | mutable analysis database |
+| IDA sidecars | optional | IDA may create `apunn_core0_full.elf.id0`, `.id1`, `.id2`, `.nam`, or `.til` beside the `.i64` database |
+| Analyzer JSON | `../13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full_analysis_refs.json` | mutable generated analysis input for IDA apply script |
+| Analyzer Markdown | `../13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full_analysis_refs.md` | mutable generated analysis summary |
 
 Current core-0 ELF facts from
-`13-apusys-ioctl-surface/tools/analyze_apunn_elf.py`:
+`../13-apusys-ioctl-surface/tools/analyze_apunn_elf.py`:
 
 | Section | VA | File offset | Size |
 |---|---:|---:|---:|
@@ -274,10 +294,11 @@ Recovered pointer/name tables:
 - The 31-entry ANN pointer run at `0x70000b80` resolves entirely to owner
   `0x70081d50`; a standard-instruction island in that owner contains `jx a9`,
   consistent with branch-table-shaped control flow. The refreshed reachability
-  scan finds direct L32R loads from selected `0x70000b80` slots, so those code
-  pointers are reachable, but it does not find a table-base value reference that
-  proves opcode-indexed dispatch. This is slot-level code-pointer evidence, not a
-  proven mapping from table index to the 63 ANN op-name entries.
+  scan finds L32R literal-slot signatures for selected `0x70000b80` slots, so
+  those code pointers are reachable at the slot-signature level, but it does not
+  find a table-base value reference that proves opcode-indexed dispatch. This is
+  slot-level code-pointer evidence, not a proven mapping from table index to the
+  63 ANN op-name entries.
 - `.dram_op.data` holds a 63-entry ANN op name table:
   `CONV2D`, `DWCONV2D`, `POOL2D`, `LOGISTIC`, `RELU`, `SOFTMAX`, `RESHAPE`,
   `CONCAT`, `ELEWISE`, `L2NORM`, `RESZBILINR`, `TRANSPOSE`, `DECONV2D`, `PAD`,
@@ -386,14 +407,17 @@ also reads little-endian byte pairs at `a2+0x0e/+0x0f`,
 the descriptor-backed DSP command buffer parser, but not yet to the firmware's
 native `INFO12`/`INFO13` iteration bounds.
 
-The same `0x700304f8` parser owner now has direct L32R slot references to the
-nearby code-pointer runs: two slots from the `0x70000180` FLK run, one slot from
-the `0x700001c0` FLK run, and two slots from the `0x70000b80` ANN run. The
-branch targets from the decoded `a2+0x49/+0x4a` field are now tracked as
+The same `0x700304f8` parser owner now has byte-level L32R literal-slot
+signatures to nearby code-pointer runs: two slots from the `0x70000180` FLK run,
+one slot from the `0x700001c0` FLK run, and two slots from the `0x70000b80` ANN
+run. The FLIX-correct local sweeps place all five ref offsets inside FLIX
+bundles, not as boundary-visible core instructions, and the static scan still
+finds no table-base value reference for indexed opcode dispatch. The branch
+targets from the decoded `a2+0x49/+0x4a` field are now tracked as
 `0x70020ba2` (cross-owner target in `0x7001dffc`) and `0x7003125a`/`0x7003126a`
 (deeper paths inside `0x700304f8`). This ties the parser to concrete FLK/ANN
-code-pointer slots; it still does not prove a table-base/index mapping for
-wrapper opcodes `10001..10009`.
+code-pointer slots at the FLIX bundle-signature level; it still does not prove a
+table-base/index mapping for wrapper opcodes `10001..10009`.
 
 The `0x7003ce3c` owner now has a separate byte-verified buffer-record-shaped
 field validator island. Standard Xtensa instructions read and zero-check an
@@ -440,7 +464,7 @@ more likely a switch/error-tail lead than the descriptor array walk.
 IDA Pro MCP state after reloading the same ELF as **ELF for Xtensa** (not raw
 `Binary File`): processor `XTENSA`, 32-bit, sections mapped at the ELF VAs
 above, saved IDB
-`13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf.i64`. Running
+`../13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf.i64`. Running
 `tools/ida_apply_apunn_xt_prop.py` against
 `/tmp/apunn_core0_full_analysis_refs.json` creates/names `.xt.prop`-bounded
 entry candidates up to the safe `next_entry_delta <= 0x2000` threshold. Current
@@ -626,12 +650,13 @@ Current partial answers from the ELF pass:
   of `.rodata` strings followed by zero tail bytes; the analyzer finds no
   reproducible raw-u32 or L32R refs from code/data to `.dram_op.data`. The
   31-entry ANN code-pointer run at `0x70000b80` is stronger code evidence: it
-  resolves to owner `0x70081d50` and has direct L32R slot refs, but still no
+  resolves to owner `0x70081d50` and has literal-slot signatures, but still no
   table-base value ref proving indexed opcode dispatch. The
   byte-verified `0x700301d8` `locateBuffer` trampoline and `0x70030a0c`
   operand-record decode island now connect the parser owner `0x700304f8` to
-  direct FLK/ANN pointer-run slot refs. That is the strongest current Q2 static
-  path, but it still lacks a table-base/index mapping for wrapper/runtime
+  FLIX-bundle-interior FLK/ANN pointer-run slot signatures. That is the
+  strongest current Q2 static path, but it still lacks a table-base/index
+  mapping for wrapper/runtime
   `10001..10009` opcodes.
 - Q3 is closed for the current INFO12/INFO13 proposition at the
   kernel/provider boundary plus record-layout level: `buffer_count` is capped
@@ -682,10 +707,11 @@ that proof: it currently resolves as a 63-entry ANN op-name vocabulary table,
 with no raw-u32 or L32R code reference to the table. The strongest Q2 static
 path is now `0x700301d8 -> 0x70030a0c -> 0x700304f8`: it decodes
 `a2+0x49/+0x4a` bits `2..5`, branches to `0x70020ba2` and
-`0x7003125a/0x7003126a`, and the same owner directly references FLK and ANN
-pointer-run slots. Current pointer-run reachability still separates direct slot
-loads from table-base/indexed dispatch: neither the FLK nor ANN runs currently
-have a table-base value ref that proves wrapper-opcode index mapping. Open
+`0x7003125a/0x7003126a`, and the same owner has FLIX-bundle-interior L32R
+literal-slot signatures to FLK and ANN pointer-run slots. Current pointer-run
+reachability still separates slot signatures from table-base/indexed dispatch:
+neither the FLK nor ANN runs currently have a table-base value ref that proves
+wrapper-opcode index mapping. Open
 runtime questions:
 - which `10001..10009` opcodes produce the most DMA traffic?
 - are there opcodes that write to multiple descriptor-backed buffers in
@@ -775,35 +801,38 @@ slow-opcode shape.
 
 | Tool | Path | Status |
 |---|---|---|
-| VPU image parser | `13-apusys-ioctl-surface/tools/parse_vpu_image.py` | Parses preload metadata, carves raw segments, and reports embedded ELF offsets; use `--head-offset 0x200 --headers 1` for V260523 `cam_vpu2.img` |
-| APUNN ELF analyzer | `13-apusys-ioctl-surface/tools/analyze_apunn_elf.py` | Emits section map, `.xtensa.info`, `.xt.prop` property runs, `.xt.prop`-backed function-entry candidates, key address owners, global FLIX length-rule validation, byte-verified standard Xtensa islands, FLIX-correct boundary sweeps, `.text`→`.rodata` suffix refs, PC-relative `L32R` literal refs, focused loop investigations, L32R string-owner clusters, output-validation owner investigations, DMA/descriptor critical-string status, pointer runs plus reachability, ANN op name table, interesting strings, JSON, and Markdown |
-| Byte-aligned hardware-loop scanner | `13-apusys-ioctl-surface/tools/apunn_loop_scan.py` | Regression/negative-control scanner for `LOOP/LOOPNEZ/LOOPGTZ`; confirms no byte-aligned LOOP to `0x7003c102` and the downgraded `0x7003d3ea -> 0x7003d423` positive control |
-| IDA `.xt.prop` applier | `13-apusys-ioctl-surface/tools/ida_apply_apunn_xt_prop.py` | Applies analyzer JSON to an IDA Xtensa ELF IDB: bounded function creation, key names/comments, pointer-run dwords/xrefs plus reachability comments, critical-string annotations, selected `L32R` refs, loop-target candidates, focused loop notes, global FLIX length-rule and FLIX-correct sweep comments, L32R string-owner clusters, output-validation comments, and byte-verified standard-island comments |
-| Ghidra export script | `13-apusys-ioctl-surface/tools/GhidraApunnExport.java` | Headless adjunct for function/string/decompiler snapshots from `/tmp/apunn_core0_full.elf`; decompiler output is advisory only |
-| Allocator gap profiler | `13-apusys-ioctl-surface/poc/ApusysIoctlProbe.java` | Active; 8+ probe modes |
+| VPU image parser | `../13-apusys-ioctl-surface/tools/parse_vpu_image.py` | Parses preload metadata, carves raw segments, and reports embedded ELF offsets; use `--head-offset 0x200 --headers 1` for V260523 `cam_vpu2.img` |
+| APUNN ELF analyzer | `../13-apusys-ioctl-surface/tools/analyze_apunn_elf.py` | Emits section map, `.xtensa.info`, `.xt.prop` property runs, `.xt.prop`-backed function-entry candidates, key address owners, global FLIX length-rule validation, byte-verified standard Xtensa islands, FLIX-correct boundary sweeps, `.text`→`.rodata` suffix refs, PC-relative `L32R` literal refs, focused loop investigations, L32R string-owner clusters, output-validation owner investigations, DMA/descriptor critical-string status, pointer runs plus reachability, `elf_verification_1234`, ANN op name table, interesting strings, JSON, and Markdown |
+| Byte-aligned hardware-loop scanner | `../13-apusys-ioctl-surface/tools/apunn_loop_scan.py` | Regression/negative-control scanner for `LOOP/LOOPNEZ/LOOPGTZ`; confirms no byte-aligned LOOP to `0x7003c102` and the downgraded `0x7003d3ea -> 0x7003d423` positive control |
+| IDA `.xt.prop` applier | `../13-apusys-ioctl-surface/tools/ida_apply_apunn_xt_prop.py` | Applies analyzer JSON to an IDA Xtensa ELF IDB: bounded function creation, key names/comments, pointer-run dwords/xrefs plus reachability comments, critical-string annotations, selected `L32R` refs, loop-target candidates, focused loop notes, global FLIX length-rule and FLIX-correct sweep comments, L32R string-owner clusters, output-validation comments, `elf_verification_1234` comments, and byte-verified standard-island comments |
+| Ghidra export script | `../13-apusys-ioctl-surface/tools/GhidraApunnExport.java` | Headless adjunct for function/string/decompiler snapshots from `/tmp/apunn_core0_full.elf`; decompiler output is advisory only |
+| Allocator gap profiler | `../13-apusys-ioctl-surface/poc/ApusysIoctlProbe.java` | Active; 8+ probe modes |
 | Firmware-coupled gap reuse | `--run-cmd-vpu-xrp-mem-free-race-completed-gap-reuse-iova` | Ready to re-run with new shapes |
 | Completion write poll | `--run-cmd-vpu-xrp-completion-poll-iova` | Runtime negative for Java-visible pre-wait field sequencing |
-| Wrapper static analysis | `13-apusys-ioctl-surface/APUNN_SETTINGS_ABI.md` | Complete for current scope |
-| Kernel primitive handoff | `13-apusys-ioctl-surface/HANDOFF_KERNEL_PRIMITIVE.md` | Active closure artifact |
-| Allocator controllability | `13-apusys-ioctl-surface/ALLOCATOR_CONTROLLABILITY_OPPORTUNITY.md` | Active experiment loop |
+| Wrapper static analysis | `../13-apusys-ioctl-surface/APUNN_SETTINGS_ABI.md` | Complete for current scope |
+| Kernel primitive handoff | `../13-apusys-ioctl-surface/HANDOFF_KERNEL_PRIMITIVE.md` | Active closure artifact |
+| Allocator controllability | `../13-apusys-ioctl-surface/ALLOCATOR_CONTROLLABILITY_OPPORTUNITY.md` | Active experiment loop |
 
 ## Acceptance criteria
 
-The firmware disassembly task is complete when:
+The current foundation disassembly stage is complete when:
 
 1. The embedded `apu_lib_apunn` ELF is loaded with the correct section map and
    `INFO16`/ELF entry `0x70006794` annotation.
 2. The APUNN preload entry and first context/descriptor parser path are
    identified far enough to connect `INFO12..15` and the descriptor-backed DSP
    command buffer to firmware code.
-3. Q1 (DMA timing) has a concrete answer: single burst, or sequenced with
-   measured/estimated inter-store gap
+3. The refs contain `elf_verification_1234` with four entries covering
+   settings/output-fill, descriptor validation/use, iDMA owner sequencing, and
+   opcode parser correlation.
 4. Q3 (descriptor bounds) has a concrete answer for the current interface:
    kernel/provider `buffer_count` cap plus native 0x40-record layout evidence
    close INFO12/INFO13, with FLIX-hidden loop internals tracked separately
-5. Findings are written back to `HANDOFF_KERNEL_PRIMITIVE.md`
+5. The IDA applier consumes the same refs and writes the 1-4 verification
+   summary to the active Xtensa ELF IDB.
 
-Q2/Q4/Q5/Q6 are valuable follow-ups but not blocking for the immediate
-allocator-reuse race decision. `INFO01 == 0x24` should be treated as the
-kernel/resident-firmware dispatch selector unless a direct APUNN-side read is
-later found.
+Full Q1 timing, exact Q4 runtime output-fill owner attribution, and final
+`10001..10009` indexed-dispatch mapping are deeper firmware follow-ups. They are
+not prerequisites for this foundation refs/handoff stage. `INFO01 == 0x24`
+should be treated as the kernel/resident-firmware dispatch selector unless a
+direct APUNN-side read is later found.

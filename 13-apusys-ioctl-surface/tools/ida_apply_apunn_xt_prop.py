@@ -20,6 +20,7 @@ uses Xtensa TIE/FLIX encodings that IDA may not decode cleanly.
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -27,6 +28,7 @@ from pathlib import Path
 import ida_auto
 import ida_bytes
 import ida_funcs
+import ida_ida
 import ida_name
 import ida_segment
 import ida_xref
@@ -35,6 +37,7 @@ import idc
 
 DEFAULT_JSON = Path("/tmp/apunn_core0_full_analysis_refs.json")
 MAX_BOUNDED_FUNCTION_DELTA = 0x2000
+MAX_IDA_COMMENT_LEN = 1000
 OBSOLETE_COMMENT_MARKERS = (
     "primary_INFO13_record_loop_candidate",
     "primary_INFO13_record_loop_target",
@@ -52,6 +55,25 @@ OBSOLETE_COMMENT_MARKERS = (
 )
 
 
+def default_json_candidates() -> list[Path]:
+    candidates: list[Path] = []
+    env_path = os.environ.get("APUNN_ANALYSIS_JSON")
+    if env_path:
+        candidates.append(Path(env_path))
+    try:
+        repo_default = (
+            Path(__file__).resolve().parent.parent
+            / "firmware"
+            / "apunn"
+            / "apunn_core0_full_analysis_refs.json"
+        )
+        candidates.append(repo_default)
+    except Exception:
+        pass
+    candidates.append(DEFAULT_JSON)
+    return candidates
+
+
 def get_json_path() -> Path:
     candidates: list[str] = []
     candidates.extend(str(arg) for arg in getattr(idc, "ARGV", []) if arg)
@@ -59,11 +81,30 @@ def get_json_path() -> Path:
     for candidate in candidates:
         if candidate.endswith(".json"):
             return Path(candidate)
-    return DEFAULT_JSON
+    for candidate in default_json_candidates():
+        if candidate.exists():
+            return candidate
+    return default_json_candidates()[0]
+
+
+def warn_if_unexpected_processor() -> None:
+    try:
+        procname = ida_ida.inf_get_procname()
+    except Exception:
+        return
+    if "xtensa" not in str(procname).lower():
+        print("[APUNN] warning: IDA processor is %s, expected XTENSA" % procname)
 
 
 def has_segment(ea: int) -> bool:
     return ida_segment.getseg(ea) is not None
+
+
+def item_comment_anchor(ea: int) -> int:
+    head = idc.get_item_head(ea)
+    if head != idc.BADADDR and has_segment(head):
+        return int(head)
+    return ea
 
 
 def safe_name(text: str, fallback: str) -> str:
@@ -94,6 +135,35 @@ def append_comment(ea: int, text: str, repeatable: bool = False) -> bool:
             return bool(idc.set_cmt(ea, old, repeatable))
         return False
     new = text if not old else old + "\n" + text
+    return bool(idc.set_cmt(ea, new, repeatable))
+
+
+def append_priority_comment(ea: int, text: str, repeatable: bool = False) -> bool:
+    if not has_segment(ea):
+        return False
+    old_raw = idc.get_cmt(ea, repeatable) or ""
+    old_lines = old_raw.splitlines()
+    has_obsolete = any(
+        any(marker in line for marker in OBSOLETE_COMMENT_MARKERS) for line in old_lines
+    )
+    if text in old_lines and not has_obsolete:
+        return False
+
+    kept: list[str] = [text]
+    seen: set[str] = {text}
+    for line in old_lines:
+        if any(marker in line for marker in OBSOLETE_COMMENT_MARKERS):
+            continue
+        if line in seen:
+            continue
+        candidate = "\n".join(kept + [line])
+        if len(candidate) > MAX_IDA_COMMENT_LEN:
+            break
+        kept.append(line)
+        seen.add(line)
+    new = "\n".join(kept)
+    if new == old_raw:
+        return False
     return bool(idc.set_cmt(ea, new, repeatable))
 
 
@@ -339,17 +409,79 @@ def apply_dispatcher_parser_investigation(payload: dict[str, object]) -> int:
             comments += 1
     for ref in item.get("pointer_run_slot_refs", []):
         addr = int(ref["ref_addr"])
+        literal_addr = ref.get("literal_addr")
+        literal_value = ref.get("literal_value")
+        prop_addr = ref.get("prop_addr")
+        ref_item_found = bool(ref.get("ref_item_found"))
+        comment_ea = addr
+        if ref_item_found:
+            try_create_insn(addr)
+            comment_ea = item_comment_anchor(addr)
+        elif prop_addr is not None:
+            comment_ea = item_comment_anchor(int(prop_addr))
+        else:
+            comment_ea = item_comment_anchor(addr)
+        if ref_item_found and literal_addr is not None and has_segment(int(literal_addr)):
+            ida_xref.add_dref(addr, int(literal_addr), ida_xref.dr_R)
+        if literal_addr is not None and has_segment(int(literal_addr)):
+            try:
+                idc.create_dword(int(literal_addr))
+                idc.op_plain_offset(int(literal_addr), 0, 0)
+            except Exception:
+                pass
+        if (
+            literal_addr is not None
+            and literal_value is not None
+            and has_segment(int(literal_addr))
+            and has_segment(int(literal_value) & ~1)
+        ):
+            ida_xref.add_dref(int(literal_addr), int(literal_value) & ~1, ida_xref.dr_O)
+        counts = ref.get("context_counts", {})
+        if not isinstance(counts, dict):
+            counts = {}
         if append_comment(
-            addr,
-            "APUNN Q2 parser-owner pointer-run slot ref; run=%s slot=%s value=%s status=%s"
+            comment_ea,
+            "APUNN Q2 parser-owner pointer-run slot ref at %s; run=%s slot=%s "
+            "value=%s a%s prop=%s:%s ref_item=%s ctx=%s/%s/%s/%s bad=%s "
+            "class=%s indexed=%s status=%s"
             % (
+                fmt_hex(addr),
                 fmt_hex(ref.get("run_start")),
-                fmt_hex(ref.get("literal_addr")),
-                fmt_hex(ref.get("literal_value")),
+                fmt_hex(literal_addr),
+                fmt_hex(literal_value),
+                ref.get("target_reg"),
+                ref.get("prop_flags"),
+                fmt_hex(ref.get("prop_size")),
+                ref_item_found,
+                counts.get("core24", 0),
+                counts.get("dens16", 0),
+                counts.get("flix64", 0),
+                counts.get("flix128", 0),
+                ref.get("context_bad_framing_count"),
+                ref.get("local_classification"),
+                ref.get("indexed_dispatch_evidence"),
                 ref.get("q2_status"),
             ),
         ):
             comments += 1
+        prop_comment_ea = None if prop_addr is None else item_comment_anchor(int(prop_addr))
+        if prop_comment_ea is not None and prop_comment_ea != comment_ea:
+            if append_comment(
+                prop_comment_ea,
+                "APUNN Q2 slot-ref local context; ref=%s core24=%s dens16=%s "
+                "flix64=%s flix128=%s bad=%s classification=%s indexed=%s"
+                % (
+                    fmt_hex(addr),
+                    counts.get("core24", 0),
+                    counts.get("dens16", 0),
+                    counts.get("flix64", 0),
+                    counts.get("flix128", 0),
+                    ref.get("context_bad_framing_count"),
+                    ref.get("local_classification"),
+                    ref.get("indexed_dispatch_evidence"),
+                ),
+            ):
+                comments += 1
     return comments
 
 
@@ -757,6 +889,43 @@ def apply_output_validation_investigations(payload: dict[str, object]) -> int:
     return comments
 
 
+def apply_elf_verification_1234(payload: dict[str, object]) -> int:
+    comments = 0
+    for point in payload.get("elf_verification_1234", []):
+        if not isinstance(point, dict):
+            continue
+        targets = point.get("ida_targets", [])
+        if not isinstance(targets, list):
+            continue
+        source_ids = point.get("source_risk_ids", [])
+        if not isinstance(source_ids, list):
+            source_ids = []
+        readme_ids = point.get("readme_priority_ids", [])
+        if not isinstance(readme_ids, list):
+            readme_ids = []
+        decision = str(point.get("decision", ""))
+        if len(decision) > 260:
+            decision = decision[:257] + "..."
+        comment = (
+            "APUNN ELF verification 1-4 %s; status=%s; source=%s; readme=%s; %s"
+            % (
+                point.get("id"),
+                point.get("elf_status"),
+                ",".join(str(value) for value in source_ids),
+                ",".join(str(value) for value in readme_ids),
+                decision,
+            )
+        )
+        for target in targets:
+            try:
+                ea = item_comment_anchor(int(target))
+            except Exception:
+                continue
+            if append_priority_comment(ea, comment):
+                comments += 1
+    return comments
+
+
 def apply_ann_op_table_investigation(payload: dict[str, object]) -> int:
     item = payload.get("ann_op_table_investigation")
     if not isinstance(item, dict):
@@ -796,6 +965,7 @@ def main() -> None:
     payload = json.loads(json_path.read_text())
     print("[APUNN] applying analysis from %s" % json_path)
 
+    warn_if_unexpected_processor()
     ida_auto.auto_wait()
     fn_created, fn_bounded, fn_named, inside_existing = apply_function_candidates(payload)
     key_named = apply_key_addresses(payload)
@@ -812,6 +982,7 @@ def main() -> None:
     cluster_comments = apply_critical_owner_clusters(payload)
     dma_owner_comments = apply_dma_owner_investigations(payload)
     output_validation_comments = apply_output_validation_investigations(payload)
+    elf_verification_comments = apply_elf_verification_1234(payload)
     ann_op_table_comments = apply_ann_op_table_investigation(payload)
     ida_auto.auto_wait()
 
@@ -821,7 +992,7 @@ def main() -> None:
         "l32r_comments=%d l32r_refs=%d loop_comments=%d focused_loop_comments=%d "
         "flix_sweep_comments=%d flix_rule_comments=%d cluster_comments=%d dma_owner_comments=%d "
         "output_validation_comments=%d pointer_run_comments=%d dispatcher_parser_comments=%d "
-        "ann_op_table_comments=%d"
+        "elf_verification_comments=%d ann_op_table_comments=%d"
         % (
             fn_created,
             fn_bounded,
@@ -843,6 +1014,7 @@ def main() -> None:
             output_validation_comments,
             pointer_run_comments,
             dispatcher_parser_comments,
+            elf_verification_comments,
             ann_op_table_comments,
         )
     )

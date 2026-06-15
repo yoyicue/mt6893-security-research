@@ -258,13 +258,15 @@ def render_args(arg_text):
     return " ".join(shlex.quote(part) for part in shlex.split(arg_text))
 
 
-def run_probe(port, remote_path, main_class, mode, timeout):
+def run_probe(port, remote_path, main_class, mode, timeout, taskset_mask=None):
     remote_q = shlex.quote(remote_path)
     rendered_args = render_args(mode)
+    launcher = f"app_process64 /system/bin {shlex.quote(main_class)} {rendered_args}"
+    if taskset_mask:
+        launcher = f"taskset {shlex.quote(taskset_mask)} {launcher}"
     command = (
         f"id; cat /proc/self/attr/current; echo; md5sum {remote_q}; "
-        f"CLASSPATH={remote_q} app_process64 /system/bin "
-        f"{shlex.quote(main_class)} {rendered_args}; "
+        f"CLASSPATH={remote_q} {launcher}; "
         "sleep 2"
     )
     status, out = shell_command(port, command, timeout=timeout)
@@ -306,6 +308,8 @@ def main():
     parser.add_argument("--kernel-pattern", default="apusys|vpu|mdw|vpu_req_check")
     parser.add_argument("--upload-chunk", type=int, default=2048)
     parser.add_argument("--timeout", type=int, default=120)
+    parser.add_argument("--taskset-mask",
+                        help="optional hex CPU affinity mask for app_process64")
     parser.add_argument("--skip-build", action="store_true")
     args = parser.parse_args()
 
@@ -362,12 +366,15 @@ def main():
 
     print(f"[*] Running {args.mode}")
     status, output = run_probe(
-        args.local_port, args.remote_dex, main_class, args.mode, args.timeout
+        args.local_port, args.remote_dex, main_class, args.mode, args.timeout,
+        taskset_mask=args.taskset_mask
     )
 
+    header_launcher = f"app_process64 /system/bin {main_class} {args.mode}"
+    if args.taskset_mask:
+        header_launcher = f"taskset {args.taskset_mask} {header_launcher}"
     header = (
-        f"command=CLASSPATH={args.remote_dex} app_process64 /system/bin "
-        f"{main_class} {args.mode}\n"
+        f"command=CLASSPATH={args.remote_dex} {header_launcher}\n"
         f"probe={args.probe}\n"
         f"dex_md5={dex_md5}\n"
         f"dex_sha256={dex_sha256}\n"

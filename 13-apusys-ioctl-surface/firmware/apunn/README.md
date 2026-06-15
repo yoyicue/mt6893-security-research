@@ -66,7 +66,7 @@ boundaries around `0x70006590`, `0x70006794`, and `0x70007440`.
 The current MCP-connected IDB path is:
 
 ```text
-/Users/biu/mtk/mt6893-security-research/13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf.i64
+/Users/biu/mt6893/13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf.i64
 ```
 
 IDA still reports the original `input_path` as `/private/tmp/apunn_core0_full.elf`

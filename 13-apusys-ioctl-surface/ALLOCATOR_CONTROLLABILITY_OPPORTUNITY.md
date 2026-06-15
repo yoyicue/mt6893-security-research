@@ -68,6 +68,55 @@ The tie-breakers are:
 3. lower `pool_import_fail_total`,
 4. simpler probe shape.
 
+## Maximal Window
+
+Current allocator-only evidence points to a 64K same-size adjacent-gap window:
+
+```text
+size=0x10000
+free order=target_then_lower
+target selection=first adjacent target/lower pair
+replacement source=precreated
+critical window=mem_free(target), mem_free(lower), immediate same-size imports
+```
+
+Observed maxima split three ways:
+
+```text
+highest observed usable-iteration rate:
+  64K p12/r8 target_then_lower
+  exact_target_iterations=1/12
+  exact_target_total=1/96
+  status=single small-sample maximum
+
+highest observed recorded import rate:
+  64K p12/r8 target_then_lower
+  exact_target_iterations=1/12
+  exact_target_total=1/96
+  status=same small-sample maximum as above
+
+burn-sensitive side observation:
+  64K p16/r8 burn=5
+  exact_target_iterations=1/17
+  exact_target_total=1/136 recorded, plus burn_exact=1/85
+  status=single burn-sensitive observation, not promoted
+
+best repeatable control window:
+  64K p16/r8, no burn, precreated replacements
+  exact_target_iterations=4/80
+  exact_target_total=4/640
+  first_exact_hist=[0:1,1:1,4:1,7:1]
+  status=best current window, broad replacement-index distribution
+```
+
+Decision: the maximized window is not a delay window and not the `taskset`
+window. It is the immediate 64K `target_then_lower` allocator window after an
+exact lower neighbor is found. For next allocator-only work, use 64K `p16/r8`
+no-burn as the baseline because it has the strongest repeatable sample; keep
+64K `p12/r8` as a small-sample ceiling check, not as the mainline. The exact
+replacement is currently only bounded to the first recorded replacement set, not
+to one stable slot.
+
 ## Setup
 
 Before starting a new allocator-control run:
@@ -76,19 +125,19 @@ Before starting a new allocator-control run:
    `2026-06-15-gap-control-pair-selection`.
 2. Confirm git state with `git status --short` and note the current commit.
 3. Read the in-scope files:
-   - `13-apusys-ioctl-surface/README.md`
-   - `13-apusys-ioctl-surface/HANDOFF_KERNEL_PRIMITIVE.md`
-   - `13-apusys-ioctl-surface/CONTROLLED_OPPORTUNITIES.md`
-   - `13-apusys-ioctl-surface/ALLOCATOR_CONTROLLABILITY_OPPORTUNITY.md`
-   - `13-apusys-ioctl-surface/poc/ApusysIoctlProbe.java`
-   - `13-apusys-ioctl-surface/poc/run_system_app_probe.py`
+   - `../13-apusys-ioctl-surface/README.md`
+   - `../13-apusys-ioctl-surface/HANDOFF_KERNEL_PRIMITIVE.md`
+   - `../13-apusys-ioctl-surface/CONTROLLED_OPPORTUNITIES.md`
+   - `../13-apusys-ioctl-surface/ALLOCATOR_CONTROLLABILITY_OPPORTUNITY.md`
+   - `../13-apusys-ioctl-surface/poc/ApusysIoctlProbe.java`
+   - `../13-apusys-ioctl-surface/poc/run_system_app_probe.py`
 4. Confirm the device-side system app shell still works:
 
    ```sh
    python3 13-apusys-ioctl-surface/poc/run_system_app_probe.py \
      -s 7FPE0824B0801372 --rebuild-if-needed \
      --mode=--query --timeout 60 \
-     --result-dir poc-run-results/2026-06-15-batch \
+     --result-dir ../poc-run-results/2026-06-15-batch \
      --result-name 13_apusys_allocator_setup_query.txt \
      --kernel-result-name 13_apusys_allocator_setup_query_kernel_relevant.txt \
      --kernel-pattern 'apusys|mdw|devapc|iommu|Unable to handle kernel|BUG|KASAN'
@@ -101,7 +150,7 @@ Before starting a new allocator-control run:
    ```
 
    Recommended path:
-   `poc-run-results/2026-06-15-batch/13_apusys_allocator_results.tsv`.
+   `../poc-run-results/2026-06-15-batch/13_apusys_allocator_results.tsv`.
 
 ## Fixed Boundaries
 
@@ -275,6 +324,13 @@ Local best practice from the current APUSYS runs:
   and one tight loop. If a native helper is later added, pinning to a stable CPU
   is worth testing because IOVA caches can be per-CPU/per-domain, but that should
   be a separate variable.
+- Burn-before-record is now measured as a separate variable. In the 64K `p16/r8`
+  burn sweep, only `burn=5` produced a recorded exact hit, and the same case also
+  had one sacrificial burn import consume the target IOVA. This does not collapse
+  the histogram or improve the re-entry gate.
+- Process-level `taskset 10` is currently negative. It produced no exact hits in
+  the same burn sweep and increased pool import failures, so CPU affinity should
+  not be promoted without a narrower native-thread or kernel-side affinity test.
 - Prefer targeted hole shaping over wider pressure, but require a focused sample
   before promotion. The 64K `p16/r8 target, lower, lower-2` sample did not
   amplify exact reuse: it stopped at `5000` iterations with `23` usable pairs and
@@ -304,6 +360,40 @@ pair (`no_target_lower`), missing lower-2 (`free_shape_unavailable`), pool impor
 failure, replacement import failure, and closest non-exact delta. In the current
 run, the dominant miss reasons were `no_target_lower=3821` and
 `free_shape_unavailable=1156`.
+
+Burn-sweep follow-up:
+
+```text
+result=../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_burn_sweep_profiler.txt
+kernel=../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_burn_sweep_profiler_kernel_relevant.txt
+
+64K p16/r8 burn=0: exact_target=0/216, burn_exact=0/0
+64K p16/r8 burn=1: exact_target=0/200, burn_exact=0/25
+64K p16/r8 burn=2: exact_target=0/272, burn_exact=0/68
+64K p16/r8 burn=3: exact_target=0/232, burn_exact=0/87
+64K p16/r8 burn=4: exact_target=0/128, burn_exact=0/64
+64K p16/r8 burn=5: exact_target=1/136, burn_exact=1/85
+64K p16/r8 burn=6: exact_target=0/256, burn_exact=0/192
+64K p16/r8 burn=7: exact_target=0/168, burn_exact=0/147
+```
+
+The only recorded exact hit was `burn=5`, with `first_exact_hist=[5:1]`; the
+same case had `burn_exact_hist=[3:1]`. Interpretation: burn can shift where an
+exact hit appears, but in this run it did not turn 64K `p16/r8` into a reliable
+or slot-stable shape.
+
+Taskset follow-up:
+
+```text
+result=../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_burn_sweep_taskset10_profiler.txt
+kernel=../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_burn_sweep_taskset10_profiler_kernel_relevant.txt
+
+taskset 10, burn=0..7: exact_target=0 across all recorded replacements
+```
+
+The taskset run had higher pool import failures and no exact target reuse. Kernel
+logs show only expected APUSYS reject lines from the probe prelude plus unrelated
+SPM/PMIC noise; no IOMMU fault, devapc, panic/Oops, `BUG`, or `KASAN` appeared.
 
 Firmware-coupled status:
 
@@ -350,9 +440,9 @@ Every allocator-control case must print one machine-greppable summary line:
 The wrapper should write:
 
 - full stdout:
-  `poc-run-results/<batch>/<run_tag>.txt`
+  `../poc-run-results/<batch>/<run_tag>.txt`
 - filtered kernel log:
-  `poc-run-results/<batch>/<run_tag>_kernel_relevant.txt`
+  `../poc-run-results/<batch>/<run_tag>_kernel_relevant.txt`
 
 The kernel filter must include:
 
@@ -563,7 +653,9 @@ Current gate result: do not re-enter firmware yet. The focused 64K `p16/r8
 target, lower, lower-2` run produced `exact_target_iterations=0/23`, so it fails
 the `>=10%` gate and has no histogram to promote. The best broader 64K pressure
 case remains `p16/r8` at `4/80`, still below 10% and with a broad
-`first_exact_hist=[0:1,1:1,4:1,7:1]`.
+`first_exact_hist=[0:1,1:1,4:1,7:1]`. The burn sweep does not change that gate:
+the only positive recorded burn case was `1/17` usable iterations and still a
+single isolated hit.
 
 ## Stop Conditions
 
@@ -600,33 +692,39 @@ instrumentation or alternate ioctl side-effect paths such as `dev_ctrl` /
   `poc/ApusysIoctlProbe.java --apusys-iova-gap-free-neighborhood-profiler`
 - Focused lower-2 next-round run:
   `poc/ApusysIoctlProbe.java --apusys-iova-gap-lower2-focus-profiler`
+- Burn-before-record sweep:
+  `poc/ApusysIoctlProbe.java --apusys-iova-gap-burn-sweep-profiler`
 - Firmware-coupled gap reuse:
   `poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-mem-free-race-completed-gap-reuse-iova`
 
 ## Evidence Files
 
-- `poc-run-results/2026-06-15-batch/13_apusys_iova_reuse_profiler.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_iova_reuse_profiler_kernel_relevant.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler_kernel_relevant.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler_kernel_relevant.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_pair_selection_profiler.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_pair_selection_profiler_kernel_relevant.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_pressure_profiler.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_pressure_profiler_kernel_relevant.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_source_profiler.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_source_profiler_kernel_relevant.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_free_neighborhood_profiler.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_free_neighborhood_profiler_kernel_relevant.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_lower2_focus_profiler.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_lower2_focus_profiler_kernel_relevant.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_lower2_focus_until100_profiler.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_lower2_focus_until100_profiler_kernel_relevant.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_allocator_setup_query.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_allocator_setup_query_kernel_relevant.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_allocator_results.tsv`
-- `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_kernel_relevant.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup.txt`
-- `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup_kernel_relevant.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_iova_reuse_profiler.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_iova_reuse_profiler_kernel_relevant.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler_kernel_relevant.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler_kernel_relevant.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_pair_selection_profiler.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_pair_selection_profiler_kernel_relevant.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_pressure_profiler.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_pressure_profiler_kernel_relevant.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_source_profiler.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_source_profiler_kernel_relevant.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_free_neighborhood_profiler.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_free_neighborhood_profiler_kernel_relevant.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_lower2_focus_profiler.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_lower2_focus_profiler_kernel_relevant.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_lower2_focus_until100_profiler.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_lower2_focus_until100_profiler_kernel_relevant.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_burn_sweep_profiler.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_burn_sweep_profiler_kernel_relevant.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_burn_sweep_taskset10_profiler.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_burn_sweep_taskset10_profiler_kernel_relevant.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_allocator_setup_query.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_allocator_setup_query_kernel_relevant.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_allocator_results.tsv`
+- `../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_kernel_relevant.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup.txt`
+- `../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup_kernel_relevant.txt`

