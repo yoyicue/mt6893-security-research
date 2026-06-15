@@ -210,8 +210,9 @@ Static firmware impact so far:
   `iDMA schedule error` (`0x70044e3a`), `iDMA wait error` (`0x70044e53`),
   `dmaif.c` (`0x70044f1f`), `sDesc > eDesc` (`0x70044f45`), and both DRAM data
   buffer validation strings (`0x700452ef`, `0x70045319`). The range has 83
-  `06 04 02` FLIX selector hits, so this closes the owner-finding part of Q1
-  but not the completion-write timing.
+  `06 04 02` byte motifs, now classified as FLIX128 framing tails rather than
+  selectors. This closes the owner-finding part of Q1 but not the
+  completion-write timing.
 - Byte-verified standard Xtensa islands now make the early path reproducible:
   `0x70006794` copies `a12+0x00..0x14` into `a10+0x04..0x18` and
   `a2+0x44/0x4c/0x50` into `a10+0x28/0x1c/0x20`; `0x70006590` loads
@@ -241,14 +242,16 @@ Static firmware impact so far:
   instructions still prevent complete prototypes.
 - `.xt.prop` loop-target candidates now narrow the next pass further.
   `0x7003c102` inside `0x7003b468/a2` remains the strongest record-shaped
-  FLIX-blocked lead: it is a clean `0xaa`-byte `insn|loop_target|no_reorder`
-  run and has repeated `06 04 02` FLIX selector motifs. The companion scan found
-  no byte-aligned hardware LOOP, no exact standard branch back-edge to
-  `0x7003c102`, and no byte-aligned `addi ..., 0x40` stride in that owner.
-  Mainline analysis therefore stops hand-decoding this address; FLIX overlay or
-  format recovery is a separate branch. `0x7003d423` is downgraded to a
-  switch/error-tail lead because its neighborhood mixes short branch targets,
-  unreachable gaps, and `insn|data` runs.
+  FLIX-assisted lead: it is a clean `0xaa`-byte
+  `insn|loop_target|no_reorder` run, and the corrected sweep shows
+  `0x7003c102` itself as a core24 LSAI-shaped item between FLIX128/64 bundles.
+  The companion scan found no byte-aligned hardware LOOP, no exact standard
+  branch back-edge to `0x7003c102`, and no byte-aligned `addi ..., 0x40`
+  stride in that owner. Mainline analysis therefore stops hand-decoding this
+  address for INFO12/INFO13 closure; deeper FLIX/TIE slot semantics are a
+  separate branch. `0x7003d423` remains downgraded: corrected boundaries show
+  it is also a core24 item, but its neighborhood still mixes short branch
+  targets, unreachable gaps, and `insn|data` runs.
 - `.dram_op.data` contains a 63-entry ANN op-name table, and strings confirm
   the relevant APUNN paths: `process_command`, `execute_op`, `dma_barrier`,
   buffer validation, and iDMA schedule/wait errors.

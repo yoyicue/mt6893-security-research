@@ -1677,9 +1677,9 @@
           "target_reg": 14
         }
       ],
-      "flix_selector": "06 04 02",
-      "flix_selector_hit_count": 83,
-      "flix_selector_hits": [
+      "flix_framing": "FLIX128 framing tail 06 04 02",
+      "flix_framing_hit_count": 83,
+      "flix_framing_hits": [
         1879329668,
         1879329733,
         1879329749,
@@ -1714,7 +1714,7 @@
         1879330438
       ],
       "label": "top_dmaif_schedule_wait_owner",
-      "next_action": "Use this owner as the Q1 firmware anchor for DMA schedule/wait. Close timing with runtime instrumentation or a FLIX overlay/format decoder; do not infer inter-store timing from string ownership alone.",
+      "next_action": "Use this owner as the Q1 firmware anchor for DMA schedule/wait. Close timing with runtime instrumentation or deeper FLIX/TIE slot semantics; do not infer inter-store timing from string ownership alone.",
       "owner_entry": 1879329652,
       "prop_runs": [
         {
@@ -1874,7 +1874,7 @@
           "size": 454
         }
       ],
-      "q1_status": "owner_narrowed_not_timing_closed; this identifies the DMA/iDMA schedule/wait layer but does not prove completion-write burst shape or inter-store gap because the owner is FLIX/TIE-heavy.",
+      "q1_status": "owner_narrowed_not_timing_closed; FLIX-correct boundaries now separate core/density items from FLIX bundles in the owner, but they still do not prove completion-write burst shape or inter-store gap.",
       "standard_a2_access_count": 55,
       "standard_a2_offsets": [
         0,
@@ -1956,11 +1956,837 @@
       "size": 172
     }
   ],
+  "flix_sweeps": [
+    {
+      "bad_framing_count": 0,
+      "counts": {
+        "core24": 6,
+        "dens16": 2,
+        "flix128": 4,
+        "flix64": 1,
+        "truncated": 0
+      },
+      "description": "Length-correct sweep across the 0x7003c102 loop-target neighborhood. Core LSAI-shaped accesses are interleaved with FLIX128/64 bundles instead of being swallowed by 2-byte base-Xtensa sizing.",
+      "end": 1879294284,
+      "instructions": [
+        {
+          "addr": 1879294190,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "dens16",
+          "length": 2,
+          "raw": "4bdd"
+        },
+        {
+          "addr": 1879294192,
+          "fmt": "0xe",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix128",
+          "length": 16,
+          "raw": "7e9dc11a59e0f50331a88538b8060402"
+        },
+        {
+          "addr": 1879294208,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "dens16",
+          "length": 2,
+          "raw": "3df0"
+        },
+        {
+          "addr": 1879294210,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "6261a3"
+        },
+        {
+          "addr": 1879294213,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "5261a2"
+        },
+        {
+          "addr": 1879294216,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "4261a1"
+        },
+        {
+          "addr": 1879294219,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "3261af"
+        },
+        {
+          "addr": 1879294222,
+          "fmt": "0xe",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix128",
+          "length": 16,
+          "raw": "9e3b02705a66120030d0852bf4060402"
+        },
+        {
+          "addr": 1879294238,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "c26195"
+        },
+        {
+          "addr": 1879294241,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "b26194"
+        },
+        {
+          "addr": 1879294244,
+          "fmt": "0x0f",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix64",
+          "length": 8,
+          "raw": "0f503e021b268200"
+        },
+        {
+          "addr": 1879294252,
+          "fmt": "0xe",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix128",
+          "length": 16,
+          "raw": "3e815c1f5a64100030d08538b8060402"
+        },
+        {
+          "addr": 1879294268,
+          "fmt": "0xe",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix128",
+          "length": 16,
+          "raw": "2e5c9c2f5840648330608502b8060402"
+        }
+      ],
+      "label": "info13_record_lead_corrected_boundaries",
+      "next_action": "Use these boundaries before inspecting descriptor-field core ops. The 06 04 02 bytes are FLIX128 framing tails, not an independent selector.",
+      "start": 1879294190,
+      "start_prop_addr": 1879294190,
+      "start_prop_flags": "insn|branch_target|no_reorder",
+      "start_prop_size": 18
+    },
+    {
+      "bad_framing_count": 0,
+      "counts": {
+        "core24": 14,
+        "dens16": 5,
+        "flix128": 4,
+        "flix64": 1,
+        "truncated": 1
+      },
+      "description": "Length-correct sweep around the downgraded 0x7003d423 loop-target property. The target itself is a core24 item, but the surrounding block remains switch/error-tail shaped.",
+      "end": 1879299168,
+      "instructions": [
+        {
+          "addr": 1879299042,
+          "fmt": "0x0f",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix64",
+          "length": 8,
+          "raw": "4f90011b08c85900"
+        },
+        {
+          "addr": 1879299050,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "768035"
+        },
+        {
+          "addr": 1879299053,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "1699ec"
+        },
+        {
+          "addr": 1879299056,
+          "fmt": "0xe",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix128",
+          "length": 16,
+          "raw": "9e0922705864120030d085f6f7060402"
+        },
+        {
+          "addr": 1879299072,
+          "fmt": "0xe",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix128",
+          "length": 16,
+          "raw": "9e092c705866120030d085f8f7060402"
+        },
+        {
+          "addr": 1879299088,
+          "fmt": "0xe",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix128",
+          "length": 16,
+          "raw": "9e0910705a60120030d085fbf7060402"
+        },
+        {
+          "addr": 1879299104,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "2699a9"
+        },
+        {
+          "addr": 1879299107,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "c6f0ff"
+        },
+        {
+          "addr": 1879299110,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "00a5d0"
+        },
+        {
+          "addr": 1879299113,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "62fcaa"
+        },
+        {
+          "addr": 1879299116,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "dens16",
+          "length": 2,
+          "raw": "0c02"
+        },
+        {
+          "addr": 1879299118,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "dens16",
+          "length": 2,
+          "raw": "1df0"
+        },
+        {
+          "addr": 1879299120,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "000000"
+        },
+        {
+          "addr": 1879299123,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "000000"
+        },
+        {
+          "addr": 1879299126,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "22a100"
+        },
+        {
+          "addr": 1879299129,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "dens16",
+          "length": 2,
+          "raw": "1df0"
+        },
+        {
+          "addr": 1879299131,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "000000"
+        },
+        {
+          "addr": 1879299134,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "00000e"
+        },
+        {
+          "addr": 1879299137,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "d0c842"
+        },
+        {
+          "addr": 1879299140,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "dens16",
+          "length": 2,
+          "raw": "28f9"
+        },
+        {
+          "addr": 1879299142,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "510731"
+        },
+        {
+          "addr": 1879299145,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "dens16",
+          "length": 2,
+          "raw": "a8c5"
+        },
+        {
+          "addr": 1879299147,
+          "fmt": "0xe",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix128",
+          "length": 16,
+          "raw": "3ec8060402251062165ab98603000000"
+        },
+        {
+          "addr": 1879299163,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "000000"
+        },
+        {
+          "addr": 1879299166,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [
+            "range_end"
+          ],
+          "kind": "truncated",
+          "length": 3,
+          "raw": "0000"
+        }
+      ],
+      "label": "downgraded_error_tail_corrected_boundaries",
+      "next_action": "Keep as secondary local-control-flow evidence; corrected boundaries do not promote it back into the INFO13 mainline.",
+      "start": 1879299042,
+      "start_prop_addr": 1879299042,
+      "start_prop_flags": "insn|branch_target|no_reorder",
+      "start_prop_size": 65
+    },
+    {
+      "bad_framing_count": 0,
+      "counts": {
+        "core24": 6,
+        "dens16": 4,
+        "flix128": 10,
+        "flix64": 3,
+        "truncated": 1
+      },
+      "description": "Length-correct sweep at the top iDMA schedule/wait owner. The owner starts with a standard entry core op followed by dense FLIX128/64 bundles and sparse core/density items.",
+      "end": 1879329872,
+      "instructions": [
+        {
+          "addr": 1879329652,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "364107"
+        },
+        {
+          "addr": 1879329655,
+          "fmt": "0xe",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix128",
+          "length": 16,
+          "raw": "9e6220705864120030d005e7f4060402"
+        },
+        {
+          "addr": 1879329671,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "820203"
+        },
+        {
+          "addr": 1879329674,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "920202"
+        },
+        {
+          "addr": 1879329677,
+          "fmt": "0x0f",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix64",
+          "length": 8,
+          "raw": "4f88b0128a088200"
+        },
+        {
+          "addr": 1879329685,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "908820"
+        },
+        {
+          "addr": 1879329688,
+          "fmt": "0xe",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix128",
+          "length": 16,
+          "raw": "8ed07e020736000a3733000240080402"
+        },
+        {
+          "addr": 1879329704,
+          "fmt": "0x0f",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix64",
+          "length": 8,
+          "raw": "af6080c5401c5800"
+        },
+        {
+          "addr": 1879329712,
+          "fmt": "0x0f",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix64",
+          "length": 8,
+          "raw": "0f60218207e08200"
+        },
+        {
+          "addr": 1879329720,
+          "fmt": "0xe",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix128",
+          "length": 16,
+          "raw": "7ed4545258c4410631a88502c8060402"
+        },
+        {
+          "addr": 1879329736,
+          "fmt": "0xe",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix128",
+          "length": 16,
+          "raw": "9e983c705862120030d00529f1060402"
+        },
+        {
+          "addr": 1879329752,
+          "fmt": "0xe",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix128",
+          "length": 16,
+          "raw": "9e6320705860120030d0851bf5060402"
+        },
+        {
+          "addr": 1879329768,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "dens16",
+          "length": 2,
+          "raw": "9803"
+        },
+        {
+          "addr": 1879329770,
+          "fmt": "0xe",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix128",
+          "length": 16,
+          "raw": "9e592a705a66120030d0851af5060402"
+        },
+        {
+          "addr": 1879329786,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "dens16",
+          "length": 2,
+          "raw": "a813"
+        },
+        {
+          "addr": 1879329788,
+          "fmt": "0xe",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix128",
+          "length": 16,
+          "raw": "9e6a20705866120030d0051af5060402"
+        },
+        {
+          "addr": 1879329804,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "e22321"
+        },
+        {
+          "addr": 1879329807,
+          "fmt": "0xe",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix128",
+          "length": 16,
+          "raw": "9e6e00705a64120030d08519f5060402"
+        },
+        {
+          "addr": 1879329823,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "dens16",
+          "length": 2,
+          "raw": "b823"
+        },
+        {
+          "addr": 1879329825,
+          "fmt": "0xe",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix128",
+          "length": 16,
+          "raw": "9e6b00705864120030d00519f5060402"
+        },
+        {
+          "addr": 1879329841,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "722322"
+        },
+        {
+          "addr": 1879329844,
+          "fmt": "0xe",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix128",
+          "length": 16,
+          "raw": "9e6720705862120030d08518f5060402"
+        },
+        {
+          "addr": 1879329860,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "dens16",
+          "length": 2,
+          "raw": "c833"
+        },
+        {
+          "addr": 1879329862,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [
+            "range_end"
+          ],
+          "kind": "truncated",
+          "length": 16,
+          "raw": "9e6c20705a60120030d0"
+        }
+      ],
+      "label": "dmaif_owner_entry_prefix_corrected_boundaries",
+      "next_action": "Use this as the Q1 owner boundary map before any FLIX/iDMA instrumentation; string ownership alone still does not prove completion-store timing.",
+      "start": 1879329652,
+      "start_prop_addr": 1879329652,
+      "start_prop_flags": "insn|no_reorder",
+      "start_prop_size": 68
+    },
+    {
+      "bad_framing_count": 0,
+      "counts": {
+        "core24": 12,
+        "dens16": 3,
+        "flix128": 4,
+        "flix64": 0,
+        "truncated": 1
+      },
+      "description": "Length-correct sweep around the DRAM data-buffer validation string owner tail inside the same iDMA cluster.",
+      "end": 1879331632,
+      "instructions": [
+        {
+          "addr": 1879331524,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "8261d2"
+        },
+        {
+          "addr": 1879331527,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "f62f3b"
+        },
+        {
+          "addr": 1879331530,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "8221b7"
+        },
+        {
+          "addr": 1879331533,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "e62835"
+        },
+        {
+          "addr": 1879331536,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "9221b8"
+        },
+        {
+          "addr": 1879331539,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "e6292f"
+        },
+        {
+          "addr": 1879331542,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "a221b5"
+        },
+        {
+          "addr": 1879331545,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "e62a29"
+        },
+        {
+          "addr": 1879331548,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "dens16",
+          "length": 2,
+          "raw": "0c0c"
+        },
+        {
+          "addr": 1879331550,
+          "fmt": "0xe",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix128",
+          "length": 16,
+          "raw": "1ec1c6025866100430d08538c8060402"
+        },
+        {
+          "addr": 1879331566,
+          "fmt": "0xe",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix128",
+          "length": 16,
+          "raw": "1eb184015866100430d08538c8060402"
+        },
+        {
+          "addr": 1879331582,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "dens16",
+          "length": 2,
+          "raw": "0c0d"
+        },
+        {
+          "addr": 1879331584,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "d261d2"
+        },
+        {
+          "addr": 1879331587,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "460800"
+        },
+        {
+          "addr": 1879331590,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "dens16",
+          "length": 2,
+          "raw": "0c0f"
+        },
+        {
+          "addr": 1879331592,
+          "fmt": "0xe",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix128",
+          "length": 16,
+          "raw": "1ef186035866100430d08538c8060402"
+        },
+        {
+          "addr": 1879331608,
+          "fmt": "0xe",
+          "framing_ok": true,
+          "framing_warn": [],
+          "kind": "flix128",
+          "length": 16,
+          "raw": "1ee184015866100430d08538c8060402"
+        },
+        {
+          "addr": 1879331624,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "920207"
+        },
+        {
+          "addr": 1879331627,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [],
+          "kind": "core24",
+          "length": 3,
+          "raw": "a20206"
+        },
+        {
+          "addr": 1879331630,
+          "fmt": null,
+          "framing_ok": null,
+          "framing_warn": [
+            "range_end"
+          ],
+          "kind": "truncated",
+          "length": 8,
+          "raw": "4f89"
+        }
+      ],
+      "label": "dmaif_dram_validation_tail_corrected_boundaries",
+      "next_action": "Correlate these core24 checks with the DRAM validation strings before treating the FLIX bundles as DMA movement.",
+      "start": 1879331524,
+      "start_prop_addr": 1879331524,
+      "start_prop_flags": "insn|no_reorder",
+      "start_prop_size": 58
+    }
+  ],
   "focused_loop_investigations": [
     {
-      "assessment": "Clean 0xaa-byte loop_target property run inside the strongest 0x40-record-shaped field cluster, but standard-ISA scans do not expose a byte-aligned LOOP, an exact branch back-edge to the target, or an a2 += 0x40 stride. Treat this as a FLIX-blocked record-processing lead, not a blocker for the INFO12/INFO13 closure.",
-      "flix_selector": "06 04 02",
-      "flix_selector_deltas": [
+      "assessment": "Clean 0xaa-byte loop_target property run inside the strongest 0x40-record-shaped field cluster. The corrected FLIX length overlay shows the target as a core24 LSAI-shaped item between FLIX bundles, but still does not expose an exact count/stride binding. Treat this as a FLIX-assisted record-processing lead, not a blocker for the INFO12/INFO13 closure.",
+      "flix_framing": "FLIX128 framing tail 06 04 02",
+      "flix_framing_deltas": [
         68,
         16,
         16,
@@ -1993,7 +2819,7 @@
         50,
         25
       ],
-      "flix_selector_hits": [
+      "flix_framing_hits": [
         1879291009,
         1879291077,
         1879291093,
@@ -2027,9 +2853,9 @@
         1879291713,
         1879291738
       ],
-      "label": "flix_blocked_INFO13_record_lead",
+      "label": "flix_assisted_INFO13_record_lead",
       "loop_target": 1879294210,
-      "next_action": "Stop hand-decoding 0x7003c102 on the mainline. Close the INFO12/INFO13 proposition with the verified 0x40 record layout and the kernel/provider buffer_count cap; keep FLIX overlay or format reverse engineering as an independent branch.",
+      "next_action": "Use the FLIX-correct sweep to inspect the interleaved core ops, but keep the INFO12/INFO13 proposition closed with the verified 0x40 record layout and the kernel/provider buffer_count cap.",
       "owner_entry": 1879290984,
       "priority": "independent_flix_branch",
       "prop_runs": [
@@ -2287,7 +3113,7 @@
         }
       ],
       "standard_loop_opcode_hits": [],
-      "stride_0x40_status": "blocked_in_flix; visible standard a2 accesses do not show a2 += 0x40, and raw 0x40 byte hits inside FLIX selector motifs are not stride proof.",
+      "stride_0x40_status": "not_closed; corrected FLIX boundaries expose interleaved core ops, but no exact a2 += 0x40 count/stride proof yet. The 06 04 02 motif is FLIX128 framing, not stride evidence.",
       "target_prop_flags": "insn|loop_target|no_reorder",
       "target_prop_size": 170,
       "visible_field_accesses": [
@@ -2746,15 +3572,15 @@
     },
     {
       "assessment": "Loop-target property is real but surrounding props contain short branch targets, unreachable gaps, and insn|data mixed runs. Treat as switch/error-tail lead, not a descriptor-array walk.",
-      "flix_selector": "06 04 02",
-      "flix_selector_deltas": [
+      "flix_framing": "FLIX128 framing tail 06 04 02",
+      "flix_framing_deltas": [
         38,
         30,
         16,
         16,
         48
       ],
-      "flix_selector_hits": [
+      "flix_framing_hits": [
         1879299001,
         1879299039,
         1879299069,
@@ -2886,7 +3712,7 @@
       "standard_loop_opcode_hits": [
         1879299050
       ],
-      "stride_0x40_status": "blocked_in_flix; visible standard a2 accesses do not show a2 += 0x40, and raw 0x40 byte hits inside FLIX selector motifs are not stride proof.",
+      "stride_0x40_status": "not_closed; corrected FLIX boundaries expose interleaved core ops, but no exact a2 += 0x40 count/stride proof yet. The 06 04 02 motif is FLIX128 framing, not stride evidence.",
       "target_prop_flags": "insn|loop_target|no_reorder",
       "target_prop_size": 3,
       "visible_field_accesses": []
@@ -15997,7 +16823,7 @@
     },
     {
       "addr": 1879290984,
-      "label": "flix_blocked_INFO13_record_lead",
+      "label": "flix_assisted_INFO13_record_lead",
       "owner_delta": 0,
       "owner_entry": 1879290984,
       "prop_flags": "insn|no_reorder",
@@ -16006,7 +16832,7 @@
     },
     {
       "addr": 1879294210,
-      "label": "flix_blocked_INFO13_record_loop_target",
+      "label": "flix_assisted_INFO13_record_loop_target",
       "owner_delta": 3226,
       "owner_entry": 1879290984,
       "prop_flags": "insn|loop_target|no_reorder",

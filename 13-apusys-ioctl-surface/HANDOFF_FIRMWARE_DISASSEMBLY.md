@@ -318,8 +318,9 @@ Recovered pointer/name tables:
   `iDMA schedule error` (`0x70044e3a`), `iDMA wait error` (`0x70044e53`),
   `dmaif.c` (`0x70044f1f`), `sDesc > eDesc` (`0x70044f45`), and the DRAM data
   buffer validation strings (`0x700452ef`, `0x70045319`). The range has 83
-  `06 04 02` FLIX selector hits, so it identifies the schedule/wait owner but
-  still does not expose completion-write burst shape or inter-store timing.
+  `06 04 02` byte motifs, now classified as the FLIX128 framing tail rather
+  than an independent selector. The owner identification stands, but it still
+  does not expose completion-write burst shape or inter-store timing.
 - `Data buffer does not fit in DRAM` has no aligned refs but has six all-byte
   suffix-pointer samples at owners `0x700c13b0`, `0x700cc080`, `0x700cda20`,
   `0x7016bc40`, `0x70262690`, and `0x70262a00`. Because these are unaligned
@@ -385,15 +386,17 @@ The same pass now emits `.xt.prop` loop-target candidates near those owners.
 `0x7003c102` inside the `0x7003b468/a2` cluster remains the strongest
 record-shaped loop-target lead: it is a clean `0xaa`-byte
 `insn|loop_target|no_reorder` run, has visible `a2` field accesses around the
-0x40-record-shaped offsets, and contains repeated `06 04 02` FLIX selector
-motifs at mostly `0x10`-byte spacing. The companion Ghidra/SLEIGH scan found no
-byte-aligned hardware LOOP, no exact standard branch back-edge to `0x7003c102`,
-and no byte-aligned `addi ..., 0x40` stride in that owner. Mainline analysis
-therefore stops hand-decoding `0x7003c102`; the missing count/stride is treated
-as FLIX/TIE-covered implementation detail. `0x7003d423` inside `0x7003ce3c/a2`
-is downgraded: its surroundings are short branch targets, unreachable gaps, and
-`insn|data` mixed runs, making it more likely a switch/error-tail lead than the
-descriptor array walk.
+0x40-record-shaped offsets, and now has a length-correct FLIX sweep showing
+`0x7003c102` as a core24 LSAI-shaped item between FLIX128/64 bundles. The
+companion Ghidra/SLEIGH scan found no byte-aligned hardware LOOP, no exact
+standard branch back-edge to `0x7003c102`, and no byte-aligned
+`addi ..., 0x40` stride in that owner. Mainline analysis therefore stops
+hand-decoding `0x7003c102` for INFO12/INFO13 closure; the missing count/stride
+binding is treated as deeper FLIX/TIE slot-semantics work. `0x7003d423` inside
+`0x7003ce3c/a2` is downgraded but no longer opaque: the corrected sweep shows
+the target itself is also a core24 item, while the surrounding block remains
+short branch targets, unreachable gaps, and `insn|data` mixed runs, making it
+more likely a switch/error-tail lead than the descriptor array walk.
 
 IDA Pro MCP state after reloading the same ELF as **ELF for Xtensa** (not raw
 `Binary File`): processor `XTENSA`, 32-bit, sections mapped at the ELF VAs
@@ -590,9 +593,10 @@ Current partial answers from the ELF pass:
   below `0x21` before firmware, runtime shows `0` suppresses
   descriptor-following state writeback while nonzero tested counts enter the
   descriptor path, and the ELF now has native 0x40-record-shaped descriptor
-  validation evidence. The exact firmware-internal count/stride instruction
-  remains behind FLIX/TIE and is moved to the independent FLIX overlay/format
-  branch rather than blocking the primitive model.
+  validation evidence. FLIX-correct sweeps expose the relevant core/density
+  boundaries around `0x7003c102`, but the exact firmware-internal count/stride
+  binding remains behind TIE/FLIX slot semantics and is no longer blocking the
+  primitive model.
 - Q4 has runtime evidence that `settings+0x08` bounds the visible output fill;
   the static output-size enforcement path is not identified yet.
 
@@ -616,8 +620,10 @@ on intermediate results, explicit DSP wait/sleep/barrier instructions between
 DMA stores.
 
 Current static anchor: `0x70044b74` is the best DMA/iDMA schedule/wait owner
-candidate. Use it for runtime tracing or FLIX-overlay work; do not infer the
-completion write timing from string ownership alone.
+candidate. The corrected sweep confirms it starts on a standard entry core op
+and then mixes FLIX128/64 bundles with sparse core/density items. Use it for
+runtime tracing or deeper FLIX/TIE work; do not infer completion write timing
+from string ownership alone.
 
 #### Q2: Opcode dispatch table
 
@@ -690,8 +696,8 @@ slow-opcode shape.
 | Tool | Path | Status |
 |---|---|---|
 | VPU image parser | `13-apusys-ioctl-surface/tools/parse_vpu_image.py` | Parses preload metadata, carves raw segments, and reports embedded ELF offsets; use `--head-offset 0x200 --headers 1` for V260523 `cam_vpu2.img` |
-| APUNN ELF analyzer | `13-apusys-ioctl-surface/tools/analyze_apunn_elf.py` | Emits section map, `.xtensa.info`, `.xt.prop` property runs, `.xt.prop`-backed function-entry candidates, key address owners, byte-verified standard Xtensa islands, `.text`→`.rodata` suffix refs, PC-relative `L32R` literal refs, focused loop investigations, L32R string-owner clusters, DMA/descriptor critical-string status, pointer runs, ANN op name table, interesting strings, JSON, and Markdown |
-| IDA `.xt.prop` applier | `13-apusys-ioctl-surface/tools/ida_apply_apunn_xt_prop.py` | Applies analyzer JSON to an IDA Xtensa ELF IDB: bounded function creation, key names/comments, pointer-run dwords/xrefs, critical-string annotations, selected `L32R` refs, loop-target candidates, focused loop notes, L32R string-owner clusters, and byte-verified standard-island comments |
+| APUNN ELF analyzer | `13-apusys-ioctl-surface/tools/analyze_apunn_elf.py` | Emits section map, `.xtensa.info`, `.xt.prop` property runs, `.xt.prop`-backed function-entry candidates, key address owners, byte-verified standard Xtensa islands, FLIX-correct boundary sweeps, `.text`→`.rodata` suffix refs, PC-relative `L32R` literal refs, focused loop investigations, L32R string-owner clusters, DMA/descriptor critical-string status, pointer runs, ANN op name table, interesting strings, JSON, and Markdown |
+| IDA `.xt.prop` applier | `13-apusys-ioctl-surface/tools/ida_apply_apunn_xt_prop.py` | Applies analyzer JSON to an IDA Xtensa ELF IDB: bounded function creation, key names/comments, pointer-run dwords/xrefs, critical-string annotations, selected `L32R` refs, loop-target candidates, focused loop notes, FLIX-correct sweep comments, L32R string-owner clusters, and byte-verified standard-island comments |
 | Ghidra export script | `13-apusys-ioctl-surface/tools/GhidraApunnExport.java` | Headless adjunct for function/string/decompiler snapshots from `/tmp/apunn_core0_full.elf`; decompiler output is advisory only |
 | Allocator gap profiler | `13-apusys-ioctl-surface/poc/ApusysIoctlProbe.java` | Active; 8+ probe modes |
 | Firmware-coupled gap reuse | `--run-cmd-vpu-xrp-mem-free-race-completed-gap-reuse-iova` | Ready to re-run with new shapes |

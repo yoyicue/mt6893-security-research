@@ -127,8 +127,8 @@
 | `flk_pointer_target_cluster` | `0x70017d40` | `.text` | `0x70015e98` | `0x1ea8` | `insn|data|no_reorder|no_transform:0xb` |
 | `flk_pointer_table_owner` | `0x70015e98` | `.text` | `0x70015e98` | `0x0` | `insn|data|no_reorder|no_transform:0xb09` |
 | `dispatcher_like_locateBuffer` | `0x700301d8` | `.text` | `0x700301d8` | `0x0` | `insn|no_reorder:0x30` |
-| `flix_blocked_INFO13_record_lead` | `0x7003b468` | `.text` | `0x7003b468` | `0x0` | `insn|no_reorder:0x50` |
-| `flix_blocked_INFO13_record_loop_target` | `0x7003c102` | `.text` | `0x7003b468` | `0xc9a` | `insn|loop_target|no_reorder:0xaa` |
+| `flix_assisted_INFO13_record_lead` | `0x7003b468` | `.text` | `0x7003b468` | `0x0` | `insn|no_reorder:0x50` |
+| `flix_assisted_INFO13_record_loop_target` | `0x7003c102` | `.text` | `0x7003b468` | `0xc9a` | `insn|loop_target|no_reorder:0xaa` |
 | `buffer_record_high_field_validator_candidate` | `0x7003ce3c` | `.text` | `0x7003ce3c` | `0x0` | `insn|no_reorder:0x194` |
 | `large_auto_function` | `0x7003b424` | `.text` | `0x7003b424` | `0x0` | `insn|no_reorder:0x6` |
 | `top_dmaif_l32r_owner_cluster` | `0x70044b74` | `.text` | `0x70044b74` | `0x0` | `insn|no_reorder:0x44` |
@@ -401,16 +401,16 @@ These clusters are produced by a lightweight standard Xtensa 24-bit load/store d
 
 `0x7003c102` remains a strong record-shaped loop-target lead, but the mainline no longer depends on hand-decoding it: the count/stride evidence is behind FLIX/TIE. INFO12/INFO13 closure is driven by the verified record layout plus the kernel/provider buffer_count cap. `0x7003d423` is kept as a downgraded local-control-flow lead.
 
-#### `flix_blocked_INFO13_record_lead` `0x7003b468` target `0x7003c102`
+#### `flix_assisted_INFO13_record_lead` `0x7003b468` target `0x7003c102`
 
 - priority: `independent_flix_branch`
-- assessment: Clean 0xaa-byte loop_target property run inside the strongest 0x40-record-shaped field cluster, but standard-ISA scans do not expose a byte-aligned LOOP, an exact branch back-edge to the target, or an a2 += 0x40 stride. Treat this as a FLIX-blocked record-processing lead, not a blocker for the INFO12/INFO13 closure.
+- assessment: Clean 0xaa-byte loop_target property run inside the strongest 0x40-record-shaped field cluster. The corrected FLIX length overlay shows the target as a core24 LSAI-shaped item between FLIX bundles, but still does not expose an exact count/stride binding. Treat this as a FLIX-assisted record-processing lead, not a blocker for the INFO12/INFO13 closure.
 - target prop: `insn|loop_target|no_reorder:0xaa`
-- FLIX selector `06 04 02` hits: 0x7003b481, 0x7003b4c5, 0x7003b4d5, 0x7003b4e5, 0x7003b502, 0x7003b512, 0x7003b522, 0x7003b532, 0x7003b54b, 0x7003b55b, 0x7003b56b, 0x7003b57b, 0x7003b599, 0x7003b5a9, 0x7003b5b9, 0x7003b5c9
-- FLIX selector deltas: 0x44, 0x10, 0x10, 0x1d, 0x10, 0x10, 0x10, 0x19, 0x10, 0x10, 0x10, 0x1e, 0x10, 0x10, 0x10, 0x13
+- FLIX framing motif `FLIX128 framing tail 06 04 02` hits: 0x7003b481, 0x7003b4c5, 0x7003b4d5, 0x7003b4e5, 0x7003b502, 0x7003b512, 0x7003b522, 0x7003b532, 0x7003b54b, 0x7003b55b, 0x7003b56b, 0x7003b57b, 0x7003b599, 0x7003b5a9, 0x7003b5b9, 0x7003b5c9
+- FLIX framing motif deltas: 0x44, 0x10, 0x10, 0x1d, 0x10, 0x10, 0x10, 0x19, 0x10, 0x10, 0x10, 0x1e, 0x10, 0x10, 0x10, 0x13
 - standard loop opcode hits to target: none
-- stride status: blocked_in_flix; visible standard a2 accesses do not show a2 += 0x40, and raw 0x40 byte hits inside FLIX selector motifs are not stride proof.
-- next action: Stop hand-decoding 0x7003c102 on the mainline. Close the INFO12/INFO13 proposition with the verified 0x40 record layout and the kernel/provider buffer_count cap; keep FLIX overlay or format reverse engineering as an independent branch.
+- stride status: not_closed; corrected FLIX boundaries expose interleaved core ops, but no exact a2 += 0x40 count/stride proof yet. The 06 04 02 motif is FLIX128 framing, not stride evidence.
+- next action: Use the FLIX-correct sweep to inspect the interleaved core ops, but keep the INFO12/INFO13 proposition closed with the verified 0x40 record layout and the kernel/provider buffer_count cap.
 
 | visible a2 field access | op | offset |
 |---:|---|---:|
@@ -471,10 +471,10 @@ These clusters are produced by a lightweight standard Xtensa 24-bit load/store d
 - priority: `downgraded`
 - assessment: Loop-target property is real but surrounding props contain short branch targets, unreachable gaps, and insn\|data mixed runs. Treat as switch/error-tail lead, not a descriptor-array walk.
 - target prop: `insn|loop_target|no_reorder:0x3`
-- FLIX selector `06 04 02` hits: 0x7003d3b9, 0x7003d3df, 0x7003d3fd, 0x7003d40d, 0x7003d41d, 0x7003d44d
-- FLIX selector deltas: 0x26, 0x1e, 0x10, 0x10, 0x30
+- FLIX framing motif `FLIX128 framing tail 06 04 02` hits: 0x7003d3b9, 0x7003d3df, 0x7003d3fd, 0x7003d40d, 0x7003d41d, 0x7003d44d
+- FLIX framing motif deltas: 0x26, 0x1e, 0x10, 0x10, 0x30
 - standard loop opcode hits to target: 0x7003d3ea
-- stride status: blocked_in_flix; visible standard a2 accesses do not show a2 += 0x40, and raw 0x40 byte hits inside FLIX selector motifs are not stride proof.
+- stride status: not_closed; corrected FLIX boundaries expose interleaved core ops, but no exact a2 += 0x40 count/stride proof yet. The 06 04 02 motif is FLIX128 framing, not stride evidence.
 - next action: Keep as secondary local-control-flow evidence only; do not use this downgraded target to drive INFO12/INFO13 closure.
 
 | visible a2 field access | op | offset |
@@ -501,6 +501,140 @@ These clusters are produced by a lightweight standard Xtensa 24-bit load/store d
 | `0x7003d468` | `0x4` | `insn|branch_target|no_reorder` | `2d 0a 1d f0` |
 | `0x7003d46c` | `0x0` | `unreachable` | `` |
 | `0x7003d46c` | `0x2b` | `insn|no_reorder` | `a4 00 70 94 00 70 d4 00 70 6f d8 19 0e 09 50 83` |
+
+### FLIX-Correct Boundary Sweeps
+
+These ranges use the `.xt.prop`-validated hybrid length rule: `0x0..0x7 -> 3`, `0x8..0xd -> 2`, `0xe -> 16`, `0xf -> 8`. The `06 04 02` motif is treated as FLIX128 framing, not as an independent selector.
+
+#### `info13_record_lead_corrected_boundaries` `0x7003c0ee`..`0x7003c14c`
+
+Length-correct sweep across the 0x7003c102 loop-target neighborhood. Core LSAI-shaped accesses are interleaved with FLIX128/64 bundles instead of being swallowed by 2-byte base-Xtensa sizing.
+
+- start prop: `insn|branch_target|no_reorder:0x12` at `0x7003c0ee`
+- counts: core24=6, dens16=2, flix64=1, flix128=4, truncated=0
+- bad framing: 0
+- next action: Use these boundaries before inspecting descriptor-field core ops. The 06 04 02 bytes are FLIX128 framing tails, not an independent selector.
+
+| addr | len | kind | raw | fmt | framing |
+|---:|---:|---|---|---|---|
+| `0x7003c0ee` | 2 | `dens16` | `4bdd` | `` | `` |
+| `0x7003c0f0` | 16 | `flix128` | `7e9dc11a59e0f50331a88538b8060402` | `0xe` | `ok` |
+| `0x7003c100` | 2 | `dens16` | `3df0` | `` | `` |
+| `0x7003c102` | 3 | `core24` | `6261a3` | `` | `` |
+| `0x7003c105` | 3 | `core24` | `5261a2` | `` | `` |
+| `0x7003c108` | 3 | `core24` | `4261a1` | `` | `` |
+| `0x7003c10b` | 3 | `core24` | `3261af` | `` | `` |
+| `0x7003c10e` | 16 | `flix128` | `9e3b02705a66120030d0852bf4060402` | `0xe` | `ok` |
+| `0x7003c11e` | 3 | `core24` | `c26195` | `` | `` |
+| `0x7003c121` | 3 | `core24` | `b26194` | `` | `` |
+| `0x7003c124` | 8 | `flix64` | `0f503e021b268200` | `0x0f` | `ok` |
+| `0x7003c12c` | 16 | `flix128` | `3e815c1f5a64100030d08538b8060402` | `0xe` | `ok` |
+| `0x7003c13c` | 16 | `flix128` | `2e5c9c2f5840648330608502b8060402` | `0xe` | `ok` |
+
+#### `downgraded_error_tail_corrected_boundaries` `0x7003d3e2`..`0x7003d460`
+
+Length-correct sweep around the downgraded 0x7003d423 loop-target property. The target itself is a core24 item, but the surrounding block remains switch/error-tail shaped.
+
+- start prop: `insn|branch_target|no_reorder:0x41` at `0x7003d3e2`
+- counts: core24=14, dens16=5, flix64=1, flix128=4, truncated=1
+- bad framing: 0
+- next action: Keep as secondary local-control-flow evidence; corrected boundaries do not promote it back into the INFO13 mainline.
+
+| addr | len | kind | raw | fmt | framing |
+|---:|---:|---|---|---|---|
+| `0x7003d3e2` | 8 | `flix64` | `4f90011b08c85900` | `0x0f` | `ok` |
+| `0x7003d3ea` | 3 | `core24` | `768035` | `` | `` |
+| `0x7003d3ed` | 3 | `core24` | `1699ec` | `` | `` |
+| `0x7003d3f0` | 16 | `flix128` | `9e0922705864120030d085f6f7060402` | `0xe` | `ok` |
+| `0x7003d400` | 16 | `flix128` | `9e092c705866120030d085f8f7060402` | `0xe` | `ok` |
+| `0x7003d410` | 16 | `flix128` | `9e0910705a60120030d085fbf7060402` | `0xe` | `ok` |
+| `0x7003d420` | 3 | `core24` | `2699a9` | `` | `` |
+| `0x7003d423` | 3 | `core24` | `c6f0ff` | `` | `` |
+| `0x7003d426` | 3 | `core24` | `00a5d0` | `` | `` |
+| `0x7003d429` | 3 | `core24` | `62fcaa` | `` | `` |
+| `0x7003d42c` | 2 | `dens16` | `0c02` | `` | `` |
+| `0x7003d42e` | 2 | `dens16` | `1df0` | `` | `` |
+| `0x7003d430` | 3 | `core24` | `000000` | `` | `` |
+| `0x7003d433` | 3 | `core24` | `000000` | `` | `` |
+| `0x7003d436` | 3 | `core24` | `22a100` | `` | `` |
+| `0x7003d439` | 2 | `dens16` | `1df0` | `` | `` |
+| `0x7003d43b` | 3 | `core24` | `000000` | `` | `` |
+| `0x7003d43e` | 3 | `core24` | `00000e` | `` | `` |
+| `0x7003d441` | 3 | `core24` | `d0c842` | `` | `` |
+| `0x7003d444` | 2 | `dens16` | `28f9` | `` | `` |
+| `0x7003d446` | 3 | `core24` | `510731` | `` | `` |
+| `0x7003d449` | 2 | `dens16` | `a8c5` | `` | `` |
+| `0x7003d44b` | 16 | `flix128` | `3ec8060402251062165ab98603000000` | `0xe` | `ok` |
+| `0x7003d45b` | 3 | `core24` | `000000` | `` | `` |
+| `0x7003d45e` | 3 | `truncated` | `0000` | `` | `` |
+
+#### `dmaif_owner_entry_prefix_corrected_boundaries` `0x70044b74`..`0x70044c50`
+
+Length-correct sweep at the top iDMA schedule/wait owner. The owner starts with a standard entry core op followed by dense FLIX128/64 bundles and sparse core/density items.
+
+- start prop: `insn|no_reorder:0x44` at `0x70044b74`
+- counts: core24=6, dens16=4, flix64=3, flix128=10, truncated=1
+- bad framing: 0
+- next action: Use this as the Q1 owner boundary map before any FLIX/iDMA instrumentation; string ownership alone still does not prove completion-store timing.
+
+| addr | len | kind | raw | fmt | framing |
+|---:|---:|---|---|---|---|
+| `0x70044b74` | 3 | `core24` | `364107` | `` | `` |
+| `0x70044b77` | 16 | `flix128` | `9e6220705864120030d005e7f4060402` | `0xe` | `ok` |
+| `0x70044b87` | 3 | `core24` | `820203` | `` | `` |
+| `0x70044b8a` | 3 | `core24` | `920202` | `` | `` |
+| `0x70044b8d` | 8 | `flix64` | `4f88b0128a088200` | `0x0f` | `ok` |
+| `0x70044b95` | 3 | `core24` | `908820` | `` | `` |
+| `0x70044b98` | 16 | `flix128` | `8ed07e020736000a3733000240080402` | `0xe` | `ok` |
+| `0x70044ba8` | 8 | `flix64` | `af6080c5401c5800` | `0x0f` | `ok` |
+| `0x70044bb0` | 8 | `flix64` | `0f60218207e08200` | `0x0f` | `ok` |
+| `0x70044bb8` | 16 | `flix128` | `7ed4545258c4410631a88502c8060402` | `0xe` | `ok` |
+| `0x70044bc8` | 16 | `flix128` | `9e983c705862120030d00529f1060402` | `0xe` | `ok` |
+| `0x70044bd8` | 16 | `flix128` | `9e6320705860120030d0851bf5060402` | `0xe` | `ok` |
+| `0x70044be8` | 2 | `dens16` | `9803` | `` | `` |
+| `0x70044bea` | 16 | `flix128` | `9e592a705a66120030d0851af5060402` | `0xe` | `ok` |
+| `0x70044bfa` | 2 | `dens16` | `a813` | `` | `` |
+| `0x70044bfc` | 16 | `flix128` | `9e6a20705866120030d0051af5060402` | `0xe` | `ok` |
+| `0x70044c0c` | 3 | `core24` | `e22321` | `` | `` |
+| `0x70044c0f` | 16 | `flix128` | `9e6e00705a64120030d08519f5060402` | `0xe` | `ok` |
+| `0x70044c1f` | 2 | `dens16` | `b823` | `` | `` |
+| `0x70044c21` | 16 | `flix128` | `9e6b00705864120030d00519f5060402` | `0xe` | `ok` |
+| `0x70044c31` | 3 | `core24` | `722322` | `` | `` |
+| `0x70044c34` | 16 | `flix128` | `9e6720705862120030d08518f5060402` | `0xe` | `ok` |
+| `0x70044c44` | 2 | `dens16` | `c833` | `` | `` |
+| `0x70044c46` | 16 | `truncated` | `9e6c20705a60120030d0` | `` | `` |
+
+#### `dmaif_dram_validation_tail_corrected_boundaries` `0x700452c4`..`0x70045330`
+
+Length-correct sweep around the DRAM data-buffer validation string owner tail inside the same iDMA cluster.
+
+- start prop: `insn|no_reorder:0x3a` at `0x700452c4`
+- counts: core24=12, dens16=3, flix64=0, flix128=4, truncated=1
+- bad framing: 0
+- next action: Correlate these core24 checks with the DRAM validation strings before treating the FLIX bundles as DMA movement.
+
+| addr | len | kind | raw | fmt | framing |
+|---:|---:|---|---|---|---|
+| `0x700452c4` | 3 | `core24` | `8261d2` | `` | `` |
+| `0x700452c7` | 3 | `core24` | `f62f3b` | `` | `` |
+| `0x700452ca` | 3 | `core24` | `8221b7` | `` | `` |
+| `0x700452cd` | 3 | `core24` | `e62835` | `` | `` |
+| `0x700452d0` | 3 | `core24` | `9221b8` | `` | `` |
+| `0x700452d3` | 3 | `core24` | `e6292f` | `` | `` |
+| `0x700452d6` | 3 | `core24` | `a221b5` | `` | `` |
+| `0x700452d9` | 3 | `core24` | `e62a29` | `` | `` |
+| `0x700452dc` | 2 | `dens16` | `0c0c` | `` | `` |
+| `0x700452de` | 16 | `flix128` | `1ec1c6025866100430d08538c8060402` | `0xe` | `ok` |
+| `0x700452ee` | 16 | `flix128` | `1eb184015866100430d08538c8060402` | `0xe` | `ok` |
+| `0x700452fe` | 2 | `dens16` | `0c0d` | `` | `` |
+| `0x70045300` | 3 | `core24` | `d261d2` | `` | `` |
+| `0x70045303` | 3 | `core24` | `460800` | `` | `` |
+| `0x70045306` | 2 | `dens16` | `0c0f` | `` | `` |
+| `0x70045308` | 16 | `flix128` | `1ef186035866100430d08538c8060402` | `0xe` | `ok` |
+| `0x70045318` | 16 | `flix128` | `1ee184015866100430d08538c8060402` | `0xe` | `ok` |
+| `0x70045328` | 3 | `core24` | `920207` | `` | `` |
+| `0x7004532b` | 3 | `core24` | `a20206` | `` | `` |
+| `0x7004532e` | 8 | `truncated` | `4f89` | `` | `` |
 
 ## L32R Literal References
 
@@ -640,10 +774,10 @@ These records promote the string-cluster leads into explicit Q1 owner investigat
 
 - range: `0x70044b74`..`0x70045380`
 - assessment: Top iDMA schedule/wait wrapper candidate. The same .xt.prop owner contains L32R refs to iDMA schedule error, iDMA wait error, dmaif.c, descriptor range validation, and data-buffer DRAM validation strings.
-- Q1 status: owner_narrowed_not_timing_closed; this identifies the DMA/iDMA schedule/wait layer but does not prove completion-write burst shape or inter-store gap because the owner is FLIX/TIE-heavy.
-- FLIX selector `06 04 02` hits: 83 (first 0x70044b84, 0x70044bc5, 0x70044bd5, 0x70044be5, 0x70044bf7, 0x70044c09, 0x70044c1c, 0x70044c2e, 0x70044c41, 0x70044c53, 0x70044c66, 0x70044c78)
+- Q1 status: owner_narrowed_not_timing_closed; FLIX-correct boundaries now separate core/density items from FLIX bundles in the owner, but they still do not prove completion-write burst shape or inter-store gap.
+- FLIX framing motif `FLIX128 framing tail 06 04 02` hits: 83 (first 0x70044b84, 0x70044bc5, 0x70044bd5, 0x70044be5, 0x70044bf7, 0x70044c09, 0x70044c1c, 0x70044c2e, 0x70044c41, 0x70044c53, 0x70044c66, 0x70044c78)
 - standard a2 access signals: 55 hits, offsets 0x0, 0x2, 0x3, 0x4, 0x6, 0x7, 0x8, 0xa, 0xb, 0x16, 0x17, 0x1a, 0x1b, 0x1e, 0x1f, 0x22, 0x23, 0x26, 0x27, 0x2a, 0x2b, 0x2e, 0x2f, 0x3a, 0x3b, 0x3e, 0x3f, 0x42, 0x43, 0x44, 0x45, 0x46
-- next action: Use this owner as the Q1 firmware anchor for DMA schedule/wait. Close timing with runtime instrumentation or a FLIX overlay/format decoder; do not infer inter-store timing from string ownership alone.
+- next action: Use this owner as the Q1 firmware anchor for DMA schedule/wait. Close timing with runtime instrumentation or deeper FLIX/TIE slot semantics; do not infer inter-store timing from string ownership alone.
 
 | evidence | ref | delta | literal | prop |
 |---|---:|---:|---:|---|

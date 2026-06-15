@@ -264,9 +264,9 @@ class FocusedLoopInvestigation:
     target_prop_flags: str | None
     prop_runs: list[dict[str, object]]
     visible_field_accesses: list[StandardFieldAccess]
-    flix_selector: str
-    flix_selector_hits: list[int]
-    flix_selector_deltas: list[int]
+    flix_framing: str
+    flix_framing_hits: list[int]
+    flix_framing_deltas: list[int]
     standard_loop_opcode_hits: list[int]
     stride_0x40_status: str
     next_action: str
@@ -292,11 +292,37 @@ class DmaOwnerInvestigation:
     q1_status: str
     evidence_refs: list[dict[str, object]]
     prop_runs: list[dict[str, object]]
-    flix_selector: str
-    flix_selector_hit_count: int
-    flix_selector_hits: list[int]
+    flix_framing: str
+    flix_framing_hit_count: int
+    flix_framing_hits: list[int]
     standard_a2_offsets: list[int]
     standard_a2_access_count: int
+    next_action: str
+
+
+@dataclass
+class FlixSweepInstruction:
+    addr: int
+    length: int
+    kind: str
+    raw: str
+    fmt: str | None
+    framing_ok: bool | None
+    framing_warn: list[str]
+
+
+@dataclass
+class FlixSweep:
+    label: str
+    start: int
+    end: int
+    description: str
+    start_prop_addr: int | None
+    start_prop_size: int | None
+    start_prop_flags: str | None
+    counts: dict[str, int]
+    bad_framing_count: int
+    instructions: list[FlixSweepInstruction]
     next_action: str
 
 
@@ -638,6 +664,207 @@ def va_bytes(data: bytes, sections: Iterable[Section], addr: int, size: int) -> 
     return data[offset : offset + size]
 
 
+def flix_insn_len(first_byte: int) -> int:
+    op0 = first_byte & 0x0F
+    if op0 <= 0x07:
+        return 3
+    if op0 <= 0x0D:
+        return 2
+    if op0 == 0x0F:
+        return 8
+    return 16
+
+
+def flix_kind(first_byte: int) -> str:
+    op0 = first_byte & 0x0F
+    if op0 <= 0x07:
+        return "core24"
+    if op0 <= 0x0D:
+        return "dens16"
+    if op0 == 0x0F:
+        return "flix64"
+    return "flix128"
+
+
+def flix64_framing_warnings(value: int) -> list[str]:
+    warnings: list[str] = []
+    if value & 0x1F != 0x0F:
+        warnings.append("fmt!=0x0f")
+    if (value >> 56) & 0xFF != 0:
+        warnings.append("topbyte!=0")
+    if (value >> 50) & 1:
+        warnings.append("bit50!=0")
+    return warnings
+
+
+def flix128_framing_warnings(value: int) -> list[str]:
+    warnings: list[str] = []
+    if value & 0x0F != 0x0E:
+        warnings.append("fmt!=0xe")
+    if (value >> 122) & 0x3F:
+        warnings.append("bits122-127!=0")
+    return warnings
+
+
+def flix_sweep_range(
+    data: bytes,
+    sections: list[Section],
+    props: list[XtProp],
+    label: str,
+    start: int,
+    end: int,
+    description: str,
+    next_action: str,
+) -> FlixSweep:
+    addr = start
+    instructions: list[FlixSweepInstruction] = []
+    counts = {"core24": 0, "dens16": 0, "flix64": 0, "flix128": 0, "truncated": 0}
+    bad_framing_count = 0
+    while addr < end:
+        head = va_bytes(data, sections, addr, 1)
+        if not head:
+            break
+        length = flix_insn_len(head[0])
+        raw = va_bytes(data, sections, addr, length)
+        if raw is None or len(raw) != length or addr + length > end:
+            partial = va_bytes(data, sections, addr, max(0, end - addr)) or b""
+            counts["truncated"] += 1
+            instructions.append(
+                FlixSweepInstruction(
+                    addr=addr,
+                    length=length,
+                    kind="truncated",
+                    raw=partial.hex(),
+                    fmt=None,
+                    framing_ok=None,
+                    framing_warn=["range_end"],
+                )
+            )
+            break
+        kind = flix_kind(head[0])
+        counts[kind] = counts.get(kind, 0) + 1
+        fmt: str | None = None
+        framing_ok: bool | None = None
+        framing_warn: list[str] = []
+        if length == 8:
+            value = int.from_bytes(raw, "little")
+            fmt = "0x%02x" % (value & 0x1F)
+            framing_warn = flix64_framing_warnings(value)
+            framing_ok = not framing_warn
+        elif length == 16:
+            value = int.from_bytes(raw, "little")
+            fmt = "0x%x" % (value & 0x0F)
+            framing_warn = flix128_framing_warnings(value)
+            framing_ok = not framing_warn
+        if framing_warn:
+            bad_framing_count += 1
+        instructions.append(
+            FlixSweepInstruction(
+                addr=addr,
+                length=length,
+                kind=kind,
+                raw=raw.hex(),
+                fmt=fmt,
+                framing_ok=framing_ok,
+                framing_warn=framing_warn,
+            )
+        )
+        addr += length
+
+    start_prop = best_prop_for_addr(props, start)
+    return FlixSweep(
+        label=label,
+        start=start,
+        end=end,
+        description=description,
+        start_prop_addr=None if start_prop is None else start_prop.addr,
+        start_prop_size=None if start_prop is None else start_prop.size,
+        start_prop_flags=None if start_prop is None else flags_text(start_prop.flags),
+        counts=counts,
+        bad_framing_count=bad_framing_count,
+        instructions=instructions,
+        next_action=next_action,
+    )
+
+
+def build_flix_sweeps(
+    data: bytes, sections: list[Section], props: list[XtProp]
+) -> list[FlixSweep]:
+    specs = (
+        (
+            "info13_record_lead_corrected_boundaries",
+            0x7003C0EE,
+            0x7003C14C,
+            (
+                "Length-correct sweep across the 0x7003c102 loop-target "
+                "neighborhood. Core LSAI-shaped accesses are interleaved with "
+                "FLIX128/64 bundles instead of being swallowed by 2-byte "
+                "base-Xtensa sizing."
+            ),
+            (
+                "Use these boundaries before inspecting descriptor-field core "
+                "ops. The 06 04 02 bytes are FLIX128 framing tails, not an "
+                "independent selector."
+            ),
+        ),
+        (
+            "downgraded_error_tail_corrected_boundaries",
+            0x7003D3E2,
+            0x7003D460,
+            (
+                "Length-correct sweep around the downgraded 0x7003d423 "
+                "loop-target property. The target itself is a core24 item, "
+                "but the surrounding block remains switch/error-tail shaped."
+            ),
+            (
+                "Keep as secondary local-control-flow evidence; corrected "
+                "boundaries do not promote it back into the INFO13 mainline."
+            ),
+        ),
+        (
+            "dmaif_owner_entry_prefix_corrected_boundaries",
+            0x70044B74,
+            0x70044C50,
+            (
+                "Length-correct sweep at the top iDMA schedule/wait owner. "
+                "The owner starts with a standard entry core op followed by "
+                "dense FLIX128/64 bundles and sparse core/density items."
+            ),
+            (
+                "Use this as the Q1 owner boundary map before any FLIX/iDMA "
+                "instrumentation; string ownership alone still does not prove "
+                "completion-store timing."
+            ),
+        ),
+        (
+            "dmaif_dram_validation_tail_corrected_boundaries",
+            0x700452C4,
+            0x70045330,
+            (
+                "Length-correct sweep around the DRAM data-buffer validation "
+                "string owner tail inside the same iDMA cluster."
+            ),
+            (
+                "Correlate these core24 checks with the DRAM validation "
+                "strings before treating the FLIX bundles as DMA movement."
+            ),
+        ),
+    )
+    return [
+        flix_sweep_range(
+            data=data,
+            sections=sections,
+            props=props,
+            label=label,
+            start=start,
+            end=end,
+            description=description,
+            next_action=next_action,
+        )
+        for label, start, end, description, next_action in specs
+    ]
+
+
 def find_strings(data: bytes, section: Section, min_len: int) -> list[StringEntry]:
     blob = section_bytes(data, section)
     out: list[StringEntry] = []
@@ -915,8 +1142,8 @@ KEY_ADDRESS_LABELS = (
     ("flk_pointer_target_cluster", 0x70017D40),
     ("flk_pointer_table_owner", 0x70015E98),
     ("dispatcher_like_locateBuffer", 0x700301D8),
-    ("flix_blocked_INFO13_record_lead", 0x7003B468),
-    ("flix_blocked_INFO13_record_loop_target", 0x7003C102),
+    ("flix_assisted_INFO13_record_lead", 0x7003B468),
+    ("flix_assisted_INFO13_record_loop_target", 0x7003C102),
     ("buffer_record_high_field_validator_candidate", 0x7003CE3C),
     ("large_auto_function", 0x7003B424),
     ("top_dmaif_l32r_owner_cluster", 0x70044B74),
@@ -1640,26 +1867,25 @@ def build_focused_loop_investigations(
 ) -> list[FocusedLoopInvestigation]:
     specs = (
         {
-            "label": "flix_blocked_INFO13_record_lead",
+            "label": "flix_assisted_INFO13_record_lead",
             "owner": 0x7003B468,
             "target": 0x7003C102,
             "priority": "independent_flix_branch",
             "assessment": (
                 "Clean 0xaa-byte loop_target property run inside the strongest "
-                "0x40-record-shaped field cluster, but standard-ISA scans do not "
-                "expose a byte-aligned LOOP, an exact branch back-edge to the "
-                "target, or an a2 += 0x40 stride. Treat this as a FLIX-blocked "
-                "record-processing lead, not a blocker for the INFO12/INFO13 "
-                "closure."
+                "0x40-record-shaped field cluster. The corrected FLIX length "
+                "overlay shows the target as a core24 LSAI-shaped item between "
+                "FLIX bundles, but still does not expose an exact count/stride "
+                "binding. Treat this as a FLIX-assisted record-processing lead, "
+                "not a blocker for the INFO12/INFO13 closure."
             ),
             "range_start": 0x7003B468,
             "range_end": 0x7003C1C0,
             "base": 2,
             "next_action": (
-                "Stop hand-decoding 0x7003c102 on the mainline. Close the "
-                "INFO12/INFO13 proposition with the verified 0x40 record layout "
-                "and the kernel/provider buffer_count cap; keep FLIX overlay or "
-                "format reverse engineering as an independent branch."
+                "Use the FLIX-correct sweep to inspect the interleaved core ops, "
+                "but keep the INFO12/INFO13 proposition closed with the verified "
+                "0x40 record layout and the kernel/provider buffer_count cap."
             ),
         },
         {
@@ -1687,7 +1913,7 @@ def build_focused_loop_investigations(
         target_prop = best_prop_for_addr(props, target)
         range_start = int(spec["range_start"])
         range_end = int(spec["range_end"])
-        selector_hits = byte_pattern_hits(data, sections, range_start, range_end, b"\x06\x04\x02")
+        framing_hits = byte_pattern_hits(data, sections, range_start, range_end, b"\x06\x04\x02")
         investigations.append(
             FocusedLoopInvestigation(
                 label=str(spec["label"]),
@@ -1706,19 +1932,19 @@ def build_focused_loop_investigations(
                     range_end,
                     int(spec["base"]),
                 ),
-                flix_selector="06 04 02",
-                flix_selector_hits=selector_hits[:32],
-                flix_selector_deltas=[
-                    selector_hits[index + 1] - selector_hits[index]
-                    for index in range(len(selector_hits) - 1)
+                flix_framing="FLIX128 framing tail 06 04 02",
+                flix_framing_hits=framing_hits[:32],
+                flix_framing_deltas=[
+                    framing_hits[index + 1] - framing_hits[index]
+                    for index in range(len(framing_hits) - 1)
                 ][:31],
                 standard_loop_opcode_hits=possible_standard_loop_hits_to_target(
                     data, sections, target, range_start, target
                 ),
                 stride_0x40_status=(
-                    "blocked_in_flix; visible standard a2 accesses do not show "
-                    "a2 += 0x40, and raw 0x40 byte hits inside FLIX selector "
-                    "motifs are not stride proof."
+                    "not_closed; corrected FLIX boundaries expose interleaved "
+                    "core ops, but no exact a2 += 0x40 count/stride proof yet. "
+                    "The 06 04 02 motif is FLIX128 framing, not stride evidence."
                 ),
                 next_action=str(spec["next_action"]),
             )
@@ -1870,7 +2096,7 @@ def build_dma_owner_investigations(
             }
         )
 
-    selector_hits = byte_pattern_hits(data, sections, start, end, b"\x06\x04\x02")
+    framing_hits = byte_pattern_hits(data, sections, start, end, b"\x06\x04\x02")
     a2_offsets, a2_count = standard_a2_access_summary(data, sections, start, end)
     return [
         DmaOwnerInvestigation(
@@ -1884,21 +2110,23 @@ def build_dma_owner_investigations(
                 "descriptor range validation, and data-buffer DRAM validation strings."
             ),
             q1_status=(
-                "owner_narrowed_not_timing_closed; this identifies the DMA/iDMA "
-                "schedule/wait layer but does not prove completion-write burst shape "
-                "or inter-store gap because the owner is FLIX/TIE-heavy."
+                "owner_narrowed_not_timing_closed; FLIX-correct boundaries now "
+                "separate core/density items from FLIX bundles in the owner, but "
+                "they still do not prove completion-write burst shape or "
+                "inter-store gap."
             ),
             evidence_refs=evidence_refs,
             prop_runs=prop_run_samples(data, sections, props, start, end),
-            flix_selector="06 04 02",
-            flix_selector_hit_count=len(selector_hits),
-            flix_selector_hits=selector_hits[:32],
+            flix_framing="FLIX128 framing tail 06 04 02",
+            flix_framing_hit_count=len(framing_hits),
+            flix_framing_hits=framing_hits[:32],
             standard_a2_offsets=a2_offsets,
             standard_a2_access_count=a2_count,
             next_action=(
                 "Use this owner as the Q1 firmware anchor for DMA schedule/wait. "
-                "Close timing with runtime instrumentation or a FLIX overlay/format "
-                "decoder; do not infer inter-store timing from string ownership alone."
+                "Close timing with runtime instrumentation or deeper FLIX/TIE "
+                "slot semantics; do not infer inter-store timing from string "
+                "ownership alone."
             ),
         )
     ]
@@ -2136,12 +2364,12 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
             f"{hx(item.get('target_prop_size'))}`"
         )
         lines.append(
-            f"- FLIX selector `{item['flix_selector']}` hits: "
-            f"{', '.join(hx(value) or '' for value in item['flix_selector_hits'][:16])}"
+            f"- FLIX framing motif `{item['flix_framing']}` hits: "
+            f"{', '.join(hx(value) or '' for value in item['flix_framing_hits'][:16])}"
         )
         lines.append(
-            f"- FLIX selector deltas: "
-            f"{', '.join(hx(value) or '' for value in item['flix_selector_deltas'][:16])}"
+            f"- FLIX framing motif deltas: "
+            f"{', '.join(hx(value) or '' for value in item['flix_framing_deltas'][:16])}"
         )
         lines.append(
             f"- standard loop opcode hits to target: "
@@ -2170,6 +2398,54 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
             lines.append(
                 f"| `{hx(prop['addr'])}` | `{hx(prop['size'])}` | "
                 f"`{prop['flags']}` | `{prop['bytes']}` |"
+            )
+        lines.append("")
+    lines.append("### FLIX-Correct Boundary Sweeps")
+    lines.append("")
+    lines.append(
+        "These ranges use the `.xt.prop`-validated hybrid length rule: "
+        "`0x0..0x7 -> 3`, `0x8..0xd -> 2`, `0xe -> 16`, `0xf -> 8`. "
+        "The `06 04 02` motif is treated as FLIX128 framing, not as an "
+        "independent selector."
+    )
+    lines.append("")
+    for item in payload["flix_sweeps"]:
+        assert isinstance(item, dict)
+        counts = item["counts"]
+        assert isinstance(counts, dict)
+        lines.append(
+            f"#### `{item['label']}` `{hx(item['start'])}`..`{hx(item['end'])}`"
+        )
+        lines.append("")
+        lines.append(display_text(str(item["description"])))
+        lines.append("")
+        lines.append(
+            f"- start prop: `{item.get('start_prop_flags') or ''}:"
+            f"{hx(item.get('start_prop_size'))}` at `{hx(item.get('start_prop_addr'))}`"
+        )
+        lines.append(
+            "- counts: "
+            f"core24={counts.get('core24', 0)}, "
+            f"dens16={counts.get('dens16', 0)}, "
+            f"flix64={counts.get('flix64', 0)}, "
+            f"flix128={counts.get('flix128', 0)}, "
+            f"truncated={counts.get('truncated', 0)}"
+        )
+        lines.append(f"- bad framing: {item['bad_framing_count']}")
+        lines.append(f"- next action: {display_text(str(item['next_action']))}")
+        lines.append("")
+        lines.append("| addr | len | kind | raw | fmt | framing |")
+        lines.append("|---:|---:|---|---|---|---|")
+        instructions = item["instructions"]
+        assert isinstance(instructions, list)
+        for insn in instructions[:32]:
+            assert isinstance(insn, dict)
+            framing = ""
+            if insn.get("framing_ok") is not None:
+                framing = "ok" if insn["framing_ok"] else ",".join(insn["framing_warn"])
+            lines.append(
+                f"| `{hx(insn['addr'])}` | {insn['length']} | `{insn['kind']}` | "
+                f"`{insn['raw']}` | `{insn.get('fmt') or ''}` | `{framing}` |"
             )
         lines.append("")
     lines.append("## L32R Literal References")
@@ -2279,9 +2555,9 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
         lines.append(f"- assessment: {display_text(str(item['assessment']))}")
         lines.append(f"- Q1 status: {display_text(str(item['q1_status']))}")
         lines.append(
-            f"- FLIX selector `{item['flix_selector']}` hits: "
-            f"{item['flix_selector_hit_count']} "
-            f"(first {', '.join(hx(value) or '' for value in item['flix_selector_hits'][:12])})"
+            f"- FLIX framing motif `{item['flix_framing']}` hits: "
+            f"{item['flix_framing_hit_count']} "
+            f"(first {', '.join(hx(value) or '' for value in item['flix_framing_hits'][:12])})"
         )
         lines.append(
             f"- standard a2 access signals: {item['standard_a2_access_count']} hits, "
@@ -2466,6 +2742,7 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
     focused_loop_investigations = build_focused_loop_investigations(
         data, sections, props
     )
+    flix_sweeps = build_flix_sweeps(data, sections, props)
 
     entry_props = []
     for prop in prop_near(props, eh.entry):
@@ -2507,6 +2784,7 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
         "loop_target_count": loop_target_count,
         "loop_target_candidates": to_jsonable(loop_target_candidates),
         "focused_loop_investigations": to_jsonable(focused_loop_investigations),
+        "flix_sweeps": to_jsonable(flix_sweeps),
         "pointer_runs": to_jsonable(pointer_runs),
         "ann_op_name_table": op_name_table(
             data, sections, section_by_name(sections, ".dram_op.data"), strings_by_addr
@@ -2597,8 +2875,22 @@ def print_summary(payload: dict[str, object]) -> None:
             f"{item['label']} priority={item['priority']} "
             f"owner={hx(item['owner_entry'])} target={hx(item['loop_target'])} "
             f"target_prop={item.get('target_prop_flags')}:{hx(item.get('target_prop_size'))} "
-            f"flix_hits={len(item['flix_selector_hits'])} "
+            f"flix_framing_hits={len(item['flix_framing_hits'])} "
             f"standard_loop_hits={len(item['standard_loop_opcode_hits'])}"
+        )
+    flix_sweeps = payload["flix_sweeps"]
+    assert isinstance(flix_sweeps, list)
+    print(f"flix_sweeps={len(flix_sweeps)}")
+    for item in flix_sweeps:
+        assert isinstance(item, dict)
+        counts = item["counts"]
+        assert isinstance(counts, dict)
+        print(
+            "  flix_sweep "
+            f"{item['label']} range={hx(item['start'])}..{hx(item['end'])} "
+            f"core24={counts.get('core24', 0)} dens16={counts.get('dens16', 0)} "
+            f"flix64={counts.get('flix64', 0)} flix128={counts.get('flix128', 0)} "
+            f"bad_framing={item['bad_framing_count']}"
         )
     interesting_l32r = payload["interesting_l32r_refs"]
     assert isinstance(interesting_l32r, list)
@@ -2660,7 +2952,7 @@ def print_summary(payload: dict[str, object]) -> None:
             "  dma_owner "
             f"{item['label']} owner={hx(item['owner_entry'])} "
             f"evidence={len(item['evidence_refs'])} "
-            f"flix_hits={item['flix_selector_hit_count']} "
+            f"flix_framing_hits={item['flix_framing_hit_count']} "
             f"status={item['q1_status']}"
         )
     print(f"pointer_runs={len(payload['pointer_runs'])}")

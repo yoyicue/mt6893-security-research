@@ -44,6 +44,8 @@ OBSOLETE_COMMENT_MARKERS = (
     "Count/stride are not closed",
     "do not spend primary effort here until 0x7003c102 is exhausted",
     "not the primary INFO13 array walk",
+    "standard-ISA scans do not expose a byte-aligned LOOP",
+    "because the owner is FLIX/TIE-heavy",
 )
 
 
@@ -436,6 +438,54 @@ def apply_focused_loop_investigations(payload: dict[str, object]) -> int:
     return comments
 
 
+def apply_flix_sweeps(payload: dict[str, object]) -> int:
+    comments = 0
+    for item in payload.get("flix_sweeps", []):
+        start = int(item["start"])
+        end = int(item["end"])
+        counts = item.get("counts", {})
+        if not isinstance(counts, dict):
+            counts = {}
+        summary = (
+            "APUNN FLIX-correct sweep %s; range=%s..%s core24=%s dens16=%s "
+            "flix64=%s flix128=%s bad_framing=%s; rule 0xe=16B 0xf=8B; "
+            "06 04 02 is FLIX128 framing, not selector"
+            % (
+                item.get("label"),
+                fmt_hex(start),
+                fmt_hex(end),
+                counts.get("core24", 0),
+                counts.get("dens16", 0),
+                counts.get("flix64", 0),
+                counts.get("flix128", 0),
+                item.get("bad_framing_count"),
+            )
+        )
+        if append_comment(start, summary):
+            comments += 1
+        for insn in item.get("instructions", [])[:24]:
+            ea = int(insn["addr"])
+            if not has_segment(ea):
+                continue
+            text = "APUNN FLIX sweep item %s len=%s kind=%s raw=%s" % (
+                item.get("label"),
+                insn.get("length"),
+                insn.get("kind"),
+                insn.get("raw"),
+            )
+            if insn.get("fmt"):
+                text += " fmt=%s framing=%s" % (
+                    insn.get("fmt"),
+                    "ok" if insn.get("framing_ok") else insn.get("framing_warn"),
+                )
+            head = idc.get_item_head(ea)
+            if head == idc.BADADDR or not has_segment(head):
+                head = ea
+            if append_comment(head, text):
+                comments += 1
+    return comments
+
+
 def apply_critical_owner_clusters(payload: dict[str, object]) -> int:
     comments = 0
     for item in payload.get("critical_l32r_owner_clusters", [])[:8]:
@@ -522,6 +572,7 @@ def main() -> None:
     l32r_comments, l32r_refs = apply_l32r_refs(payload)
     loop_comments = apply_loop_targets(payload)
     focused_loop_comments = apply_focused_loop_investigations(payload)
+    flix_sweep_comments = apply_flix_sweeps(payload)
     cluster_comments = apply_critical_owner_clusters(payload)
     dma_owner_comments = apply_dma_owner_investigations(payload)
     ida_auto.auto_wait()
@@ -530,7 +581,7 @@ def main() -> None:
         "[APUNN] functions_created=%d bounded_functions=%d function_names=%d inside_existing=%d "
         "key_names=%d pointer_dwords=%d pointer_refs=%d strings=%d island_comments=%d "
         "l32r_comments=%d l32r_refs=%d loop_comments=%d focused_loop_comments=%d "
-        "cluster_comments=%d dma_owner_comments=%d"
+        "flix_sweep_comments=%d cluster_comments=%d dma_owner_comments=%d"
         % (
             fn_created,
             fn_bounded,
@@ -545,6 +596,7 @@ def main() -> None:
             l32r_refs,
             loop_comments,
             focused_loop_comments,
+            flix_sweep_comments,
             cluster_comments,
             dma_owner_comments,
         )
