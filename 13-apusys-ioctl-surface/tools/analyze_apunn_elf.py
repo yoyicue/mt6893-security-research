@@ -268,6 +268,12 @@ class FocusedLoopInvestigation:
     flix_framing_hits: list[int]
     flix_framing_deltas: list[int]
     standard_loop_opcode_hits: list[int]
+    boundary_counts: dict[str, int]
+    loop_body_start: int
+    loop_body_end: int
+    loop_body_boundary_counts: dict[str, int]
+    loop_body_core_mem_accesses: list[StandardFieldAccess]
+    count_status: str
     stride_0x40_status: str
     next_action: str
 
@@ -288,6 +294,10 @@ class DmaOwnerInvestigation:
     owner_entry: int
     analysis_start: int
     analysis_end: int
+    cluster_rank: int
+    cluster_pattern_count: int
+    cluster_hit_count: int
+    cluster_patterns: list[str]
     assessment: str
     q1_status: str
     evidence_refs: list[dict[str, object]]
@@ -309,6 +319,7 @@ class FlixSweepInstruction:
     fmt: str | None
     framing_ok: bool | None
     framing_warn: list[str]
+    core_mem_access: StandardFieldAccess | None
 
 
 @dataclass
@@ -710,6 +721,7 @@ def flix_sweep_range(
     data: bytes,
     sections: list[Section],
     props: list[XtProp],
+    function_candidates: list[FunctionCandidate],
     label: str,
     start: int,
     end: int,
@@ -726,8 +738,8 @@ def flix_sweep_range(
             break
         length = flix_insn_len(head[0])
         raw = va_bytes(data, sections, addr, length)
-        if raw is None or len(raw) != length or addr + length > end:
-            partial = va_bytes(data, sections, addr, max(0, end - addr)) or b""
+        if raw is None or len(raw) != length:
+            partial = va_bytes(data, sections, addr, max(1, end - addr)) or b""
             counts["truncated"] += 1
             instructions.append(
                 FlixSweepInstruction(
@@ -738,6 +750,7 @@ def flix_sweep_range(
                     fmt=None,
                     framing_ok=None,
                     framing_warn=["range_end"],
+                    core_mem_access=None,
                 )
             )
             break
@@ -758,6 +771,23 @@ def flix_sweep_range(
             framing_ok = not framing_warn
         if framing_warn:
             bad_framing_count += 1
+        core_mem_access = None
+        if kind == "core24":
+            decoded = decode_standard_mem_access(raw, 0)
+            if decoded is not None:
+                mnemonic, base_reg, value_reg, mem_offset, access_size, is_store = decoded
+                owner_entry, owner_delta = owner_for_addr(function_candidates, addr)
+                core_mem_access = StandardFieldAccess(
+                    addr=addr,
+                    op=mnemonic,
+                    base_reg=base_reg,
+                    value_reg=value_reg,
+                    offset=mem_offset,
+                    access_size=access_size,
+                    is_store=is_store,
+                    owner_entry=owner_entry,
+                    owner_delta=owner_delta,
+                )
         instructions.append(
             FlixSweepInstruction(
                 addr=addr,
@@ -767,6 +797,7 @@ def flix_sweep_range(
                 fmt=fmt,
                 framing_ok=framing_ok,
                 framing_warn=framing_warn,
+                core_mem_access=core_mem_access,
             )
         )
         addr += length
@@ -788,7 +819,10 @@ def flix_sweep_range(
 
 
 def build_flix_sweeps(
-    data: bytes, sections: list[Section], props: list[XtProp]
+    data: bytes,
+    sections: list[Section],
+    props: list[XtProp],
+    function_candidates: list[FunctionCandidate],
 ) -> list[FlixSweep]:
     specs = (
         (
@@ -855,6 +889,7 @@ def build_flix_sweeps(
             data=data,
             sections=sections,
             props=props,
+            function_candidates=function_candidates,
             label=label,
             start=start,
             end=end,
@@ -1605,6 +1640,13 @@ STANDARD_MEM_OPS = {
 }
 
 
+STANDARD_LOOP_KINDS = {
+    0x8: "loop",
+    0x9: "loopnez",
+    0xA: "loopgtz",
+}
+
+
 VPU_BUFFER_OFFSETS = {
     0x00,
     0x01,
@@ -1659,36 +1701,53 @@ def find_standard_field_access_clusters(
     text = section_by_name(sections, ".text")
     if text is None:
         return []
-    blob = section_bytes(data, text)
-    insn_coverage = xt_prop_insn_coverage(text, props)
     raw_clusters: dict[tuple[int, int], list[StandardFieldAccess]] = {}
-    for off in range(0, len(blob) - 2):
-        if not insn_coverage[off]:
+    for prop in props:
+        if not prop.flags & XT_PROP_INSN:
             continue
-        decoded = decode_standard_mem_access(blob, off)
-        if decoded is None:
+        if not (text.addr <= prop.addr < text.addr + text.size):
             continue
-        mnemonic, base_reg, value_reg, mem_offset, access_size, is_store = decoded
-        if mem_offset > max_offset:
-            continue
-        if base_reg in {0, 1}:
-            continue
-        addr = text.addr + off
-        owner_entry, owner_delta = owner_for_addr(function_candidates, addr)
-        if owner_entry is None:
-            continue
-        hit = StandardFieldAccess(
-            addr=addr,
-            op=mnemonic,
-            base_reg=base_reg,
-            value_reg=value_reg,
-            offset=mem_offset,
-            access_size=access_size,
-            is_store=is_store,
-            owner_entry=owner_entry,
-            owner_delta=owner_delta,
-        )
-        raw_clusters.setdefault((owner_entry, base_reg), []).append(hit)
+        addr = prop.addr
+        end = min(prop.addr + prop.size, text.addr + text.size)
+        while addr < end:
+            head = va_bytes(data, sections, addr, 1)
+            if not head:
+                break
+            length = flix_insn_len(head[0])
+            raw = va_bytes(data, sections, addr, length)
+            if raw is None or len(raw) != length:
+                break
+            if flix_kind(head[0]) != "core24":
+                addr += length
+                continue
+            decoded = decode_standard_mem_access(raw, 0)
+            if decoded is None:
+                addr += length
+                continue
+            mnemonic, base_reg, value_reg, mem_offset, access_size, is_store = decoded
+            if mem_offset > max_offset:
+                addr += length
+                continue
+            if base_reg in {0, 1}:
+                addr += length
+                continue
+            owner_entry, owner_delta = owner_for_addr(function_candidates, addr)
+            if owner_entry is None:
+                addr += length
+                continue
+            hit = StandardFieldAccess(
+                addr=addr,
+                op=mnemonic,
+                base_reg=base_reg,
+                value_reg=value_reg,
+                offset=mem_offset,
+                access_size=access_size,
+                is_store=is_store,
+                owner_entry=owner_entry,
+                owner_delta=owner_delta,
+            )
+            raw_clusters.setdefault((owner_entry, base_reg), []).append(hit)
+            addr += length
 
     clusters: list[FieldAccessCluster] = []
     for (owner_entry, base_reg), hits in raw_clusters.items():
@@ -1797,17 +1856,76 @@ def visible_base_accesses_in_range(
     max_offset: int = 0x100,
     sample_limit: int = 64,
 ) -> list[StandardFieldAccess]:
+    return boundary_core_mem_accesses_in_range(
+        data=data,
+        sections=sections,
+        owner_entry=owner_entry,
+        start=start,
+        end=end,
+        base_reg=base_reg,
+        max_offset=max_offset,
+        sample_limit=sample_limit,
+    )
+
+
+def boundary_kind_counts(
+    data: bytes,
+    sections: list[Section],
+    start: int,
+    end: int,
+) -> dict[str, int]:
+    counts = {"core24": 0, "dens16": 0, "flix64": 0, "flix128": 0, "truncated": 0}
+    addr = start
+    while addr < end:
+        head = va_bytes(data, sections, addr, 1)
+        if not head:
+            break
+        length = flix_insn_len(head[0])
+        raw = va_bytes(data, sections, addr, length)
+        if raw is None or len(raw) != length:
+            counts["truncated"] += 1
+            break
+        counts[flix_kind(head[0])] += 1
+        addr += length
+    return counts
+
+
+def boundary_core_mem_accesses_in_range(
+    data: bytes,
+    sections: list[Section],
+    owner_entry: int,
+    start: int,
+    end: int,
+    base_reg: int | None = None,
+    max_offset: int | None = None,
+    sample_limit: int = 64,
+) -> list[StandardFieldAccess]:
     text = section_by_name(sections, ".text")
     if text is None:
         return []
-    blob = section_bytes(data, text)
     out: list[StandardFieldAccess] = []
-    for addr in range(start, max(start, end - 2)):
-        decoded = decode_standard_mem_access(blob, addr - text.addr)
+    addr = start
+    while addr < end:
+        head = va_bytes(data, sections, addr, 1)
+        if not head:
+            break
+        length = flix_insn_len(head[0])
+        raw = va_bytes(data, sections, addr, length)
+        if raw is None or len(raw) != length:
+            break
+        if flix_kind(head[0]) != "core24":
+            addr += length
+            continue
+        decoded = decode_standard_mem_access(raw, 0)
         if decoded is None:
+            addr += length
             continue
         mnemonic, found_base, value_reg, mem_offset, access_size, is_store = decoded
-        if found_base != base_reg or mem_offset > max_offset:
+        if base_reg is not None and found_base != base_reg:
+            addr += length
+            continue
+        if max_offset is not None and mem_offset > max_offset:
+            addr += length
             continue
         out.append(
             StandardFieldAccess(
@@ -1824,6 +1942,7 @@ def visible_base_accesses_in_range(
         )
         if len(out) >= sample_limit:
             break
+        addr += length
     return out
 
 
@@ -1854,8 +1973,8 @@ def possible_standard_loop_hits_to_target(
         off = addr - text.addr
         if off < 0 or off + 3 > len(blob):
             continue
-        b0, _b1, b2 = blob[off], blob[off + 1], blob[off + 2]
-        if b0 == 0x76 and addr + 4 + b2 == target:
+        b0, b1, b2 = blob[off], blob[off + 1], blob[off + 2]
+        if b0 == 0x76 and b1 >> 4 in STANDARD_LOOP_KINDS and addr + 4 + b2 == target:
             hits.append(addr)
     return hits
 
@@ -1873,19 +1992,19 @@ def build_focused_loop_investigations(
             "priority": "independent_flix_branch",
             "assessment": (
                 "Clean 0xaa-byte loop_target property run inside the strongest "
-                "0x40-record-shaped field cluster. The corrected FLIX length "
-                "overlay shows the target as a core24 LSAI-shaped item between "
-                "FLIX bundles, but still does not expose an exact count/stride "
-                "binding. Treat this as a FLIX-assisted record-processing lead, "
-                "not a blocker for the INFO12/INFO13 closure."
+                "0x40-record-shaped field cluster. FLIX-correct boundaries show "
+                "the owner reads descriptor-shaped a2 fields within 0x02..0x3d; "
+                "the 0x7003c102 loop body itself contains stack spills plus FLIX "
+                "bundles, so the firmware-local count update is in FLIX/TIE "
+                "slot semantics rather than a boundary-visible core LOOP."
             ),
             "range_start": 0x7003B468,
             "range_end": 0x7003C1C0,
             "base": 2,
             "next_action": (
-                "Use the FLIX-correct sweep to inspect the interleaved core ops, "
-                "but keep the INFO12/INFO13 proposition closed with the verified "
-                "0x40 record layout and the kernel/provider buffer_count cap."
+                "Treat stride as closed by the 0x40 descriptor layout and "
+                "boundary-visible a2 field coverage; decode the FLIX/TIE slot "
+                "only if firmware-local count-register naming is required."
             ),
         },
         {
@@ -1913,7 +2032,51 @@ def build_focused_loop_investigations(
         target_prop = best_prop_for_addr(props, target)
         range_start = int(spec["range_start"])
         range_end = int(spec["range_end"])
+        loop_body_start = target
+        loop_body_end = target + (0 if target_prop is None else target_prop.size)
         framing_hits = byte_pattern_hits(data, sections, range_start, range_end, b"\x06\x04\x02")
+        visible_field_accesses = visible_base_accesses_in_range(
+            data,
+            sections,
+            int(spec["owner"]),
+            range_start,
+            range_end,
+            int(spec["base"]),
+        )
+        visible_field_offsets = sorted({hit.offset for hit in visible_field_accesses})
+        loop_body_core_mem_accesses = boundary_core_mem_accesses_in_range(
+            data=data,
+            sections=sections,
+            owner_entry=int(spec["owner"]),
+            start=loop_body_start,
+            end=loop_body_end,
+            sample_limit=32,
+        )
+        if target == 0x7003C102:
+            count_status = (
+                "firmware-local count register is not boundary-visible after "
+                "FLIX correction: there is no byte-aligned LOOP/LOOPNEZ/LOOPGTZ "
+                "to 0x7003c102, and the loop_target body core ops are stack "
+                "spills. The ABI count source is INFO12/buffer_count; naming the "
+                "internal loop register requires a FLIX/TIE slot decoder."
+            )
+            stride_status = (
+                "record stride is closed at the data-layout level: boundary-visible "
+                "a2 descriptor loads cover offsets "
+                f"{', '.join(hx(value) or '' for value in visible_field_offsets)} "
+                "within a 0x40-byte record, and the kernel/provider copies "
+                "INFO13 as struct vpu_buffer[INFO12] with 0x40 stride. No "
+                "boundary-visible a2 += 0x40 instruction appears in this owner."
+            )
+        else:
+            count_status = (
+                "byte-aligned hardware LOOP is present for this downgraded local "
+                "control-flow target, but it is not the INFO13 descriptor walk."
+            )
+            stride_status = (
+                "downgraded local-control-flow lead; do not use it as the "
+                "INFO13 descriptor stride proof."
+            )
         investigations.append(
             FocusedLoopInvestigation(
                 label=str(spec["label"]),
@@ -1924,14 +2087,7 @@ def build_focused_loop_investigations(
                 target_prop_size=None if target_prop is None else target_prop.size,
                 target_prop_flags=None if target_prop is None else flags_text(target_prop.flags),
                 prop_runs=prop_run_samples(data, sections, props, range_start, range_end),
-                visible_field_accesses=visible_base_accesses_in_range(
-                    data,
-                    sections,
-                    int(spec["owner"]),
-                    range_start,
-                    range_end,
-                    int(spec["base"]),
-                ),
+                visible_field_accesses=visible_field_accesses,
                 flix_framing="FLIX128 framing tail 06 04 02",
                 flix_framing_hits=framing_hits[:32],
                 flix_framing_deltas=[
@@ -1941,11 +2097,15 @@ def build_focused_loop_investigations(
                 standard_loop_opcode_hits=possible_standard_loop_hits_to_target(
                     data, sections, target, range_start, target
                 ),
-                stride_0x40_status=(
-                    "not_closed; corrected FLIX boundaries expose interleaved "
-                    "core ops, but no exact a2 += 0x40 count/stride proof yet. "
-                    "The 06 04 02 motif is FLIX128 framing, not stride evidence."
+                boundary_counts=boundary_kind_counts(data, sections, range_start, range_end),
+                loop_body_start=loop_body_start,
+                loop_body_end=loop_body_end,
+                loop_body_boundary_counts=boundary_kind_counts(
+                    data, sections, loop_body_start, loop_body_end
                 ),
+                loop_body_core_mem_accesses=loop_body_core_mem_accesses,
+                count_status=count_status,
+                stride_0x40_status=stride_status,
                 next_action=str(spec["next_action"]),
             )
         )
@@ -2039,22 +2199,17 @@ def standard_a2_access_summary(
     end: int,
     max_offset: int = 0x80,
 ) -> tuple[list[int], int]:
-    text = section_by_name(sections, ".text")
-    if text is None:
-        return [], 0
-    blob = section_bytes(data, text)
-    offsets: set[int] = set()
-    count = 0
-    for addr in range(start, max(start, end - 2)):
-        decoded = decode_standard_mem_access(blob, addr - text.addr)
-        if decoded is None:
-            continue
-        _mnemonic, base_reg, _value_reg, mem_offset, _access_size, _is_store = decoded
-        if base_reg != 2 or mem_offset > max_offset:
-            continue
-        count += 1
-        offsets.add(mem_offset)
-    return sorted(offsets), count
+    accesses = boundary_core_mem_accesses_in_range(
+        data=data,
+        sections=sections,
+        owner_entry=start,
+        start=start,
+        end=end,
+        base_reg=2,
+        max_offset=max_offset,
+        sample_limit=1000000,
+    )
+    return sorted({hit.offset for hit in accesses}), len(accesses)
 
 
 def build_dma_owner_investigations(
@@ -2062,10 +2217,29 @@ def build_dma_owner_investigations(
     sections: list[Section],
     props: list[XtProp],
     l32r_refs: list[L32RReference],
+    critical_owner_clusters: list[CriticalOwnerCluster],
 ) -> list[DmaOwnerInvestigation]:
-    owner = 0x70044B74
+    if critical_owner_clusters:
+        cluster_rank, top_cluster = max(
+            enumerate(critical_owner_clusters, start=1),
+            key=lambda item: (
+                item[1].pattern_count,
+                item[1].hit_count,
+                -item[1].owner_entry,
+            ),
+        )
+        owner = top_cluster.owner_entry
+        cluster_patterns = top_cluster.patterns
+        cluster_pattern_count = top_cluster.pattern_count
+        cluster_hit_count = top_cluster.hit_count
+    else:
+        cluster_rank = 0
+        owner = 0x70044B74
+        cluster_patterns = []
+        cluster_pattern_count = 0
+        cluster_hit_count = 0
     start = owner
-    end = 0x70045380
+    end = owner + 0x80C
     evidence_refs: list[dict[str, object]] = []
     for pattern in DMA_OWNER_INVESTIGATION_PATTERNS:
         candidates = [
@@ -2104,16 +2278,21 @@ def build_dma_owner_investigations(
             owner_entry=owner,
             analysis_start=start,
             analysis_end=end,
+            cluster_rank=cluster_rank,
+            cluster_pattern_count=cluster_pattern_count,
+            cluster_hit_count=cluster_hit_count,
+            cluster_patterns=cluster_patterns,
             assessment=(
-                "Top iDMA schedule/wait wrapper candidate. The same .xt.prop owner "
-                "contains L32R refs to iDMA schedule error, iDMA wait error, dmaif.c, "
-                "descriptor range validation, and data-buffer DRAM validation strings."
+                "Top iDMA schedule/wait wrapper candidate selected by L32R "
+                "string-cluster ranking. The same .xt.prop owner contains refs "
+                "to schedule/wait errors, dmaif.c, descriptor range validation, "
+                "and data-buffer DRAM validation strings."
             ),
             q1_status=(
-                "owner_narrowed_not_timing_closed; FLIX-correct boundaries now "
-                "separate core/density items from FLIX bundles in the owner, but "
-                "they still do not prove completion-write burst shape or "
-                "inter-store gap."
+                "owner_closed_for_static_schedule_wait_anchor; FLIX-correct "
+                "boundaries separate core/density items from bundles in the owner. "
+                "Completion-write burst timing remains a runtime/slot-semantics "
+                "question."
             ),
             evidence_refs=evidence_refs,
             prop_runs=prop_run_samples(data, sections, props, start, end),
@@ -2344,11 +2523,12 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
     lines.append("### Focused Loop Investigations")
     lines.append("")
     lines.append(
-        "`0x7003c102` remains a strong record-shaped loop-target lead, but the "
-        "mainline no longer depends on hand-decoding it: the count/stride evidence "
-        "is behind FLIX/TIE. INFO12/INFO13 closure is driven by the verified record "
-        "layout plus the kernel/provider buffer_count cap. `0x7003d423` is kept as "
-        "a downgraded local-control-flow lead."
+        "`0x7003c102` remains the strongest record-shaped loop-target lead. "
+        "After FLIX correction, the target body exposes stack-spill core ops and "
+        "FLIX bundles; the ABI count is INFO12/buffer_count, while the record "
+        "stride is the 0x40 INFO13 descriptor layout. Naming the firmware-local "
+        "count register still requires FLIX/TIE slot semantics. `0x7003d423` is "
+        "kept as a downgraded local-control-flow lead."
     )
     lines.append("")
     for item in payload["focused_loop_investigations"]:
@@ -2375,6 +2555,27 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
             f"- standard loop opcode hits to target: "
             f"{', '.join(hx(value) or '' for value in item['standard_loop_opcode_hits']) or 'none'}"
         )
+        boundary_counts = item["boundary_counts"]
+        assert isinstance(boundary_counts, dict)
+        lines.append(
+            "- owner boundary counts: "
+            f"core24={boundary_counts.get('core24', 0)}, "
+            f"dens16={boundary_counts.get('dens16', 0)}, "
+            f"flix64={boundary_counts.get('flix64', 0)}, "
+            f"flix128={boundary_counts.get('flix128', 0)}, "
+            f"truncated={boundary_counts.get('truncated', 0)}"
+        )
+        loop_body_counts = item["loop_body_boundary_counts"]
+        assert isinstance(loop_body_counts, dict)
+        lines.append(
+            f"- loop body: `{hx(item['loop_body_start'])}`..`{hx(item['loop_body_end'])}`; "
+            f"core24={loop_body_counts.get('core24', 0)}, "
+            f"dens16={loop_body_counts.get('dens16', 0)}, "
+            f"flix64={loop_body_counts.get('flix64', 0)}, "
+            f"flix128={loop_body_counts.get('flix128', 0)}, "
+            f"truncated={loop_body_counts.get('truncated', 0)}"
+        )
+        lines.append(f"- count status: {display_text(str(item['count_status']))}")
         lines.append(f"- stride status: {display_text(str(item['stride_0x40_status']))}")
         lines.append(f"- next action: {display_text(str(item['next_action']))}")
         lines.append("")
@@ -2383,6 +2584,17 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
         accesses = item["visible_field_accesses"]
         assert isinstance(accesses, list)
         for hit in accesses[:24]:
+            assert isinstance(hit, dict)
+            lines.append(
+                f"| `{hx(hit['addr'])}` | `{hit['op']} a{hit['value_reg']},"
+                f"a{hit['base_reg']}+{hx(hit['offset'])}` | `{hx(hit['offset'])}` |"
+            )
+        lines.append("")
+        lines.append("| loop-body boundary core mem | op | offset |")
+        lines.append("|---:|---|---:|")
+        loop_body_accesses = item["loop_body_core_mem_accesses"]
+        assert isinstance(loop_body_accesses, list)
+        for hit in loop_body_accesses[:24]:
             assert isinstance(hit, dict)
             lines.append(
                 f"| `{hx(hit['addr'])}` | `{hit['op']} a{hit['value_reg']},"
@@ -2434,8 +2646,8 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
         lines.append(f"- bad framing: {item['bad_framing_count']}")
         lines.append(f"- next action: {display_text(str(item['next_action']))}")
         lines.append("")
-        lines.append("| addr | len | kind | raw | fmt | framing |")
-        lines.append("|---:|---:|---|---|---|---|")
+        lines.append("| addr | len | kind | raw | fmt | framing | decoded core mem |")
+        lines.append("|---:|---:|---|---|---|---|---|")
         instructions = item["instructions"]
         assert isinstance(instructions, list)
         for insn in instructions[:32]:
@@ -2443,9 +2655,17 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
             framing = ""
             if insn.get("framing_ok") is not None:
                 framing = "ok" if insn["framing_ok"] else ",".join(insn["framing_warn"])
+            mem_text = ""
+            mem = insn.get("core_mem_access")
+            if isinstance(mem, dict):
+                mem_text = (
+                    f"{mem['op']} a{mem['value_reg']},"
+                    f"a{mem['base_reg']}+{hx(mem['offset'])}"
+                )
             lines.append(
                 f"| `{hx(insn['addr'])}` | {insn['length']} | `{insn['kind']}` | "
-                f"`{insn['raw']}` | `{insn.get('fmt') or ''}` | `{framing}` |"
+                f"`{insn['raw']}` | `{insn.get('fmt') or ''}` | `{framing}` | "
+                f"`{mem_text}` |"
             )
         lines.append("")
     lines.append("## L32R Literal References")
@@ -2552,6 +2772,14 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
         lines.append(f"#### `{item['label']}` `{hx(item['owner_entry'])}`")
         lines.append("")
         lines.append(f"- range: `{hx(item['analysis_start'])}`..`{hx(item['analysis_end'])}`")
+        lines.append(
+            f"- string-cluster rank: {item['cluster_rank']}; "
+            f"patterns={item['cluster_pattern_count']}; hits={item['cluster_hit_count']}"
+        )
+        lines.append(
+            f"- string-cluster patterns: "
+            f"{display_text(', '.join(str(value) for value in item['cluster_patterns']))}"
+        )
         lines.append(f"- assessment: {display_text(str(item['assessment']))}")
         lines.append(f"- Q1 status: {display_text(str(item['q1_status']))}")
         lines.append(
@@ -2733,7 +2961,7 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
     critical_l32r_refs = find_critical_l32r_refs(strings, l32r_refs_for_scans)
     critical_owner_clusters = build_critical_owner_clusters(critical_l32r_refs)
     dma_owner_investigations = build_dma_owner_investigations(
-        data, sections, props, l32r_refs_for_scans
+        data, sections, props, l32r_refs_for_scans, critical_owner_clusters
     )
     dram_op_l32r_refs = find_dram_op_l32r_refs(sections, l32r_refs_for_scans)
     loop_target_count, loop_target_candidates = find_loop_target_candidates(
@@ -2742,7 +2970,7 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
     focused_loop_investigations = build_focused_loop_investigations(
         data, sections, props
     )
-    flix_sweeps = build_flix_sweeps(data, sections, props)
+    flix_sweeps = build_flix_sweeps(data, sections, props, function_candidates)
 
     entry_props = []
     for prop in prop_near(props, eh.entry):

@@ -408,13 +408,16 @@ def apply_focused_loop_investigations(payload: dict[str, object]) -> int:
         target = int(item["loop_target"])
         text = (
             "APUNN focused loop investigation %s; priority=%s target=%s "
-            "target_prop=%s:%s stride_status=%s"
+            "target_prop=%s:%s loop_body=%s..%s count_status=%s stride_status=%s"
             % (
                 item.get("label"),
                 item.get("priority"),
                 fmt_hex(target),
                 item.get("target_prop_flags"),
                 fmt_hex(item.get("target_prop_size")),
+                fmt_hex(item.get("loop_body_start")),
+                fmt_hex(item.get("loop_body_end")),
+                item.get("count_status"),
                 item.get("stride_0x40_status"),
             )
         )
@@ -426,12 +429,13 @@ def apply_focused_loop_investigations(payload: dict[str, object]) -> int:
                 head = target
             if append_comment(
                 head,
-                "APUNN focused loop target %s; owner=%s priority=%s assessment=%s"
+                "APUNN focused loop target %s; owner=%s priority=%s assessment=%s count_status=%s"
                 % (
                     fmt_hex(target),
                     fmt_hex(owner),
                     item.get("priority"),
                     item.get("assessment"),
+                    item.get("count_status"),
                 ),
             ):
                 comments += 1
@@ -478,6 +482,14 @@ def apply_flix_sweeps(payload: dict[str, object]) -> int:
                     insn.get("fmt"),
                     "ok" if insn.get("framing_ok") else insn.get("framing_warn"),
                 )
+            mem = insn.get("core_mem_access")
+            if isinstance(mem, dict):
+                text += " decoded=%s a%s,a%s+%s" % (
+                    mem.get("op"),
+                    mem.get("value_reg"),
+                    mem.get("base_reg"),
+                    fmt_hex(mem.get("offset")),
+                )
             head = idc.get_item_head(ea)
             if head == idc.BADADDR or not has_segment(head):
                 head = ea
@@ -518,11 +530,15 @@ def apply_dma_owner_investigations(payload: dict[str, object]) -> int:
         )
         if append_comment(
             owner,
-            "APUNN DMA/iDMA owner investigation %s; range=%s..%s q1_status=%s evidence=%s"
+            "APUNN DMA/iDMA owner investigation %s; range=%s..%s "
+            "cluster_rank=%s patterns=%s hits=%s q1_status=%s evidence=%s"
             % (
                 item.get("label"),
                 fmt_hex(item.get("analysis_start")),
                 fmt_hex(item.get("analysis_end")),
+                item.get("cluster_rank"),
+                item.get("cluster_pattern_count"),
+                item.get("cluster_hit_count"),
                 item.get("q1_status"),
                 evidence_text,
             ),

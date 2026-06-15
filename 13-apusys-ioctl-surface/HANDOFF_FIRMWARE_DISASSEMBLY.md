@@ -377,22 +377,26 @@ capped by the provider below `0x21`, and `INFO13` is the kernel-copied
 0x40-byte descriptor array IOVA consumed through native record-shaped accesses.
 
 `analyze_apunn_elf.py` also emits a reproducible standard field-access cluster
-scan. It decodes only standard 24-bit `l8ui/l16ui/l32i/s8i/s16i/s32i`
-instructions and groups them by `.xt.prop` owner plus base register. The current
+scan. It walks only FLIX-correct instruction boundaries, decodes standard
+24-bit `l8ui/l16ui/l32i/s8i/s16i/s32i` instructions, and groups them by
+`.xt.prop` owner plus base register. The current
 top clusters include `0x7003b468/a2`, `0x70039cfc/a2`, and the byte-verified
 `0x7003ce3c/a2`, giving a prioritized list of 0x40-record-shaped leads for the
 INFO13 record-layout correlation pass without depending on a decompiler.
 The same pass now emits `.xt.prop` loop-target candidates near those owners.
 `0x7003c102` inside the `0x7003b468/a2` cluster remains the strongest
 record-shaped loop-target lead: it is a clean `0xaa`-byte
-`insn|loop_target|no_reorder` run, has visible `a2` field accesses around the
-0x40-record-shaped offsets, and now has a length-correct FLIX sweep showing
-`0x7003c102` as a core24 LSAI-shaped item between FLIX128/64 bundles. The
-companion Ghidra/SLEIGH scan found no byte-aligned hardware LOOP, no exact
-standard branch back-edge to `0x7003c102`, and no byte-aligned
-`addi ..., 0x40` stride in that owner. Mainline analysis therefore stops
-hand-decoding `0x7003c102` for INFO12/INFO13 closure; the missing count/stride
-binding is treated as deeper FLIX/TIE slot-semantics work. `0x7003d423` inside
+`insn|loop_target|no_reorder` run. FLIX-boundary-aware scanning now separates
+two facts: the surrounding `0x7003b468` owner reads descriptor-shaped `a2`
+fields within the 0x40 record window (`+0x02..+0x3d` samples), while the
+`0x7003c102..0x7003c1ac` loop-target body exposes only six boundary-visible
+core stores to the stack (`a1+0x250..0x2bc`) plus FLIX128/64 bundles. The
+companion LOOP scan found no byte-aligned hardware LOOP to `0x7003c102`, no
+exact standard branch back-edge, and no boundary-visible `a2 += 0x40`. Count is
+therefore closed at the ABI/kernel source (`INFO12` / `buffer_count`), and
+stride is closed by the kernel-copied `INFO13` `struct vpu_buffer[]` layout with
+0x40 records; naming the firmware-local count register remains FLIX/TIE slot
+decoder work. `0x7003d423` inside
 `0x7003ce3c/a2` is downgraded but no longer opaque: the corrected sweep shows
 the target itself is also a core24 item, while the surrounding block remains
 short branch targets, unreachable gaps, and `insn|data` mixed runs, making it
@@ -593,10 +597,11 @@ Current partial answers from the ELF pass:
   below `0x21` before firmware, runtime shows `0` suppresses
   descriptor-following state writeback while nonzero tested counts enter the
   descriptor path, and the ELF now has native 0x40-record-shaped descriptor
-  validation evidence. FLIX-correct sweeps expose the relevant core/density
-  boundaries around `0x7003c102`, but the exact firmware-internal count/stride
-  binding remains behind TIE/FLIX slot semantics and is no longer blocking the
-  primitive model.
+  validation evidence. FLIX-correct sweeps now show the `0x7003c102` loop body
+  as stack-spill core ops plus FLIX bundles, not direct descriptor-field loads.
+  The firmware-local count-register name remains behind TIE/FLIX slot semantics;
+  the count/stride proposition for the exposed interface is closed by
+  `INFO12=buffer_count` and the 0x40-stride `INFO13` descriptor array.
 - Q4 has runtime evidence that `settings+0x08` bounds the visible output fill;
   the static output-size enforcement path is not identified yet.
 
@@ -646,8 +651,9 @@ kernel interface is:
 - `INFO13` is the kernel-copied 0x40-byte descriptor array, not the original
   user buffer.
 - Native firmware code has verified 0x40-record-shaped validation/consumption
-  islands; the precise FLIX-hidden loop count/stride is no longer required for
-  the current race primitive decision.
+  islands. The `0x7003c102` loop body does not itself expose descriptor loads;
+  it exposes stack stores plus FLIX bundles. Count is sourced from INFO12 at the
+  kernel/provider boundary, and stride is the 0x40 INFO13 descriptor layout.
 
 Remaining descriptor questions are size/plane validation quality and DMA owner
 timing, not whether the current interface exposes an unchecked descriptor-count

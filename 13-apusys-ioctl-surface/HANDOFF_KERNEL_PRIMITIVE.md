@@ -235,23 +235,26 @@ Static firmware impact so far:
   buffer-record validation. Combined with the provider-gated `INFO12`
   `buffer_count < 0x21` and kernel-copied `INFO13` descriptor-array IOVA, the
   INFO12/INFO13 input proposition is closed for the current primitive model.
-- `analyze_apunn_elf.py` now emits a standard 24-bit Xtensa field-access cluster
-  scan. Current high-priority clusters include `0x7003b468/a2`,
+- `analyze_apunn_elf.py` now emits a FLIX-boundary-aware standard 24-bit Xtensa
+  field-access cluster scan. Current high-priority clusters include `0x7003b468/a2`,
   `0x70039cfc/a2`, and the verified `0x7003ce3c/a2`, giving reproducible
   record-layout correlation targets. Unresolved TIE/FLIX
   instructions still prevent complete prototypes.
 - `.xt.prop` loop-target candidates now narrow the next pass further.
   `0x7003c102` inside `0x7003b468/a2` remains the strongest record-shaped
   FLIX-assisted lead: it is a clean `0xaa`-byte
-  `insn|loop_target|no_reorder` run, and the corrected sweep shows
-  `0x7003c102` itself as a core24 LSAI-shaped item between FLIX128/64 bundles.
-  The companion scan found no byte-aligned hardware LOOP, no exact standard
-  branch back-edge to `0x7003c102`, and no byte-aligned `addi ..., 0x40`
-  stride in that owner. Mainline analysis therefore stops hand-decoding this
-  address for INFO12/INFO13 closure; deeper FLIX/TIE slot semantics are a
-  separate branch. `0x7003d423` remains downgraded: corrected boundaries show
-  it is also a core24 item, but its neighborhood still mixes short branch
-  targets, unreachable gaps, and `insn|data` runs.
+  `insn|loop_target|no_reorder` run. Boundary-correct scanning now splits the
+  evidence cleanly: the surrounding `0x7003b468` owner reads descriptor-shaped
+  `a2` fields within the 0x40 record window, while the `0x7003c102` loop body
+  exposes stack stores plus FLIX bundles. The companion scan found no
+  byte-aligned hardware LOOP to `0x7003c102`, no exact standard branch
+  back-edge, and no boundary-visible `a2 += 0x40`. Count is closed at
+  `INFO12=buffer_count`; stride is closed by the kernel-copied `INFO13`
+  `struct vpu_buffer[]` layout with 0x40 records. Naming the firmware-local
+  count register remains FLIX/TIE slot-decoder work. `0x7003d423` remains
+  downgraded: corrected boundaries show it is also a core24 item, but its
+  neighborhood still mixes short branch targets, unreachable gaps, and
+  `insn|data` runs.
 - `.dram_op.data` contains a 63-entry ANN op-name table, and strings confirm
   the relevant APUNN paths: `process_command`, `execute_op`, `dma_barrier`,
   buffer validation, and iDMA schedule/wait errors.

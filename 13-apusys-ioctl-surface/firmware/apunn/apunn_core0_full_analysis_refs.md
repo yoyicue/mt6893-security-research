@@ -324,30 +324,26 @@ These clusters are produced by a lightweight standard Xtensa 24-bit load/store d
 
 | owner | base | hits | unique offsets | VPU-buffer-shaped offsets | samples |
 |---:|---:|---:|---:|---|---|
-| `0x7003b468` | `a2` | 63 | 42 | 0x0, 0x2, 0x4, 0x8, 0x10, 0x14, 0x18, 0x1c, 0x20, 0x24, 0x28, 0x2c, 0x30, 0x34, 0x38, 0x39 | 0x7003b484:l8ui a8,a2+0x3; 0x7003b487:l8ui a9,a2+0x2; 0x7003b4dd:l16ui a6,a2+0x0; 0x7003b573:l16ui a6,a2+0x0; 0x7003b5a1:l16ui a6,a2+0x0; 0x7003b5b1:l16ui a6,a2+0x0; 0x7003b5c1:l16ui a6,a2+0x0; 0x7003b5d4:l16ui a6,a2+0x0 |
-| `0x70039cfc` | `a2` | 57 | 35 | 0x0, 0x2, 0x4, 0xc, 0x10, 0x18, 0x20, 0x24, 0x2c, 0x30, 0x34, 0x38, 0x39, 0x3a | 0x70039d0d:l16ui a6,a2+0x0; 0x70039d18:l8ui a8,a2+0x3; 0x70039d1b:l8ui a9,a2+0x2; 0x70039d1c:l8ui a0,a2+0x4f; 0x70039d5e:l16ui a6,a2+0x0; 0x70039da5:l16ui a6,a2+0x0; 0x70039df9:l8ui a10,a2+0x1f; 0x70039dfc:l8ui a11,a2+0x1e |
 | `0x70015e98` | `a9` | 41 | 40 | 0x0, 0x2, 0x8, 0xc, 0x10, 0x14, 0x18, 0x1c, 0x20, 0x24, 0x28, 0x30, 0x34 | 0x7001603d:l8ui a15,a9+0x8; 0x70016040:l8ui a8,a9+0x7; 0x700160a5:l8ui a3,a9+0xd; 0x700160a8:l8ui a8,a9+0xc; 0x700160ff:l8ui a4,a9+0x11; 0x70016102:l8ui a8,a9+0x10; 0x70016159:l8ui a5,a9+0x15; 0x7001615c:l8ui a8,a9+0x14 |
-| `0x70065b10` | `a6` | 56 | 46 | 0x0, 0x4, 0x8, 0xc, 0x10, 0x14, 0x18, 0x1c, 0x24, 0x2c, 0x30, 0x38 | 0x70065ba1:s8i a0,a6+0x1a; 0x70065bb6:l8ui a0,a6+0x15; 0x70065be1:s8i a0,a6+0xa; 0x70065e67:s8i a0,a6+0x80; 0x70065e7c:l8ui a0,a6+0x7b; 0x70065ec3:s8i a0,a6+0x69; 0x70065eef:s8i a0,a6+0x5e; 0x70065ef7:l8ui a0,a6+0x80 |
-| `0x7000c284` | `a2` | 66 | 38 | 0x0, 0x2, 0x8, 0x10, 0x18, 0x24, 0x28, 0x2c, 0x30, 0x34, 0x38, 0x3b | 0x7000c2a5:l8ui a8,a2+0x3; 0x7000c2a8:l8ui a9,a2+0x2; 0x7000c2a9:l8ui a0,a2+0x4f; 0x7000c342:l16ui a6,a2+0x0; 0x7000c384:l8ui a13,a2+0x1f; 0x7000c387:l8ui a15,a2+0x1e; 0x7000c3ab:l16ui a6,a2+0x0; 0x7000c3cb:l8ui a10,a2+0x7 |
-| `0x7003ce3c` | `a2` | 20 | 12 | 0x0, 0x2, 0x18, 0x1c, 0x20, 0x24, 0x28, 0x34, 0x38, 0x39, 0x3a, 0x3b | 0x7003cef7:l16ui a6,a2+0x0; 0x7003cf1d:l8ui a13,a2+0x3a; 0x7003cf36:l8ui a15,a2+0x3b; 0x7003cf5e:l32i a12,a2+0x20; 0x7003cf64:l32i a10,a2+0x24; 0x7003cf6a:l32i a8,a2+0x28; 0x7003cf70:l32i a10,a2+0x34; 0x7003cf76:l8ui a9,a2+0x38 |
+| `0x7003b468` | `a2` | 40 | 33 | 0x2, 0x14, 0x18, 0x1c, 0x20, 0x24, 0x28, 0x2c, 0x30, 0x34, 0x38, 0x39 | 0x7003b484:l8ui a8,a2+0x3; 0x7003b487:l8ui a9,a2+0x2; 0x7003b63a:l8ui a8,a2+0x12; 0x7003b687:l8ui a10,a2+0x15; 0x7003b6e0:l8ui a5,a2+0xf; 0x7003b6e3:l8ui a8,a2+0xe; 0x7003b712:l8ui a11,a2+0xb; 0x7003b715:l8ui a14,a2+0xa |
+| `0x70065b10` | `a6` | 28 | 28 | 0x0, 0x4, 0x8, 0xc, 0x10, 0x14, 0x18, 0x1c, 0x24, 0x2c, 0x30, 0x38 | 0x7006714a:s32i a15,a6+0x18; 0x7006714d:s32i a15,a6+0x14; 0x70067150:s32i a15,a6+0x10; 0x70067153:s32i a15,a6+0xc; 0x70067156:s32i a15,a6+0x8; 0x70067159:s32i a15,a6+0x4; 0x7006715c:s32i a15,a6+0x0; 0x70068141:s16i a3,a6+0x32 |
 | `0x7008e220` | `a12` | 12 | 12 | 0xc, 0x10, 0x14, 0x18, 0x1c, 0x20, 0x24, 0x28, 0x2c, 0x30, 0x34, 0x38 | 0x7008e266:s32i a11,a12+0xc; 0x7008e269:s32i a11,a12+0x10; 0x7008e26c:s32i a11,a12+0x14; 0x7008e26f:s32i a11,a12+0x18; 0x7008e272:s32i a11,a12+0x1c; 0x7008e275:s32i a11,a12+0x20; 0x7008e278:s32i a11,a12+0x24; 0x7008e27b:s32i a11,a12+0x28 |
-| `0x7005f2b8` | `a2` | 68 | 32 | 0x0, 0x2, 0x8, 0x10, 0x18, 0x20, 0x24, 0x28, 0x30, 0x38, 0x39 | 0x7005f2d4:l8ui a8,a2+0x3; 0x7005f2d7:l8ui a9,a2+0x2; 0x7005f32d:l16ui a6,a2+0x0; 0x7005f3a5:s8i a0,a2+0x24; 0x7005f3ae:l16ui a6,a2+0x0; 0x7005f3b9:l8ui a11,a2+0x1f; 0x7005f3bc:l8ui a13,a2+0x1e; 0x7005f400:l8ui a13,a2+0x7 |
-| `0x70076d50` | `a2` | 129 | 54 | 0x0, 0x2, 0x4, 0x8, 0x10, 0x18, 0x20, 0x3a, 0x3b | 0x70076d63:l8ui a8,a2+0x3; 0x70076d66:l8ui a9,a2+0x2; 0x70076d67:l8ui a0,a2+0x4f; 0x70076db9:l16ui a6,a2+0x0; 0x70076e27:l16ui a6,a2+0x0; 0x70076e31:s16i a0,a2+0x46; 0x70076e6e:l16ui a6,a2+0x0; 0x70076e81:l16ui a6,a2+0x0 |
-| `0x700130c0` | `a2` | 80 | 48 | 0x0, 0x2, 0x4, 0x10, 0x14, 0x1c, 0x20, 0x2c, 0x30 | 0x700130d2:s16i a0,a2+0x4; 0x700130d3:l8ui a5,a2+0x3; 0x700130d6:l8ui a8,a2+0x2; 0x700130d7:l8ui a0,a2+0x4f; 0x70013196:l16ui a6,a2+0x0; 0x700131df:l16ui a6,a2+0x0; 0x700131f1:l16ui a6,a2+0x0; 0x70013260:l16ui a6,a2+0x0 |
-| `0x70011ab8` | `a8` | 40 | 27 | 0x2, 0x4, 0xc, 0x10, 0x18, 0x20, 0x28, 0x2c, 0x30 | 0x70011c00:l8ui a14,a8+0x1f; 0x70011c03:l8ui a13,a8+0x1e; 0x70011c4b:l8ui a13,a8+0x7; 0x70011c4e:l8ui a9,a8+0x6; 0x70011c90:l8ui a15,a8+0xb; 0x70011c93:l8ui a9,a8+0xa; 0x70011cd5:l8ui a7,a8+0xf; 0x70011cd8:l8ui a9,a8+0xe |
-| `0x70149790` | `a2` | 60 | 17 | 0x0, 0x2, 0x4, 0x8, 0xc, 0x10, 0x18, 0x2c, 0x30 | 0x701497c6:l16ui a6,a2+0x0; 0x701498c3:l16ui a6,a2+0x0; 0x70149904:l16ui a6,a2+0x0; 0x70149914:l16ui a6,a2+0x0; 0x70149a44:l16ui a6,a2+0x8; 0x70149a79:l16ui a6,a2+0x0; 0x70149adb:l16ui a6,a2+0x0; 0x70149bf2:l16ui a6,a2+0x0 |
-| `0x700b8100` | `a2` | 43 | 17 | 0x0, 0x2, 0x4, 0x8, 0x10, 0x18, 0x20, 0x30, 0x3a | 0x700b817a:l16ui a15,a2+0x2a; 0x700b817d:l16ui a14,a2+0x18; 0x700b81ae:l16ui a8,a2+0x1a; 0x700b8210:l16ui a6,a2+0x0; 0x700b82e0:l16ui a6,a2+0x0; 0x700b838e:l16ui a6,a2+0x10; 0x700b83b1:l16ui a6,a2+0x0; 0x700b8603:s8i a0,a2+0x61 |
-| `0x700b3d00` | `a2` | 48 | 16 | 0x0, 0x2, 0x4, 0x8, 0x10, 0x18, 0x20, 0x30, 0x3a | 0x700b3d58:l32i a9,a2+0x10; 0x700b3d7b:l16ui a15,a2+0x2a; 0x700b3d7e:l16ui a14,a2+0x18; 0x700b3da4:l16ui a6,a2+0x0; 0x700b3daf:l16ui a8,a2+0x1a; 0x700b3e12:l16ui a6,a2+0x0; 0x700b3e31:l16ui a6,a2+0x0; 0x700b3e84:l16ui a6,a2+0x0 |
-| `0x700130c0` | `a11` | 15 | 12 | 0x0, 0x2, 0x4, 0x8, 0xc, 0x10, 0x14, 0x18, 0x38 | 0x700135eb:l8ui a0,a11+0x52; 0x70013e09:s32i a3,a11+0x0; 0x70013e0c:s32i a3,a11+0x4; 0x70013e0f:s32i a3,a11+0x8; 0x70013e12:s32i a3,a11+0xc; 0x70013e15:s32i a3,a11+0x10; 0x70013e18:s32i a3,a11+0x14; 0x700140c6:s16i a6,a11+0x1a |
-| `0x70056290` | `a2` | 128 | 70 | 0x0, 0x2, 0x4, 0x8, 0x10, 0x18, 0x3a, 0x3b | 0x700562a6:l16ui a6,a2+0x0; 0x700562b1:l8ui a8,a2+0x3; 0x700562b4:l8ui a9,a2+0x2; 0x700562b5:l8ui a0,a2+0x4f; 0x7005634e:l16ui a6,a2+0x0; 0x70056360:l16ui a6,a2+0x0; 0x70056391:l8ui a11,a2+0x7; 0x70056394:l8ui a12,a2+0x6 |
-| `0x7006cb90` | `a2` | 132 | 56 | 0x0, 0x2, 0x4, 0x8, 0x10, 0x18, 0x3a, 0x3b | 0x7006cba6:l8ui a8,a2+0x3; 0x7006cba9:l8ui a9,a2+0x2; 0x7006cbaa:l8ui a0,a2+0x4f; 0x7006cc33:l16ui a6,a2+0x0; 0x7006cc74:s16i a0,a2+0x46; 0x7006cc9f:l16ui a6,a2+0x0; 0x7006ccb1:l16ui a6,a2+0x0; 0x7006cccf:l8ui a3,a2+0x2f |
-| `0x700304f8` | `a2` | 151 | 55 | 0x0, 0x2, 0x4, 0x8, 0x10, 0x18, 0x3a, 0x3b | 0x7003050b:l8ui a8,a2+0x3; 0x7003050e:l8ui a9,a2+0x2; 0x7003050f:l8ui a0,a2+0x4f; 0x7003065b:l8ui a15,a2+0x2f; 0x7003065e:l8ui a8,a2+0x2e; 0x700306a8:l8ui a5,a2+0x48; 0x700306c4:l8ui a11,a2+0x23; 0x700306c7:l8ui a8,a2+0x22 |
-| `0x700414d0` | `a2` | 124 | 51 | 0x0, 0x2, 0x4, 0x8, 0x10, 0x20, 0x3a, 0x3b | 0x700414e3:l8ui a8,a2+0x3; 0x700414e6:l8ui a9,a2+0x2; 0x700414e7:l8ui a0,a2+0x4f; 0x70041539:l16ui a6,a2+0x0; 0x70041567:s16i a0,a2+0x46; 0x700415a7:l16ui a6,a2+0x0; 0x70041656:l8ui a12,a2+0x2f; 0x70041659:l8ui a8,a2+0x2e |
-| `0x70011ab8` | `a10` | 18 | 17 | 0x0, 0x4, 0xc, 0x10, 0x18, 0x30, 0x34, 0x38 | 0x70011e83:l8ui a10,a10+0x26; 0x70012035:s16i a0,a10+0x0; 0x700122f6:s32i a15,a10+0xc; 0x700122f9:s32i a15,a10+0x10; 0x700122fc:s32i a15,a10+0x50; 0x70012322:s16i a2,a10+0x34; 0x70012335:s32i a14,a10+0x30; 0x7001234e:s32i a6,a10+0x4 |
-| `0x70061134` | `a12` | 35 | 16 | 0x1, 0x2, 0x8, 0xc, 0x18, 0x20, 0x28, 0x30 | 0x700618af:l8ui a0,a12+0x9; 0x70061c98:l8ui a3,a12+0x5a; 0x700620fd:l8ui a0,a12+0xc; 0x70062505:s16i a13,a12+0x80; 0x700627c3:l8ui a1,a12+0x30; 0x700627d3:l8ui a1,a12+0x30; 0x700627e3:l8ui a1,a12+0x30; 0x700629ee:l8ui a0,a12+0xc |
-| `0x70015e98` | `a2` | 42 | 15 | 0x0, 0x2, 0x4, 0x8, 0x10, 0x18, 0x20, 0x24 | 0x70015f74:l16ui a6,a2+0x0; 0x70015fa0:s8i a0,a2+0x2b; 0x70016026:l32i a13,a2+0x8; 0x70016027:l8ui a2,a2+0x4; 0x7001602f:l16ui a6,a2+0x0; 0x700160e8:s8i a0,a2+0x61; 0x700160fe:s8i a13,a2+0x9; 0x70016138:l16ui a6,a2+0x0 |
-| `0x700ae090` | `a2` | 29 | 15 | 0x0, 0x8, 0xc, 0x10, 0x18, 0x20, 0x30, 0x34 | 0x700ae109:l16ui a6,a2+0x0; 0x700ae129:l16ui a15,a2+0x1a; 0x700ae169:l16ui a6,a2+0x0; 0x700ae1c8:s16i a0,a2+0x34; 0x700ae381:l16ui a6,a2+0x0; 0x700ae394:l16ui a6,a2+0x0; 0x700ae3c2:l16ui a6,a2+0x0; 0x700ae439:s16i a0,a2+0x42 |
-| `0x7001b040` | `a10` | 15 | 14 | 0x0, 0x4, 0x8, 0xc, 0x10, 0x30, 0x34, 0x38 | 0x7001b6ee:s16i a0,a10+0x0; 0x7001b704:s32i a14,a10+0x38; 0x7001b707:s32i a14,a10+0x7c; 0x7001b736:s32i a7,a10+0xc; 0x7001b739:s32i a7,a10+0x10; 0x7001b73c:s32i a7,a10+0x50; 0x7001b74f:s16i a8,a10+0x34; 0x7001b75a:s32i a9,a10+0x44 |
+| `0x70039cfc` | `a2` | 37 | 29 | 0x2, 0xc, 0x20, 0x24, 0x2c, 0x30, 0x34, 0x38, 0x39, 0x3a | 0x70039d18:l8ui a8,a2+0x3; 0x70039d1b:l8ui a9,a2+0x2; 0x70039df9:l8ui a10,a2+0x1f; 0x70039dfc:l8ui a11,a2+0x1e; 0x70039e41:l8ui a3,a2+0x7; 0x70039e44:l8ui a8,a2+0x6; 0x70039e83:l8ui a4,a2+0xb; 0x70039e86:l8ui a8,a2+0xa |
+| `0x7003ce3c` | `a2` | 12 | 9 | 0x1c, 0x20, 0x24, 0x28, 0x34, 0x38, 0x39, 0x3a, 0x3b | 0x7003cf1d:l8ui a13,a2+0x3a; 0x7003cf36:l8ui a15,a2+0x3b; 0x7003cf5e:l32i a12,a2+0x20; 0x7003cf64:l32i a10,a2+0x24; 0x7003cf6a:l32i a8,a2+0x28; 0x7003cf70:l32i a10,a2+0x34; 0x7003cf76:l8ui a9,a2+0x38; 0x7003cf8b:l8ui a4,a2+0x39 |
+| `0x7000c284` | `a2` | 42 | 33 | 0x2, 0x24, 0x28, 0x2c, 0x30, 0x34, 0x38, 0x3b | 0x7000c2a5:l8ui a8,a2+0x3; 0x7000c2a8:l8ui a9,a2+0x2; 0x7000c384:l8ui a13,a2+0x1f; 0x7000c387:l8ui a15,a2+0x1e; 0x7000c3cb:l8ui a10,a2+0x7; 0x7000c3ce:l8ui a15,a2+0x6; 0x7000c40d:l8ui a15,a2+0xb; 0x7000c410:l8ui a8,a2+0xa |
+| `0x70011ab8` | `a10` | 17 | 17 | 0x0, 0x4, 0xc, 0x10, 0x18, 0x30, 0x34, 0x38 | 0x70011e83:l8ui a10,a10+0x26; 0x700122f6:s32i a15,a10+0xc; 0x700122f9:s32i a15,a10+0x10; 0x700122fc:s32i a15,a10+0x50; 0x70012322:s16i a2,a10+0x34; 0x70012335:s32i a14,a10+0x30; 0x7001234e:s32i a6,a10+0x4; 0x70012351:s32i a6,a10+0x48 |
+| `0x7001b040` | `a10` | 14 | 14 | 0x0, 0x4, 0x8, 0xc, 0x10, 0x30, 0x34, 0x38 | 0x7001b704:s32i a14,a10+0x38; 0x7001b707:s32i a14,a10+0x7c; 0x7001b736:s32i a7,a10+0xc; 0x7001b739:s32i a7,a10+0x10; 0x7001b73c:s32i a7,a10+0x50; 0x7001b74f:s16i a8,a10+0x34; 0x7001b75a:s32i a9,a10+0x44; 0x7001b76d:s32i a11,a10+0x4 |
+| `0x700130c0` | `a11` | 13 | 10 | 0x0, 0x2, 0x4, 0x8, 0xc, 0x10, 0x14, 0x18 | 0x70013e09:s32i a3,a11+0x0; 0x70013e0c:s32i a3,a11+0x4; 0x70013e0f:s32i a3,a11+0x8; 0x70013e12:s32i a3,a11+0xc; 0x70013e15:s32i a3,a11+0x10; 0x70013e18:s32i a3,a11+0x14; 0x700140c6:s16i a6,a11+0x1a; 0x700140c9:s16i a5,a11+0x18 |
+| `0x700130c0` | `a2` | 50 | 45 | 0x2, 0x10, 0x14, 0x1c, 0x20, 0x2c, 0x30 | 0x700130d3:l8ui a5,a2+0x3; 0x700130d6:l8ui a8,a2+0x2; 0x7001326b:l8ui a5,a2+0x10; 0x70013280:l8ui a13,a2+0x14; 0x70013283:l8ui a5,a2+0x13; 0x700132b2:l8ui a9,a2+0x1c; 0x700132b5:l8ui a13,a2+0x1b; 0x7001330c:l8ui a5,a2+0x1d |
+| `0x70011ab8` | `a8` | 26 | 25 | 0x4, 0xc, 0x10, 0x18, 0x20, 0x28, 0x2c | 0x70011c00:l8ui a14,a8+0x1f; 0x70011c03:l8ui a13,a8+0x1e; 0x70011c4b:l8ui a13,a8+0x7; 0x70011c4e:l8ui a9,a8+0x6; 0x70011c90:l8ui a15,a8+0xb; 0x70011c93:l8ui a9,a8+0xa; 0x70011cd5:l8ui a7,a8+0xf; 0x70011cd8:l8ui a9,a8+0xe |
+| `0x700130c0` | `a13` | 8 | 8 | 0x0, 0x1, 0x4, 0x8, 0xc, 0x10, 0x2c | 0x70013dea:s32i a3,a13+0x0; 0x70013ded:s32i a3,a13+0x4; 0x70013df0:s32i a3,a13+0x8; 0x70013df3:s32i a3,a13+0xc; 0x70013df6:s32i a3,a13+0x10; 0x700146b4:s16i a14,a13+0x2a; 0x700146c7:s16i a12,a13+0x2c; 0x70014e74:l8ui a15,a13+0x1 |
+| `0x70065b10` | `a2` | 167 | 52 | 0x2, 0x4, 0xc, 0x10, 0x3a, 0x3b | 0x70065b29:l8ui a8,a2+0x3; 0x70065b2c:l8ui a9,a2+0x2; 0x70065ef3:l8ui a13,a2+0x7; 0x70065ef6:l8ui a8,a2+0x6; 0x70065f64:l8ui a11,a2+0xb; 0x70065f67:l8ui a8,a2+0xa; 0x70065fb2:l8ui a15,a2+0xf; 0x70065fb5:l8ui a8,a2+0xe |
+| `0x70071ef0` | `a10` | 37 | 32 | 0x0, 0x4, 0xc, 0x10, 0x18, 0x34 | 0x700725b7:l8ui a5,a10+0x5c; 0x700725ba:l8ui a8,a10+0x5b; 0x7007265b:l8ui a5,a10+0x64; 0x7007265e:l8ui a8,a10+0x63; 0x70072d54:s32i a3,a10+0x4; 0x70072d57:s32i a3,a10+0x48; 0x70072d6d:s32i a11,a10+0xc; 0x70072d70:s32i a11,a10+0x10 |
+| `0x7005f2b8` | `a2` | 34 | 24 | 0x2, 0x20, 0x28, 0x30, 0x38, 0x39 | 0x7005f2d4:l8ui a8,a2+0x3; 0x7005f2d7:l8ui a9,a2+0x2; 0x7005f3b9:l8ui a11,a2+0x1f; 0x7005f3bc:l8ui a13,a2+0x1e; 0x7005f400:l8ui a13,a2+0x7; 0x7005f403:l8ui a15,a2+0x6; 0x7005f444:l8ui a15,a2+0xb; 0x7005f447:l8ui a8,a2+0xa |
+| `0x7000dcc4` | `a13` | 17 | 15 | 0x14, 0x28, 0x2c, 0x38, 0x3a, 0x3b | 0x7000e079:l8ui a11,a13+0x3b; 0x7000e07c:l8ui a8,a13+0x3a; 0x7000e0be:l8ui a11,a13+0x3f; 0x7000e0c1:l8ui a8,a13+0x3e; 0x7000e103:l8ui a11,a13+0x43; 0x7000e106:l8ui a15,a13+0x42; 0x7000e148:l8ui a11,a13+0x49; 0x7000e14b:l8ui a13,a13+0x48 |
+| `0x7001dffc` | `a5` | 12 | 12 | 0x0, 0x8, 0xc, 0x10, 0x34, 0x38 | 0x7001ea78:s32i a9,a5+0x50; 0x7001ea8b:s32i a10,a5+0x0; 0x7001ea8e:s32i a10,a5+0x8; 0x7001ea9c:s32i a11,a5+0x38; 0x7001eac1:s16i a12,a5+0x48; 0x7001ead7:s32i a12,a5+0xc; 0x7001eada:s32i a12,a5+0x10; 0x7001eadd:s32i a12,a5+0x5c |
+| `0x70065b10` | `a14` | 10 | 9 | 0x0, 0x2, 0x10, 0x1c, 0x38, 0x3a | 0x7006613f:l32i a14,a14+0x10; 0x700661ae:l32i a14,a14+0x0; 0x70068166:s16i a3,a14+0x2; 0x70068169:s16i a3,a14+0x1e; 0x7006816c:s16i a3,a14+0x3a; 0x700682db:s16i a8,a14+0x0; 0x700682de:s16i a8,a14+0x1c; 0x700682e1:s16i a8,a14+0x38 |
+| `0x70039cfc` | `a15` | 6 | 6 | 0x0, 0x4, 0xc, 0x10, 0x14, 0x18 | 0x7003a371:s32i a14,a15+0x0; 0x7003a374:s32i a14,a15+0x4; 0x7003a379:s32i a14,a15+0xc; 0x7003a37c:s32i a14,a15+0x10; 0x7003a37f:s32i a14,a15+0x14; 0x7003a382:s32i a14,a15+0x18 |
 
 ## Loop Targets Near Field Clusters
 
@@ -356,88 +352,61 @@ These clusters are produced by a lightweight standard Xtensa 24-bit load/store d
 
 | addr | owner | owner delta | field bases | prop |
 |---:|---:|---:|---|---|
-| `0x70016f0e` | `0x70015e98` | `0x1076` | `a2, a9` | `insn|data|loop_target|no_reorder|no_transform:0x5f6` |
+| `0x70016f0e` | `0x70015e98` | `0x1076` | `a9` | `insn|data|loop_target|no_reorder|no_transform:0x5f6` |
+| `0x7001f0e0` | `0x7001dffc` | `0x10e4` | `a5` | `insn|loop_target|no_reorder:0x9` |
+| `0x7001f590` | `0x7001dffc` | `0x1594` | `a5` | `insn|loop_target|no_reorder:0x6` |
+| `0x7001f8c0` | `0x7001dffc` | `0x18c4` | `a5` | `insn|loop_target|no_reorder:0xa` |
 | `0x7003c102` | `0x7003b468` | `0xc9a` | `a2` | `insn|loop_target|no_reorder:0xaa` |
 | `0x7003d423` | `0x7003ce3c` | `0x5e6` | `a2` | `insn|loop_target|no_reorder:0x3` |
-| `0x700ae6c0` | `0x700ae090` | `0x630` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x83` |
-| `0x700ae9d4` | `0x700ae090` | `0x944` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x28` |
-| `0x700aebd4` | `0x700ae090` | `0xb44` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x10` |
-| `0x700aeeab` | `0x700ae090` | `0xe1a` | `a2` | `insn|loop_target|no_reorder:0x27` |
-| `0x700aefa0` | `0x700ae090` | `0xf10` | `a2` | `insn|loop_target|no_reorder:0x36` |
-| `0x700af39d` | `0x700ae090` | `0x130c` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0xea` |
-| `0x700b039b` | `0x700ae090` | `0x230a` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0xb` |
-| `0x700b053a` | `0x700ae090` | `0x24aa` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x8` |
-| `0x700b40f0` | `0x700b3d00` | `0x3f0` | `a2` | `insn|loop_target|no_reorder:0x50` |
-| `0x700b4170` | `0x700b3d00` | `0x470` | `a2` | `insn|loop_target|no_reorder:0x2` |
-| `0x700b4808` | `0x700b3d00` | `0xb08` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x148` |
-| `0x700b4d30` | `0x700b3d00` | `0x1030` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x249` |
-| `0x700b4f79` | `0x700b3d00` | `0x1278` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x50` |
-| `0x700b5b60` | `0x700b3d00` | `0x1e60` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x1a8` |
-| `0x700b61e8` | `0x700b3d00` | `0x24e8` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x2d0` |
-| `0x700b64b8` | `0x700b3d00` | `0x27b8` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x210` |
-| `0x700b66c8` | `0x700b3d00` | `0x29c8` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x63` |
-| `0x700b6d90` | `0x700b3d00` | `0x3090` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x153` |
-| `0x700b7710` | `0x700b3d00` | `0x3a10` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x120` |
-| `0x700b7bb8` | `0x700b3d00` | `0x3eb8` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x200` |
-| `0x700b7db8` | `0x700b3d00` | `0x40b8` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x53` |
-| `0x700b8500` | `0x700b8100` | `0x400` | `a2` | `insn|loop_target|no_reorder:0x25` |
-| `0x700b8580` | `0x700b8100` | `0x480` | `a2` | `insn|loop_target|no_reorder:0x2` |
-| `0x700b8c28` | `0x700b8100` | `0xb28` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x148` |
-| `0x700b9150` | `0x700b8100` | `0x1050` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x239` |
-| `0x700b9389` | `0x700b8100` | `0x1288` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x50` |
-| `0x700b9f60` | `0x700b8100` | `0x1e60` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x1a8` |
-| `0x700ba5e8` | `0x700b8100` | `0x24e8` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x2d0` |
-| `0x700ba8b8` | `0x700b8100` | `0x27b8` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x210` |
-| `0x700baac8` | `0x700b8100` | `0x29c8` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x63` |
-| `0x700bb180` | `0x700b8100` | `0x3080` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x153` |
-| `0x700bbb00` | `0x700b8100` | `0x3a00` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x120` |
-| `0x700bbfa8` | `0x700b8100` | `0x3ea8` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x200` |
-| `0x700bc1a8` | `0x700b8100` | `0x40a8` | `a2` | `insn|data|loop_target|no_reorder|no_transform:0x53` |
-| `0x7014c2d0` | `0x70149790` | `0x2b40` | `a2` | `insn|loop_target|no_reorder:0x40` |
-| `0x7014ebd0` | `0x70149790` | `0x5440` | `a2` | `insn|loop_target|no_reorder:0x10` |
-| `0x70150020` | `0x70149790` | `0x6890` | `a2` | `insn|loop_target|no_reorder:0xa` |
 
 ### Focused Loop Investigations
 
-`0x7003c102` remains a strong record-shaped loop-target lead, but the mainline no longer depends on hand-decoding it: the count/stride evidence is behind FLIX/TIE. INFO12/INFO13 closure is driven by the verified record layout plus the kernel/provider buffer_count cap. `0x7003d423` is kept as a downgraded local-control-flow lead.
+`0x7003c102` remains the strongest record-shaped loop-target lead. After FLIX correction, the target body exposes stack-spill core ops and FLIX bundles; the ABI count is INFO12/buffer_count, while the record stride is the 0x40 INFO13 descriptor layout. Naming the firmware-local count register still requires FLIX/TIE slot semantics. `0x7003d423` is kept as a downgraded local-control-flow lead.
 
 #### `flix_assisted_INFO13_record_lead` `0x7003b468` target `0x7003c102`
 
 - priority: `independent_flix_branch`
-- assessment: Clean 0xaa-byte loop_target property run inside the strongest 0x40-record-shaped field cluster. The corrected FLIX length overlay shows the target as a core24 LSAI-shaped item between FLIX bundles, but still does not expose an exact count/stride binding. Treat this as a FLIX-assisted record-processing lead, not a blocker for the INFO12/INFO13 closure.
+- assessment: Clean 0xaa-byte loop_target property run inside the strongest 0x40-record-shaped field cluster. FLIX-correct boundaries show the owner reads descriptor-shaped a2 fields within 0x02..0x3d; the 0x7003c102 loop body itself contains stack spills plus FLIX bundles, so the firmware-local count update is in FLIX/TIE slot semantics rather than a boundary-visible core LOOP.
 - target prop: `insn|loop_target|no_reorder:0xaa`
 - FLIX framing motif `FLIX128 framing tail 06 04 02` hits: 0x7003b481, 0x7003b4c5, 0x7003b4d5, 0x7003b4e5, 0x7003b502, 0x7003b512, 0x7003b522, 0x7003b532, 0x7003b54b, 0x7003b55b, 0x7003b56b, 0x7003b57b, 0x7003b599, 0x7003b5a9, 0x7003b5b9, 0x7003b5c9
 - FLIX framing motif deltas: 0x44, 0x10, 0x10, 0x1d, 0x10, 0x10, 0x10, 0x19, 0x10, 0x10, 0x10, 0x1e, 0x10, 0x10, 0x10, 0x13
 - standard loop opcode hits to target: none
-- stride status: not_closed; corrected FLIX boundaries expose interleaved core ops, but no exact a2 += 0x40 count/stride proof yet. The 06 04 02 motif is FLIX128 framing, not stride evidence.
-- next action: Use the FLIX-correct sweep to inspect the interleaved core ops, but keep the INFO12/INFO13 proposition closed with the verified 0x40 record layout and the kernel/provider buffer_count cap.
+- owner boundary counts: core24=253, dens16=20, flix64=57, flix128=136, truncated=0
+- loop body: `0x7003c102`..`0x7003c1ac`; core24=6, dens16=0, flix64=1, flix128=9, truncated=0
+- count status: firmware-local count register is not boundary-visible after FLIX correction: there is no byte-aligned LOOP/LOOPNEZ/LOOPGTZ to 0x7003c102, and the loop_target body core ops are stack spills. The ABI count source is INFO12/buffer_count; naming the internal loop register requires a FLIX/TIE slot decoder.
+- stride status: record stride is closed at the data-layout level: boundary-visible a2 descriptor loads cover offsets 0x2, 0x3, 0xa, 0xb, 0xe, 0xf, 0x12, 0x15, 0x29, 0x2c, 0x2d, 0x30, 0x31, 0x34, 0x35, 0x38, 0x39, 0x3c, 0x3d within a 0x40-byte record, and the kernel/provider copies INFO13 as struct vpu_buffer[INFO12] with 0x40 stride. No boundary-visible a2 += 0x40 instruction appears in this owner.
+- next action: Treat stride as closed by the 0x40 descriptor layout and boundary-visible a2 field coverage; decode the FLIX/TIE slot only if firmware-local count-register naming is required.
 
 | visible a2 field access | op | offset |
 |---:|---|---:|
 | `0x7003b484` | `l8ui a8,a2+0x3` | `0x3` |
 | `0x7003b487` | `l8ui a9,a2+0x2` | `0x2` |
-| `0x7003b488` | `l8ui a0,a2+0xf0` | `0xf0` |
-| `0x7003b4dd` | `l16ui a6,a2+0x0` | `0x0` |
-| `0x7003b573` | `l16ui a6,a2+0x0` | `0x0` |
-| `0x7003b5a1` | `l16ui a6,a2+0x0` | `0x0` |
-| `0x7003b5b1` | `l16ui a6,a2+0x0` | `0x0` |
-| `0x7003b5c1` | `l16ui a6,a2+0x0` | `0x0` |
-| `0x7003b5d4` | `l16ui a6,a2+0x0` | `0x0` |
-| `0x7003b5de` | `s16i a0,a2+0x48` | `0x48` |
 | `0x7003b63a` | `l8ui a8,a2+0x12` | `0x12` |
-| `0x7003b666` | `l16ui a6,a2+0x0` | `0x0` |
 | `0x7003b687` | `l8ui a10,a2+0x15` | `0x15` |
-| `0x7003b6a2` | `l16ui a6,a2+0x0` | `0x0` |
-| `0x7003b6b2` | `l16ui a6,a2+0x0` | `0x0` |
-| `0x7003b6df` | `s16i a0,a2+0x4` | `0x4` |
 | `0x7003b6e0` | `l8ui a5,a2+0xf` | `0xf` |
 | `0x7003b6e3` | `l8ui a8,a2+0xe` | `0xe` |
-| `0x7003b707` | `l16ui a6,a2+0x0` | `0x0` |
 | `0x7003b712` | `l8ui a11,a2+0xb` | `0xb` |
 | `0x7003b715` | `l8ui a14,a2+0xa` | `0xa` |
-| `0x7003b739` | `l16ui a6,a2+0x0` | `0x0` |
-| `0x7003b78b` | `l16ui a6,a2+0x8` | `0x8` |
 | `0x7003b7a6` | `l8ui a9,a2+0x29` | `0x29` |
+| `0x7003b7d9` | `l8ui a11,a2+0x2d` | `0x2d` |
+| `0x7003b7dc` | `l8ui a12,a2+0x2c` | `0x2c` |
+| `0x7003b828` | `l8ui a12,a2+0x31` | `0x31` |
+| `0x7003b82b` | `l8ui a13,a2+0x30` | `0x30` |
+| `0x7003b85a` | `l8ui a13,a2+0x39` | `0x39` |
+| `0x7003b85d` | `l8ui a14,a2+0x38` | `0x38` |
+| `0x7003b896` | `l8ui a14,a2+0x3d` | `0x3d` |
+| `0x7003b899` | `l8ui a15,a2+0x3c` | `0x3c` |
+| `0x7003ba30` | `l8ui a11,a2+0x35` | `0x35` |
+| `0x7003ba33` | `l8ui a13,a2+0x34` | `0x34` |
+
+| loop-body boundary core mem | op | offset |
+|---:|---|---:|
+| `0x7003c102` | `s32i a6,a1+0x28c` | `0x28c` |
+| `0x7003c105` | `s32i a5,a1+0x288` | `0x288` |
+| `0x7003c108` | `s32i a4,a1+0x284` | `0x284` |
+| `0x7003c10b` | `s32i a3,a1+0x2bc` | `0x2bc` |
+| `0x7003c11e` | `s32i a12,a1+0x254` | `0x254` |
+| `0x7003c121` | `s32i a11,a1+0x250` | `0x250` |
 
 | prop | size | flags | first bytes |
 |---:|---:|---|---|
@@ -474,10 +443,16 @@ These clusters are produced by a lightweight standard Xtensa 24-bit load/store d
 - FLIX framing motif `FLIX128 framing tail 06 04 02` hits: 0x7003d3b9, 0x7003d3df, 0x7003d3fd, 0x7003d40d, 0x7003d41d, 0x7003d44d
 - FLIX framing motif deltas: 0x26, 0x1e, 0x10, 0x10, 0x30
 - standard loop opcode hits to target: 0x7003d3ea
-- stride status: not_closed; corrected FLIX boundaries expose interleaved core ops, but no exact a2 += 0x40 count/stride proof yet. The 06 04 02 motif is FLIX128 framing, not stride evidence.
+- owner boundary counts: core24=25, dens16=7, flix64=3, flix128=6, truncated=0
+- loop body: `0x7003d423`..`0x7003d426`; core24=1, dens16=0, flix64=0, flix128=0, truncated=0
+- count status: byte-aligned hardware LOOP is present for this downgraded local control-flow target, but it is not the INFO13 descriptor walk.
+- stride status: downgraded local-control-flow lead; do not use it as the INFO13 descriptor stride proof.
 - next action: Keep as secondary local-control-flow evidence only; do not use this downgraded target to drive INFO12/INFO13 closure.
 
 | visible a2 field access | op | offset |
+|---:|---|---:|
+
+| loop-body boundary core mem | op | offset |
 |---:|---|---:|
 
 | prop | size | flags | first bytes |
@@ -515,126 +490,126 @@ Length-correct sweep across the 0x7003c102 loop-target neighborhood. Core LSAI-s
 - bad framing: 0
 - next action: Use these boundaries before inspecting descriptor-field core ops. The 06 04 02 bytes are FLIX128 framing tails, not an independent selector.
 
-| addr | len | kind | raw | fmt | framing |
-|---:|---:|---|---|---|---|
-| `0x7003c0ee` | 2 | `dens16` | `4bdd` | `` | `` |
-| `0x7003c0f0` | 16 | `flix128` | `7e9dc11a59e0f50331a88538b8060402` | `0xe` | `ok` |
-| `0x7003c100` | 2 | `dens16` | `3df0` | `` | `` |
-| `0x7003c102` | 3 | `core24` | `6261a3` | `` | `` |
-| `0x7003c105` | 3 | `core24` | `5261a2` | `` | `` |
-| `0x7003c108` | 3 | `core24` | `4261a1` | `` | `` |
-| `0x7003c10b` | 3 | `core24` | `3261af` | `` | `` |
-| `0x7003c10e` | 16 | `flix128` | `9e3b02705a66120030d0852bf4060402` | `0xe` | `ok` |
-| `0x7003c11e` | 3 | `core24` | `c26195` | `` | `` |
-| `0x7003c121` | 3 | `core24` | `b26194` | `` | `` |
-| `0x7003c124` | 8 | `flix64` | `0f503e021b268200` | `0x0f` | `ok` |
-| `0x7003c12c` | 16 | `flix128` | `3e815c1f5a64100030d08538b8060402` | `0xe` | `ok` |
-| `0x7003c13c` | 16 | `flix128` | `2e5c9c2f5840648330608502b8060402` | `0xe` | `ok` |
+| addr | len | kind | raw | fmt | framing | decoded core mem |
+|---:|---:|---|---|---|---|---|
+| `0x7003c0ee` | 2 | `dens16` | `4bdd` | `` | `` | `` |
+| `0x7003c0f0` | 16 | `flix128` | `7e9dc11a59e0f50331a88538b8060402` | `0xe` | `ok` | `` |
+| `0x7003c100` | 2 | `dens16` | `3df0` | `` | `` | `` |
+| `0x7003c102` | 3 | `core24` | `6261a3` | `` | `` | `s32i a6,a1+0x28c` |
+| `0x7003c105` | 3 | `core24` | `5261a2` | `` | `` | `s32i a5,a1+0x288` |
+| `0x7003c108` | 3 | `core24` | `4261a1` | `` | `` | `s32i a4,a1+0x284` |
+| `0x7003c10b` | 3 | `core24` | `3261af` | `` | `` | `s32i a3,a1+0x2bc` |
+| `0x7003c10e` | 16 | `flix128` | `9e3b02705a66120030d0852bf4060402` | `0xe` | `ok` | `` |
+| `0x7003c11e` | 3 | `core24` | `c26195` | `` | `` | `s32i a12,a1+0x254` |
+| `0x7003c121` | 3 | `core24` | `b26194` | `` | `` | `s32i a11,a1+0x250` |
+| `0x7003c124` | 8 | `flix64` | `0f503e021b268200` | `0x0f` | `ok` | `` |
+| `0x7003c12c` | 16 | `flix128` | `3e815c1f5a64100030d08538b8060402` | `0xe` | `ok` | `` |
+| `0x7003c13c` | 16 | `flix128` | `2e5c9c2f5840648330608502b8060402` | `0xe` | `ok` | `` |
 
 #### `downgraded_error_tail_corrected_boundaries` `0x7003d3e2`..`0x7003d460`
 
 Length-correct sweep around the downgraded 0x7003d423 loop-target property. The target itself is a core24 item, but the surrounding block remains switch/error-tail shaped.
 
 - start prop: `insn|branch_target|no_reorder:0x41` at `0x7003d3e2`
-- counts: core24=14, dens16=5, flix64=1, flix128=4, truncated=1
+- counts: core24=15, dens16=5, flix64=1, flix128=4, truncated=0
 - bad framing: 0
 - next action: Keep as secondary local-control-flow evidence; corrected boundaries do not promote it back into the INFO13 mainline.
 
-| addr | len | kind | raw | fmt | framing |
-|---:|---:|---|---|---|---|
-| `0x7003d3e2` | 8 | `flix64` | `4f90011b08c85900` | `0x0f` | `ok` |
-| `0x7003d3ea` | 3 | `core24` | `768035` | `` | `` |
-| `0x7003d3ed` | 3 | `core24` | `1699ec` | `` | `` |
-| `0x7003d3f0` | 16 | `flix128` | `9e0922705864120030d085f6f7060402` | `0xe` | `ok` |
-| `0x7003d400` | 16 | `flix128` | `9e092c705866120030d085f8f7060402` | `0xe` | `ok` |
-| `0x7003d410` | 16 | `flix128` | `9e0910705a60120030d085fbf7060402` | `0xe` | `ok` |
-| `0x7003d420` | 3 | `core24` | `2699a9` | `` | `` |
-| `0x7003d423` | 3 | `core24` | `c6f0ff` | `` | `` |
-| `0x7003d426` | 3 | `core24` | `00a5d0` | `` | `` |
-| `0x7003d429` | 3 | `core24` | `62fcaa` | `` | `` |
-| `0x7003d42c` | 2 | `dens16` | `0c02` | `` | `` |
-| `0x7003d42e` | 2 | `dens16` | `1df0` | `` | `` |
-| `0x7003d430` | 3 | `core24` | `000000` | `` | `` |
-| `0x7003d433` | 3 | `core24` | `000000` | `` | `` |
-| `0x7003d436` | 3 | `core24` | `22a100` | `` | `` |
-| `0x7003d439` | 2 | `dens16` | `1df0` | `` | `` |
-| `0x7003d43b` | 3 | `core24` | `000000` | `` | `` |
-| `0x7003d43e` | 3 | `core24` | `00000e` | `` | `` |
-| `0x7003d441` | 3 | `core24` | `d0c842` | `` | `` |
-| `0x7003d444` | 2 | `dens16` | `28f9` | `` | `` |
-| `0x7003d446` | 3 | `core24` | `510731` | `` | `` |
-| `0x7003d449` | 2 | `dens16` | `a8c5` | `` | `` |
-| `0x7003d44b` | 16 | `flix128` | `3ec8060402251062165ab98603000000` | `0xe` | `ok` |
-| `0x7003d45b` | 3 | `core24` | `000000` | `` | `` |
-| `0x7003d45e` | 3 | `truncated` | `0000` | `` | `` |
+| addr | len | kind | raw | fmt | framing | decoded core mem |
+|---:|---:|---|---|---|---|---|
+| `0x7003d3e2` | 8 | `flix64` | `4f90011b08c85900` | `0x0f` | `ok` | `` |
+| `0x7003d3ea` | 3 | `core24` | `768035` | `` | `` | `` |
+| `0x7003d3ed` | 3 | `core24` | `1699ec` | `` | `` | `` |
+| `0x7003d3f0` | 16 | `flix128` | `9e0922705864120030d085f6f7060402` | `0xe` | `ok` | `` |
+| `0x7003d400` | 16 | `flix128` | `9e092c705866120030d085f8f7060402` | `0xe` | `ok` | `` |
+| `0x7003d410` | 16 | `flix128` | `9e0910705a60120030d085fbf7060402` | `0xe` | `ok` | `` |
+| `0x7003d420` | 3 | `core24` | `2699a9` | `` | `` | `` |
+| `0x7003d423` | 3 | `core24` | `c6f0ff` | `` | `` | `` |
+| `0x7003d426` | 3 | `core24` | `00a5d0` | `` | `` | `` |
+| `0x7003d429` | 3 | `core24` | `62fcaa` | `` | `` | `` |
+| `0x7003d42c` | 2 | `dens16` | `0c02` | `` | `` | `` |
+| `0x7003d42e` | 2 | `dens16` | `1df0` | `` | `` | `` |
+| `0x7003d430` | 3 | `core24` | `000000` | `` | `` | `` |
+| `0x7003d433` | 3 | `core24` | `000000` | `` | `` | `` |
+| `0x7003d436` | 3 | `core24` | `22a100` | `` | `` | `` |
+| `0x7003d439` | 2 | `dens16` | `1df0` | `` | `` | `` |
+| `0x7003d43b` | 3 | `core24` | `000000` | `` | `` | `` |
+| `0x7003d43e` | 3 | `core24` | `00000e` | `` | `` | `` |
+| `0x7003d441` | 3 | `core24` | `d0c842` | `` | `` | `` |
+| `0x7003d444` | 2 | `dens16` | `28f9` | `` | `` | `` |
+| `0x7003d446` | 3 | `core24` | `510731` | `` | `` | `` |
+| `0x7003d449` | 2 | `dens16` | `a8c5` | `` | `` | `` |
+| `0x7003d44b` | 16 | `flix128` | `3ec8060402251062165ab98603000000` | `0xe` | `ok` | `` |
+| `0x7003d45b` | 3 | `core24` | `000000` | `` | `` | `` |
+| `0x7003d45e` | 3 | `core24` | `00000c` | `` | `` | `` |
 
 #### `dmaif_owner_entry_prefix_corrected_boundaries` `0x70044b74`..`0x70044c50`
 
 Length-correct sweep at the top iDMA schedule/wait owner. The owner starts with a standard entry core op followed by dense FLIX128/64 bundles and sparse core/density items.
 
 - start prop: `insn|no_reorder:0x44` at `0x70044b74`
-- counts: core24=6, dens16=4, flix64=3, flix128=10, truncated=1
+- counts: core24=6, dens16=4, flix64=3, flix128=11, truncated=0
 - bad framing: 0
 - next action: Use this as the Q1 owner boundary map before any FLIX/iDMA instrumentation; string ownership alone still does not prove completion-store timing.
 
-| addr | len | kind | raw | fmt | framing |
-|---:|---:|---|---|---|---|
-| `0x70044b74` | 3 | `core24` | `364107` | `` | `` |
-| `0x70044b77` | 16 | `flix128` | `9e6220705864120030d005e7f4060402` | `0xe` | `ok` |
-| `0x70044b87` | 3 | `core24` | `820203` | `` | `` |
-| `0x70044b8a` | 3 | `core24` | `920202` | `` | `` |
-| `0x70044b8d` | 8 | `flix64` | `4f88b0128a088200` | `0x0f` | `ok` |
-| `0x70044b95` | 3 | `core24` | `908820` | `` | `` |
-| `0x70044b98` | 16 | `flix128` | `8ed07e020736000a3733000240080402` | `0xe` | `ok` |
-| `0x70044ba8` | 8 | `flix64` | `af6080c5401c5800` | `0x0f` | `ok` |
-| `0x70044bb0` | 8 | `flix64` | `0f60218207e08200` | `0x0f` | `ok` |
-| `0x70044bb8` | 16 | `flix128` | `7ed4545258c4410631a88502c8060402` | `0xe` | `ok` |
-| `0x70044bc8` | 16 | `flix128` | `9e983c705862120030d00529f1060402` | `0xe` | `ok` |
-| `0x70044bd8` | 16 | `flix128` | `9e6320705860120030d0851bf5060402` | `0xe` | `ok` |
-| `0x70044be8` | 2 | `dens16` | `9803` | `` | `` |
-| `0x70044bea` | 16 | `flix128` | `9e592a705a66120030d0851af5060402` | `0xe` | `ok` |
-| `0x70044bfa` | 2 | `dens16` | `a813` | `` | `` |
-| `0x70044bfc` | 16 | `flix128` | `9e6a20705866120030d0051af5060402` | `0xe` | `ok` |
-| `0x70044c0c` | 3 | `core24` | `e22321` | `` | `` |
-| `0x70044c0f` | 16 | `flix128` | `9e6e00705a64120030d08519f5060402` | `0xe` | `ok` |
-| `0x70044c1f` | 2 | `dens16` | `b823` | `` | `` |
-| `0x70044c21` | 16 | `flix128` | `9e6b00705864120030d00519f5060402` | `0xe` | `ok` |
-| `0x70044c31` | 3 | `core24` | `722322` | `` | `` |
-| `0x70044c34` | 16 | `flix128` | `9e6720705862120030d08518f5060402` | `0xe` | `ok` |
-| `0x70044c44` | 2 | `dens16` | `c833` | `` | `` |
-| `0x70044c46` | 16 | `truncated` | `9e6c20705a60120030d0` | `` | `` |
+| addr | len | kind | raw | fmt | framing | decoded core mem |
+|---:|---:|---|---|---|---|---|
+| `0x70044b74` | 3 | `core24` | `364107` | `` | `` | `` |
+| `0x70044b77` | 16 | `flix128` | `9e6220705864120030d005e7f4060402` | `0xe` | `ok` | `` |
+| `0x70044b87` | 3 | `core24` | `820203` | `` | `` | `l8ui a8,a2+0x3` |
+| `0x70044b8a` | 3 | `core24` | `920202` | `` | `` | `l8ui a9,a2+0x2` |
+| `0x70044b8d` | 8 | `flix64` | `4f88b0128a088200` | `0x0f` | `ok` | `` |
+| `0x70044b95` | 3 | `core24` | `908820` | `` | `` | `` |
+| `0x70044b98` | 16 | `flix128` | `8ed07e020736000a3733000240080402` | `0xe` | `ok` | `` |
+| `0x70044ba8` | 8 | `flix64` | `af6080c5401c5800` | `0x0f` | `ok` | `` |
+| `0x70044bb0` | 8 | `flix64` | `0f60218207e08200` | `0x0f` | `ok` | `` |
+| `0x70044bb8` | 16 | `flix128` | `7ed4545258c4410631a88502c8060402` | `0xe` | `ok` | `` |
+| `0x70044bc8` | 16 | `flix128` | `9e983c705862120030d00529f1060402` | `0xe` | `ok` | `` |
+| `0x70044bd8` | 16 | `flix128` | `9e6320705860120030d0851bf5060402` | `0xe` | `ok` | `` |
+| `0x70044be8` | 2 | `dens16` | `9803` | `` | `` | `` |
+| `0x70044bea` | 16 | `flix128` | `9e592a705a66120030d0851af5060402` | `0xe` | `ok` | `` |
+| `0x70044bfa` | 2 | `dens16` | `a813` | `` | `` | `` |
+| `0x70044bfc` | 16 | `flix128` | `9e6a20705866120030d0051af5060402` | `0xe` | `ok` | `` |
+| `0x70044c0c` | 3 | `core24` | `e22321` | `` | `` | `l32i a14,a3+0x84` |
+| `0x70044c0f` | 16 | `flix128` | `9e6e00705a64120030d08519f5060402` | `0xe` | `ok` | `` |
+| `0x70044c1f` | 2 | `dens16` | `b823` | `` | `` | `` |
+| `0x70044c21` | 16 | `flix128` | `9e6b00705864120030d00519f5060402` | `0xe` | `ok` | `` |
+| `0x70044c31` | 3 | `core24` | `722322` | `` | `` | `l32i a7,a3+0x88` |
+| `0x70044c34` | 16 | `flix128` | `9e6720705862120030d08518f5060402` | `0xe` | `ok` | `` |
+| `0x70044c44` | 2 | `dens16` | `c833` | `` | `` | `` |
+| `0x70044c46` | 16 | `flix128` | `9e6c20705a60120030d00518f5060402` | `0xe` | `ok` | `` |
 
 #### `dmaif_dram_validation_tail_corrected_boundaries` `0x700452c4`..`0x70045330`
 
 Length-correct sweep around the DRAM data-buffer validation string owner tail inside the same iDMA cluster.
 
 - start prop: `insn|no_reorder:0x3a` at `0x700452c4`
-- counts: core24=12, dens16=3, flix64=0, flix128=4, truncated=1
+- counts: core24=12, dens16=3, flix64=1, flix128=4, truncated=0
 - bad framing: 0
 - next action: Correlate these core24 checks with the DRAM validation strings before treating the FLIX bundles as DMA movement.
 
-| addr | len | kind | raw | fmt | framing |
-|---:|---:|---|---|---|---|
-| `0x700452c4` | 3 | `core24` | `8261d2` | `` | `` |
-| `0x700452c7` | 3 | `core24` | `f62f3b` | `` | `` |
-| `0x700452ca` | 3 | `core24` | `8221b7` | `` | `` |
-| `0x700452cd` | 3 | `core24` | `e62835` | `` | `` |
-| `0x700452d0` | 3 | `core24` | `9221b8` | `` | `` |
-| `0x700452d3` | 3 | `core24` | `e6292f` | `` | `` |
-| `0x700452d6` | 3 | `core24` | `a221b5` | `` | `` |
-| `0x700452d9` | 3 | `core24` | `e62a29` | `` | `` |
-| `0x700452dc` | 2 | `dens16` | `0c0c` | `` | `` |
-| `0x700452de` | 16 | `flix128` | `1ec1c6025866100430d08538c8060402` | `0xe` | `ok` |
-| `0x700452ee` | 16 | `flix128` | `1eb184015866100430d08538c8060402` | `0xe` | `ok` |
-| `0x700452fe` | 2 | `dens16` | `0c0d` | `` | `` |
-| `0x70045300` | 3 | `core24` | `d261d2` | `` | `` |
-| `0x70045303` | 3 | `core24` | `460800` | `` | `` |
-| `0x70045306` | 2 | `dens16` | `0c0f` | `` | `` |
-| `0x70045308` | 16 | `flix128` | `1ef186035866100430d08538c8060402` | `0xe` | `ok` |
-| `0x70045318` | 16 | `flix128` | `1ee184015866100430d08538c8060402` | `0xe` | `ok` |
-| `0x70045328` | 3 | `core24` | `920207` | `` | `` |
-| `0x7004532b` | 3 | `core24` | `a20206` | `` | `` |
-| `0x7004532e` | 8 | `truncated` | `4f89` | `` | `` |
+| addr | len | kind | raw | fmt | framing | decoded core mem |
+|---:|---:|---|---|---|---|---|
+| `0x700452c4` | 3 | `core24` | `8261d2` | `` | `` | `s32i a8,a1+0x348` |
+| `0x700452c7` | 3 | `core24` | `f62f3b` | `` | `` | `` |
+| `0x700452ca` | 3 | `core24` | `8221b7` | `` | `` | `l32i a8,a1+0x2dc` |
+| `0x700452cd` | 3 | `core24` | `e62835` | `` | `` | `` |
+| `0x700452d0` | 3 | `core24` | `9221b8` | `` | `` | `l32i a9,a1+0x2e0` |
+| `0x700452d3` | 3 | `core24` | `e6292f` | `` | `` | `` |
+| `0x700452d6` | 3 | `core24` | `a221b5` | `` | `` | `l32i a10,a1+0x2d4` |
+| `0x700452d9` | 3 | `core24` | `e62a29` | `` | `` | `` |
+| `0x700452dc` | 2 | `dens16` | `0c0c` | `` | `` | `` |
+| `0x700452de` | 16 | `flix128` | `1ec1c6025866100430d08538c8060402` | `0xe` | `ok` | `` |
+| `0x700452ee` | 16 | `flix128` | `1eb184015866100430d08538c8060402` | `0xe` | `ok` | `` |
+| `0x700452fe` | 2 | `dens16` | `0c0d` | `` | `` | `` |
+| `0x70045300` | 3 | `core24` | `d261d2` | `` | `` | `s32i a13,a1+0x348` |
+| `0x70045303` | 3 | `core24` | `460800` | `` | `` | `` |
+| `0x70045306` | 2 | `dens16` | `0c0f` | `` | `` | `` |
+| `0x70045308` | 16 | `flix128` | `1ef186035866100430d08538c8060402` | `0xe` | `ok` | `` |
+| `0x70045318` | 16 | `flix128` | `1ee184015866100430d08538c8060402` | `0xe` | `ok` | `` |
+| `0x70045328` | 3 | `core24` | `920207` | `` | `` | `l8ui a9,a2+0x7` |
+| `0x7004532b` | 3 | `core24` | `a20206` | `` | `` | `l8ui a10,a2+0x6` |
+| `0x7004532e` | 8 | `flix64` | `4f89f2528a088200` | `0x0f` | `ok` | `` |
 
 ## L32R Literal References
 
@@ -773,10 +748,12 @@ These records promote the string-cluster leads into explicit Q1 owner investigat
 #### `top_dmaif_schedule_wait_owner` `0x70044b74`
 
 - range: `0x70044b74`..`0x70045380`
-- assessment: Top iDMA schedule/wait wrapper candidate. The same .xt.prop owner contains L32R refs to iDMA schedule error, iDMA wait error, dmaif.c, descriptor range validation, and data-buffer DRAM validation strings.
-- Q1 status: owner_narrowed_not_timing_closed; FLIX-correct boundaries now separate core/density items from FLIX bundles in the owner, but they still do not prove completion-write burst shape or inter-store gap.
+- string-cluster rank: 1; patterns=4; hits=4
+- string-cluster patterns: ../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c, iDMA schedule error, iDMA wait error, sDesc > eDesc
+- assessment: Top iDMA schedule/wait wrapper candidate selected by L32R string-cluster ranking. The same .xt.prop owner contains refs to schedule/wait errors, dmaif.c, descriptor range validation, and data-buffer DRAM validation strings.
+- Q1 status: owner_closed_for_static_schedule_wait_anchor; FLIX-correct boundaries separate core/density items from bundles in the owner. Completion-write burst timing remains a runtime/slot-semantics question.
 - FLIX framing motif `FLIX128 framing tail 06 04 02` hits: 83 (first 0x70044b84, 0x70044bc5, 0x70044bd5, 0x70044be5, 0x70044bf7, 0x70044c09, 0x70044c1c, 0x70044c2e, 0x70044c41, 0x70044c53, 0x70044c66, 0x70044c78)
-- standard a2 access signals: 55 hits, offsets 0x0, 0x2, 0x3, 0x4, 0x6, 0x7, 0x8, 0xa, 0xb, 0x16, 0x17, 0x1a, 0x1b, 0x1e, 0x1f, 0x22, 0x23, 0x26, 0x27, 0x2a, 0x2b, 0x2e, 0x2f, 0x3a, 0x3b, 0x3e, 0x3f, 0x42, 0x43, 0x44, 0x45, 0x46
+- standard a2 access signals: 34 hits, offsets 0x2, 0x3, 0x6, 0x7, 0xa, 0xb, 0x16, 0x17, 0x1a, 0x1b, 0x1e, 0x1f, 0x22, 0x23, 0x26, 0x27, 0x2a, 0x2b, 0x2e, 0x2f, 0x3a, 0x3b, 0x3e, 0x3f, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49
 - next action: Use this owner as the Q1 firmware anchor for DMA schedule/wait. Close timing with runtime instrumentation or deeper FLIX/TIE slot semantics; do not infer inter-store timing from string ownership alone.
 
 | evidence | ref | delta | literal | prop |
