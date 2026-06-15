@@ -191,13 +191,13 @@ LK-merged layout, but it is no longer a blocker for core-0 static analysis.
 The current ELF, IDA IDB, and analyzer outputs are persisted under
 `13-apusys-ioctl-surface/firmware/apunn/`:
 
-| Artifact | Path | SHA-256 |
+| Artifact | Path | Notes |
 |---|---|---|
-| Core-0 full ELF | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf` | `69658bfe18e8084e44da165ebc326c01ce9a2e672a059ae5a706ce5e397c3c88` |
-| IDA Pro Xtensa IDB | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf.i64` | `4da91a806b7adf894f027adddec0bb60ed5b107409b4f4c8b86e4049fd247e09` |
-| IDA sidecars | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf.{id0,id1,id2,nam,til}` | see `firmware/apunn/README.md` |
-| Analyzer JSON | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full_analysis_refs.json` | `a53bd6519ccd675e7887bf064a2ced935656c64aab16a2b54a36261a7d1a13a5` |
-| Analyzer Markdown | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full_analysis_refs.md` | `8adf839c190449351f962c413a3ee3111259279810f056e058ddbc924d28c956` |
+| Core-0 full ELF | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf` | SHA-256 `69658bfe18e8084e44da165ebc326c01ce9a2e672a059ae5a706ce5e397c3c88` |
+| IDA Pro Xtensa IDB | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf.i64` | mutable analysis database; do not maintain a pinned hash |
+| IDA sidecars | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf.{id0,id1,id2,nam,til}` | mutable analysis database sidecars |
+| Analyzer JSON | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full_analysis_refs.json` | mutable generated analysis input for IDA apply script |
+| Analyzer Markdown | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full_analysis_refs.md` | mutable generated analysis summary |
 
 Current core-0 ELF facts from
 `13-apusys-ioctl-surface/tools/analyze_apunn_elf.py`:
@@ -298,13 +298,16 @@ Recovered pointer/name tables:
   byte-window hits, treat them as disassembly leads rather than proven literal
   references.
 
-Manual entry-window observation, using radare2 only as an adjunct because this
-core has unresolved TIE/FLIX opcodes: the `0x70006794` property range starts
-with `entry a1, 0x20`, then a standard-instruction island copies six dwords from
-`a12+0x00..0x14` into `a10+0x04..0x18`, and copies `a2+0x44`,
-`a2+0x4c`, and `a2+0x50` into `a10+0x28`, `a10+0x1c`, and `a10+0x20`.
-Treat this as a preload-context packing clue, not as a complete entry
-prototype, until the custom instruction semantics are resolved.
+`analyze_apunn_elf.py` now emits byte-verified standard Xtensa islands for the
+extension-heavy early path. The `0x70006794` `INFO16`/ELF entry starts with
+`entry a1, 0x20`, then copies six dwords from `a12+0x00..0x14` into
+`a10+0x04..0x18`, and copies `a2+0x44`, `a2+0x4c`, and `a2+0x50` into
+`a10+0x28`, `a10+0x1c`, and `a10+0x20`. The `0x70006590` helper loads
+`*(a2+0x30)+0x18` into `a10`, calls `0x70007440`, then returns 0. The
+`0x70007440` standard island reads `ccount`, loads a function pointer from
+`a12+0`, conditionally calls it, and reads `ccount` again near return. Treat
+these as verified preload-context packing and early dynamic-dispatch clues, not
+as complete prototypes, until the custom instruction semantics are resolved.
 
 IDA Pro MCP state after reloading the same ELF as **ELF for Xtensa** (not raw
 `Binary File`): processor `XTENSA`, 32-bit, sections mapped at the ELF VAs

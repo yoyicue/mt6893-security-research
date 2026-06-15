@@ -7715,7 +7715,7 @@
       "prop_size": 23
     }
   ],
-  "input": "/tmp/apunn_core0_full.elf",
+  "input": "13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf",
   "interesting_rodata_refs": [
     {
       "owner_delta": 388,
@@ -10827,6 +10827,315 @@
       "offset": 3328945,
       "sh_type": 3,
       "size": 101
+    }
+  ],
+  "standard_islands": [
+    {
+      "end": 1879074776,
+      "instructions": [
+        {
+          "actual_bytes": "36 41 00",
+          "addr": 1879074708,
+          "effect": "open a 0x20-byte stack frame",
+          "expected_bytes": "36 41 00",
+          "mnemonic": "entry sp, 0x20",
+          "verified": true
+        },
+        {
+          "actual_bytes": "98 0c",
+          "addr": 1879074737,
+          "effect": "load dword from a12+0x00",
+          "expected_bytes": "98 0c",
+          "mnemonic": "l32i.n a9, a12, 0x00",
+          "verified": true
+        },
+        {
+          "actual_bytes": "99 1a",
+          "addr": 1879074739,
+          "effect": "store a12+0x00 value to a10+0x04",
+          "expected_bytes": "99 1a",
+          "mnemonic": "s32i.n a9, a10, 0x04",
+          "verified": true
+        },
+        {
+          "actual_bytes": "88 1c",
+          "addr": 1879074741,
+          "effect": "load dword from a12+0x04",
+          "expected_bytes": "88 1c",
+          "mnemonic": "l32i.n a8, a12, 0x04",
+          "verified": true
+        },
+        {
+          "actual_bytes": "89 2a",
+          "addr": 1879074743,
+          "effect": "store a12+0x04 value to a10+0x08",
+          "expected_bytes": "89 2a",
+          "mnemonic": "s32i.n a8, a10, 0x08",
+          "verified": true
+        },
+        {
+          "actual_bytes": "f8 2c",
+          "addr": 1879074745,
+          "effect": "load dword from a12+0x08",
+          "expected_bytes": "f8 2c",
+          "mnemonic": "l32i.n a15, a12, 0x08",
+          "verified": true
+        },
+        {
+          "actual_bytes": "f9 3a",
+          "addr": 1879074747,
+          "effect": "store a12+0x08 value to a10+0x0c",
+          "expected_bytes": "f9 3a",
+          "mnemonic": "s32i.n a15, a10, 0x0c",
+          "verified": true
+        },
+        {
+          "actual_bytes": "e8 3c",
+          "addr": 1879074749,
+          "effect": "load dword from a12+0x0c",
+          "expected_bytes": "e8 3c",
+          "mnemonic": "l32i.n a14, a12, 0x0c",
+          "verified": true
+        },
+        {
+          "actual_bytes": "e9 4a",
+          "addr": 1879074751,
+          "effect": "store a12+0x0c value to a10+0x10",
+          "expected_bytes": "e9 4a",
+          "mnemonic": "s32i.n a14, a10, 0x10",
+          "verified": true
+        },
+        {
+          "actual_bytes": "d8 4c",
+          "addr": 1879074753,
+          "effect": "load dword from a12+0x10",
+          "expected_bytes": "d8 4c",
+          "mnemonic": "l32i.n a13, a12, 0x10",
+          "verified": true
+        },
+        {
+          "actual_bytes": "d9 5a",
+          "addr": 1879074755,
+          "effect": "store a12+0x10 value to a10+0x14",
+          "expected_bytes": "d9 5a",
+          "mnemonic": "s32i.n a13, a10, 0x14",
+          "verified": true
+        },
+        {
+          "actual_bytes": "c8 5c",
+          "addr": 1879074757,
+          "effect": "load dword from a12+0x14",
+          "expected_bytes": "c8 5c",
+          "mnemonic": "l32i.n a12, a12, 0x14",
+          "verified": true
+        },
+        {
+          "actual_bytes": "c9 6a",
+          "addr": 1879074759,
+          "effect": "store a12+0x14 value to a10+0x18",
+          "expected_bytes": "c9 6a",
+          "mnemonic": "s32i.n a12, a10, 0x18",
+          "verified": true
+        },
+        {
+          "actual_bytes": "d2 22 11",
+          "addr": 1879074761,
+          "effect": "load dword from a2+0x44",
+          "expected_bytes": "d2 22 11",
+          "mnemonic": "l32i a13, a2, 0x44",
+          "verified": true
+        },
+        {
+          "actual_bytes": "d9 aa",
+          "addr": 1879074764,
+          "effect": "store a2+0x44 value to a10+0x28",
+          "expected_bytes": "d9 aa",
+          "mnemonic": "s32i.n a13, a10, 0x28",
+          "verified": true
+        },
+        {
+          "actual_bytes": "b2 22 13",
+          "addr": 1879074766,
+          "effect": "load dword from a2+0x4c",
+          "expected_bytes": "b2 22 13",
+          "mnemonic": "l32i a11, a2, 0x4c",
+          "verified": true
+        },
+        {
+          "actual_bytes": "b9 7a",
+          "addr": 1879074769,
+          "effect": "store a2+0x4c value to a10+0x1c",
+          "expected_bytes": "b9 7a",
+          "mnemonic": "s32i.n a11, a10, 0x1c",
+          "verified": true
+        },
+        {
+          "actual_bytes": "92 22 14",
+          "addr": 1879074771,
+          "effect": "load dword from a2+0x50",
+          "expected_bytes": "92 22 14",
+          "mnemonic": "l32i a9, a2, 0x50",
+          "verified": true
+        },
+        {
+          "actual_bytes": "99 8a",
+          "addr": 1879074774,
+          "effect": "store a2+0x50 value to a10+0x20",
+          "expected_bytes": "99 8a",
+          "mnemonic": "s32i.n a9, a10, 0x20",
+          "verified": true
+        }
+      ],
+      "label": "elf_entry_context_pack",
+      "note": "Stable standard Xtensa island inside the 0x70006794 INFO16 entry; copies preload/context fields into the a10 scratch/context object.",
+      "start": 1879074708,
+      "verified": true
+    },
+    {
+      "end": 1879074206,
+      "instructions": [
+        {
+          "actual_bytes": "36 41 00",
+          "addr": 1879074192,
+          "effect": "open a 0x20-byte stack frame",
+          "expected_bytes": "36 41 00",
+          "mnemonic": "entry sp, 0x20",
+          "verified": true
+        },
+        {
+          "actual_bytes": "a8 c2",
+          "addr": 1879074195,
+          "effect": "load pointer from a2+0x30",
+          "expected_bytes": "a8 c2",
+          "mnemonic": "l32i.n a10, a2, 0x30",
+          "verified": true
+        },
+        {
+          "actual_bytes": "a8 6a",
+          "addr": 1879074197,
+          "effect": "load pointer from previous+0x18",
+          "expected_bytes": "a8 6a",
+          "mnemonic": "l32i.n a10, a10, 0x18",
+          "verified": true
+        },
+        {
+          "actual_bytes": "a5 ea 00",
+          "addr": 1879074199,
+          "effect": "call early dynamic dispatch helper",
+          "expected_bytes": "a5 ea 00",
+          "mnemonic": "call8 0x70007440",
+          "verified": true
+        },
+        {
+          "actual_bytes": "0c 02",
+          "addr": 1879074202,
+          "effect": "set return value to 0",
+          "expected_bytes": "0c 02",
+          "mnemonic": "movi.n a2, 0",
+          "verified": true
+        },
+        {
+          "actual_bytes": "1d f0",
+          "addr": 1879074204,
+          "effect": "return",
+          "expected_bytes": "1d f0",
+          "mnemonic": "retw.n",
+          "verified": true
+        }
+      ],
+      "label": "early_helper_dispatch",
+      "note": "Small helper that forwards a context-derived pointer to 0x70007440 and returns 0.",
+      "start": 1879074192,
+      "verified": true
+    },
+    {
+      "end": 1879078140,
+      "instructions": [
+        {
+          "actual_bytes": "36 c1 00",
+          "addr": 1879077952,
+          "effect": "open a 0x60-byte stack frame",
+          "expected_bytes": "36 c1 00",
+          "mnemonic": "entry sp, 0x60",
+          "verified": true
+        },
+        {
+          "actual_bytes": "90 ea 03",
+          "addr": 1879077967,
+          "effect": "read cycle counter before dispatch",
+          "expected_bytes": "90 ea 03",
+          "mnemonic": "rsr.ccount a9",
+          "verified": true
+        },
+        {
+          "actual_bytes": "82 2c 00",
+          "addr": 1879077970,
+          "effect": "load callback/function pointer from a12+0x00",
+          "expected_bytes": "82 2c 00",
+          "mnemonic": "l32i a8, a12, 0x00",
+          "verified": true
+        },
+        {
+          "actual_bytes": "bc 78",
+          "addr": 1879077973,
+          "effect": "skip indirect call if function pointer is null",
+          "expected_bytes": "bc 78",
+          "mnemonic": "beqz.n a8, 0x70007490",
+          "verified": true
+        },
+        {
+          "actual_bytes": "e0 08 00",
+          "addr": 1879077997,
+          "effect": "call function pointer",
+          "expected_bytes": "e0 08 00",
+          "mnemonic": "callx8 a8",
+          "verified": true
+        },
+        {
+          "actual_bytes": "65 3e ff",
+          "addr": 1879078104,
+          "effect": "call local helper in the return path",
+          "expected_bytes": "65 3e ff",
+          "mnemonic": "call8 0x700068c0",
+          "verified": true
+        },
+        {
+          "actual_bytes": "e0 08 00",
+          "addr": 1879078128,
+          "effect": "second function-pointer call site",
+          "expected_bytes": "e0 08 00",
+          "mnemonic": "callx8 a8",
+          "verified": true
+        },
+        {
+          "actual_bytes": "c0 ea 03",
+          "addr": 1879078133,
+          "effect": "read cycle counter after dispatch",
+          "expected_bytes": "c0 ea 03",
+          "mnemonic": "rsr.ccount a12",
+          "verified": true
+        },
+        {
+          "actual_bytes": "28 51",
+          "addr": 1879078136,
+          "effect": "load return value from stack",
+          "expected_bytes": "28 51",
+          "mnemonic": "l32i.n a2, sp, 0x14",
+          "verified": true
+        },
+        {
+          "actual_bytes": "1d f0",
+          "addr": 1879078138,
+          "effect": "return",
+          "expected_bytes": "1d f0",
+          "mnemonic": "retw.n",
+          "verified": true
+        }
+      ],
+      "label": "early_dynamic_dispatch_standard_island",
+      "note": "Standard instructions visible inside extension-heavy 0x70007440; shows ccount timing and an indirect call through *(a12+0).",
+      "start": 1879077952,
+      "verified": true
     }
   ]
 }

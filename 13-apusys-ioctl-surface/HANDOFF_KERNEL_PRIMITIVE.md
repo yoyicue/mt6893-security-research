@@ -194,11 +194,13 @@ Static firmware impact so far:
   `eDesc >= TM_DMA_DESC_IDX_MAX`, `_DMA_STALL`, or `No error`. So the iDMA
   schedule/wait strings are present, but no reliable owner is recovered through
   the direct literal-pointer method.
-- Early entry analysis now identifies `0x70006590` as a small helper that loads
-  `*(a2+0x30)+0x18` into `a10`, calls `0x70007440`, and returns 0.
-  `0x70007440` starts with `entry a1, 0x60`, reads `ccount`, and calls a
-  function pointer from `a12+0` when nonzero; unresolved TIE/FLIX instructions
-  still prevent a complete prototype.
+- Byte-verified standard Xtensa islands now make the early path reproducible:
+  `0x70006794` copies `a12+0x00..0x14` into `a10+0x04..0x18` and
+  `a2+0x44/0x4c/0x50` into `a10+0x28/0x1c/0x20`; `0x70006590` loads
+  `*(a2+0x30)+0x18` into `a10`, calls `0x70007440`, and returns 0; and
+  `0x70007440` reads `ccount`, conditionally calls a function pointer from
+  `a12+0`, then reads `ccount` again near return. Unresolved TIE/FLIX
+  instructions still prevent a complete prototype.
 - `.dram_op.data` contains a 63-entry ANN op-name table, and strings confirm
   the relevant APUNN paths: `process_command`, `execute_op`, `dma_barrier`,
   buffer validation, and iDMA schedule/wait errors.

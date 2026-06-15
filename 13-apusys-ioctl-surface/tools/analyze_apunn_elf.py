@@ -163,6 +163,26 @@ class CriticalStringScan:
     byte_hits: list[CriticalStringHit]
 
 
+@dataclass
+class StandardIslandInstruction:
+    addr: int
+    expected_bytes: str
+    actual_bytes: str | None
+    verified: bool
+    mnemonic: str
+    effect: str
+
+
+@dataclass
+class StandardIsland:
+    label: str
+    start: int
+    end: int
+    verified: bool
+    note: str
+    instructions: list[StandardIslandInstruction]
+
+
 CRITICAL_STRING_PATTERNS = (
     "add idma request fail in %s",
     "ERROR CALLBACK: iDMA in Error",
@@ -177,6 +197,69 @@ CRITICAL_STRING_PATTERNS = (
     "No error",
     "Data buffer does not start in DRAM",
     "Data buffer does not fit in DRAM",
+)
+
+
+KNOWN_STANDARD_ISLANDS = (
+    {
+        "label": "elf_entry_context_pack",
+        "note": (
+            "Stable standard Xtensa island inside the 0x70006794 INFO16 entry; "
+            "copies preload/context fields into the a10 scratch/context object."
+        ),
+        "instructions": (
+            (0x70006794, "36 41 00", "entry sp, 0x20", "open a 0x20-byte stack frame"),
+            (0x700067B1, "98 0c", "l32i.n a9, a12, 0x00", "load dword from a12+0x00"),
+            (0x700067B3, "99 1a", "s32i.n a9, a10, 0x04", "store a12+0x00 value to a10+0x04"),
+            (0x700067B5, "88 1c", "l32i.n a8, a12, 0x04", "load dword from a12+0x04"),
+            (0x700067B7, "89 2a", "s32i.n a8, a10, 0x08", "store a12+0x04 value to a10+0x08"),
+            (0x700067B9, "f8 2c", "l32i.n a15, a12, 0x08", "load dword from a12+0x08"),
+            (0x700067BB, "f9 3a", "s32i.n a15, a10, 0x0c", "store a12+0x08 value to a10+0x0c"),
+            (0x700067BD, "e8 3c", "l32i.n a14, a12, 0x0c", "load dword from a12+0x0c"),
+            (0x700067BF, "e9 4a", "s32i.n a14, a10, 0x10", "store a12+0x0c value to a10+0x10"),
+            (0x700067C1, "d8 4c", "l32i.n a13, a12, 0x10", "load dword from a12+0x10"),
+            (0x700067C3, "d9 5a", "s32i.n a13, a10, 0x14", "store a12+0x10 value to a10+0x14"),
+            (0x700067C5, "c8 5c", "l32i.n a12, a12, 0x14", "load dword from a12+0x14"),
+            (0x700067C7, "c9 6a", "s32i.n a12, a10, 0x18", "store a12+0x14 value to a10+0x18"),
+            (0x700067C9, "d2 22 11", "l32i a13, a2, 0x44", "load dword from a2+0x44"),
+            (0x700067CC, "d9 aa", "s32i.n a13, a10, 0x28", "store a2+0x44 value to a10+0x28"),
+            (0x700067CE, "b2 22 13", "l32i a11, a2, 0x4c", "load dword from a2+0x4c"),
+            (0x700067D1, "b9 7a", "s32i.n a11, a10, 0x1c", "store a2+0x4c value to a10+0x1c"),
+            (0x700067D3, "92 22 14", "l32i a9, a2, 0x50", "load dword from a2+0x50"),
+            (0x700067D6, "99 8a", "s32i.n a9, a10, 0x20", "store a2+0x50 value to a10+0x20"),
+        ),
+    },
+    {
+        "label": "early_helper_dispatch",
+        "note": "Small helper that forwards a context-derived pointer to 0x70007440 and returns 0.",
+        "instructions": (
+            (0x70006590, "36 41 00", "entry sp, 0x20", "open a 0x20-byte stack frame"),
+            (0x70006593, "a8 c2", "l32i.n a10, a2, 0x30", "load pointer from a2+0x30"),
+            (0x70006595, "a8 6a", "l32i.n a10, a10, 0x18", "load pointer from previous+0x18"),
+            (0x70006597, "a5 ea 00", "call8 0x70007440", "call early dynamic dispatch helper"),
+            (0x7000659A, "0c 02", "movi.n a2, 0", "set return value to 0"),
+            (0x7000659C, "1d f0", "retw.n", "return"),
+        ),
+    },
+    {
+        "label": "early_dynamic_dispatch_standard_island",
+        "note": (
+            "Standard instructions visible inside extension-heavy 0x70007440; "
+            "shows ccount timing and an indirect call through *(a12+0)."
+        ),
+        "instructions": (
+            (0x70007440, "36 c1 00", "entry sp, 0x60", "open a 0x60-byte stack frame"),
+            (0x7000744F, "90 ea 03", "rsr.ccount a9", "read cycle counter before dispatch"),
+            (0x70007452, "82 2c 00", "l32i a8, a12, 0x00", "load callback/function pointer from a12+0x00"),
+            (0x70007455, "bc 78", "beqz.n a8, 0x70007490", "skip indirect call if function pointer is null"),
+            (0x7000746D, "e0 08 00", "callx8 a8", "call function pointer"),
+            (0x700074D8, "65 3e ff", "call8 0x700068c0", "call local helper in the return path"),
+            (0x700074F0, "e0 08 00", "callx8 a8", "second function-pointer call site"),
+            (0x700074F5, "c0 ea 03", "rsr.ccount a12", "read cycle counter after dispatch"),
+            (0x700074F8, "28 51", "l32i.n a2, sp, 0x14", "load return value from stack"),
+            (0x700074FA, "1d f0", "retw.n", "return"),
+        ),
+    },
 )
 
 
@@ -284,6 +367,14 @@ def section_for_va(sections: Iterable[Section], addr: int) -> Section | None:
 
 def section_bytes(data: bytes, section: Section) -> bytes:
     return data[section.offset : section.offset + section.size]
+
+
+def va_bytes(data: bytes, sections: Iterable[Section], addr: int, size: int) -> bytes | None:
+    section = section_for_va(sections, addr)
+    if section is None or addr + size > section.addr + section.size:
+        return None
+    offset = section.offset + (addr - section.addr)
+    return data[offset : offset + size]
 
 
 def find_strings(data: bytes, section: Section, min_len: int) -> list[StringEntry]:
@@ -704,6 +795,42 @@ def find_critical_string_refs(
     return scans
 
 
+def build_standard_islands(data: bytes, sections: list[Section]) -> list[StandardIsland]:
+    islands: list[StandardIsland] = []
+    for spec in KNOWN_STANDARD_ISLANDS:
+        instructions: list[StandardIslandInstruction] = []
+        verified = True
+        for addr, expected_text, mnemonic, effect in spec["instructions"]:
+            expected = bytes.fromhex(expected_text)
+            actual = va_bytes(data, sections, addr, len(expected))
+            item_verified = actual == expected
+            if not item_verified:
+                verified = False
+            instructions.append(
+                StandardIslandInstruction(
+                    addr=addr,
+                    expected_bytes=expected.hex(" "),
+                    actual_bytes=None if actual is None else actual.hex(" "),
+                    verified=item_verified,
+                    mnemonic=mnemonic,
+                    effect=effect,
+                )
+            )
+        start = min(item.addr for item in instructions)
+        end = max(item.addr + len(bytes.fromhex(item.expected_bytes)) for item in instructions)
+        islands.append(
+            StandardIsland(
+                label=str(spec["label"]),
+                start=start,
+                end=end,
+                verified=verified,
+                note=str(spec["note"]),
+                instructions=instructions,
+            )
+        )
+    return islands
+
+
 def prop_near(props: list[XtProp], addr: int, window: int = 0x20) -> list[XtProp]:
     return [
         prop
@@ -814,6 +941,37 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
             f"`{item.get('prop_flags') or ''}:{hx(item.get('prop_size'))}` |"
         )
     lines.append("")
+    lines.append("## Verified Standard Xtensa Islands")
+    lines.append("")
+    lines.append(
+        "These are narrow byte-verified standard-instruction islands inside "
+        "extension-heavy ranges; they are not complete function decompilations."
+    )
+    lines.append("")
+    standard_islands = payload["standard_islands"]
+    assert isinstance(standard_islands, list)
+    for island in standard_islands:
+        assert isinstance(island, dict)
+        lines.append(
+            f"### `{island['label']}` `{hx(island['start'])}`-`{hx(island['end'])}` "
+            f"verified={island['verified']}"
+        )
+        lines.append("")
+        lines.append(display_text(str(island["note"])))
+        lines.append("")
+        lines.append("| addr | bytes | mnemonic | effect |")
+        lines.append("|---:|---|---|---|")
+        instructions = island["instructions"]
+        assert isinstance(instructions, list)
+        for insn in instructions:
+            assert isinstance(insn, dict)
+            prefix = "" if insn["verified"] else "MISMATCH "
+            lines.append(
+                f"| `{hx(insn['addr'])}` | `{prefix}{insn.get('actual_bytes')}` | "
+                f"`{display_text(str(insn['mnemonic']))}` | "
+                f"{display_text(str(insn['effect']))} |"
+            )
+        lines.append("")
     lines.append("## Rodata String References")
     lines.append("")
     lines.append(f"- `.text` 32-bit references into `.rodata` strings: {payload['rodata_ref_count']}")
@@ -933,6 +1091,7 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
     critical_string_refs = find_critical_string_refs(
         data, sections, strings, function_candidates
     )
+    standard_islands = build_standard_islands(data, sections)
 
     entry_props = []
     for prop in prop_near(props, eh.entry):
@@ -956,6 +1115,7 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
         "key_addresses": to_jsonable(
             build_key_addresses(sections, props, function_candidates)
         ),
+        "standard_islands": to_jsonable(standard_islands),
         "rodata_ref_count": len(rodata_refs),
         "rodata_refs": to_jsonable(rodata_refs),
         "interesting_rodata_refs": to_jsonable(
@@ -998,6 +1158,13 @@ def print_summary(payload: dict[str, object]) -> None:
             f"{item['label']} addr={hx(item['addr'])} "
             f"owner={hx(item.get('owner_entry'))}+{hx(item.get('owner_delta'))} "
             f"prop={item.get('prop_flags') or ''}:{hx(item.get('prop_size'))}"
+        )
+    for island in payload["standard_islands"]:
+        assert isinstance(island, dict)
+        print(
+            "  island "
+            f"{island['label']} range={hx(island['start'])}-{hx(island['end'])} "
+            f"verified={island['verified']}"
         )
     print(
         "rodata_refs="

@@ -85,6 +85,18 @@ def try_create_insn(ea: int) -> bool:
         return False
 
 
+def force_create_verified_insn(ea: int, size: int) -> bool:
+    if not has_segment(ea):
+        return False
+    if try_create_insn(ea):
+        return True
+    try:
+        ida_bytes.del_items(ea, ida_bytes.DELIT_SIMPLE, size)
+    except Exception:
+        return False
+    return try_create_insn(ea)
+
+
 def try_create_string(ea: int) -> bool:
     if not has_segment(ea):
         return False
@@ -241,6 +253,41 @@ def apply_strings(payload: dict[str, object]) -> int:
     return count
 
 
+def apply_standard_islands(payload: dict[str, object]) -> int:
+    comments = 0
+    for island in payload.get("standard_islands", []):
+        label = str(island["label"])
+        start = int(island["start"])
+        if append_comment(
+            start,
+            "APUNN verified standard island %s; range=%s-%s verified=%s"
+            % (
+                label,
+                fmt_hex(island.get("start")),
+                fmt_hex(island.get("end")),
+                island.get("verified"),
+            ),
+        ):
+            comments += 1
+        if append_comment(start, str(island.get("note") or "")):
+            comments += 1
+        for insn in island.get("instructions", []):
+            ea = int(insn["addr"])
+            expected = str(insn.get("expected_bytes") or "")
+            expected_size = len(bytes.fromhex(expected)) if expected else 1
+            if insn.get("verified"):
+                force_create_verified_insn(ea, expected_size)
+            else:
+                try_create_insn(ea)
+            if append_comment(
+                ea,
+                "APUNN standard island %s: %s ; %s"
+                % (label, insn.get("mnemonic"), insn.get("effect")),
+            ):
+                comments += 1
+    return comments
+
+
 def fmt_hex(value: object) -> str:
     if value is None:
         return "None"
@@ -261,11 +308,12 @@ def main() -> None:
     key_named = apply_key_addresses(payload)
     data_items, data_refs = apply_pointer_runs(payload)
     strings = apply_strings(payload)
+    island_comments = apply_standard_islands(payload)
     ida_auto.auto_wait()
 
     print(
         "[APUNN] functions_created=%d bounded_functions=%d function_names=%d inside_existing=%d "
-        "key_names=%d pointer_dwords=%d pointer_refs=%d strings=%d"
+        "key_names=%d pointer_dwords=%d pointer_refs=%d strings=%d island_comments=%d"
         % (
             fn_created,
             fn_bounded,
@@ -275,6 +323,7 @@ def main() -> None:
             data_items,
             data_refs,
             strings,
+            island_comments,
         )
     )
 

@@ -121,6 +121,66 @@
 | `ann_pointer_target_cluster` | `0x70081ee7` | `.text` | `0x70081d50` | `0x196` | `insn|branch_target|no_reorder:0x5` |
 | `ann_type_helper` | `0x70083068` | `.text` | `0x70083068` | `0x0` | `insn|no_reorder:0x17` |
 
+## Verified Standard Xtensa Islands
+
+These are narrow byte-verified standard-instruction islands inside extension-heavy ranges; they are not complete function decompilations.
+
+### `elf_entry_context_pack` `0x70006794`-`0x700067d8` verified=True
+
+Stable standard Xtensa island inside the 0x70006794 INFO16 entry; copies preload/context fields into the a10 scratch/context object.
+
+| addr | bytes | mnemonic | effect |
+|---:|---|---|---|
+| `0x70006794` | `36 41 00` | `entry sp, 0x20` | open a 0x20-byte stack frame |
+| `0x700067b1` | `98 0c` | `l32i.n a9, a12, 0x00` | load dword from a12+0x00 |
+| `0x700067b3` | `99 1a` | `s32i.n a9, a10, 0x04` | store a12+0x00 value to a10+0x04 |
+| `0x700067b5` | `88 1c` | `l32i.n a8, a12, 0x04` | load dword from a12+0x04 |
+| `0x700067b7` | `89 2a` | `s32i.n a8, a10, 0x08` | store a12+0x04 value to a10+0x08 |
+| `0x700067b9` | `f8 2c` | `l32i.n a15, a12, 0x08` | load dword from a12+0x08 |
+| `0x700067bb` | `f9 3a` | `s32i.n a15, a10, 0x0c` | store a12+0x08 value to a10+0x0c |
+| `0x700067bd` | `e8 3c` | `l32i.n a14, a12, 0x0c` | load dword from a12+0x0c |
+| `0x700067bf` | `e9 4a` | `s32i.n a14, a10, 0x10` | store a12+0x0c value to a10+0x10 |
+| `0x700067c1` | `d8 4c` | `l32i.n a13, a12, 0x10` | load dword from a12+0x10 |
+| `0x700067c3` | `d9 5a` | `s32i.n a13, a10, 0x14` | store a12+0x10 value to a10+0x14 |
+| `0x700067c5` | `c8 5c` | `l32i.n a12, a12, 0x14` | load dword from a12+0x14 |
+| `0x700067c7` | `c9 6a` | `s32i.n a12, a10, 0x18` | store a12+0x14 value to a10+0x18 |
+| `0x700067c9` | `d2 22 11` | `l32i a13, a2, 0x44` | load dword from a2+0x44 |
+| `0x700067cc` | `d9 aa` | `s32i.n a13, a10, 0x28` | store a2+0x44 value to a10+0x28 |
+| `0x700067ce` | `b2 22 13` | `l32i a11, a2, 0x4c` | load dword from a2+0x4c |
+| `0x700067d1` | `b9 7a` | `s32i.n a11, a10, 0x1c` | store a2+0x4c value to a10+0x1c |
+| `0x700067d3` | `92 22 14` | `l32i a9, a2, 0x50` | load dword from a2+0x50 |
+| `0x700067d6` | `99 8a` | `s32i.n a9, a10, 0x20` | store a2+0x50 value to a10+0x20 |
+
+### `early_helper_dispatch` `0x70006590`-`0x7000659e` verified=True
+
+Small helper that forwards a context-derived pointer to 0x70007440 and returns 0.
+
+| addr | bytes | mnemonic | effect |
+|---:|---|---|---|
+| `0x70006590` | `36 41 00` | `entry sp, 0x20` | open a 0x20-byte stack frame |
+| `0x70006593` | `a8 c2` | `l32i.n a10, a2, 0x30` | load pointer from a2+0x30 |
+| `0x70006595` | `a8 6a` | `l32i.n a10, a10, 0x18` | load pointer from previous+0x18 |
+| `0x70006597` | `a5 ea 00` | `call8 0x70007440` | call early dynamic dispatch helper |
+| `0x7000659a` | `0c 02` | `movi.n a2, 0` | set return value to 0 |
+| `0x7000659c` | `1d f0` | `retw.n` | return |
+
+### `early_dynamic_dispatch_standard_island` `0x70007440`-`0x700074fc` verified=True
+
+Standard instructions visible inside extension-heavy 0x70007440; shows ccount timing and an indirect call through *(a12+0).
+
+| addr | bytes | mnemonic | effect |
+|---:|---|---|---|
+| `0x70007440` | `36 c1 00` | `entry sp, 0x60` | open a 0x60-byte stack frame |
+| `0x7000744f` | `90 ea 03` | `rsr.ccount a9` | read cycle counter before dispatch |
+| `0x70007452` | `82 2c 00` | `l32i a8, a12, 0x00` | load callback/function pointer from a12+0x00 |
+| `0x70007455` | `bc 78` | `beqz.n a8, 0x70007490` | skip indirect call if function pointer is null |
+| `0x7000746d` | `e0 08 00` | `callx8 a8` | call function pointer |
+| `0x700074d8` | `65 3e ff` | `call8 0x700068c0` | call local helper in the return path |
+| `0x700074f0` | `e0 08 00` | `callx8 a8` | second function-pointer call site |
+| `0x700074f5` | `c0 ea 03` | `rsr.ccount a12` | read cycle counter after dispatch |
+| `0x700074f8` | `28 51` | `l32i.n a2, sp, 0x14` | load return value from stack |
+| `0x700074fa` | `1d f0` | `retw.n` | return |
+
 ## Rodata String References
 
 - `.text` 32-bit references into `.rodata` strings: 180
