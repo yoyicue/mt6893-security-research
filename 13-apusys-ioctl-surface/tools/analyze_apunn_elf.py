@@ -100,6 +100,8 @@ class PointerEntry:
     target_string: str | None
     prop_size: int | None
     prop_flags: str | None
+    owner_entry: int | None
+    owner_delta: int | None
 
 
 @dataclass
@@ -108,6 +110,26 @@ class PointerRun:
     end: int
     count: int
     entries: list[PointerEntry]
+
+
+@dataclass
+class FunctionCandidate:
+    addr: int
+    prop_size: int
+    prop_flags: str
+    entry_bytes: str
+    next_entry_delta: int | None
+
+
+@dataclass
+class KeyAddress:
+    label: str
+    addr: int
+    section: str | None
+    owner_entry: int | None
+    owner_delta: int | None
+    prop_size: int | None
+    prop_flags: str | None
 
 
 def parse_int(text: str) -> int:
@@ -251,6 +273,66 @@ def best_prop_for_addr(props: list[XtProp], addr: int) -> XtProp | None:
     return None
 
 
+def find_function_candidates(
+    data: bytes, sections: list[Section], props: list[XtProp]
+) -> list[FunctionCandidate]:
+    text = section_by_name(sections, ".text")
+    if text is None:
+        return []
+    blob = section_bytes(data, text)
+    starts: list[tuple[int, XtProp, bytes]] = []
+    seen: set[int] = set()
+    for prop in props:
+        if not prop.flags & XT_PROP_INSN:
+            continue
+        if prop.addr in seen or not (text.addr <= prop.addr < text.addr + text.size):
+            continue
+        off = prop.addr - text.addr
+        if off + 3 > len(blob):
+            continue
+        entry = blob[off : off + 3]
+        if entry[0] != 0x36:
+            continue
+        starts.append((prop.addr, prop, entry))
+        seen.add(prop.addr)
+
+    starts.sort(key=lambda item: item[0])
+    out: list[FunctionCandidate] = []
+    for index, (addr, prop, entry) in enumerate(starts):
+        next_delta = None
+        if index + 1 < len(starts):
+            next_delta = starts[index + 1][0] - addr
+        out.append(
+            FunctionCandidate(
+                addr=addr,
+                prop_size=prop.size,
+                prop_flags=flags_text(prop.flags),
+                entry_bytes=entry.hex(),
+                next_entry_delta=next_delta,
+            )
+        )
+    return out
+
+
+def owner_for_addr(
+    function_candidates: list[FunctionCandidate], addr: int
+) -> tuple[int | None, int | None]:
+    target = addr & ~1
+    lo = 0
+    hi = len(function_candidates)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if function_candidates[mid].addr <= target:
+            lo = mid + 1
+        else:
+            hi = mid
+    index = lo - 1
+    if index < 0:
+        return None, None
+    owner = function_candidates[index].addr
+    return owner, target - owner
+
+
 def ro_string_at(strings_by_addr: dict[int, str], addr: int) -> str | None:
     return strings_by_addr.get(addr)
 
@@ -284,6 +366,7 @@ def find_pointer_runs(
     source: Section,
     strings_by_addr: dict[int, str],
     props: list[XtProp],
+    function_candidates: list[FunctionCandidate],
     min_run: int,
 ) -> list[PointerRun]:
     blob = section_bytes(data, source)
@@ -315,6 +398,7 @@ def find_pointer_runs(
             ".dram_op.data",
         }:
             prop = best_prop_for_addr(props, value)
+            owner_entry, owner_delta = owner_for_addr(function_candidates, value)
             cur.append(
                 PointerEntry(
                     addr=source.addr + off,
@@ -324,6 +408,8 @@ def find_pointer_runs(
                     or cstring_at_va(data, sections, value, {".rodata"}),
                     prop_size=None if prop is None else prop.size,
                     prop_flags=None if prop is None else flags_text(prop.flags),
+                    owner_entry=owner_entry,
+                    owner_delta=owner_delta,
                 )
             )
         else:
@@ -375,6 +461,45 @@ def interesting_strings(strings: list[StringEntry]) -> list[StringEntry]:
         "version",
     )
     return [entry for entry in strings if any(token in entry.value for token in tokens)]
+
+
+KEY_ADDRESS_LABELS = (
+    ("elf_entry_INFO16", 0x70006794),
+    ("early_helper", 0x70006590),
+    ("early_callee", 0x70007440),
+    ("flk_pointer_target_cluster", 0x70017D40),
+    ("flk_pointer_table_owner", 0x70015E98),
+    ("dispatcher_like_locateBuffer", 0x700301D8),
+    ("large_auto_function", 0x7003B424),
+    ("ann_pointer_table_owner", 0x70081D50),
+    ("ann_pointer_target_cluster", 0x70081EE7),
+    ("ann_type_helper", 0x70083068),
+)
+
+
+def build_key_addresses(
+    sections: list[Section],
+    props: list[XtProp],
+    function_candidates: list[FunctionCandidate],
+) -> list[KeyAddress]:
+    out: list[KeyAddress] = []
+    for label, addr in KEY_ADDRESS_LABELS:
+        target = addr & ~1
+        section = section_for_va(sections, target)
+        prop = best_prop_for_addr(props, target)
+        owner_entry, owner_delta = owner_for_addr(function_candidates, target)
+        out.append(
+            KeyAddress(
+                label=label,
+                addr=addr,
+                section=None if section is None else section.name,
+                owner_entry=owner_entry,
+                owner_delta=owner_delta,
+                prop_size=None if prop is None else prop.size,
+                prop_flags=None if prop is None else flags_text(prop.flags),
+            )
+        )
+    return out
 
 
 def prop_near(props: list[XtProp], addr: int, window: int = 0x20) -> list[XtProp]:
@@ -433,19 +558,74 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
         assert isinstance(prop, dict)
         lines.append(f"| `{hx(prop['addr'])}` | `{hx(prop['size'])}` | `{prop['flags_text']}` |")
     lines.append("")
+    lines.append("## Function Entry Candidates")
+    lines.append("")
+    lines.append(
+        f"- `.xt.prop` constrained `entry` prologues: {payload['function_candidate_count']}"
+    )
+    lines.append("")
+    lines.append("### First Candidates")
+    lines.append("")
+    lines.append("| addr | prop size | next entry delta | entry bytes | flags |")
+    lines.append("|---:|---:|---:|---|---|")
+    function_candidates = payload["function_candidates"]
+    assert isinstance(function_candidates, list)
+    for fn in function_candidates[:32]:
+        assert isinstance(fn, dict)
+        lines.append(
+            f"| `{hx(fn['addr'])}` | `{hx(fn['prop_size'])}` | "
+            f"`{hx(fn.get('next_entry_delta'))}` | `{fn['entry_bytes']}` | "
+            f"`{fn['prop_flags']}` |"
+        )
+    lines.append("")
+    lines.append("### Largest Next-Entry Gaps")
+    lines.append("")
+    lines.append("| addr | next entry delta | prop size | entry bytes | flags |")
+    lines.append("|---:|---:|---:|---|---|")
+    by_gap = sorted(
+        (
+            fn
+            for fn in function_candidates
+            if isinstance(fn, dict) and fn.get("next_entry_delta") is not None
+        ),
+        key=lambda fn: int(fn["next_entry_delta"]),
+        reverse=True,
+    )
+    for fn in by_gap[:20]:
+        assert isinstance(fn, dict)
+        lines.append(
+            f"| `{hx(fn['addr'])}` | `{hx(fn['next_entry_delta'])}` | "
+            f"`{hx(fn['prop_size'])}` | `{fn['entry_bytes']}` | "
+            f"`{fn['prop_flags']}` |"
+        )
+    lines.append("")
+    lines.append("## Key Address Owners")
+    lines.append("")
+    lines.append("| label | addr | section | owner entry | owner delta | prop |")
+    lines.append("|---|---:|---|---:|---:|---|")
+    for item in payload["key_addresses"]:
+        assert isinstance(item, dict)
+        lines.append(
+            f"| `{item['label']}` | `{hx(item['addr'])}` | "
+            f"`{item.get('section') or ''}` | `{hx(item.get('owner_entry'))}` | "
+            f"`{hx(item.get('owner_delta'))}` | "
+            f"`{item.get('prop_flags') or ''}:{hx(item.get('prop_size'))}` |"
+        )
+    lines.append("")
     lines.append("## Pointer Runs")
     lines.append("")
     for run in payload["pointer_runs"]:
         assert isinstance(run, dict)
         lines.append(f"### `{hx(run['start'])}` count {run['count']}")
         lines.append("")
-        lines.append("| slot | value | target | prop | string |")
-        lines.append("|---:|---:|---|---|---|")
+        lines.append("| slot | value | target | owner | prop | string |")
+        lines.append("|---:|---:|---|---:|---|---|")
         for entry in run["entries"]:
             assert isinstance(entry, dict)
             lines.append(
                 f"| `{hx(entry['addr'])}` | `{hx(entry['value'])}` | "
-                f"`{entry['target_section']}` | `{entry.get('prop_flags') or ''}` | "
+                f"`{entry['target_section']}` | `{hx(entry.get('owner_entry'))}` | "
+                f"`{entry.get('prop_flags') or ''}` | "
                 f"{entry.get('target_string') or ''} |"
             )
         lines.append("")
@@ -480,6 +660,7 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
     strings = find_strings(data, rodata, min_string)
     strings_by_addr = {entry.addr: entry.value for entry in strings}
     props = parse_xt_props(data, section_by_name(sections, ".xt.prop"))
+    function_candidates = find_function_candidates(data, sections, props)
     prop_counts: dict[str, int] = {
         "total": len(props),
         "insn": sum(1 for prop in props if prop.flags & XT_PROP_INSN),
@@ -494,6 +675,7 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
         source=rodata,
         strings_by_addr=strings_by_addr,
         props=props,
+        function_candidates=function_candidates,
         min_run=min_run,
     )
 
@@ -514,6 +696,11 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
         "sections": to_jsonable(sections),
         "property_counts": prop_counts,
         "entry_properties": entry_props,
+        "function_candidate_count": len(function_candidates),
+        "function_candidates": to_jsonable(function_candidates),
+        "key_addresses": to_jsonable(
+            build_key_addresses(sections, props, function_candidates)
+        ),
         "pointer_runs": to_jsonable(pointer_runs),
         "ann_op_name_table": op_name_table(
             data, sections, section_by_name(sections, ".dram_op.data"), strings_by_addr
@@ -542,6 +729,15 @@ def print_summary(payload: dict[str, object]) -> None:
             f"size={hx(section['size'])} flags={hx(section['flags'])}"
         )
     print("property_counts", payload["property_counts"])
+    print(f"function_candidates={payload['function_candidate_count']}")
+    for item in payload["key_addresses"]:
+        assert isinstance(item, dict)
+        print(
+            "  key "
+            f"{item['label']} addr={hx(item['addr'])} "
+            f"owner={hx(item.get('owner_entry'))}+{hx(item.get('owner_delta'))} "
+            f"prop={item.get('prop_flags') or ''}:{hx(item.get('prop_size'))}"
+        )
     print(f"pointer_runs={len(payload['pointer_runs'])}")
     for run in payload["pointer_runs"]:
         assert isinstance(run, dict)

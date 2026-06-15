@@ -171,6 +171,9 @@ Static firmware impact so far:
   `0x7ff04000`, and `.dram_op.data` at `0x7ff3b000`.
 - `.xt.prop` marks `0x70006794` as a real `0xac`-byte instruction range, so
   `INFO16` is a code entry, not a string/literal-table pointer.
+- `.xt.prop`-constrained `entry` prologue scanning recovers `1019` firmware
+  entry candidates. The FLK pointer runs resolve to owner `0x70015e98`; the
+  31-entry ANN branch-table run at `0x70000b80` resolves to owner `0x70081d50`.
 - `.dram_op.data` contains a 63-entry ANN op-name table, and strings confirm
   the relevant APUNN paths: `process_command`, `execute_op`, `dma_barrier`,
   buffer validation, and iDMA schedule/wait errors.

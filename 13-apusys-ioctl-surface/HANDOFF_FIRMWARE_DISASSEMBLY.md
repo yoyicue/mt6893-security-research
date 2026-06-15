@@ -212,12 +212,35 @@ kernel-provided entry, it marks `0x70006794` as a real instruction range:
 | `0x70006794` | `0x0` | `unreachable|align|align2` |
 | `0x70006794` | `0xac` | `insn|no_reorder` |
 
+`analyze_apunn_elf.py` now also scans `.text` for Xtensa `entry` prologues only
+when they are backed by an `.xt.prop` instruction range. This recovers `1019`
+function-entry candidates, versus Ghidra's current `331` auto-functions. Treat
+these as candidate entry points, not decompiler-proven C functions; they are
+still the better map for TIE/FLIX-heavy code.
+
+Important owner assignments from the entry-candidate map:
+
+| Label | Address | Owner entry | Delta | Property |
+|---|---:|---:|---:|---|
+| kernel `INFO16` / ELF entry | `0x70006794` | `0x70006794` | `0x0` | `insn|no_reorder:0xac` |
+| FLK pointer-target cluster | `0x70017d40` | `0x70015e98` | `0x1ea8` | `insn|data|no_reorder|no_transform:0xb` |
+| FLK pointer-table owner | `0x70015e98` | `0x70015e98` | `0x0` | `insn|data|no_reorder|no_transform:0xb09` |
+| dispatcher-like `locateBuffer` user | `0x700301d8` | `0x700301d8` | `0x0` | `insn|no_reorder:0x30` |
+| ANN pointer-table owner | `0x70081d50` | `0x70081d50` | `0x0` | `insn|no_reorder:0xa3` |
+| ANN pointer-target cluster | `0x70081ee7` | `0x70081d50` | `0x196` | `insn|branch_target|no_reorder:0x5` |
+| small type helper | `0x70083068` | `0x70083068` | `0x0` | `insn|no_reorder:0x17` |
+
 Recovered pointer/name tables:
 
 - `.rodata` pointer runs at `0x70000180`, `0x700001c0`, `0x70000200`,
   and `0x70000b80` point into `.text` instruction ranges. The first three are
   12-entry clusters around `0x70017cxx..0x70017exx`; the fourth has 31 entries
   around `0x70081ee7..0x70082aac`.
+- All three 12-entry FLK pointer runs resolve to owner `0x70015e98`.
+- The 31-entry ANN pointer run at `0x70000b80` resolves entirely to owner
+  `0x70081d50`; a standard-instruction island in that owner contains `jx a9`,
+  consistent with branch-table dispatch. This is structural dispatch evidence,
+  not a proven mapping from table index to the 63 ANN op-name entries.
 - `.dram_op.data` holds a 63-entry ANN op name table:
   `CONV2D`, `DWCONV2D`, `POOL2D`, `LOGISTIC`, `RELU`, `SOFTMAX`, `RESHAPE`,
   `CONCAT`, `ELEWISE`, `L2NORM`, `RESZBILINR`, `TRANSPOSE`, `DECONV2D`, `PAD`,
@@ -463,7 +486,7 @@ slow-opcode shape.
 | Tool | Path | Status |
 |---|---|---|
 | VPU image parser | `13-apusys-ioctl-surface/tools/parse_vpu_image.py` | Parses preload metadata, carves raw segments, and reports embedded ELF offsets; use `--head-offset 0x200 --headers 1` for V260523 `cam_vpu2.img` |
-| APUNN ELF analyzer | `13-apusys-ioctl-surface/tools/analyze_apunn_elf.py` | Emits section map, `.xt.prop` instruction ranges, pointer runs, ANN op name table, interesting strings, JSON, and Markdown |
+| APUNN ELF analyzer | `13-apusys-ioctl-surface/tools/analyze_apunn_elf.py` | Emits section map, `.xt.prop` instruction ranges, `.xt.prop`-backed function-entry candidates, key address owners, pointer runs, ANN op name table, interesting strings, JSON, and Markdown |
 | Ghidra export script | `13-apusys-ioctl-surface/tools/GhidraApunnExport.java` | Headless adjunct for function/string/decompiler snapshots from `/tmp/apunn_core0_full.elf`; decompiler output is advisory only |
 | Allocator gap profiler | `13-apusys-ioctl-surface/poc/ApusysIoctlProbe.java` | Active; 8+ probe modes |
 | Firmware-coupled gap reuse | `--run-cmd-vpu-xrp-mem-free-race-completed-gap-reuse-iova` | Ready to re-run with new shapes |
