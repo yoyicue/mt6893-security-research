@@ -245,7 +245,7 @@ KNOWN_STANDARD_ISLANDS = (
         "label": "early_dynamic_dispatch_standard_island",
         "note": (
             "Standard instructions visible inside extension-heavy 0x70007440; "
-            "shows ccount timing and an indirect call through *(a12+0)."
+            "shows ccount timing and repeated indirect calls through *(a12+0)."
         ),
         "instructions": (
             (0x70007440, "36 c1 00", "entry sp, 0x60", "open a 0x60-byte stack frame"),
@@ -253,11 +253,61 @@ KNOWN_STANDARD_ISLANDS = (
             (0x70007452, "82 2c 00", "l32i a8, a12, 0x00", "load callback/function pointer from a12+0x00"),
             (0x70007455, "bc 78", "beqz.n a8, 0x70007490", "skip indirect call if function pointer is null"),
             (0x7000746D, "e0 08 00", "callx8 a8", "call function pointer"),
+            (0x700074B7, "e0 08 00", "callx8 a8", "call function pointer again in the timed dispatch path"),
             (0x700074D8, "65 3e ff", "call8 0x700068c0", "call local helper in the return path"),
+            (0x700074E6, "a9 0b", "s32i.n a10, a11, 0x00", "store callback/helper result through a11"),
+            (0x700074E8, "ad 02", "mov.n a10, a2", "move saved argument/result into a10 before callback"),
             (0x700074F0, "e0 08 00", "callx8 a8", "second function-pointer call site"),
             (0x700074F5, "c0 ea 03", "rsr.ccount a12", "read cycle counter after dispatch"),
             (0x700074F8, "28 51", "l32i.n a2, sp, 0x14", "load return value from stack"),
             (0x700074FA, "1d f0", "retw.n", "return"),
+        ),
+    },
+    {
+        "label": "early_dynamic_dispatch_callback_loop",
+        "note": (
+            "Second standard-instruction island inside the 0x70007440 owner. "
+            "It confirms the early dynamic dispatcher has a repeated callback/"
+            "polling loop after the first return-shaped island, not just one "
+            "function-pointer call."
+        ),
+        "instructions": (
+            (0x7000750C, "58 c8", "l32i.n a5, a8, 0x30", "load callback/state field from a8+0x30"),
+            (0x7000750E, "59 00", "s32i.n a5, a0, 0x00", "store callback/state field through a0"),
+            (0x70007516, "e0 08 00", "callx8 a8", "call function pointer"),
+            (0x7000752F, "e0 08 00", "callx8 a8", "call function pointer"),
+            (0x70007550, "e5 36 ff", "call8 0x700068c0", "call local wait/spin helper"),
+            (0x7000755E, "38 32", "l32i.n a3, a2, 0x0c", "load field from returned object at a2+0x0c"),
+            (0x70007560, "08 02", "l32i.n a0, a2, 0x00", "load field from returned object at a2+0x00"),
+            (0x70007573, "b8 ff", "l32i.n a11, a15, 0x3c", "load field from a15+0x3c before callback"),
+            (0x70007575, "e0 08 00", "callx8 a8", "call function pointer"),
+            (0x7000757E, "a9 14", "s32i.n a10, a4, 0x04", "store callback result to a4+0x04"),
+            (0x70007586, "e0 08 00", "callx8 a8", "call function pointer"),
+            (0x70007589, "0c 2b", "movi.n a11, 2", "load constant 2"),
+            (0x7000758B, "b0 aa 63", "minu a10, a10, a11", "clamp callback result to at most 2"),
+            (0x7000758E, "a9 c1", "s32i.n a10, sp, 0x30", "save clamped callback result on stack"),
+            (0x70007590, "a9 04", "s32i.n a10, a4, 0x00", "store clamped callback result to a4+0x00"),
+            (0x700075A9, "dc 58", "bnez.n a8, 0x700075c2", "branch on callback/state pointer"),
+            (0x700075C1, "e0 08 00", "callx8 a8", "call function pointer"),
+        ),
+    },
+    {
+        "label": "dispatcher_locateBuffer_trampoline",
+        "note": (
+            "Byte-verified standard island at the dispatcher-like locateBuffer "
+            "candidate. The l32r at 0x700301e3 loads the rodata suffix "
+            "`locateBuffer` from 0x70001884, then the island reaches a branch "
+            "toward the 0x70030240/0x70030a0c owner and an indirect call."
+        ),
+        "instructions": (
+            (0x700301D8, "36 61 00", "entry sp, 0x30", "open a 0x30-byte stack frame"),
+            (0x700301E3, "31 a8 45", "l32r a3, 0x70001884", "load `locateBuffer` string suffix into a3"),
+            (0x700301EF, "88 b8", "l32i.n a8, a8, 0x2c", "load dispatch table/context field from a8+0x2c"),
+            (0x700301F6, "38 d8", "l32i.n a3, a8, 0x34", "load dispatch/context field from a8+0x34"),
+            (0x700301F8, "06 04 02", "j 0x70030a0c", "jump into the larger 0x70030240 owner"),
+            (0x70030201, "e0 08 00", "callx8 a8", "call function pointer"),
+            (0x70030204, "2d 0a", "mov.n a2, a10", "move callback return value into a2"),
+            (0x70030206, "1d f0", "retw.n", "return"),
         ),
     },
 )
@@ -1055,7 +1105,7 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
         assert isinstance(entry, dict)
         lines.append(f"- `{hx(entry['addr'])}` `{display_text(str(entry['value']))}`")
     lines.append("")
-    path.write_text("\n".join(lines) + "\n")
+    path.write_text("\n".join(lines).rstrip() + "\n")
 
 
 def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object]:

@@ -11092,11 +11092,35 @@
           "verified": true
         },
         {
+          "actual_bytes": "e0 08 00",
+          "addr": 1879078071,
+          "effect": "call function pointer again in the timed dispatch path",
+          "expected_bytes": "e0 08 00",
+          "mnemonic": "callx8 a8",
+          "verified": true
+        },
+        {
           "actual_bytes": "65 3e ff",
           "addr": 1879078104,
           "effect": "call local helper in the return path",
           "expected_bytes": "65 3e ff",
           "mnemonic": "call8 0x700068c0",
+          "verified": true
+        },
+        {
+          "actual_bytes": "a9 0b",
+          "addr": 1879078118,
+          "effect": "store callback/helper result through a11",
+          "expected_bytes": "a9 0b",
+          "mnemonic": "s32i.n a10, a11, 0x00",
+          "verified": true
+        },
+        {
+          "actual_bytes": "ad 02",
+          "addr": 1879078120,
+          "effect": "move saved argument/result into a10 before callback",
+          "expected_bytes": "ad 02",
+          "mnemonic": "mov.n a10, a2",
           "verified": true
         },
         {
@@ -11133,8 +11157,226 @@
         }
       ],
       "label": "early_dynamic_dispatch_standard_island",
-      "note": "Standard instructions visible inside extension-heavy 0x70007440; shows ccount timing and an indirect call through *(a12+0).",
+      "note": "Standard instructions visible inside extension-heavy 0x70007440; shows ccount timing and repeated indirect calls through *(a12+0).",
       "start": 1879077952,
+      "verified": true
+    },
+    {
+      "end": 1879078340,
+      "instructions": [
+        {
+          "actual_bytes": "58 c8",
+          "addr": 1879078156,
+          "effect": "load callback/state field from a8+0x30",
+          "expected_bytes": "58 c8",
+          "mnemonic": "l32i.n a5, a8, 0x30",
+          "verified": true
+        },
+        {
+          "actual_bytes": "59 00",
+          "addr": 1879078158,
+          "effect": "store callback/state field through a0",
+          "expected_bytes": "59 00",
+          "mnemonic": "s32i.n a5, a0, 0x00",
+          "verified": true
+        },
+        {
+          "actual_bytes": "e0 08 00",
+          "addr": 1879078166,
+          "effect": "call function pointer",
+          "expected_bytes": "e0 08 00",
+          "mnemonic": "callx8 a8",
+          "verified": true
+        },
+        {
+          "actual_bytes": "e0 08 00",
+          "addr": 1879078191,
+          "effect": "call function pointer",
+          "expected_bytes": "e0 08 00",
+          "mnemonic": "callx8 a8",
+          "verified": true
+        },
+        {
+          "actual_bytes": "e5 36 ff",
+          "addr": 1879078224,
+          "effect": "call local wait/spin helper",
+          "expected_bytes": "e5 36 ff",
+          "mnemonic": "call8 0x700068c0",
+          "verified": true
+        },
+        {
+          "actual_bytes": "38 32",
+          "addr": 1879078238,
+          "effect": "load field from returned object at a2+0x0c",
+          "expected_bytes": "38 32",
+          "mnemonic": "l32i.n a3, a2, 0x0c",
+          "verified": true
+        },
+        {
+          "actual_bytes": "08 02",
+          "addr": 1879078240,
+          "effect": "load field from returned object at a2+0x00",
+          "expected_bytes": "08 02",
+          "mnemonic": "l32i.n a0, a2, 0x00",
+          "verified": true
+        },
+        {
+          "actual_bytes": "b8 ff",
+          "addr": 1879078259,
+          "effect": "load field from a15+0x3c before callback",
+          "expected_bytes": "b8 ff",
+          "mnemonic": "l32i.n a11, a15, 0x3c",
+          "verified": true
+        },
+        {
+          "actual_bytes": "e0 08 00",
+          "addr": 1879078261,
+          "effect": "call function pointer",
+          "expected_bytes": "e0 08 00",
+          "mnemonic": "callx8 a8",
+          "verified": true
+        },
+        {
+          "actual_bytes": "a9 14",
+          "addr": 1879078270,
+          "effect": "store callback result to a4+0x04",
+          "expected_bytes": "a9 14",
+          "mnemonic": "s32i.n a10, a4, 0x04",
+          "verified": true
+        },
+        {
+          "actual_bytes": "e0 08 00",
+          "addr": 1879078278,
+          "effect": "call function pointer",
+          "expected_bytes": "e0 08 00",
+          "mnemonic": "callx8 a8",
+          "verified": true
+        },
+        {
+          "actual_bytes": "0c 2b",
+          "addr": 1879078281,
+          "effect": "load constant 2",
+          "expected_bytes": "0c 2b",
+          "mnemonic": "movi.n a11, 2",
+          "verified": true
+        },
+        {
+          "actual_bytes": "b0 aa 63",
+          "addr": 1879078283,
+          "effect": "clamp callback result to at most 2",
+          "expected_bytes": "b0 aa 63",
+          "mnemonic": "minu a10, a10, a11",
+          "verified": true
+        },
+        {
+          "actual_bytes": "a9 c1",
+          "addr": 1879078286,
+          "effect": "save clamped callback result on stack",
+          "expected_bytes": "a9 c1",
+          "mnemonic": "s32i.n a10, sp, 0x30",
+          "verified": true
+        },
+        {
+          "actual_bytes": "a9 04",
+          "addr": 1879078288,
+          "effect": "store clamped callback result to a4+0x00",
+          "expected_bytes": "a9 04",
+          "mnemonic": "s32i.n a10, a4, 0x00",
+          "verified": true
+        },
+        {
+          "actual_bytes": "dc 58",
+          "addr": 1879078313,
+          "effect": "branch on callback/state pointer",
+          "expected_bytes": "dc 58",
+          "mnemonic": "bnez.n a8, 0x700075c2",
+          "verified": true
+        },
+        {
+          "actual_bytes": "e0 08 00",
+          "addr": 1879078337,
+          "effect": "call function pointer",
+          "expected_bytes": "e0 08 00",
+          "mnemonic": "callx8 a8",
+          "verified": true
+        }
+      ],
+      "label": "early_dynamic_dispatch_callback_loop",
+      "note": "Second standard-instruction island inside the 0x70007440 owner. It confirms the early dynamic dispatcher has a repeated callback/polling loop after the first return-shaped island, not just one function-pointer call.",
+      "start": 1879078156,
+      "verified": true
+    },
+    {
+      "end": 1879245320,
+      "instructions": [
+        {
+          "actual_bytes": "36 61 00",
+          "addr": 1879245272,
+          "effect": "open a 0x30-byte stack frame",
+          "expected_bytes": "36 61 00",
+          "mnemonic": "entry sp, 0x30",
+          "verified": true
+        },
+        {
+          "actual_bytes": "31 a8 45",
+          "addr": 1879245283,
+          "effect": "load `locateBuffer` string suffix into a3",
+          "expected_bytes": "31 a8 45",
+          "mnemonic": "l32r a3, 0x70001884",
+          "verified": true
+        },
+        {
+          "actual_bytes": "88 b8",
+          "addr": 1879245295,
+          "effect": "load dispatch table/context field from a8+0x2c",
+          "expected_bytes": "88 b8",
+          "mnemonic": "l32i.n a8, a8, 0x2c",
+          "verified": true
+        },
+        {
+          "actual_bytes": "38 d8",
+          "addr": 1879245302,
+          "effect": "load dispatch/context field from a8+0x34",
+          "expected_bytes": "38 d8",
+          "mnemonic": "l32i.n a3, a8, 0x34",
+          "verified": true
+        },
+        {
+          "actual_bytes": "06 04 02",
+          "addr": 1879245304,
+          "effect": "jump into the larger 0x70030240 owner",
+          "expected_bytes": "06 04 02",
+          "mnemonic": "j 0x70030a0c",
+          "verified": true
+        },
+        {
+          "actual_bytes": "e0 08 00",
+          "addr": 1879245313,
+          "effect": "call function pointer",
+          "expected_bytes": "e0 08 00",
+          "mnemonic": "callx8 a8",
+          "verified": true
+        },
+        {
+          "actual_bytes": "2d 0a",
+          "addr": 1879245316,
+          "effect": "move callback return value into a2",
+          "expected_bytes": "2d 0a",
+          "mnemonic": "mov.n a2, a10",
+          "verified": true
+        },
+        {
+          "actual_bytes": "1d f0",
+          "addr": 1879245318,
+          "effect": "return",
+          "expected_bytes": "1d f0",
+          "mnemonic": "retw.n",
+          "verified": true
+        }
+      ],
+      "label": "dispatcher_locateBuffer_trampoline",
+      "note": "Byte-verified standard island at the dispatcher-like locateBuffer candidate. The l32r at 0x700301e3 loads the rodata suffix `locateBuffer` from 0x70001884, then the island reaches a branch toward the 0x70030240/0x70030a0c owner and an indirect call.",
+      "start": 1879245272,
       "verified": true
     }
   ]

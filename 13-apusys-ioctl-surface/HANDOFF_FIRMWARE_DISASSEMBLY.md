@@ -301,11 +301,24 @@ extension-heavy early path. The `0x70006794` `INFO16`/ELF entry starts with
 `entry a1, 0x20`, then copies six dwords from `a12+0x00..0x14` into
 `a10+0x04..0x18`, and copies `a2+0x44`, `a2+0x4c`, and `a2+0x50` into
 `a10+0x28`, `a10+0x1c`, and `a10+0x20`. The `0x70006590` helper loads
-`*(a2+0x30)+0x18` into `a10`, calls `0x70007440`, then returns 0. The
-`0x70007440` standard island reads `ccount`, loads a function pointer from
-`a12+0`, conditionally calls it, and reads `ccount` again near return. Treat
-these as verified preload-context packing and early dynamic-dispatch clues, not
-as complete prototypes, until the custom instruction semantics are resolved.
+`*(a2+0x30)+0x18` into `a10`, calls `0x70007440`, then returns 0.
+
+The `0x70007440` standard islands now show a richer dynamic-dispatch shape:
+the function reads `ccount`, loads a function pointer from `a12+0`,
+conditionally calls it, calls the local wait/spin helper `0x700068c0`, reads
+`ccount` again near a return-shaped sequence, and then continues into a second
+callback/polling island at `0x7000750c..0x700075c4`. That second island has
+multiple `callx8 a8` sites, another `call8 0x700068c0`, and clamps a callback
+result with `minu a10, a10, 2` before storing it through `a4+0`. Treat these as
+verified preload-context packing and early dynamic-dispatch clues, not as
+complete prototypes, until the custom instruction semantics are resolved.
+
+The former `0x700301d8` "locateBuffer-related" guess is now a byte-verified
+standard island. At `0x700301e3`, `l32r a3, 0x70001884` loads the `locateBuffer`
+suffix inside the `xvAllocateBuffer` rodata string; the island then loads fields
+from `a8+0x2c/+0x34`, branches toward the larger `0x70030240` owner
+(`0x70030a0c` landing point), and contains an indirect `callx8 a8` followed by
+`mov.n a2, a10; retw.n`.
 
 IDA Pro MCP state after reloading the same ELF as **ELF for Xtensa** (not raw
 `Binary File`): processor `XTENSA`, 32-bit, sections mapped at the ELF VAs
@@ -320,10 +333,10 @@ IDA count is `663` functions, including:
 |---:|---|---|
 | `0x70006794` | `apunn_elf_entry_INFO16_70006794` | kernel `INFO16` / ELF entry, `.xt.prop` size `0xac` |
 | `0x70006590` | `apunn_early_helper_70006590` | loads `*(a2+0x30)+0x18` into `a10`, calls `0x70007440`, returns 0 |
-| `0x70007440` | `apunn_early_dynamic_dispatch_70007440` | starts `entry a1, 0x60`, reads `ccount`, calls function pointer from `a12+0` when nonzero |
+| `0x70007440` | `apunn_early_dynamic_dispatch_70007440` | starts `entry a1, 0x60`, reads `ccount`, repeatedly calls function pointer from `a12+0`/`a8`, and calls local helper `0x700068c0` |
 | `0x70015e98` | `apunn_flk_pointer_table_owner_70015e98` | owner for the three 12-entry FLK pointer runs |
 | `0x70081d50` | `apunn_ann_pointer_table_owner_70081d50` | owner for the 31-entry ANN pointer run |
-| `0x700301d8` | `apunn_dispatcher_like_locateBuffer_700301d8` | `locateBuffer`-related dispatcher candidate |
+| `0x700301d8` | `apunn_dispatcher_like_locateBuffer_700301d8` | byte-verified `locateBuffer` trampoline; loads rodata suffix `0x70001884`, reaches `0x70030a0c`, then `callx8 a8` |
 
 #### Path 2: Live memory dump (needs kernel read)
 
@@ -485,13 +498,16 @@ Current partial answers from the ELF pass:
   present. However, the critical-string direct-reference scan finds no aligned
   or all-byte `.text` pointer to the iDMA/dmaif/descriptor assertion strings,
   and Ghidra does not yet produce a reliable schedule/wait loop decompilation
-  on the TIE/FLIX-heavy ranges. Runtime remains the strongest evidence: the
-  tested completed shape finishes before the Java-layer `mem_free` round trip
-  can replace the IOVA.
+  on the TIE/FLIX-heavy ranges. The newly verified `0x70007440` callback loop is
+  a timing/dispatcher lead because it uses `ccount`, repeated `callx8 a8`, and
+  `0x700068c0`, but it is not yet tied to the descriptor DMA writeback path.
+  Runtime remains the strongest evidence: the tested completed shape finishes
+  before the Java-layer `mem_free` round trip can replace the IOVA.
 - Q2 has a real firmware-side op vocabulary now. The 63-entry
   `.dram_op.data` ANN table is distinct from the wrapper/runtime
-  `10001..10009` query/status opcodes already tested, so more work is needed to
-  connect host opcodes to ANN kernel dispatch entries.
+  `10001..10009` query/status opcodes already tested. The byte-verified
+  `0x700301d8` `locateBuffer` trampoline narrows one mid-level dispatcher path,
+  but more work is needed to connect host opcodes to ANN kernel dispatch entries.
 - Q3 is bounded at the kernel/provider boundary: `buffer_count` is capped below
   `0x21` before firmware, and runtime shows `0` suppresses descriptor-following
   state writeback while nonzero tested counts enter the descriptor path. A
@@ -575,8 +591,8 @@ slow-opcode shape.
 | Tool | Path | Status |
 |---|---|---|
 | VPU image parser | `13-apusys-ioctl-surface/tools/parse_vpu_image.py` | Parses preload metadata, carves raw segments, and reports embedded ELF offsets; use `--head-offset 0x200 --headers 1` for V260523 `cam_vpu2.img` |
-| APUNN ELF analyzer | `13-apusys-ioctl-surface/tools/analyze_apunn_elf.py` | Emits section map, `.xt.prop` instruction ranges, `.xt.prop`-backed function-entry candidates, key address owners, `.text`→`.rodata` suffix refs, DMA/descriptor critical-string direct-ref status, pointer runs, ANN op name table, interesting strings, JSON, and Markdown |
-| IDA `.xt.prop` applier | `13-apusys-ioctl-surface/tools/ida_apply_apunn_xt_prop.py` | Applies analyzer JSON to an IDA Xtensa ELF IDB: bounded function creation, key names/comments, pointer-run dwords/xrefs, and critical-string annotations |
+| APUNN ELF analyzer | `13-apusys-ioctl-surface/tools/analyze_apunn_elf.py` | Emits section map, `.xt.prop` instruction ranges, `.xt.prop`-backed function-entry candidates, key address owners, byte-verified standard Xtensa islands, `.text`→`.rodata` suffix refs, DMA/descriptor critical-string direct-ref status, pointer runs, ANN op name table, interesting strings, JSON, and Markdown |
+| IDA `.xt.prop` applier | `13-apusys-ioctl-surface/tools/ida_apply_apunn_xt_prop.py` | Applies analyzer JSON to an IDA Xtensa ELF IDB: bounded function creation, key names/comments, pointer-run dwords/xrefs, critical-string annotations, and byte-verified standard-island comments |
 | Ghidra export script | `13-apusys-ioctl-surface/tools/GhidraApunnExport.java` | Headless adjunct for function/string/decompiler snapshots from `/tmp/apunn_core0_full.elf`; decompiler output is advisory only |
 | Allocator gap profiler | `13-apusys-ioctl-surface/poc/ApusysIoctlProbe.java` | Active; 8+ probe modes |
 | Firmware-coupled gap reuse | `--run-cmd-vpu-xrp-mem-free-race-completed-gap-reuse-iova` | Ready to re-run with new shapes |
