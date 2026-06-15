@@ -37,13 +37,18 @@ CVE-2024-20037 **DOWNGRADED** after exhaustive IDA analysis (Tasks 1–6):
 - Remaining candidates (Tasks 7–8: SLD path, set_pqindex→consumer chain)
   are lower probability than mms
 
-**Priority 1 → CVE-2024-20118 mms (GED ring buffer OOB write)**:
-- Entry: `/proc/ged` ioctl 0x6701 (cmd 1), directly accessible from `system_app`
-- Mechanism: fill GPU KPI ring buffer (max_count times) then one more call with
-  `user_input[1] & 0x300 == 0` → bounds check bypassed → OOB write 32 bytes at
-  `ring_buffer_base + 32 * max_count` = adjacent kernel heap
-- IDA: `ged_kpi_record_ring_buffer_VULN_CVE_2024_20118` at `0xffffffc00860dc68`
-- Remaining: confirm max_count, what follows ring buffer in kmalloc, CVE-2024-20119 site
+**⚠️ ATTRIBUTION CORRECTION (2026-06-16 deep research)**:
+CVE-2024-20118/119 are in **`mms`** component (multimedia scheduler), NOT GED.
+GED CVE is **CVE-2024-20016** (integer overflow → DoS only, ALPS07835901).
+Android 11 public source shows GED KPI has proper ring wrap; our IDA finding
+at `ged_kpi_record_POSSIBLE_CVE_2024_20016_DoS` (0x860dc68) is re-attributed.
+
+**Priority 1 → CVE-2024-20118/119 mms write-what-where (corrected)**:
+- Component: `mms` multimedia scheduler kernel driver
+- Path: `system_app` → SurfaceFlinger binder → MMS HIDL service → `/dev/mtk-mdp`
+  (system_app CANNOT directly access mtk_mdp_device; indirect via surfaceflinger)
+- GED `/proc/ged` confirms CVE-2024-20016 access (DoS) but not EoP primitive
+- No ALPS patch ID published ("External report source") — source mapping unclear
 Priority 2 → CVE-2024-20032 aee permission bypass (entry discovery needed).
 Priority 3 → CVE-2024-20037 remaining tasks (SLD, pqindex consumer chain).
 Mali candidates are all confirmed dead; APUSYS plane-redirect is suspended.
