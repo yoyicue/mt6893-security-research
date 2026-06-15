@@ -82,6 +82,7 @@ Current practical ranking:
 | Firmware gap reuse | Same target/lower gap, but target is the live APUNN settings/output IOVA after `run_cmd_async` | Follow-up: 4K `p16/r16 exact=1/208`, `completion_like=0`, exact-hit wait `-EIO`; 4K `p12/r20 exact=0/340`; no IOMMU/devapc/Oops | Allocator half works; firmware write timing not won |
 | Two-command shared IOVA | Submit two commands referencing one imported IOVA, free it, import replacements, then wait both commands | `completed/completed`, `completed/timeout`, and `timeout/completed` all submitted; replacement exact reuse `0/12`; completed command still writes original shared buffer; timeout command returns `-EIO` | Window amplification tested, no primitive signal |
 | Completed latency variants | Change output size/opcode while keeping completed settings5/no-settings shape | `ANN_VERSION` output `0x40/0x100/0x400/0x1000`, `LOCAL_MEM_INFO`, and `GET_DETAILED_OP_INFO` all complete with wait time `1..14 ms` | No slower completed writeback window found |
+| Completion write poll | Busy-poll selected settings/output/data-desc fields after `run_cmd_async` before `wait_cmd` | `ANN_VERSION` output `0x40` and `0x1000` show `changed_fields=0` during a 10 ms post-async poll, then normal completion after wait | No Java-visible pre-wait field sequencing |
 | fd close teardown | Close APUSYS fd after async submit and leave residual command cleanup to `mdw_usr_destroy` | Residual teardown reachable; no crash/oops/KASAN | Lower confidence than explicit `mem_free` |
 | `dev_ctrl` provider path | ioctl `0x400C4109` reaches provider opcode `0` for VPU power/control bookkeeping | In-flight control matrix over `0/1/2/3/0xff` tested: completed shape returns `dev_ctrl=0, wait=0`; timeout shape returns `dev_ctrl=0, wait=-EIO`; no IOMMU/devapc/Oops | Reachable but now a controlled negative for this primitive search |
 | `ucmd` algorithm lookup | HardwareBuffer-backed `ucmd` opcode path reaches `vpu_alg_get` / `vpu_alg_put` for `apu_lib_apunn` | Success path exists; keydump does not mutate the first 64 bytes | Low-cost side-effect/refcount candidate |
@@ -394,6 +395,28 @@ size. The preserved kernel log has no `devapc`, IOMMU fault, panic/Oops, `BUG`,
 Interpretation: these variants do not create a useful wider window from Java.
 They remain good completion oracles, but they do not change the lifetime risk
 ranking.
+
+Follow-up field-order polling is implemented and run as:
+
+```
+poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-completion-poll-iova
+```
+
+Result:
+
+```
+result=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completion_poll_iova.txt
+kernel=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completion_poll_iova_kernel_relevant.txt
+
+ann_output40:   run_async=0 in 1 ms, 10 ms poll, changed_fields=0, wait=0 in 1 ms
+ann_output1000: run_async=0 in 2 ms, 10 ms poll, changed_fields=0, wait=0 in 1 ms
+```
+
+The polled fields are settings flags, `settings+0x30`, representative output
+words, and data-desc word 0. They remain at the pre-async snapshot until
+`wait_cmd`; after wait, the standard completion bytes are visible. This moves
+the current Java-layer lifetime race below allocator work and leaves FLIX/iDMA
+internal store order as a separate firmware instrumentation branch.
 
 ### 4. Two-command shared IOVA
 

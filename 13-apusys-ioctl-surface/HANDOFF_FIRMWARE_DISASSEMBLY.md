@@ -16,10 +16,12 @@ Current evidence chain:
    command's shared IOVA.
 3. Allocator gap-shaping can produce exact IOVA reuse at ~0.3% rate
    (`exact_target=4/640` best case, 64K `p16/r8`).
-4. **Firmware always finishes writing before the Java-layer `mem_free` round-trip
-   completes.** Every firmware-coupled gap-reuse probe shows `wait=0` with
-   settings already at `0x7`, or `wait=-EIO` with the replacement buffer
-   untouched.
+4. **Current Java-layer races do not catch a live completion writeback.** The
+   firmware-coupled gap-reuse probes show `wait=0` with settings already at
+   `0x7`, or `wait=-EIO` with the replacement buffer untouched. The
+   completion-poll probe adds that the shared HardwareBuffer mapping does not
+   show settings/output/data-desc changes during a 10 ms post-`run_async`
+   busy-poll; the completion bytes become visible after `wait_cmd`.
 
 The cross-buffer write primitive requires firmware to still be performing DMA
 when the replacement page is mapped. Without the firmware binary we cannot:
@@ -567,14 +569,15 @@ priority order:
 
 Current partial answers from the ELF pass:
 
-- Q1 is narrowed but not timing-closed. `0x70044b74` is now the top
+- Q1 is closed at the current Java/HardwareBuffer visibility layer and still
+  open only below that layer. `0x70044b74` is now the top
   DMA/iDMA schedule/wait owner: it contains the schedule error, wait error,
   `dmaif.c`, descriptor range, and DRAM data-buffer validation string refs in
   one FLIX-heavy owner. This identifies the firmware schedule/wait layer to
-  instrument, but it does not prove whether the APUNN completion writes are a
-  single burst or a sequenced writeback with a useful inter-store gap. Runtime
-  remains the strongest evidence: the tested completed shape finishes before the
-  Java-layer `mem_free` round trip can replace the IOVA.
+  instrument. Runtime evidence now says the tested completed shapes expose no
+  post-`run_async`, pre-`wait_cmd` field sequencing to Java: a 10 ms busy-poll
+  saw no settings/output/data-desc mutation, and `wait_cmd` returned success
+  before the normal completion bytes were visible in the shared mapping.
 - Q2 has a real firmware-side op vocabulary now. The 63-entry
   `.dram_op.data` ANN table is distinct from the wrapper/runtime
   `10001..10009` query/status opcodes already tested. The byte-verified
@@ -595,10 +598,18 @@ Current partial answers from the ELF pass:
 
 #### Q1: DMA write timing and sequencing
 
-Is the completion write (settings `0x5 → 0x7`, output fill, `settings+0x30`
-clear) a single burst or multiple sequenced stores? If sequenced, what is the
-inter-store gap? A gap > 1 µs between the first and last store would reopen the
-allocator-reuse race window.
+For the current wrapper-shaped `XTENSA_ANN_VERSION` trigger, the Java-visible
+answer is: no useful post-`run_async`, pre-`wait_cmd` completion-store window
+was observed. The new completion-poll probe tested `0x40` and `0x1000` output
+sizes and sampled settings flags, `settings+0x30`, output words, and data-desc
+word 0 for 10 ms after `run_async`; every field stayed at its pre-async value.
+After `wait_cmd`, normal completion was visible (`settings=0x7`, bounded output
+fill, descriptor cleanup).
+
+The lower-level firmware question remains separate: whether the internal DMA
+engine performs one burst or sequenced stores before host wait/cache
+synchronization. That is now a FLIX/iDMA instrumentation question, not a blocker
+for the Java-layer allocator race ranking.
 
 Look for: loops that iterate over descriptor entries, conditional writes gated
 on intermediate results, explicit DSP wait/sleep/barrier instructions between
@@ -684,6 +695,7 @@ slow-opcode shape.
 | Ghidra export script | `13-apusys-ioctl-surface/tools/GhidraApunnExport.java` | Headless adjunct for function/string/decompiler snapshots from `/tmp/apunn_core0_full.elf`; decompiler output is advisory only |
 | Allocator gap profiler | `13-apusys-ioctl-surface/poc/ApusysIoctlProbe.java` | Active; 8+ probe modes |
 | Firmware-coupled gap reuse | `--run-cmd-vpu-xrp-mem-free-race-completed-gap-reuse-iova` | Ready to re-run with new shapes |
+| Completion write poll | `--run-cmd-vpu-xrp-completion-poll-iova` | Runtime negative for Java-visible pre-wait field sequencing |
 | Wrapper static analysis | `13-apusys-ioctl-surface/APUNN_SETTINGS_ABI.md` | Complete for current scope |
 | Kernel primitive handoff | `13-apusys-ioctl-surface/HANDOFF_KERNEL_PRIMITIVE.md` | Active closure artifact |
 | Allocator controllability | `13-apusys-ioctl-surface/ALLOCATOR_CONTROLLABILITY_OPPORTUNITY.md` | Active experiment loop |

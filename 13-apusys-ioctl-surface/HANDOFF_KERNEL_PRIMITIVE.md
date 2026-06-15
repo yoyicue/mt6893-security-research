@@ -818,6 +818,26 @@ All cases preserve normal APUNN completion and bounded output writeback, with a
 clean filtered kernel log. These variants are useful as stable triggers, but
 they do not create a longer user-visible `mem_free` race window.
 
+The completion-poll follow-up is also negative for Java-visible pre-wait
+sequencing:
+
+```
+poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-completion-poll-iova
+
+result=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completion_poll_iova.txt
+kernel=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completion_poll_iova_kernel_relevant.txt
+
+ann_output40:   run_async=0 in 1 ms, poll 10 ms, changed_fields=0, wait=0 in 1 ms
+ann_output1000: run_async=0 in 2 ms, poll 10 ms, changed_fields=0, wait=0 in 1 ms
+```
+
+Both cases snapshot settings/output/data-desc before async submit, then poll the
+same shared HardwareBuffer mapping immediately after `run_cmd_async` returns.
+No selected field changes during the post-async busy-poll. After `wait_cmd`,
+the normal completion bytes become visible. Interpretation: the current
+allocator race should be evaluated against the wait/synchronization boundary,
+not against a Java-observable stream of individual firmware stores.
+
 ### 2. `dev_ctrl` (ioctl `0x400C4109`) during in-flight VPU command
 
 `mdw_usr_dev_ctrl_4109` reaches `core+0x70` → `mdw_rsc_dev_op0_ctrl` →

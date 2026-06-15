@@ -101,6 +101,12 @@ public final class ApusysIoctlProbe {
     private static final int XRP_PLANE_PAYLOAD_SIZE = 0x80;
     private static final int VPU_REQUEST_OFF = 0x60;
     private static final int VPU_REQUEST_SIZE = 0xb70;
+    private static final long XRP_COMPLETION_POLL_BUDGET_NS = 10_000_000L;
+    private static final int XRP_COMPLETION_POLL_MAX_SAMPLES = 200000;
+    private static final String[] XRP_COMPLETION_POLL_FIELDS = new String[] {
+        "settings_flags", "settings_data_desc_ptr",
+        "output0", "output10", "output3c", "data_desc0"
+    };
     private static final byte[] XRP_CMD_MAGIC = new byte[] {
         (byte) 0xde, 0x63, (byte) 0xdb, (byte) 0xbe,
         0x4a, (byte) 0x99, 0x48, (byte) 0x89,
@@ -421,6 +427,7 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpDevCtrlMatrixIova = false;
         boolean runCmdVpuXrpTwoCommandSharedIova = false;
         boolean runCmdVpuXrpCompletedLatencyMatrixIova = false;
+        boolean runCmdVpuXrpCompletionPollIova = false;
         boolean apusysIovaReuseProfiler = false;
         boolean apusysIovaGapProfiler = false;
         boolean apusysIovaGapControlProfiler = false;
@@ -662,6 +669,8 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpTwoCommandSharedIova = true;
             } else if ("--run-cmd-vpu-xrp-completed-latency-matrix-iova".equals(arg)) {
                 runCmdVpuXrpCompletedLatencyMatrixIova = true;
+            } else if ("--run-cmd-vpu-xrp-completion-poll-iova".equals(arg)) {
+                runCmdVpuXrpCompletionPollIova = true;
             } else if ("--apusys-iova-reuse-profiler".equals(arg)) {
                 apusysIovaReuseProfiler = true;
             } else if ("--apusys-iova-gap-profiler".equals(arg)) {
@@ -821,6 +830,7 @@ public final class ApusysIoctlProbe {
                 || runCmdVpuXrpDevCtrlMatrixIova
                 || runCmdVpuXrpTwoCommandSharedIova
                 || runCmdVpuXrpCompletedLatencyMatrixIova
+                || runCmdVpuXrpCompletionPollIova
                 || apusysIovaReuseProfiler
                 || apusysIovaGapProfiler
                 || apusysIovaGapControlProfiler
@@ -1425,6 +1435,10 @@ public final class ApusysIoctlProbe {
 
             if (runCmdVpuXrpCompletedLatencyMatrixIova) {
                 runRunCmdVpuXrpCompletedLatencyMatrixProbe();
+            }
+
+            if (runCmdVpuXrpCompletionPollIova) {
+                runRunCmdVpuXrpCompletionPollProbe();
             }
 
             if (apusysIovaReuseProfiler) {
@@ -2447,6 +2461,56 @@ public final class ApusysIoctlProbe {
                                                             Integer devCtrlAfterAsyncMs,
                                                             Integer devCtrlControlAfterAsync)
             throws Exception {
+        runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, xrpSettings,
+            splitTargets, xrpOp, waitMs, twoVpuBuffers, descriptorMode,
+            cmdFlags, descriptorOrder, settingsLen, outputHeaderFlag,
+            settingsShape, waitAfterAsync, requestFlags,
+            includeSettingsProperty, codeFirstWordOverride,
+            descriptorPayloadSizeOverride, requestPriorityOverride,
+            requestBufferCountOverride, descriptorPortIdOverride,
+            descriptorFormatOverride, descriptorPlaneCountOverride,
+            descriptorHeightOverride, outerCodebufSizeOverride,
+            dataPayloadWordBaseOverride, dataDescEntriesOverride,
+            fullCommandCopybackDiff, closeApusysFdAfterAsyncMs,
+            freeSharedIovaAfterAsyncMs, replacementImportCountAfterFree,
+            devCtrlAfterAsyncMs, devCtrlControlAfterAsync, false);
+    }
+
+    private static void runRunCmdVpuIovaHardwareBufferProbe(int apusysFd,
+                                                            boolean dispatch,
+                                                            boolean xrpSettings,
+                                                            boolean splitTargets,
+                                                            XrpOpSpec xrpOp,
+                                                            int waitMs,
+                                                            boolean twoVpuBuffers,
+                                                            int descriptorMode,
+                                                            int cmdFlags,
+                                                            int descriptorOrder,
+                                                            int settingsLen,
+                                                            int outputHeaderFlag,
+                                                            XrpSettingsShape settingsShape,
+                                                            boolean waitAfterAsync,
+                                                            int requestFlags,
+                                                            boolean includeSettingsProperty,
+                                                            Integer codeFirstWordOverride,
+                                                            Integer descriptorPayloadSizeOverride,
+                                                            Integer requestPriorityOverride,
+                                                            Integer requestBufferCountOverride,
+                                                            Integer descriptorPortIdOverride,
+                                                            Integer descriptorFormatOverride,
+                                                            Integer descriptorPlaneCountOverride,
+                                                            Integer descriptorHeightOverride,
+                                                            Integer outerCodebufSizeOverride,
+                                                            Integer dataPayloadWordBaseOverride,
+                                                            XrpDataDescEntry[] dataDescEntriesOverride,
+                                                            boolean fullCommandCopybackDiff,
+                                                            Integer closeApusysFdAfterAsyncMs,
+                                                            Integer freeSharedIovaAfterAsyncMs,
+                                                            int replacementImportCountAfterFree,
+                                                            Integer devCtrlAfterAsyncMs,
+                                                            Integer devCtrlControlAfterAsync,
+                                                            boolean pollCompletionAfterAsync)
+            throws Exception {
         System.out.println("\n[*] === Optional APUSYS run_cmd VPU IOVA chained probe ===");
         if (xrpSettings) {
             System.out.println("[*] Mode: mem_create imports HardwareBuffer to get IOVA,"
@@ -2513,6 +2577,12 @@ public final class ApusysIoctlProbe {
             if (waitAfterAsync) {
                 System.out.println("[*] Wait mode: call mdw_usr_wait_cmd"
                     + " immediately after successful run_cmd_async.");
+            }
+            if (pollCompletionAfterAsync) {
+                System.out.println("[*] Completion poll mode: snapshot"
+                    + " settings/output/data-desc before run_cmd_async and"
+                    + " busy-poll the same shared buffer immediately after"
+                    + " run_cmd_async returns.");
             }
             if (codeFirstWordOverride != null) {
                 System.out.println("[*] Code/input first word override:"
@@ -2637,6 +2707,8 @@ public final class ApusysIoctlProbe {
         boolean memImported = false;
         boolean apusysFdClosedInProbe = false;
         byte[] commandRequestBefore = null;
+        java.nio.ByteBuffer completionPollBuf = null;
+        CompletionPollSnapshot completionPollBefore = null;
         int replacementImportLimit = replacementImportCountAfterFree;
         if (replacementImportLimit < 0) {
             replacementImportLimit = 0;
@@ -2724,6 +2796,13 @@ public final class ApusysIoctlProbe {
                     putU32LE(originalBuf, XRP_CODE_OFF, codeFirstWordOverride);
                 }
                 dumpXrpWindows("before", originalBuf, xrpOp);
+                if (pollCompletionAfterAsync) {
+                    completionPollBuf = originalBuf;
+                    completionPollBefore = new CompletionPollSnapshot(
+                        originalBuf, xrpOp);
+                    dumpCompletionPollSnapshot("completion_poll_before_async",
+                        completionPollBefore);
+                }
             }
 
             // phase 4: now build a second HardwareBuffer with the VPU+IOVA payload.
@@ -2910,7 +2989,28 @@ public final class ApusysIoctlProbe {
                     + " ret=" + retText(runRet)
                     + " elapsed_ms=" + asyncElapsedMs);
                 dumpU32Words("run_cmd_arg_after_async", runCmd, 0x18);
-                if (freeSharedIovaAfterAsyncMs != null && runRet >= 0) {
+                if (pollCompletionAfterAsync && runRet >= 0) {
+                    if (completionPollBuf != null
+                            && completionPollBefore != null) {
+                        pollXrpCompletionWindow(
+                            xrpOp.label + "_" + settingsShape.label,
+                            completionPollBuf, xrpOp, completionPollBefore);
+                    } else {
+                        System.out.println("[-] completion_poll unavailable:"
+                            + " shared buffer snapshot missing");
+                    }
+                    long waitStartMs = System.currentTimeMillis();
+                    long waitRet = DrmTrigger.rawIoctl(apusysFd,
+                        APUSYS_CMD_WAIT, runCmd);
+                    long waitElapsedMs = System.currentTimeMillis()
+                        - waitStartMs;
+                    System.out.println("[*] wait_after_completion_poll_vpu_iova"
+                        + " cmd=0x" + Long.toHexString(APUSYS_CMD_WAIT)
+                        + " ret=" + retText(waitRet)
+                        + " elapsed_ms=" + waitElapsedMs);
+                    dumpU32Words("run_cmd_arg_after_completion_poll_wait",
+                        runCmd, 0x18);
+                } else if (freeSharedIovaAfterAsyncMs != null && runRet >= 0) {
                     int freeDelayMs = freeSharedIovaAfterAsyncMs.intValue();
                     System.out.println("[*] mem-free-race: sleeping "
                         + freeDelayMs
@@ -4885,6 +4985,46 @@ public final class ApusysIoctlProbe {
                 XRP_CMD_FLAGS_SEND, VPU_DESC_ORDER_CODE_OUTPUT,
                 XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
                 shape, true, VPU_REQUEST_FLAGS_DEFAULT, false);
+        } finally {
+            if (raceFd >= 0) {
+                DrmTrigger.closeFd(raceFd);
+            }
+        }
+    }
+
+    private static void runRunCmdVpuXrpCompletionPollProbe()
+            throws Exception {
+        System.out.println("\n[*] === APUSYS run_cmd VPU completion-poll probe ===");
+        System.out.println("[*] Mode: snapshot the shared XRP buffer before"
+            + " run_cmd_async, then busy-poll selected settings/output/data"
+            + " fields immediately after run_cmd_async returns. This separates"
+            + " pre-return completion from post-return field ordering.");
+
+        runRunCmdVpuXrpCompletionPollCase("ann_output40",
+            XRP_OP_ANN_VERSION, XrpSettingsShape.WRAPPER_ONE_DATA);
+        runRunCmdVpuXrpCompletionPollCase("ann_output1000",
+            XRP_OP_ANN_VERSION, new XrpSettingsShape(
+                "wrapper_one_data_output1000", 0x1000,
+                XRP_DATA_DESC_SIZE, true));
+    }
+
+    private static void runRunCmdVpuXrpCompletionPollCase(
+            String label, XrpOpSpec op, XrpSettingsShape shape)
+            throws Exception {
+        int raceFd = -1;
+        try {
+            raceFd = DrmTrigger.openDev(APUSYS_DEV);
+            System.out.println("\n[*] === completion-poll case " + label
+                + " opcode=" + op.name
+                + " output_size=0x" + Integer.toHexString(shape.outputSize)
+                + " ===");
+            runRunCmdVpuIovaHardwareBufferProbe(raceFd, true, true, true,
+                op, 20, true, VPU_DESC_LIBVPU_SETTINGS5,
+                XRP_CMD_FLAGS_SEND, VPU_DESC_ORDER_CODE_OUTPUT,
+                XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
+                shape, false, VPU_REQUEST_FLAGS_DEFAULT, false,
+                null, null, null, null, null, null, null, null, null, null,
+                null, false, null, null, 0, null, null, true);
         } finally {
             if (raceFd >= 0) {
                 DrmTrigger.closeFd(raceFd);
@@ -7524,6 +7664,117 @@ public final class ApusysIoctlProbe {
             buf, xrpDataPayloadOff(xrpOp), 0x80);
         dumpByteBufferRange("xrp_" + phase + "_plane_payload",
             buf, xrpPlanePayloadOff(xrpOp), 0x80);
+    }
+
+    private static final class CompletionPollSnapshot {
+        final int[] values = new int[XRP_COMPLETION_POLL_FIELDS.length];
+
+        CompletionPollSnapshot(java.nio.ByteBuffer buf, XrpOpSpec xrpOp) {
+            int outputOff = xrpOutputOff(xrpOp);
+            int dataDescOff = xrpDataDescOff(xrpOp);
+            values[0] = getU32LE(buf, XRP_SETTINGS_OFF);
+            values[1] = getU32LE(buf, XRP_SETTINGS_OFF + 0x30);
+            values[2] = getU32LE(buf, outputOff);
+            values[3] = getU32LE(buf, outputOff + 0x10);
+            values[4] = getU32LE(buf, outputOff + 0x3c);
+            values[5] = getU32LE(buf, dataDescOff);
+        }
+    }
+
+    private static void dumpCompletionPollSnapshot(
+            String name, CompletionPollSnapshot snapshot) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("    ").append(name).append(":");
+        for (int i = 0; i < XRP_COMPLETION_POLL_FIELDS.length; i++) {
+            sb.append(' ').append(XRP_COMPLETION_POLL_FIELDS[i])
+              .append("=0x").append(Integer.toHexString(snapshot.values[i]));
+        }
+        System.out.println(sb.toString());
+    }
+
+    private static void pollXrpCompletionWindow(
+            String label, java.nio.ByteBuffer buf, XrpOpSpec xrpOp,
+            CompletionPollSnapshot before) {
+        long[] firstNs = new long[XRP_COMPLETION_POLL_FIELDS.length];
+        int[] firstValues = new int[XRP_COMPLETION_POLL_FIELDS.length];
+        for (int i = 0; i < firstNs.length; i++) {
+            firstNs[i] = Long.MIN_VALUE;
+        }
+
+        long startNs = System.nanoTime();
+        CompletionPollSnapshot current =
+            new CompletionPollSnapshot(buf, xrpOp);
+        int changed = recordCompletionPollChanges(label, before, current,
+            firstNs, firstValues, 0, 0);
+        int samples = 1;
+
+        while (changed < XRP_COMPLETION_POLL_FIELDS.length
+                && samples < XRP_COMPLETION_POLL_MAX_SAMPLES) {
+            long elapsedNs = System.nanoTime() - startNs;
+            if (elapsedNs >= XRP_COMPLETION_POLL_BUDGET_NS) {
+                break;
+            }
+            current = new CompletionPollSnapshot(buf, xrpOp);
+            changed += recordCompletionPollChanges(label, before, current,
+                firstNs, firstValues, elapsedNs, samples);
+            samples++;
+        }
+
+        long elapsedNs = System.nanoTime() - startNs;
+        CompletionPollSnapshot after = new CompletionPollSnapshot(buf, xrpOp);
+        dumpCompletionPollSnapshot("completion_poll_after", after);
+
+        int firstSampleChanged = 0;
+        for (int i = 0; i < firstNs.length; i++) {
+            if (firstNs[i] == 0) {
+                firstSampleChanged++;
+            }
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("[+] completion_poll_summary label=").append(label)
+          .append(" samples=").append(samples)
+          .append(" elapsed_ns=").append(elapsedNs)
+          .append(" changed_fields=").append(changed)
+          .append(" first_sample_changed=").append(firstSampleChanged);
+        for (int i = 0; i < XRP_COMPLETION_POLL_FIELDS.length; i++) {
+            sb.append(' ').append(XRP_COMPLETION_POLL_FIELDS[i])
+              .append("_ns=").append(completionPollNsText(firstNs[i]))
+              .append(" final=0x")
+              .append(Integer.toHexString(after.values[i]));
+        }
+        System.out.println(sb.toString());
+    }
+
+    private static int recordCompletionPollChanges(
+            String label, CompletionPollSnapshot before,
+            CompletionPollSnapshot current, long[] firstNs, int[] firstValues,
+            long elapsedNs, int sampleIndex) {
+        int changed = 0;
+        for (int i = 0; i < XRP_COMPLETION_POLL_FIELDS.length; i++) {
+            if (firstNs[i] != Long.MIN_VALUE) {
+                continue;
+            }
+            if (current.values[i] == before.values[i]) {
+                continue;
+            }
+            firstNs[i] = elapsedNs;
+            firstValues[i] = current.values[i];
+            changed++;
+            System.out.println("[*] completion_poll_change label=" + label
+                + " field=" + XRP_COMPLETION_POLL_FIELDS[i]
+                + " sample=" + sampleIndex
+                + " delta_ns=" + elapsedNs
+                + " old=0x" + Integer.toHexString(before.values[i])
+                + " new=0x" + Integer.toHexString(firstValues[i]));
+        }
+        return changed;
+    }
+
+    private static String completionPollNsText(long value) {
+        if (value == Long.MIN_VALUE) {
+            return "not_seen";
+        }
+        return Long.toString(value);
     }
 
     private static void dumpVpuCommandWindows(String phase,
