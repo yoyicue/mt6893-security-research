@@ -1186,6 +1186,17 @@ These records map static output-shape validation owners from rodata32 and L32R-b
 | `0x70000bf4` | `0x70081fd3` | `.text` | `0x70081d50` | `insn|no_reorder` |  |
 | `0x70000bf8` | `0x70081f5e` | `.text` | `0x70081d50` | `insn|no_reorder` |  |
 
+## Pointer Run Reachability
+
+- raw-u32 refs are scanned byte-wise outside the table itself; L32R refs cover literal-slot and literal-value hits.
+
+| run | count | target owners | raw slot/total | L32R slot/total | table-base refs | sample refs | Q2 status |
+|---:|---:|---|---:|---:|---:|---|---|
+| `0x70000180`..`0x700001b0` | 12 | `0x70015e98`:12 `0x70017d40`..`0x70017dba` | 8/28 | 4/5 | 0 | raw `0x7021adf9`->`0x700001ac` owner=`0x702161d0` slot=True align=1<br>raw `0x7021ae19`->`0x700001ac` owner=`0x702161d0` slot=True align=1<br>raw `0x7021cc4e`->`0x700001ac` owner=`0x702161d0` slot=True align=2<br>raw `0x7021cc6e`->`0x700001ac` owner=`0x702161d0` slot=True align=2<br>l32r `0x7000aaf2` literal=`0x70000188` value=`0x70017daf` owner=`0x70009eec`<br>l32r `0x70020312` literal=`0x70000194` value=`0x70017d8e` owner=`0x7001dffc` | pointer_run_has_direct_slot_refs; validate source owners and local instructions before assigning index semantics. |
+| `0x700001c0`..`0x700001f0` | 12 | `0x70015e98`:12 `0x70017dc4`..`0x70017e3e` | 0/0 | 3/3 | 0 | l32r `0x7001eb47` literal=`0x700001e8` value=`0x70017ddb` owner=`0x7001dffc`<br>l32r `0x70033db9` literal=`0x700001c0` value=`0x70017dc5` owner=`0x700304f8` | pointer_run_has_direct_slot_refs; validate source owners and local instructions before assigning index semantics. |
+| `0x70000200`..`0x70000230` | 12 | `0x70015e98`:12 `0x700169a4`..`0x70017d36` | 10/10 | 4/4 | 0 | raw `0x701393dc`->`0x7000022c` owner=`0x70137c80` slot=True align=0<br>raw `0x7013940c`->`0x7000022c` owner=`0x70137c80` slot=True align=0<br>raw `0x7013943c`->`0x7000022c` owner=`0x70137c80` slot=True align=0<br>raw `0x701394ac`->`0x7000022c` owner=`0x70137c80` slot=True align=0<br>l32r `0x700100bf` literal=`0x70000220` value=`0x70017cf4` owner=`0x7000dcc4`<br>l32r `0x7002eb78` literal=`0x70000218` value=`0x70017d0a` owner=`0x7002ea90` | pointer_run_has_direct_slot_refs; validate source owners and local instructions before assigning index semantics. |
+| `0x70000b80`..`0x70000bfc` | 31 | `0x70081d50`:31 `0x70081ec4`..`0x70082aac` | 0/10 | 6/8 | 0 | raw `0x70012baf`->`0x70000b9e` owner=`0x70011ab8` slot=False align=3<br>raw `0x7008f787`->`0x70000b9e` owner=`0x7008f490` slot=False align=3<br>raw `0x700c1993`->`0x70000b8e` owner=`0x700c13b0` slot=False align=3<br>raw `0x70131e20`->`0x70000b9e` owner=`0x70131c80` slot=False align=0<br>l32r `0x7001c954` literal=`0x70000b90` value=`0x70082974` owner=`0x7001c59c`<br>l32r `0x7002a4b0` literal=`0x70000bf8` value=`0x70081f5e` owner=`0x70029b7c` | ann_code_pointer_run_has_direct_slot_refs_no_indexed_base; L32R refs load individual 0x70000b80 slots, but no table-base value ref proving indexed opcode dispatch was found. |
+
 ## ANN Op Name Table Reachability
 
 - table: `0x7ff3b000`..`0x7ff3b218`

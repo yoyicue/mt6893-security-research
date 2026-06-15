@@ -236,6 +236,66 @@ def apply_pointer_runs(payload: dict[str, object]) -> tuple[int, int]:
     return data_items, refs
 
 
+def apply_pointer_run_investigations(payload: dict[str, object]) -> int:
+    comments = 0
+    for item in payload.get("pointer_run_investigations", []):
+        start = int(item["start"])
+        if append_comment(
+            start,
+            "APUNN pointer-run reachability; range=%s..%s count=%s raw_slot_refs=%s/%s "
+            "l32r_slot_refs=%s/%s table_base_refs=%s q2_status=%s"
+            % (
+                fmt_hex(item.get("start")),
+                fmt_hex(item.get("end")),
+                item.get("count"),
+                item.get("raw_slot_ref_count", 0),
+                len(item.get("raw_ref_hits", [])),
+                item.get("l32r_slot_ref_count", 0),
+                len(item.get("l32r_ref_hits", [])),
+                item.get("table_base_value_ref_count", 0),
+                item.get("q2_status"),
+            ),
+        ):
+            comments += 1
+        for hit in item.get("raw_ref_hits", [])[:8]:
+            ref = int(hit["ref_addr"])
+            value = int(hit["value"])
+            if not has_segment(ref):
+                continue
+            if has_segment(value):
+                ida_xref.add_dref(ref, value, ida_xref.dr_O)
+            if append_comment(
+                ref,
+                "APUNN raw-u32 ref to pointer-run slot %s; run=%s owner=%s align=%s"
+                % (
+                    fmt_hex(value),
+                    fmt_hex(item.get("start")),
+                    fmt_hex(hit.get("owner_entry")),
+                    "%s slot=%s" % (hit.get("alignment"), hit.get("slot_aligned")),
+                ),
+            ):
+                comments += 1
+        for hit in item.get("l32r_ref_hits", [])[:8]:
+            ref = int(hit["ref_addr"])
+            literal_value = hit.get("literal_value")
+            if not has_segment(ref):
+                continue
+            if literal_value is not None and has_segment(int(literal_value) & ~1):
+                ida_xref.add_dref(ref, int(literal_value) & ~1, ida_xref.dr_O)
+            if append_comment(
+                ref,
+                "APUNN L32R ref to pointer-run range %s; literal=%s value=%s owner=%s"
+                % (
+                    fmt_hex(item.get("start")),
+                    fmt_hex(hit.get("literal_addr")),
+                    fmt_hex(literal_value),
+                    fmt_hex(hit.get("owner_entry")),
+                ),
+            ):
+                comments += 1
+    return comments
+
+
 def apply_strings(payload: dict[str, object]) -> int:
     count = 0
     for entry in payload.get("interesting_strings", []):
@@ -657,6 +717,7 @@ def main() -> None:
     fn_created, fn_bounded, fn_named, inside_existing = apply_function_candidates(payload)
     key_named = apply_key_addresses(payload)
     data_items, data_refs = apply_pointer_runs(payload)
+    pointer_run_comments = apply_pointer_run_investigations(payload)
     strings = apply_strings(payload)
     island_comments = apply_standard_islands(payload)
     l32r_comments, l32r_refs = apply_l32r_refs(payload)
@@ -674,7 +735,7 @@ def main() -> None:
         "key_names=%d pointer_dwords=%d pointer_refs=%d strings=%d island_comments=%d "
         "l32r_comments=%d l32r_refs=%d loop_comments=%d focused_loop_comments=%d "
         "flix_sweep_comments=%d cluster_comments=%d dma_owner_comments=%d "
-        "output_validation_comments=%d ann_op_table_comments=%d"
+        "output_validation_comments=%d pointer_run_comments=%d ann_op_table_comments=%d"
         % (
             fn_created,
             fn_bounded,
@@ -693,6 +754,7 @@ def main() -> None:
             cluster_comments,
             dma_owner_comments,
             output_validation_comments,
+            pointer_run_comments,
             ann_op_table_comments,
         )
     )

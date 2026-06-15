@@ -118,6 +118,23 @@ class PointerRun:
 
 
 @dataclass
+class PointerRunInvestigation:
+    start: int
+    end: int
+    count: int
+    target_owner_counts: list[dict[str, object]]
+    raw_slot_ref_count: int
+    raw_unaligned_ref_count: int
+    l32r_slot_ref_count: int
+    table_base_value_ref_count: int
+    raw_ref_hits: list[dict[str, object]]
+    l32r_ref_hits: list[dict[str, object]]
+    assessment: str
+    q2_status: str
+    next_action: str
+
+
+@dataclass
 class FunctionCandidate:
     addr: int
     prop_size: int
@@ -2521,27 +2538,233 @@ def raw_u32_refs_to_range(
     start: int,
     end: int,
     source_names: set[str] | None = None,
+    function_candidates: list[FunctionCandidate] | None = None,
+    ignore_ref_ranges: list[tuple[int, int]] | None = None,
     sample_limit: int = 32,
+    scan_step: int = 4,
 ) -> list[dict[str, object]]:
     hits: list[dict[str, object]] = []
+    if scan_step <= 0:
+        raise ValueError("scan_step must be positive")
     for section in sections:
         if source_names is not None and section.name not in source_names:
             continue
         blob = section_bytes(data, section)
-        for off in range(0, max(0, len(blob) - 3), 4):
+        for off in range(0, max(0, len(blob) - 3), scan_step):
+            ref_addr = section.addr + off
+            if ignore_ref_ranges and any(lo <= ref_addr < hi for lo, hi in ignore_ref_ranges):
+                continue
             value = struct.unpack_from("<I", blob, off)[0]
             if start <= value < end:
-                hits.append(
-                    {
-                        "ref_addr": section.addr + off,
-                        "source_section": section.name,
-                        "value": value,
-                        "delta": value - start,
-                    }
-                )
+                hit: dict[str, object] = {
+                    "ref_addr": ref_addr,
+                    "source_section": section.name,
+                    "value": value,
+                    "delta": value - start,
+                    "slot_aligned": ((value - start) % 4) == 0,
+                    "alignment": ref_addr & 3,
+                }
+                if function_candidates is not None:
+                    owner_entry, owner_delta = owner_for_addr(function_candidates, ref_addr)
+                    hit["owner_entry"] = owner_entry
+                    hit["owner_delta"] = owner_delta
+                hits.append(hit)
                 if len(hits) >= sample_limit:
                     return hits
     return hits
+
+
+def l32r_refs_to_range(
+    refs: list[L32RReference],
+    start: int,
+    end: int,
+    sample_limit: int = 32,
+) -> list[dict[str, object]]:
+    hits: list[dict[str, object]] = []
+    for ref in refs:
+        literal_hit = start <= ref.literal_addr < end
+        value_hit = ref.literal_value is not None and start <= (ref.literal_value & ~1) < end
+        if not literal_hit and not value_hit:
+            continue
+        literal_delta = ref.literal_addr - start if literal_hit else None
+        value_delta = (ref.literal_value & ~1) - start if value_hit else None
+        hits.append(
+            {
+                "ref_addr": ref.addr,
+                "owner_entry": ref.owner_entry,
+                "owner_delta": ref.owner_delta,
+                "target_reg": ref.target_reg,
+                "literal_addr": ref.literal_addr,
+                "literal_value": ref.literal_value,
+                "literal_hit": literal_hit,
+                "value_hit": value_hit,
+                "literal_delta": literal_delta,
+                "value_delta": value_delta,
+                "literal_slot_aligned": literal_delta is not None and literal_delta % 4 == 0,
+                "value_slot_aligned": value_delta is not None and value_delta % 4 == 0,
+                "prop_addr": ref.prop_addr,
+                "prop_size": ref.prop_size,
+                "prop_flags": ref.prop_flags,
+            }
+        )
+        if len(hits) >= sample_limit:
+            return hits
+    return hits
+
+
+def pointer_run_owner_counts(run: PointerRun) -> list[dict[str, object]]:
+    by_owner: dict[int | None, list[PointerEntry]] = {}
+    for entry in run.entries:
+        by_owner.setdefault(entry.owner_entry, []).append(entry)
+    out: list[dict[str, object]] = []
+    for owner, entries in sorted(
+        by_owner.items(),
+        key=lambda item: (item[0] is None, 0 if item[0] is None else item[0]),
+    ):
+        out.append(
+            {
+                "owner_entry": owner,
+                "count": len(entries),
+                "min_target": min(entry.value & ~1 for entry in entries),
+                "max_target": max(entry.value & ~1 for entry in entries),
+                "first_slot": min(entry.addr for entry in entries),
+                "last_slot": max(entry.addr for entry in entries),
+            }
+        )
+    return out
+
+
+def build_pointer_run_investigations(
+    data: bytes,
+    sections: list[Section],
+    pointer_runs: list[PointerRun],
+    function_candidates: list[FunctionCandidate],
+    l32r_refs: list[L32RReference],
+) -> list[PointerRunInvestigation]:
+    investigations: list[PointerRunInvestigation] = []
+    source_names = {".text", ".rodata", ".data", ".dram0.data"}
+    for run in pointer_runs:
+        run_start = run.start
+        run_end = run.end + 4
+        raw_hits = raw_u32_refs_to_range(
+            data=data,
+            sections=sections,
+            start=run_start,
+            end=run_end,
+            source_names=source_names,
+            function_candidates=function_candidates,
+            ignore_ref_ranges=[(run_start, run_end)],
+            sample_limit=64,
+            scan_step=1,
+        )
+        l32r_hits = l32r_refs_to_range(l32r_refs, run_start, run_end, sample_limit=64)
+        raw_hits.sort(
+            key=lambda hit: (
+                not bool(hit.get("slot_aligned")),
+                int(hit["ref_addr"]),
+                int(hit["value"]),
+            )
+        )
+        l32r_hits.sort(
+            key=lambda hit: (
+                not (bool(hit.get("literal_slot_aligned")) or bool(hit.get("value_slot_aligned"))),
+                int(hit["ref_addr"]),
+            )
+        )
+        owner_counts = pointer_run_owner_counts(run)
+        only_owner = owner_counts[0]["owner_entry"] if len(owner_counts) == 1 else None
+        raw_slot_hits = [hit for hit in raw_hits if bool(hit.get("slot_aligned"))]
+        l32r_slot_hits = [
+            hit
+            for hit in l32r_hits
+            if bool(hit.get("literal_slot_aligned")) or bool(hit.get("value_slot_aligned"))
+        ]
+        table_base_value_hits = [
+            hit for hit in raw_hits if int(hit["value"]) == run_start
+        ] + [
+            hit
+            for hit in l32r_hits
+            if hit.get("literal_value") is not None and (int(hit["literal_value"]) & ~1) == run_start
+        ]
+        if run.start == 0x70000B80 and run.count == 31 and l32r_slot_hits and not table_base_value_hits:
+            q2_status = (
+                "ann_code_pointer_run_has_direct_slot_refs_no_indexed_base; L32R "
+                "refs load individual 0x70000b80 slots, but no table-base value "
+                "ref proving indexed opcode dispatch was found."
+            )
+            assessment = (
+                "The 31-entry ANN pointer run targets the 0x70081d50 owner cluster. "
+                "Current refs show direct L32R loads from selected slots, which "
+                "makes those code pointers reachable, but not an opcode-indexed "
+                "dispatch table base."
+            )
+            next_action = (
+                "Use the referenced slots as concrete ANN owner leads. For the "
+                "wrapper opcode map, keep prioritizing 0x700301d8/0x70030a0c "
+                "parser evidence or runtime tracing that observes a live table "
+                "base/index."
+            )
+        elif raw_slot_hits or l32r_slot_hits:
+            q2_status = (
+                "pointer_run_has_direct_slot_refs; validate source owners and "
+                "local instructions before assigning index semantics."
+            )
+            assessment = (
+                "This pointer run has static refs to one or more 4-byte-aligned "
+                "slot addresses. That makes it a concrete code-table reachability "
+                "lead, while direct slot loads still differ from table-base indexed "
+                "dispatch."
+            )
+            next_action = (
+                "Inspect the ref owners and nearby loads/comparisons to determine "
+                "whether the values are table bases, terminal slots, or bounds."
+            )
+        elif raw_hits or l32r_hits:
+            q2_status = (
+                "pointer_run_has_only_unaligned_raw_refs; treat as weak until local "
+                "instruction validation confirms a real table reference."
+            )
+            assessment = (
+                "The broad byte-wise scan found in-range values, but none land on "
+                "4-byte-aligned table slots. These are weaker than direct slot refs."
+            )
+            next_action = (
+                "Deprioritize unless a decoder or disassembly check shows the "
+                "unaligned values are intentional literal data."
+            )
+        else:
+            q2_status = (
+                "pointer_run_without_static_refs; structural code-pointer cluster "
+                "only in this static scan."
+            )
+            assessment = (
+                "This pointer run targets code, but the current static scan found "
+                "no raw-u32 or L32R ref to its table range."
+            )
+            next_action = (
+                "Keep it as low-priority structure unless a runtime trace or "
+                "additional decoder pass observes a table-base load."
+            )
+        if only_owner is not None and "0x" not in assessment:
+            assessment += f" All entries resolve to owner {hx(int(only_owner))}."
+        investigations.append(
+            PointerRunInvestigation(
+                start=run.start,
+                end=run_end,
+                count=run.count,
+                target_owner_counts=owner_counts,
+                raw_slot_ref_count=len(raw_slot_hits),
+                raw_unaligned_ref_count=len(raw_hits) - len(raw_slot_hits),
+                l32r_slot_ref_count=len(l32r_slot_hits),
+                table_base_value_ref_count=len(table_base_value_hits),
+                raw_ref_hits=raw_hits,
+                l32r_ref_hits=l32r_hits,
+                assessment=assessment,
+                q2_status=q2_status,
+                next_action=next_action,
+            )
+        )
+    return investigations
 
 
 def build_ann_op_table_investigation(
@@ -3288,6 +3511,62 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
                 f"{display_text(str(entry.get('target_string') or ''))} |"
             )
         lines.append("")
+    pointer_run_investigations = payload.get("pointer_run_investigations")
+    if isinstance(pointer_run_investigations, list):
+        lines.append("## Pointer Run Reachability")
+        lines.append("")
+        lines.append(
+            "- raw-u32 refs are scanned byte-wise outside the table itself; L32R refs "
+            "cover literal-slot and literal-value hits."
+        )
+        lines.append("")
+        lines.append(
+            "| run | count | target owners | raw slot/total | L32R slot/total | "
+            "table-base refs | sample refs | Q2 status |"
+        )
+        lines.append("|---:|---:|---|---:|---:|---:|---|---|")
+        for item in pointer_run_investigations:
+            assert isinstance(item, dict)
+            owner_counts = item["target_owner_counts"]
+            assert isinstance(owner_counts, list)
+            owner_text: list[str] = []
+            for owner in owner_counts:
+                assert isinstance(owner, dict)
+                owner_text.append(
+                    f"`{hx(owner.get('owner_entry'))}`:{owner['count']} "
+                    f"`{hx(owner['min_target'])}`..`{hx(owner['max_target'])}`"
+                )
+            samples: list[str] = []
+            raw_hits = item["raw_ref_hits"]
+            assert isinstance(raw_hits, list)
+            for hit in raw_hits[:4]:
+                assert isinstance(hit, dict)
+                samples.append(
+                    "raw "
+                    f"`{hx(hit['ref_addr'])}`->`{hx(hit['value'])}` "
+                    f"owner=`{hx(hit.get('owner_entry'))}` "
+                    f"slot={hit.get('slot_aligned')} align={hit.get('alignment')}"
+                )
+            l32r_hits = item["l32r_ref_hits"]
+            assert isinstance(l32r_hits, list)
+            for hit in l32r_hits[:2]:
+                assert isinstance(hit, dict)
+                samples.append(
+                    "l32r "
+                    f"`{hx(hit['ref_addr'])}` literal=`{hx(hit.get('literal_addr'))}` "
+                    f"value=`{hx(hit.get('literal_value'))}` "
+                    f"owner=`{hx(hit.get('owner_entry'))}`"
+                )
+            lines.append(
+                f"| `{hx(item['start'])}`..`{hx(item['end'])}` | {item['count']} | "
+                f"{'<br>'.join(owner_text)} | "
+                f"{item.get('raw_slot_ref_count', 0)}/{len(raw_hits)} | "
+                f"{item.get('l32r_slot_ref_count', 0)}/{len(l32r_hits)} | "
+                f"{item.get('table_base_value_ref_count', 0)} | "
+                f"{'<br>'.join(samples) if samples else 'none'} | "
+                f"{display_text(str(item['q2_status']))} |"
+            )
+        lines.append("")
     ann_table = payload.get("ann_op_table_investigation")
     if isinstance(ann_table, dict):
         lines.append("## ANN Op Name Table Reachability")
@@ -3387,6 +3666,9 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
     l32r_ref_count, interesting_l32r_refs, l32r_refs_for_scans = find_l32r_references(
         data, sections, strings, props, function_candidates, xtensa_info
     )
+    pointer_run_investigations = build_pointer_run_investigations(
+        data, sections, pointer_runs, function_candidates, l32r_refs_for_scans
+    )
     critical_l32r_refs = find_critical_l32r_refs(strings, l32r_refs_for_scans)
     critical_owner_clusters = build_critical_owner_clusters(critical_l32r_refs)
     dma_owner_investigations = build_dma_owner_investigations(
@@ -3442,6 +3724,7 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
         "interesting_l32r_refs": to_jsonable(interesting_l32r_refs),
         "critical_l32r_refs": to_jsonable(critical_l32r_refs),
         "critical_l32r_owner_clusters": to_jsonable(critical_owner_clusters),
+        "pointer_run_investigations": to_jsonable(pointer_run_investigations),
         "dma_owner_investigations": to_jsonable(dma_owner_investigations),
         "output_validation_investigations": to_jsonable(output_validation_investigations),
         "ann_op_table_investigation": to_jsonable(ann_op_table_investigation),
@@ -3636,6 +3919,21 @@ def print_summary(payload: dict[str, object]) -> None:
     for run in payload["pointer_runs"]:
         assert isinstance(run, dict)
         print(f"  run {hx(run['start'])}-{hx(run['end'])} count={run['count']}")
+    pointer_reachability = payload.get("pointer_run_investigations")
+    if isinstance(pointer_reachability, list):
+        print(f"pointer_run_investigations={len(pointer_reachability)}")
+        for item in pointer_reachability:
+            assert isinstance(item, dict)
+            print(
+                "  pointer_run_reachability "
+                f"{hx(item['start'])}..{hx(item['end'])} "
+                f"raw_slot_refs={item.get('raw_slot_ref_count', 0)}/"
+                f"{len(item['raw_ref_hits'])} "
+                f"l32r_slot_refs={item.get('l32r_slot_ref_count', 0)}/"
+                f"{len(item['l32r_ref_hits'])} "
+                f"table_base_refs={item.get('table_base_value_ref_count', 0)} "
+                f"status={item['q2_status']}"
+            )
     ann_investigation = payload.get("ann_op_table_investigation")
     if isinstance(ann_investigation, dict):
         print(

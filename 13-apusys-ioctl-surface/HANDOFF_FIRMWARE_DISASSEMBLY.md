@@ -253,8 +253,11 @@ Recovered pointer/name tables:
 - All three 12-entry FLK pointer runs resolve to owner `0x70015e98`.
 - The 31-entry ANN pointer run at `0x70000b80` resolves entirely to owner
   `0x70081d50`; a standard-instruction island in that owner contains `jx a9`,
-  consistent with branch-table dispatch. This is structural dispatch evidence,
-  not a proven mapping from table index to the 63 ANN op-name entries.
+  consistent with branch-table-shaped control flow. The refreshed reachability
+  scan finds direct L32R loads from selected `0x70000b80` slots, so those code
+  pointers are reachable, but it does not find a table-base value reference that
+  proves opcode-indexed dispatch. This is slot-level code-pointer evidence, not a
+  proven mapping from table index to the 63 ANN op-name entries.
 - `.dram_op.data` holds a 63-entry ANN op name table:
   `CONV2D`, `DWCONV2D`, `POOL2D`, `LOGISTIC`, `RELU`, `SOFTMAX`, `RESHAPE`,
   `CONCAT`, `ELEWISE`, `L2NORM`, `RESZBILINR`, `TRANSPOSE`, `DECONV2D`, `PAD`,
@@ -592,6 +595,9 @@ Current partial answers from the ELF pass:
   `.dram_op.data` ANN op-name table is not static dispatch proof. It is a table
   of `.rodata` strings followed by zero tail bytes; the analyzer finds no
   reproducible raw-u32 or L32R refs from code/data to `.dram_op.data`. The
+  31-entry ANN code-pointer run at `0x70000b80` is stronger code evidence: it
+  resolves to owner `0x70081d50` and has direct L32R slot refs, but still no
+  table-base value ref proving indexed opcode dispatch. The
   byte-verified `0x700301d8` `locateBuffer` trampoline and `0x70030a0c`
   operand-record decode island remain the stronger path for connecting
   wrapper/runtime `10001..10009` opcodes to firmware behavior.
@@ -642,8 +648,12 @@ The wrapper generates opcodes `10001..10009` in the Xtensa code section. The
 firmware presumably has a switch or table dispatch, but `.dram_op.data` is not
 that proof: it currently resolves as a 63-entry ANN op-name vocabulary table,
 with no raw-u32 or L32R code reference to the table. Keep Q2 centered on the
-byte-verified command parser path (`0x700301d8`/`0x70030a0c`) and nearby
-pointer/code tables. Open runtime questions:
+byte-verified command parser path (`0x700301d8`/`0x70030a0c`) and the nearby
+pointer/code tables. Current pointer-run reachability separates two cases:
+the three 12-entry FLK runs have direct slot refs into owner `0x70015e98`, and
+the 31-entry ANN run at `0x70000b80` has direct L32R slot refs into owner
+`0x70081d50`; neither currently has a table-base value ref that proves an
+opcode-indexed dispatch mapping. Open runtime questions:
 - which `10001..10009` opcodes produce the most DMA traffic?
 - are there opcodes that write to multiple descriptor-backed buffers in
   sequence?
@@ -733,9 +743,9 @@ slow-opcode shape.
 | Tool | Path | Status |
 |---|---|---|
 | VPU image parser | `13-apusys-ioctl-surface/tools/parse_vpu_image.py` | Parses preload metadata, carves raw segments, and reports embedded ELF offsets; use `--head-offset 0x200 --headers 1` for V260523 `cam_vpu2.img` |
-| APUNN ELF analyzer | `13-apusys-ioctl-surface/tools/analyze_apunn_elf.py` | Emits section map, `.xtensa.info`, `.xt.prop` property runs, `.xt.prop`-backed function-entry candidates, key address owners, byte-verified standard Xtensa islands, FLIX-correct boundary sweeps, `.text`→`.rodata` suffix refs, PC-relative `L32R` literal refs, focused loop investigations, L32R string-owner clusters, output-validation owner investigations, DMA/descriptor critical-string status, pointer runs, ANN op name table, interesting strings, JSON, and Markdown |
+| APUNN ELF analyzer | `13-apusys-ioctl-surface/tools/analyze_apunn_elf.py` | Emits section map, `.xtensa.info`, `.xt.prop` property runs, `.xt.prop`-backed function-entry candidates, key address owners, byte-verified standard Xtensa islands, FLIX-correct boundary sweeps, `.text`→`.rodata` suffix refs, PC-relative `L32R` literal refs, focused loop investigations, L32R string-owner clusters, output-validation owner investigations, DMA/descriptor critical-string status, pointer runs plus reachability, ANN op name table, interesting strings, JSON, and Markdown |
 | Byte-aligned hardware-loop scanner | `13-apusys-ioctl-surface/tools/apunn_loop_scan.py` | Regression/negative-control scanner for `LOOP/LOOPNEZ/LOOPGTZ`; confirms no byte-aligned LOOP to `0x7003c102` and the downgraded `0x7003d3ea -> 0x7003d423` positive control |
-| IDA `.xt.prop` applier | `13-apusys-ioctl-surface/tools/ida_apply_apunn_xt_prop.py` | Applies analyzer JSON to an IDA Xtensa ELF IDB: bounded function creation, key names/comments, pointer-run dwords/xrefs, critical-string annotations, selected `L32R` refs, loop-target candidates, focused loop notes, FLIX-correct sweep comments, L32R string-owner clusters, output-validation comments, and byte-verified standard-island comments |
+| IDA `.xt.prop` applier | `13-apusys-ioctl-surface/tools/ida_apply_apunn_xt_prop.py` | Applies analyzer JSON to an IDA Xtensa ELF IDB: bounded function creation, key names/comments, pointer-run dwords/xrefs plus reachability comments, critical-string annotations, selected `L32R` refs, loop-target candidates, focused loop notes, FLIX-correct sweep comments, L32R string-owner clusters, output-validation comments, and byte-verified standard-island comments |
 | Ghidra export script | `13-apusys-ioctl-surface/tools/GhidraApunnExport.java` | Headless adjunct for function/string/decompiler snapshots from `/tmp/apunn_core0_full.elf`; decompiler output is advisory only |
 | Allocator gap profiler | `13-apusys-ioctl-surface/poc/ApusysIoctlProbe.java` | Active; 8+ probe modes |
 | Firmware-coupled gap reuse | `--run-cmd-vpu-xrp-mem-free-race-completed-gap-reuse-iova` | Ready to re-run with new shapes |
