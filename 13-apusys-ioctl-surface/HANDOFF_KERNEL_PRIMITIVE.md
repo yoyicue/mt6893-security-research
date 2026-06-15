@@ -69,7 +69,7 @@ step.
 | Completed output/writeback leak | De-prioritize for synthetic payloads | Output is bounded by `settings+0x08`; tested data payload patterns and data/plane target windows do not flow into output; descriptor-slot deltas behave like provider status words |
 | Timeout/abort lifetime | Remaining kernel-side candidate, currently low confidence | fd close after async dispatch reliably reaches residual command teardown, including the timeout shape, but the first completed and timeout windows show no oops/KASAN/panic and no stale object copyback |
 | Service-wrapper path | Supportive, not a blocker for kernel primitive triage | Direct ioctl already reproduces the wrapper-shaped completed request. A positive wrapper dump is useful for real NN binding semantics, but not required to classify completed-path copyback or the first teardown race |
-| Concurrent submissions | Next cheap kernel experiment if more time is spent | Two in-flight commands sharing one imported IOVA can test scheduler/memory lifetime without adding more firmware parser uncertainty |
+| Concurrent submissions | First pass de-prioritized | Two in-flight commands sharing one imported IOVA can mix completed and timeout outcomes, but the tested freed-IOVA replacement pressure had exact reuse `0/12`, no replacement writeback, and no kernel fault |
 
 ## Firmware-visible boundary for primitive work
 
@@ -581,6 +581,51 @@ and 64K imports. The allocator often returns nearby IOVAs for 4K/64K
 (`closest_delta=-0x4000` / `-0x10000`), but not the exact freed IOVA required
 for the current cross-buffer write hypothesis. Full result:
 `poc-run-results/2026-06-15-batch/13_apusys_iova_reuse_profiler.txt`.
+
+Two-command shared-IOVA pressure is also implemented and currently negative:
+
+```
+poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-two-command-shared-iova
+
+result=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_two_command_shared_iova.txt
+kernel=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_two_command_shared_iova_kernel_relevant.txt
+
+completed_completed: replacement exact_reuse=0/4, wait cmd1=0, wait cmd2=0
+completed_timeout:   replacement exact_reuse=0/4, wait cmd1=0, wait cmd2=-EIO
+timeout_completed:   replacement exact_reuse=0/4, wait cmd1=-EIO, wait cmd2=0
+```
+
+The completed command still writes the original shared buffer, and timeout
+commands return `result_status=0x2` / `wait=-EIO`. Replacement buffers keep
+their marker/header and zeroed output windows. Kernel logs show only expected
+VPU boot/static allocation and timeout-class scheduler lines; no `devapc`,
+IOMMU fault, panic/Oops, `BUG`, or `KASAN`.
+
+Interpretation: this proves concurrent command ordering is controllable enough
+to place successful and timeout commands on one imported IOVA, but it still
+depends on exact freed-IOVA reuse for a cross-buffer write. With exact reuse
+absent in both firmware and no-firmware profiles, this path is below targeted
+allocator work or lower-level scheduler instrumentation.
+
+Completed-window stretching is also negative in the current Java setup:
+
+```
+poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-completed-latency-matrix-iova
+
+result=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completed_latency_matrix_iova.txt
+kernel=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completed_latency_matrix_iova_kernel_relevant.txt
+
+ann_output40:              run_async=0 in 1 ms, wait=0 in 14 ms
+ann_output100:             run_async=0 in 1 ms, wait=0 in 1 ms
+ann_output400:             run_async=0 in 2 ms, wait=0 in 2 ms
+ann_output1000:            run_async=0 in 2 ms, wait=0 in 3 ms
+local_mem_info_output40:   run_async=0 in 3 ms, wait=0 in 1 ms
+detailed_op_info_output40: run_async=0 in 3 ms, wait=0 in 2 ms
+```
+
+All cases preserve normal APUNN completion and bounded output writeback, with a
+clean filtered kernel log. These variants are useful as stable triggers, but
+they do not create a longer user-visible `mem_free` race window.
 
 ### 2. `dev_ctrl` (ioctl `0x400C4109`) during in-flight VPU command
 

@@ -31,11 +31,19 @@ land one buffer below the freed IOVA (`closest_delta=-0x4000` or `-0x10000`),
 but not at the exact freed IOVA. That downgrades the direct cross-buffer-write
 route on this build unless a new allocation pattern can force exact reuse.
 
-The next useful work is therefore not broader APUNN parameter fuzzing. It is:
+The latest follow-up runs also tested the two natural window-amplification
+ideas. Two queued commands sharing the same IOVA did not produce exact
+replacement reuse or stale APUNN bytes in replacement buffers. The completed
+latency matrix kept all tested completed shapes in the `1..14 ms` range, with
+clean kernel logs. That leaves exact allocator reuse, or a lower-level scheduler
+signal outside Java timing, as the only remaining ways to change this
+classification.
 
-1. two-command shared-IOVA lifetime pressure,
-2. a slower but still completed writeback shape, or
-3. a targeted allocator variant that can turn nearby reuse into exact reuse.
+Current practical ranking:
+
+1. exact allocator reuse after `mem_free(shared_iova)`,
+2. kernel-side scheduler/lifetime evidence that Java cannot observe directly,
+3. `dev_ctrl` / `ucmd` side effects as lower-probability alternate ioctl paths.
 
 ## Evidence-backed controls
 
@@ -49,6 +57,8 @@ The next useful work is therefore not broader APUNN parameter fuzzing. It is:
 | Command-buffer copyback | Kernel/provider updates copied back to user command buffer after provider return | Full `0xb70` diff shows scalar tail state only | No kernel pointer or imported IOVA leak shown |
 | In-flight `mem_free` | Same fd can `mem_free(shared_iova)` after async submit while command is outstanding | Timeout shape returns controlled `wait=-EIO`; completed shape still returns `wait=0` | Real lifetime gap, not yet won as UAF/write |
 | Replacement import pressure | After `mem_free`, import same-size replacement HardwareBuffers and dump them after completion | Firmware race: `exact_reuse=0/12`; standalone profiler: `exact_reuse=0/2720`; no stale APUNN write in replacement buffers | Largest theoretical opportunity, downgraded on this allocator profile |
+| Two-command shared IOVA | Submit two commands referencing one imported IOVA, free it, import replacements, then wait both commands | `completed/completed`, `completed/timeout`, and `timeout/completed` all submitted; replacement exact reuse `0/12`; completed command still writes original shared buffer; timeout command returns `-EIO` | Window amplification tested, no primitive signal |
+| Completed latency variants | Change output size/opcode while keeping completed settings5/no-settings shape | `ANN_VERSION` output `0x40/0x100/0x400/0x1000`, `LOCAL_MEM_INFO`, and `GET_DETAILED_OP_INFO` all complete with wait time `1..14 ms` | No slower completed writeback window found |
 | fd close teardown | Close APUSYS fd after async submit and leave residual command cleanup to `mdw_usr_destroy` | Residual teardown reachable; no crash/oops/KASAN | Lower confidence than explicit `mem_free` |
 | `dev_ctrl` provider path | ioctl `0x400C4109` reaches provider opcode `0` for VPU control bookkeeping | In-flight race tested: completed shape returns `dev_ctrl=0, wait=0`; timeout shape returns `dev_ctrl=0, wait=-EIO`; no IOMMU/devapc/Oops | Reachable but no new primitive signal |
 | `ucmd` algorithm lookup | HardwareBuffer-backed `ucmd` opcode path reaches `vpu_alg_get` / `vpu_alg_put` for `apu_lib_apunn` | Success path exists; keydump does not mutate the first 64 bytes | Low-cost side-effect/refcount candidate |
@@ -85,7 +95,8 @@ Decision:
 - If exact reuse appears, move directly back to the completed firmware
   writeback race with pre-created replacements.
 - If exact reuse stays at zero across a meaningful loop, downgrade the
-  cross-buffer-write path on this build and prioritize `dev_ctrl` race.
+  cross-buffer-write path on this build and keep only allocator patterns or
+  lower-level scheduler evidence that can change the exact-reuse result.
 
 Status: implemented and run as:
 
@@ -179,6 +190,35 @@ Try only shapes that still complete:
 Do not treat this as broad fuzzing. The only useful shape is one that remains
 stable, writes back, and takes longer than the current fast completion.
 
+Status: implemented and run as:
+
+```
+poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-completed-latency-matrix-iova
+```
+
+Result:
+
+```
+result=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completed_latency_matrix_iova.txt
+kernel=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completed_latency_matrix_iova_kernel_relevant.txt
+
+ann_output40:              run_async=0 in 1 ms, wait=0 in 14 ms
+ann_output100:             run_async=0 in 1 ms, wait=0 in 1 ms
+ann_output400:             run_async=0 in 2 ms, wait=0 in 2 ms
+ann_output1000:            run_async=0 in 2 ms, wait=0 in 3 ms
+local_mem_info_output40:   run_async=0 in 3 ms, wait=0 in 1 ms
+detailed_op_info_output40: run_async=0 in 3 ms, wait=0 in 2 ms
+```
+
+All six shapes preserve the normal APUNN completion oracle: request
+`result_status=0`, settings become `0x7`, and output is bounded by the requested
+size. The preserved kernel log has no `devapc`, IOMMU fault, panic/Oops, `BUG`,
+`KASAN`, timeout, or `mdw_wait_cmd` failure.
+
+Interpretation: these variants do not create a useful wider window from Java.
+They remain good completion oracles, but they do not change the lifetime risk
+ranking.
+
 ### 4. Two-command shared IOVA
 
 Purpose: amplify the lifetime edge without depending only on a single fast
@@ -202,6 +242,50 @@ Interesting signals:
 - replacement gets APUNN completion bytes,
 - residual command count or scheduler state differs,
 - kernel log shows VPU/IOMMU/devapc faults or abort/wait inconsistency.
+
+Status: implemented and run as:
+
+```
+poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-two-command-shared-iova
+```
+
+Result:
+
+```
+result=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_two_command_shared_iova.txt
+kernel=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_two_command_shared_iova_kernel_relevant.txt
+
+completed_completed:
+  cmd1 run_async=0, cmd2 run_async=0
+  shared mem_free=0
+  replacement exact_reuse=0/4
+  wait cmd1=0, wait cmd2=0
+
+completed_timeout:
+  cmd1 run_async=0, cmd2 run_async=0
+  shared mem_free=0
+  replacement exact_reuse=0/4
+  wait cmd1=0, wait cmd2=-EIO
+
+timeout_completed:
+  cmd1 run_async=0, cmd2 run_async=0
+  shared mem_free=0
+  replacement exact_reuse=0/4
+  wait cmd1=-EIO, wait cmd2=0
+```
+
+All replacement buffers kept their marker/header and zeroed output windows. The
+completed command wrote the original shared buffer as expected: settings `0x7`,
+bounded output fill, and standard data descriptor cleanup. Timeout commands
+reported `result_status=0x2` and `wait=-EIO`.
+
+Kernel log: only expected VPU boot/static allocation noise and timeout-class
+`mdw_sched_trace ret(-110)` lines for the timeout cases. No `devapc`, IOMMU
+fault, panic/Oops, `BUG`, or `KASAN`.
+
+Interpretation: two-command sharing proves scheduler ordering can mix a
+successful and timeout command over one IOVA, but it does not win the freed-IOVA
+reuse path or expose a new copyback/lifetime primitive on this build.
 
 ### 5. `dev_ctrl` during in-flight VPU command
 
@@ -245,7 +329,8 @@ no `devapc`, IOMMU fault, panic/Oops, `BUG`, or `KASAN`.
 
 Interpretation: `dev_ctrl` is reachable during the command lifetime window, but
 the tested control value does not produce a reset/copyback/lifetime primitive.
-It currently ranks below two-command shared IOVA and slower completed writeback.
+It currently ranks below exact allocator reuse and kernel-side scheduler
+instrumentation, but remains a low-cost alternate ioctl side-effect path.
 
 ## Current stop conditions
 
@@ -255,6 +340,11 @@ Stop spending time on these unless new evidence changes the decision:
 - synthetic payload leak tests after the current data-payload matrices,
 - display ioctl paths for this APUSYS objective,
 - delay-only `mem_free` sweeps without allocator pressure.
+- two-command shared-IOVA retries with the same 4K same-fd allocation pattern,
+  unless exact reuse is first observed in a standalone allocator profile.
+- completed latency variants under the same Java app-process timing, unless a
+  lower-level timestamp shows firmware work lasting beyond the current ioctl
+  round-trip.
 
 ## Files to keep linked
 
@@ -273,3 +363,11 @@ Stop spending time on these unless new evidence changes the decision:
   `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_dev_ctrl_race_iova.txt`
 - Dev-ctrl race kernel log:
   `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_dev_ctrl_race_iova_kernel_relevant.txt`
+- Two-command shared IOVA:
+  `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_two_command_shared_iova.txt`
+- Two-command shared IOVA kernel log:
+  `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_two_command_shared_iova_kernel_relevant.txt`
+- Completed latency matrix:
+  `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completed_latency_matrix_iova.txt`
+- Completed latency matrix kernel log:
+  `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completed_latency_matrix_iova_kernel_relevant.txt`

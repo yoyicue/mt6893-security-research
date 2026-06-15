@@ -31,6 +31,7 @@ public final class ApusysIoctlProbe {
 
     private static final int OFF_HANDSHAKE = 0x100;
     private static final int OFF_RUN_CMD   = 0x140;
+    private static final int OFF_RUN_CMD_B = 0xe00;
     private static final int OFF_UCMD      = 0x180;
     private static final int OFF_MEM_A     = 0x1c0;
     private static final int OFF_MEM_B     = 0x220;
@@ -415,6 +416,8 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpMemFreeRaceCompletedIova = false;
         boolean runCmdVpuXrpMemFreeRaceCompletedReuseIova = false;
         boolean runCmdVpuXrpDevCtrlRaceIova = false;
+        boolean runCmdVpuXrpTwoCommandSharedIova = false;
+        boolean runCmdVpuXrpCompletedLatencyMatrixIova = false;
         boolean apusysIovaReuseProfiler = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlotControl = false;
@@ -639,6 +642,10 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpMemFreeRaceCompletedReuseIova = true;
             } else if ("--run-cmd-vpu-xrp-dev-ctrl-race-iova".equals(arg)) {
                 runCmdVpuXrpDevCtrlRaceIova = true;
+            } else if ("--run-cmd-vpu-xrp-two-command-shared-iova".equals(arg)) {
+                runCmdVpuXrpTwoCommandSharedIova = true;
+            } else if ("--run-cmd-vpu-xrp-completed-latency-matrix-iova".equals(arg)) {
+                runCmdVpuXrpCompletedLatencyMatrixIova = true;
             } else if ("--apusys-iova-reuse-profiler".equals(arg)) {
                 apusysIovaReuseProfiler = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot".equals(arg)) {
@@ -779,6 +786,8 @@ public final class ApusysIoctlProbe {
                 || runCmdVpuXrpMemFreeRaceCompletedIova
                 || runCmdVpuXrpMemFreeRaceCompletedReuseIova
                 || runCmdVpuXrpDevCtrlRaceIova
+                || runCmdVpuXrpTwoCommandSharedIova
+                || runCmdVpuXrpCompletedLatencyMatrixIova
                 || apusysIovaReuseProfiler
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrixControl
@@ -1357,6 +1366,14 @@ public final class ApusysIoctlProbe {
 
             if (runCmdVpuXrpDevCtrlRaceIova) {
                 runRunCmdVpuXrpDevCtrlRaceHardwareBufferProbe();
+            }
+
+            if (runCmdVpuXrpTwoCommandSharedIova) {
+                runRunCmdVpuXrpTwoCommandSharedIovaProbe();
+            }
+
+            if (runCmdVpuXrpCompletedLatencyMatrixIova) {
+                runRunCmdVpuXrpCompletedLatencyMatrixProbe();
             }
 
             if (apusysIovaReuseProfiler) {
@@ -2797,11 +2814,14 @@ public final class ApusysIoctlProbe {
             dumpU32Words("run_cmd_arg_before_async", runCmd, 0x18);
             long runRet = Long.MIN_VALUE;
             if (dispatch) {
+                long asyncStartMs = System.currentTimeMillis();
                 runRet = DrmTrigger.rawIoctl(apusysFd,
                     APUSYS_CMD_RUN_ASYNC, runCmd);
+                long asyncElapsedMs = System.currentTimeMillis() - asyncStartMs;
                 System.out.println("[*] run_async_vpu_iova cmd=0x"
                     + Long.toHexString(APUSYS_CMD_RUN_ASYNC)
-                    + " ret=" + retText(runRet));
+                    + " ret=" + retText(runRet)
+                    + " elapsed_ms=" + asyncElapsedMs);
                 dumpU32Words("run_cmd_arg_after_async", runCmd, 0x18);
                 if (freeSharedIovaAfterAsyncMs != null && runRet >= 0) {
                     int freeDelayMs = freeSharedIovaAfterAsyncMs.intValue();
@@ -2854,11 +2874,15 @@ public final class ApusysIoctlProbe {
                     System.out.println("[*] dev_ctrl_after_async_vpu_iova"
                         + " ret=" + retText(devCtrlRet));
                 } else if (waitAfterAsync && runRet >= 0) {
+                    long waitStartMs = System.currentTimeMillis();
                     long waitRet = DrmTrigger.rawIoctl(apusysFd,
                         APUSYS_CMD_WAIT, runCmd);
+                    long waitElapsedMs = System.currentTimeMillis()
+                        - waitStartMs;
                     System.out.println("[*] wait_vpu_iova cmd=0x"
                         + Long.toHexString(APUSYS_CMD_WAIT)
-                        + " ret=" + retText(waitRet));
+                        + " ret=" + retText(waitRet)
+                        + " elapsed_ms=" + waitElapsedMs);
                     dumpU32Words("run_cmd_arg_after_wait", runCmd, 0x18);
                 }
             } else {
@@ -4248,6 +4272,198 @@ public final class ApusysIoctlProbe {
         }
     }
 
+    private static void runRunCmdVpuXrpTwoCommandSharedIovaProbe()
+            throws Exception {
+        System.out.println("\n[*] === APUSYS run_cmd VPU two-command shared-IOVA probe ===");
+        System.out.println("[*] Mode: two command buffers on one APUSYS fd"
+            + " reference the same imported shared IOVA. After both async"
+            + " submits, the shared IOVA is freed, same-size replacements are"
+            + " imported, and both command ids are waited.");
+        loadRuntimeLibraries();
+
+        runRunCmdVpuXrpTwoCommandSharedIovaCase("completed_completed",
+            true, true, 0, 1000);
+        runRunCmdVpuXrpTwoCommandSharedIovaCase("completed_timeout",
+            true, false, 0, 15000);
+        runRunCmdVpuXrpTwoCommandSharedIovaCase("timeout_completed",
+            false, true, 0, 15000);
+    }
+
+    private static void runRunCmdVpuXrpTwoCommandSharedIovaCase(
+            String label, boolean cmd1Completed, boolean cmd2Completed,
+            int freeDelayMs, int waitMs) throws Exception {
+        int raceFd = -1;
+        ReplacementImport shared = null;
+        ReplacementImport cmd1 = null;
+        ReplacementImport cmd2 = null;
+        ReplacementImport[] replacements = null;
+        long sharedMemDesc = DrmTrigger.sScratchBuf + OFF_MEM_DMABUF;
+        long cmd1MemDesc = DrmTrigger.sScratchBuf + OFF_MEM_B;
+        long cmd2MemDesc = DrmTrigger.sScratchBuf + OFF_MEM_A;
+        try {
+            raceFd = DrmTrigger.openDev(APUSYS_DEV);
+            System.out.println("\n[*] === two-command shared-IOVA case "
+                + label + " cmd1=" + twoCommandShapeName(cmd1Completed)
+                + " cmd2=" + twoCommandShapeName(cmd2Completed)
+                + " free_after=" + freeDelayMs
+                + "ms post_free_wait=" + waitMs + "ms ===");
+
+            shared = createProfilerHardwareBuffer(-1, 0x4000,
+                REUSE_MARKER_BASE ^ 0x33333333, "two_cmd_" + label + "_shared");
+            long sharedRet = importProfilerMem(raceFd, shared, sharedMemDesc,
+                0x4000, "two_cmd_shared_" + label, true);
+            if (sharedRet < 0) {
+                System.out.println("[-] two-command shared import failed");
+                return;
+            }
+            int sharedIova = shared.iovaLow;
+            int sharedSize = shared.iovaSize;
+            fillTwoCommandSharedSettings(shared, sharedIova, sharedSize,
+                cmd1Completed || cmd2Completed);
+            dumpTwoCommandSharedBuffer("before", shared, sharedIova);
+
+            cmd1 = createTwoCommandXrpCommandBuffer(raceFd, 1, cmd1MemDesc,
+                sharedIova, sharedSize, cmd1Completed, label);
+            cmd2 = createTwoCommandXrpCommandBuffer(raceFd, 2, cmd2MemDesc,
+                sharedIova, sharedSize, cmd2Completed, label);
+
+            long runCmd1 = DrmTrigger.sScratchBuf + OFF_RUN_CMD;
+            long runCmd2 = DrmTrigger.sScratchBuf + OFF_RUN_CMD_B;
+            long runRet1 = submitRunCmdAsync(raceFd, runCmd1, cmd1.dmaBufFd,
+                "two_cmd_" + label + "_cmd1");
+            long runRet2 = submitRunCmdAsync(raceFd, runCmd2, cmd2.dmaBufFd,
+                "two_cmd_" + label + "_cmd2");
+
+            if (runRet1 >= 0 || runRet2 >= 0) {
+                System.out.println("[*] two-command: sleeping " + freeDelayMs
+                    + "ms before shared IOVA mem_free");
+                Thread.sleep(freeDelayMs);
+                long freeRet = freeProfilerMem(raceFd, shared, sharedMemDesc,
+                    "two_cmd_shared_" + label, true);
+                if (freeRet >= 0) {
+                    replacements = new ReplacementImport[MAX_REUSE_IMPORTS];
+                    for (int ri = 0; ri < MAX_REUSE_IMPORTS; ri++) {
+                        replacements[ri] = createReplacementImport(raceFd, ri,
+                            sharedIova, sharedSize, XRP_OP_ANN_VERSION);
+                    }
+                }
+            }
+
+            System.out.println("[*] Waiting " + waitMs
+                + "ms before two-command buffer dumps...");
+            Thread.sleep(waitMs);
+
+            dumpTwoCommandSharedBuffer("after", shared, sharedIova);
+            dumpTwoCommandCommandBuffer("cmd1_after", cmd1);
+            dumpTwoCommandCommandBuffer("cmd2_after", cmd2);
+            if (replacements != null) {
+                for (int ri = 0; ri < replacements.length; ri++) {
+                    dumpReplacementImport("two_cmd_after", replacements[ri],
+                        sharedIova, XRP_OP_ANN_VERSION);
+                }
+            }
+
+            if (runRet1 >= 0) {
+                long waitRet1 = DrmTrigger.rawIoctl(raceFd, APUSYS_CMD_WAIT,
+                    runCmd1);
+                System.out.println("[*] wait_two_cmd_" + label
+                    + "_cmd1 cmd=0x" + Long.toHexString(APUSYS_CMD_WAIT)
+                    + " ret=" + retText(waitRet1));
+                dumpU32Words("run_cmd_arg_two_cmd_" + label
+                    + "_cmd1_after_wait", runCmd1, 0x18);
+            }
+            if (runRet2 >= 0) {
+                long waitRet2 = DrmTrigger.rawIoctl(raceFd, APUSYS_CMD_WAIT,
+                    runCmd2);
+                System.out.println("[*] wait_two_cmd_" + label
+                    + "_cmd2 cmd=0x" + Long.toHexString(APUSYS_CMD_WAIT)
+                    + " ret=" + retText(waitRet2));
+                dumpU32Words("run_cmd_arg_two_cmd_" + label
+                    + "_cmd2_after_wait", runCmd2, 0x18);
+            }
+        } finally {
+            if (raceFd >= 0) {
+                if (replacements != null) {
+                    for (int ri = 0; ri < replacements.length; ri++) {
+                        cleanupReplacementImport(raceFd, replacements[ri],
+                            false);
+                    }
+                }
+                freeProfilerMem(raceFd, cmd1, cmd1MemDesc,
+                    "two_cmd_cmd1_cleanup", true);
+                freeProfilerMem(raceFd, cmd2, cmd2MemDesc,
+                    "two_cmd_cmd2_cleanup", true);
+                freeProfilerMem(raceFd, shared, sharedMemDesc,
+                    "two_cmd_shared_cleanup", true);
+                DrmTrigger.closeFd(raceFd);
+            }
+            if (cmd1 != null) {
+                cmd1.closeQuietly();
+            }
+            if (cmd2 != null) {
+                cmd2.closeQuietly();
+            }
+            if (shared != null) {
+                shared.closeQuietly();
+            }
+        }
+    }
+
+    private static String twoCommandShapeName(boolean completedShape) {
+        return completedShape ? "completed" : "timeout";
+    }
+
+    private static void runRunCmdVpuXrpCompletedLatencyMatrixProbe()
+            throws Exception {
+        System.out.println("\n[*] === APUSYS run_cmd VPU completed-latency matrix ===");
+        System.out.println("[*] Mode: run stable completed settings5/no-settings"
+            + " requests with immediate wait_cmd and elapsed timing. This"
+            + " finds completed shapes that may offer a wider writeback window.");
+
+        runRunCmdVpuXrpCompletedLatencyCase("ann_output40",
+            XRP_OP_ANN_VERSION, XrpSettingsShape.WRAPPER_ONE_DATA);
+        runRunCmdVpuXrpCompletedLatencyCase("ann_output100",
+            XRP_OP_ANN_VERSION, new XrpSettingsShape(
+                "wrapper_one_data_output100", 0x100,
+                XRP_DATA_DESC_SIZE, true));
+        runRunCmdVpuXrpCompletedLatencyCase("ann_output400",
+            XRP_OP_ANN_VERSION, new XrpSettingsShape(
+                "wrapper_one_data_output400", 0x400,
+                XRP_DATA_DESC_SIZE, true));
+        runRunCmdVpuXrpCompletedLatencyCase("ann_output1000",
+            XRP_OP_ANN_VERSION, new XrpSettingsShape(
+                "wrapper_one_data_output1000", 0x1000,
+                XRP_DATA_DESC_SIZE, true));
+        runRunCmdVpuXrpCompletedLatencyCase("local_mem_info_output40",
+            requireXrpOpSpec("local_mem_info_out0"),
+            XrpSettingsShape.WRAPPER_ONE_DATA);
+        runRunCmdVpuXrpCompletedLatencyCase("detailed_op_info_output40",
+            requireXrpOpSpec("detailed_op_info_out0"),
+            XrpSettingsShape.WRAPPER_ONE_DATA);
+    }
+
+    private static void runRunCmdVpuXrpCompletedLatencyCase(
+            String label, XrpOpSpec op, XrpSettingsShape shape)
+            throws Exception {
+        int raceFd = -1;
+        try {
+            raceFd = DrmTrigger.openDev(APUSYS_DEV);
+            System.out.println("\n[*] === completed-latency case " + label
+                + " opcode=" + op.name
+                + " output_size=0x" + Integer.toHexString(shape.outputSize)
+                + " ===");
+            runRunCmdVpuIovaHardwareBufferProbe(raceFd, true, true, true,
+                op, 100, true, VPU_DESC_LIBVPU_SETTINGS5,
+                XRP_CMD_FLAGS_SEND, VPU_DESC_ORDER_CODE_OUTPUT,
+                XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
+                shape, true, VPU_REQUEST_FLAGS_DEFAULT, false);
+        } finally {
+            if (raceFd >= 0) {
+                DrmTrigger.closeFd(raceFd);
+            }
+        }
+    }
+
     private static void runApusysIovaReuseProfiler() throws Exception {
         System.out.println("\n[*] === APUSYS IOVA reuse profiler ===");
         System.out.println("[*] Mode: no firmware dispatch. Each case imports"
@@ -4637,6 +4853,145 @@ public final class ApusysIoctlProbe {
             buffer.imported = false;
         }
         return ret;
+    }
+
+    private static void fillTwoCommandSharedSettings(ReplacementImport shared,
+                                                     int sharedIova,
+                                                     int sharedSize,
+                                                     boolean anyCompleted)
+            throws Exception {
+        if (shared == null || shared.output == null) {
+            return;
+        }
+        android.media.Image.Plane[] planes = shared.output.getPlanes();
+        if (planes == null || planes.length == 0) {
+            throw new IllegalStateException("shared image has no planes");
+        }
+        java.nio.ByteBuffer buf = planes[0].getBuffer();
+        if (anyCompleted) {
+            fillXrpSettingsBuffer(buf, sharedIova, sharedSize,
+                XRP_OP_ANN_VERSION, XRP_CMD_FLAGS_SEND,
+                XRP_OUTPUT_HEADER_FLAG_DEFAULT,
+                XrpSettingsShape.WRAPPER_ONE_DATA, null, null);
+        } else {
+            fillXrpSettingsBuffer(buf, sharedIova, sharedSize,
+                XRP_OP_ANN_VERSION, XRP_CMD_FLAGS_INITIAL,
+                XRP_OUTPUT_HEADER_FLAG_DEFAULT,
+                XrpSettingsShape.CURRENT, null, null);
+        }
+    }
+
+    private static ReplacementImport createTwoCommandXrpCommandBuffer(
+            int apusysFd, int index, long memDesc, int sharedIova,
+            int sharedSize, boolean completedShape, String label)
+            throws Exception {
+        ReplacementImport cmd = new ReplacementImport(index);
+        try {
+            cmd.reader = createRgbaImageReader(64, 64);
+            cmd.writer = android.media.ImageWriter.newInstance(
+                cmd.reader.getSurface(), 2);
+            cmd.input = cmd.writer.dequeueInputImage();
+            if (completedShape) {
+                fillRunCmdVpuXrpIova(cmd.input, "apu_lib_apunn",
+                    "two_cmd_" + label + "_cmd" + index + "_completed",
+                    sharedIova, sharedSize, true, XRP_OP_ANN_VERSION, true,
+                    VPU_DESC_LIBVPU_SETTINGS5, XRP_CMD_FLAGS_SEND,
+                    VPU_DESC_ORDER_CODE_OUTPUT, XRP_SETTINGS_LEN_WRAPPER,
+                    XrpSettingsShape.WRAPPER_ONE_DATA,
+                    VPU_REQUEST_FLAGS_DEFAULT, false, null, null, null,
+                    null, null, null, null, null);
+            } else {
+                fillRunCmdVpuXrpIova(cmd.input, "apu_lib_apunn",
+                    "two_cmd_" + label + "_cmd" + index + "_timeout",
+                    sharedIova, sharedSize, true, XRP_OP_ANN_VERSION, false,
+                    VPU_DESC_MINIMAL, XRP_CMD_FLAGS_INITIAL,
+                    VPU_DESC_ORDER_CODE_OUTPUT, XRP_SETTINGS_LEN,
+                    XrpSettingsShape.CURRENT, VPU_REQUEST_FLAGS_DEFAULT,
+                    true, null, null, null, null, null, null, null, null);
+            }
+            cmd.writer.queueInputImage(cmd.input);
+            cmd.input = null;
+            cmd.output = acquireImage(cmd.reader);
+            if (cmd.output == null) {
+                throw new IllegalStateException(
+                    "two-command ImageReader produced no image");
+            }
+            cmd.hb = cmd.output.getHardwareBuffer();
+            if (cmd.hb == null) {
+                throw new IllegalStateException(
+                    "two-command HardwareBuffer is null");
+            }
+            cmd.dmaBufFd = extractHardwareBufferDmaBufFd(cmd.hb,
+                "two_cmd_" + label + "_cmd" + index);
+            long ret = importProfilerMem(apusysFd, cmd, memDesc, 0x4000,
+                "two_cmd_" + label + "_cmd" + index, true);
+            if (ret < 0) {
+                throw new IllegalStateException(
+                    "two-command cmd import failed ret=" + retText(ret));
+            }
+            dumpTwoCommandCommandBuffer("cmd" + index + "_before", cmd);
+            return cmd;
+        } catch (Throwable t) {
+            cmd.closeQuietly();
+            throw t;
+        }
+    }
+
+    private static long submitRunCmdAsync(int apusysFd, long runCmd,
+                                          int dmaBufFd, String label)
+            throws Exception {
+        DrmTrigger.zeroMem(runCmd, 0x18);
+        DrmTrigger.unsafePutInt(runCmd + 0x08, dmaBufFd);
+        DrmTrigger.unsafePutInt(runCmd + 0x10, 0x4000);
+        dumpU32Words(label + "_run_arg_before_async", runCmd, 0x18);
+        long ret = DrmTrigger.rawIoctl(apusysFd, APUSYS_CMD_RUN_ASYNC,
+            runCmd);
+        System.out.println("[*] " + label + "_run_async cmd=0x"
+            + Long.toHexString(APUSYS_CMD_RUN_ASYNC)
+            + " ret=" + retText(ret));
+        dumpU32Words(label + "_run_arg_after_async", runCmd, 0x18);
+        return ret;
+    }
+
+    private static void dumpTwoCommandSharedBuffer(String phase,
+                                                   ReplacementImport shared,
+                                                   int sharedIova) {
+        if (shared == null || shared.output == null) {
+            return;
+        }
+        try {
+            android.media.Image.Plane[] planes = shared.output.getPlanes();
+            if (planes == null || planes.length == 0) {
+                return;
+            }
+            System.out.println("[*] two-command shared " + phase
+                + " iova=0x" + Integer.toHexString(sharedIova));
+            dumpXrpWindows("two_cmd_shared_" + phase,
+                planes[0].getBuffer(), XRP_OP_ANN_VERSION);
+        } catch (Throwable t) {
+            System.out.println("[-] two-command shared " + phase
+                + " dump failed: " + shortThrowable(t));
+        }
+    }
+
+    private static void dumpTwoCommandCommandBuffer(String phase,
+                                                   ReplacementImport cmd) {
+        if (cmd == null || cmd.output == null) {
+            return;
+        }
+        try {
+            android.media.Image.Plane[] planes = cmd.output.getPlanes();
+            if (planes == null || planes.length == 0) {
+                return;
+            }
+            System.out.println("[*] two-command " + phase
+                + " fd=" + cmd.dmaBufFd);
+            dumpVpuCommandWindows("two_cmd_" + phase,
+                planes[0].getBuffer());
+        } catch (Throwable t) {
+            System.out.println("[-] two-command " + phase
+                + " dump failed: " + shortThrowable(t));
+        }
     }
 
     private static void closeProfilerBuffersIfFresh(boolean precreate,
