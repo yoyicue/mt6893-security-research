@@ -17069,6 +17069,2250 @@
     }
   ],
   "loop_target_count": 1154,
+  "output_validation_investigations": [
+    {
+      "analysis_end": 1879151796,
+      "analysis_start": 1879147700,
+      "assessment": "Static output-size validation owner selected by direct rodata32 or L32R-backed output-size diagnostics.",
+      "boundary_counts": {
+        "core24": 297,
+        "dens16": 28,
+        "flix128": 159,
+        "flix64": 77,
+        "truncated": 0
+      },
+      "evidence_refs": [
+        {
+          "kind": "l32r",
+          "literal_addr": 1879062064,
+          "literal_string_addr": 1879062064,
+          "literal_string_offset": 0,
+          "literal_string_value": "Invalid input/output dimensions",
+          "owner_delta": 4280,
+          "pattern": "Invalid input/output dimensions",
+          "prop_addr": 1879151973,
+          "prop_flags": "insn|data|no_reorder|no_transform",
+          "prop_size": 16,
+          "ref_addr": 1879151980,
+          "target_reg": 0,
+          "value_string_addr": null,
+          "value_string_offset": null,
+          "value_string_value": null
+        },
+        {
+          "kind": "l32r",
+          "literal_addr": 1879057488,
+          "literal_string_addr": 1879057476,
+          "literal_string_offset": 12,
+          "literal_string_value": "Inconsistent output size",
+          "owner_delta": 5234,
+          "pattern": "Inconsistent output size",
+          "prop_addr": 1879152933,
+          "prop_flags": "insn|branch_target|no_reorder",
+          "prop_size": 27,
+          "ref_addr": 1879152934,
+          "target_reg": 2,
+          "value_string_addr": null,
+          "value_string_offset": null,
+          "value_string_value": null
+        },
+        {
+          "kind": "l32r",
+          "literal_addr": 1879063436,
+          "literal_string_addr": 1879063436,
+          "literal_string_offset": 0,
+          "literal_string_value": "Invalid output data type",
+          "owner_delta": 5650,
+          "pattern": "Invalid output data type",
+          "prop_addr": 1879153344,
+          "prop_flags": "insn|data|no_reorder|no_transform",
+          "prop_size": 32,
+          "ref_addr": 1879153351,
+          "target_reg": 0,
+          "value_string_addr": null,
+          "value_string_offset": null,
+          "value_string_value": null
+        },
+        {
+          "kind": "l32r",
+          "literal_addr": 1879057092,
+          "literal_string_addr": 1879057076,
+          "literal_string_offset": 16,
+          "literal_string_value": "Invalid output args",
+          "owner_delta": 7326,
+          "pattern": "Invalid output args",
+          "prop_addr": 1879155023,
+          "prop_flags": "insn|data|no_reorder|no_transform",
+          "prop_size": 40,
+          "ref_addr": 1879155026,
+          "target_reg": 3,
+          "value_string_addr": null,
+          "value_string_offset": null,
+          "value_string_value": null
+        },
+        {
+          "kind": "l32r",
+          "literal_addr": 1879063720,
+          "literal_string_addr": 1879063704,
+          "literal_string_offset": 16,
+          "literal_string_value": "Inconsistent output batch",
+          "owner_delta": 8244,
+          "pattern": "Inconsistent output batch",
+          "prop_addr": 1879155943,
+          "prop_flags": "insn|no_reorder",
+          "prop_size": 11,
+          "ref_addr": 1879155945,
+          "target_reg": 1,
+          "value_string_addr": null,
+          "value_string_offset": null,
+          "value_string_value": null
+        }
+      ],
+      "label": "output_size_validation_owner",
+      "next_action": "Use these owner anchors for targeted FLIX/TIE or runtime tracing if Q4 needs the exact settings+0x08 fill loop.",
+      "owner_entry": 1879147700,
+      "prop_runs": [
+        {
+          "addr": 1879147700,
+          "bytes": "36 61 07 9e 62 20 65 5c 64 10 00 30 d0 05 f3 f4",
+          "flags": "insn|no_reorder",
+          "size": 68
+        },
+        {
+          "addr": 1879147768,
+          "bytes": "de 44 55 52 58 c4 41 06 31 a8 85 02 c8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879147784,
+          "bytes": "9e 98 1c 70 58 60 12 00 30 d0 05 33 f1 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 941
+        },
+        {
+          "addr": 1879148725,
+          "bytes": "8f 92 bb c5 41 98 59 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879148733,
+          "bytes": "80 88 11",
+          "flags": "insn|no_reorder",
+          "size": 3
+        },
+        {
+          "addr": 1879148736,
+          "bytes": "8f 92 b9 c5 41 98 59 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879148744,
+          "bytes": "80 88 11 90 88 20 82 61 ba 9e 68 00 70 58 62 12",
+          "flags": "insn|no_reorder",
+          "size": 50
+        },
+        {
+          "addr": 1879148794,
+          "bytes": "8f 92 83 c5 42 98 59 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879148802,
+          "bytes": "80 88 11",
+          "flags": "insn|no_reorder",
+          "size": 3
+        },
+        {
+          "addr": 1879148805,
+          "bytes": "8f 92 81 c5 42 98 59 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879148813,
+          "bytes": "80 88 11 90 88 20 82 61 b9 9e 68 20 70 5a 66 12",
+          "flags": "insn|no_reorder",
+          "size": 505
+        },
+        {
+          "addr": 1879149318,
+          "bytes": "8f 82 a2 cd 48 98 59 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879149326,
+          "bytes": "80 99 11",
+          "flags": "insn|no_reorder",
+          "size": 3
+        },
+        {
+          "addr": 1879149329,
+          "bytes": "8f 82 a0 cd 48 98 59 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879149337,
+          "bytes": "80 99 11 80 99 20 9e 9e 16 70 5a 64 12 00 30 d0",
+          "flags": "insn|no_reorder",
+          "size": 49
+        },
+        {
+          "addr": 1879149386,
+          "bytes": "3e 8e 16 92 5e c4 79 8e 31 60 85 50 d8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879149402,
+          "bytes": "90 94 82 8a dd 3e b8 57 1a 5a e4 7d 83 31 60 85",
+          "flags": "insn|no_reorder",
+          "size": 24
+        },
+        {
+          "addr": 1879149426,
+          "bytes": "ee b1 79 9a 23 fc d8 32 cf a9 a4 38 f8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879149442,
+          "bytes": "3e 84 51 fa 5f c4 ff 8e 31 60 85 50 b8 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 75
+        },
+        {
+          "addr": 1879149517,
+          "bytes": "9e 81 1b 02 bb ef 00 08 f8 fa 07 00 40 08 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879149533,
+          "bytes": "de 81 59 ea 5e 64 10 08 30 d0 85 38 f8 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 41
+        },
+        {
+          "addr": 1879149574,
+          "bytes": "0c 0e e9 41 e9 51 3e e1 4c e3 5c 60 10 0c 30 d0",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 160
+        },
+        {
+          "addr": 1879149734,
+          "bytes": "d0 9a 82 c6 b4 05",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 6
+        },
+        {
+          "addr": 1879149740,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879149744,
+          "bytes": "9e 69 00 70 58 66 12 00 30 d0 05 b3 f4 06 04 02",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 47
+        },
+        {
+          "addr": 1879149791,
+          "bytes": "cf d1 81 e5 60 c8 59 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879149799,
+          "bytes": "d2 61 d6 f6 2c 38 d2 21 be e6 2d 32 e6 27 2f e2",
+          "flags": "insn|no_reorder",
+          "size": 55
+        },
+        {
+          "addr": 1879149854,
+          "bytes": "0c 09 92 61 d6 46 08 00",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 8
+        },
+        {
+          "addr": 1879149862,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879149862,
+          "bytes": "0c 0b 1e b1 8c 02 58 66 10 04 30 d0 85 38 c8 06",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 34
+        },
+        {
+          "addr": 1879149896,
+          "bytes": "92 02 07 a2 02 06 4f 89 f2 52 8a 08 82 00 a0 99",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 82
+        },
+        {
+          "addr": 1879149978,
+          "bytes": "b2 02 0b c2 02 0a 4f 8b 76 93 8a 08 82 00 c0 bb",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 1128
+        },
+        {
+          "addr": 1879151106,
+          "bytes": "7e b8 ed 0c 5b 84 fd 07 31 a8 05 38 b8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879151122,
+          "bytes": "32 61 b4 8e 38 20 f3 05 e0 04 3a 37 33 08 02 40",
+          "flags": "insn|no_reorder",
+          "size": 19
+        },
+        {
+          "addr": 1879151141,
+          "bytes": "ae f8 a4 b2 02 e2 04 3a 17 34 08 02 40 08 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 24
+        },
+        {
+          "addr": 1879151165,
+          "bytes": "4f b2 74 3b 01 08 82 00 8e 38 a4 23 07 e0 00 4b",
+          "flags": "insn|no_reorder",
+          "size": 24
+        },
+        {
+          "addr": 1879151189,
+          "bytes": "5e f2 33 a2 5f e0 61 03 31 a8 85 37 f8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 48
+        },
+        {
+          "addr": 1879151237,
+          "bytes": "ee 98 eb 10 01 e2 80 4a 17 34 10 02 40 08 04 02",
+          "flags": "insn|no_reorder",
+          "size": 32
+        },
+        {
+          "addr": 1879151269,
+          "bytes": "9e b1 8d c7 5d c6 d1 02 31 a8 05 37 f8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 32
+        },
+        {
+          "addr": 1879151301,
+          "bytes": "8e e2 c1 c7 5c 42 6c 83 31 a8 85 37 f8 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 16
+        },
+        {
+          "addr": 1879151317,
+          "bytes": "3e cb 16 53 63 8c 6f 27 89 a8 e4 50 d8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879151333,
+          "bytes": "2e 91 da 1c 5a 44 6c 83 31 a8 85 38 b8 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 32
+        },
+        {
+          "addr": 1879151365,
+          "bytes": "cf dc 19 8b f8 05 5a 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879151373,
+          "bytes": "cf a7 15 6b e8 05 5a 00 3e d1 36 8a 5c 66 12 08",
+          "flags": "insn|no_reorder",
+          "size": 99
+        },
+        {
+          "addr": 1879151472,
+          "bytes": "ae bf 6f 73 6c ec 00 48 f7 fa 47 00 40 08 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879151488,
+          "bytes": "2e e7 dd 9a 5e 44 60 8b 31 a8 85 50 f8 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 16
+        },
+        {
+          "addr": 1879151504,
+          "bytes": "2e 9f 90 52 5d c2 61 0f 31 a8 85 38 d8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879151520,
+          "bytes": "af 9c 39 d2 94 ea 82 00 be cf 21 d6 5c 62 10 00",
+          "flags": "insn|no_reorder",
+          "size": 169
+        },
+        {
+          "addr": 1879151689,
+          "bytes": "3e a2 50 32 5c c2 fd 0f 31 a8 85 37 d8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879151705,
+          "bytes": "92 5b 21 ee 9b 07 f2 5d e2 f9 83 31 60 05 38 f8",
+          "flags": "insn|no_reorder",
+          "size": 30
+        },
+        {
+          "addr": 1879151735,
+          "bytes": "3e fb ea 23 5c 60 10 0c 30 d0 85 38 d8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879151751,
+          "bytes": "ef fb 2e 73 08 9c 59 00 0f fb b2 ef 01 7c 81 00",
+          "flags": "insn|no_reorder",
+          "size": 16
+        },
+        {
+          "addr": 1879151767,
+          "bytes": "1e eb da ff 5c e0 f2 03 31 a8 05 38 c8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879151783,
+          "bytes": "ef dc 5b f4 70 04 5a 00",
+          "flags": "insn|no_reorder",
+          "size": 8
+        },
+        {
+          "addr": 1879151791,
+          "bytes": "3e ec 98 13 5e 64 10 0c 30 d0 85 50 d8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        }
+      ],
+      "q4_status": "static_output_validation_owner_identified; this maps firmware output-shape validation owners. It does not yet identify the runtime settings+0x08 output-fill loop observed in completed wrapper replay.",
+      "referenced_patterns": [
+        "Inconsistent output batch",
+        "Inconsistent output size",
+        "Invalid input/output dimensions",
+        "Invalid output args",
+        "Invalid output data type"
+      ]
+    },
+    {
+      "analysis_end": 1879142040,
+      "analysis_start": 1879137944,
+      "assessment": "Static output-size validation owner selected by direct rodata32 or L32R-backed output-size diagnostics.",
+      "boundary_counts": {
+        "core24": 270,
+        "dens16": 20,
+        "flix128": 153,
+        "flix64": 100,
+        "truncated": 0
+      },
+      "evidence_refs": [
+        {
+          "kind": "l32r",
+          "literal_addr": 1879057496,
+          "literal_string_addr": 1879057476,
+          "literal_string_offset": 20,
+          "literal_string_value": "Inconsistent output size",
+          "owner_delta": 6780,
+          "pattern": "Inconsistent output size",
+          "prop_addr": 1879144723,
+          "prop_flags": "insn|data|branch_target|no_reorder|no_transform",
+          "prop_size": 29,
+          "ref_addr": 1879144725,
+          "target_reg": 1,
+          "value_string_addr": null,
+          "value_string_offset": null,
+          "value_string_value": null
+        }
+      ],
+      "label": "output_size_validation_owner",
+      "next_action": "Use these owner anchors for targeted FLIX/TIE or runtime tracing if Q4 needs the exact settings+0x08 fill loop.",
+      "owner_entry": 1879137944,
+      "prop_runs": [
+        {
+          "addr": 1879137944,
+          "bytes": "36 01 07 82 af c0 2f 81 b1 9d 50 02 5a 00 10 18",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 2825
+        },
+        {
+          "addr": 1879140769,
+          "bytes": "",
+          "flags": "data|unreachable|no_transform",
+          "size": 0
+        },
+        {
+          "addr": 1879140772,
+          "bytes": "f4 17 70 f4 e0 82 f9 01",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879140780,
+          "bytes": "c0 82 82 60 55 82 30 bb 82 40 3d 82 70 4d 82 b0",
+          "flags": "insn|data|branch_target|no_reorder|no_transform",
+          "size": 140
+        },
+        {
+          "addr": 1879140920,
+          "bytes": "b2 21 d2 1e bb 42 43 81 8c e5 24 01 a9 e4 37 c8",
+          "flags": "insn|data|branch_target|no_reorder|no_transform",
+          "size": 343
+        },
+        {
+          "addr": 1879141263,
+          "bytes": "",
+          "flags": "data|unreachable|no_transform",
+          "size": 0
+        },
+        {
+          "addr": 1879141264,
+          "bytes": "22 a1 00 1d f0",
+          "flags": "insn|data|branch_target|no_reorder|no_transform",
+          "size": 5
+        },
+        {
+          "addr": 1879141269,
+          "bytes": "",
+          "flags": "data|unreachable|no_transform",
+          "size": 0
+        },
+        {
+          "addr": 1879141269,
+          "bytes": "0c 03 0f 34 80 02 38 20 82 00 a4 01 60 a2 61 b1",
+          "flags": "insn|data|branch_target|no_reorder|no_transform",
+          "size": 19
+        },
+        {
+          "addr": 1879141288,
+          "bytes": "",
+          "flags": "data|unreachable|no_transform",
+          "size": 0
+        },
+        {
+          "addr": 1879141288,
+          "bytes": "0c 03 34 01 60 32 61 b1",
+          "flags": "insn|data|branch_target|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879141296,
+          "bytes": "0e c8 f2 02 59 c0 04 04 30 60 85 3e c8 06 04 02",
+          "flags": "insn|data|branch_target|no_reorder|no_transform",
+          "size": 862
+        }
+      ],
+      "q4_status": "static_output_validation_owner_identified; this maps firmware output-shape validation owners. It does not yet identify the runtime settings+0x08 output-fill loop observed in completed wrapper replay.",
+      "referenced_patterns": [
+        "Inconsistent output size"
+      ]
+    },
+    {
+      "analysis_end": 1879311574,
+      "analysis_start": 1879311408,
+      "assessment": "Static output-size validation owner selected by direct rodata32 or L32R-backed output-size diagnostics.",
+      "boundary_counts": {
+        "core24": 1,
+        "dens16": 0,
+        "flix128": 8,
+        "flix64": 5,
+        "truncated": 0
+      },
+      "evidence_refs": [
+        {
+          "kind": "l32r",
+          "literal_addr": 1879057496,
+          "literal_string_addr": 1879057476,
+          "literal_string_offset": 20,
+          "literal_string_value": "Inconsistent output size",
+          "owner_delta": 38,
+          "pattern": "Inconsistent output size",
+          "prop_addr": 1879311408,
+          "prop_flags": "insn|no_reorder",
+          "prop_size": 75,
+          "ref_addr": 1879311446,
+          "target_reg": 10,
+          "value_string_addr": null,
+          "value_string_offset": null,
+          "value_string_value": null
+        }
+      ],
+      "label": "output_size_validation_owner",
+      "next_action": "Use these owner anchors for targeted FLIX/TIE or runtime tracing if Q4 needs the exact settings+0x08 fill loop.",
+      "owner_entry": 1879311408,
+      "prop_runs": [
+        {
+          "addr": 1879311408,
+          "bytes": "36 61 00 8f 93 aa d1 f8 05 82 00 8f c4 dc f2 00",
+          "flags": "insn|no_reorder",
+          "size": 75
+        },
+        {
+          "addr": 1879311483,
+          "bytes": "6e 73 03 c7 02 c4 84 0b 17 3c 18 02 40 08 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 32
+        },
+        {
+          "addr": 1879311515,
+          "bytes": "ae 5f 1f d2 5c 46 dc 82 31 a8 85 50 f8 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 16
+        },
+        {
+          "addr": 1879311531,
+          "bytes": "6e 54 90 45 00 d4 84 0a 17 34 18 02 40 08 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 32
+        },
+        {
+          "addr": 1879311563,
+          "bytes": "ae 8f 3f d2 5e e4 dd 02 31 a8 05 4b f8 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 16
+        }
+      ],
+      "q4_status": "static_output_validation_owner_identified; this maps firmware output-shape validation owners. It does not yet identify the runtime settings+0x08 output-fill loop observed in completed wrapper replay.",
+      "referenced_patterns": [
+        "Inconsistent output size"
+      ]
+    },
+    {
+      "analysis_end": 1879735656,
+      "analysis_start": 1879735264,
+      "assessment": "Static output-size validation owner selected by direct rodata32 or L32R-backed output-size diagnostics.",
+      "boundary_counts": {
+        "core24": 27,
+        "dens16": 8,
+        "flix128": 18,
+        "flix64": 1,
+        "truncated": 0
+      },
+      "evidence_refs": [
+        {
+          "kind": "rodata32",
+          "owner_delta": 264,
+          "pattern": "Inconsistent output size",
+          "prop_addr": 1879735491,
+          "prop_flags": "insn|branch_target|no_reorder",
+          "prop_size": 46,
+          "ref_addr": 1879735528,
+          "string_addr": 1879057476,
+          "string_offset": 2,
+          "string_value": "Inconsistent output size"
+        }
+      ],
+      "label": "output_size_validation_owner",
+      "next_action": "Use these owner anchors for targeted FLIX/TIE or runtime tracing if Q4 needs the exact settings+0x08 fill loop.",
+      "owner_entry": 1879735264,
+      "prop_runs": [
+        {
+          "addr": 1879735264,
+          "bytes": "36 41 00 0c c3 be 23 15 01 5a 64 10 04 30 d0 05",
+          "flags": "insn|no_reorder",
+          "size": 147
+        },
+        {
+          "addr": 1879735411,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879735411,
+          "bytes": "a6 62 4c 9e 32 0e 70 5a 60 12 00 30 d0 85 0c f4",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 80
+        },
+        {
+          "addr": 1879735491,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879735491,
+          "bytes": "a6 32 39 9e 32 08 70 5a 66 12 00 30 d0 85 0d f4",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 46
+        },
+        {
+          "addr": 1879735537,
+          "bytes": "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+          "flags": "unreachable",
+          "size": 15
+        },
+        {
+          "addr": 1879735552,
+          "bytes": "9e 32 02 70 58 62 12 00 30 d0 05 0f f4 06 04 02",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 48
+        },
+        {
+          "addr": 1879735600,
+          "bytes": "24 00 70 24 30 64 1d f0",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 8
+        },
+        {
+          "addr": 1879735608,
+          "bytes": "00 00 00 00 00 00 00 00",
+          "flags": "unreachable",
+          "size": 8
+        },
+        {
+          "addr": 1879735616,
+          "bytes": "5e 2e d5 13 04 22 80 03 08 22 00 02 40 08 04 02",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 59
+        }
+      ],
+      "q4_status": "static_output_validation_owner_identified; this maps firmware output-shape validation owners. It does not yet identify the runtime settings+0x08 output-fill loop observed in completed wrapper replay.",
+      "referenced_patterns": [
+        "Inconsistent output size"
+      ]
+    },
+    {
+      "analysis_end": 1879319760,
+      "analysis_start": 1879315664,
+      "assessment": "Static output-height validation owner; adjacent output-shape evidence for Q4, separate from the runtime fill loop.",
+      "boundary_counts": {
+        "core24": 317,
+        "dens16": 40,
+        "flix128": 154,
+        "flix64": 77,
+        "truncated": 0
+      },
+      "evidence_refs": [
+        {
+          "kind": "l32r",
+          "literal_addr": 1879060372,
+          "literal_string_addr": 1879060364,
+          "literal_string_offset": 8,
+          "literal_string_value": "Inconsistent output height",
+          "owner_delta": 5506,
+          "pattern": "Inconsistent output height",
+          "prop_addr": 1879321127,
+          "prop_flags": "insn|branch_target|no_reorder",
+          "prop_size": 90,
+          "ref_addr": 1879321170,
+          "target_reg": 0,
+          "value_string_addr": null,
+          "value_string_offset": null,
+          "value_string_value": null
+        },
+        {
+          "kind": "l32r",
+          "literal_addr": 1879065528,
+          "literal_string_addr": 1879065512,
+          "literal_string_offset": 16,
+          "literal_string_value": "Invalid output tile height",
+          "owner_delta": 6214,
+          "pattern": "Invalid output tile",
+          "prop_addr": 1879321830,
+          "prop_flags": "insn|branch_target|no_reorder",
+          "prop_size": 100,
+          "ref_addr": 1879321878,
+          "target_reg": 3,
+          "value_string_addr": null,
+          "value_string_offset": null,
+          "value_string_value": null
+        },
+        {
+          "kind": "l32r",
+          "literal_addr": 1879063108,
+          "literal_string_addr": 1879063108,
+          "literal_string_offset": 0,
+          "literal_string_value": "Invalid output batch",
+          "owner_delta": 8394,
+          "pattern": "Invalid output batch",
+          "prop_addr": 1879324053,
+          "prop_flags": "insn|data|no_reorder|no_transform",
+          "prop_size": 40,
+          "ref_addr": 1879324059,
+          "target_reg": 4,
+          "value_string_addr": null,
+          "value_string_offset": null,
+          "value_string_value": null
+        }
+      ],
+      "label": "output_height_validation_owner",
+      "next_action": "Use these owner anchors for targeted FLIX/TIE or runtime tracing if Q4 needs the exact settings+0x08 fill loop.",
+      "owner_entry": 1879315664,
+      "prop_runs": [
+        {
+          "addr": 1879315664,
+          "bytes": "36 61 08 9e 62 20 70 58 64 12 00 30 d0 85 73 f4",
+          "flags": "insn|no_reorder",
+          "size": 68
+        },
+        {
+          "addr": 1879315732,
+          "bytes": "7e e4 54 52 58 c4 41 06 31 a8 85 02 c8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879315748,
+          "bytes": "9e 98 1c 70 5a 66 12 00 30 d0 05 8c f1 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 1228
+        },
+        {
+          "addr": 1879316976,
+          "bytes": "fe 91 08 02 58 46 c9 84 31 a8 85 38 c8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879316992,
+          "bytes": "9e 98 2a 70 58 66 12 00 30 d0 85 66 f1 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 22
+        },
+        {
+          "addr": 1879317014,
+          "bytes": "3e 89 12 12 5e 64 10 0c 30 d0 85 50 d8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879317030,
+          "bytes": "52 61 ad 9e 98 36 70 5a 60 12 00 30 d0 05 67 f1",
+          "flags": "insn|no_reorder",
+          "size": 88
+        },
+        {
+          "addr": 1879317118,
+          "bytes": "8f 82 8a cd 48 98 59 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879317126,
+          "bytes": "80 99 11",
+          "flags": "insn|no_reorder",
+          "size": 3
+        },
+        {
+          "addr": 1879317129,
+          "bytes": "8f 82 88 cd 48 98 59 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879317137,
+          "bytes": "80 99 11 80 99 20 9c 19 26 19 0f 9e 59 04 70 58",
+          "flags": "insn|no_reorder",
+          "size": 36
+        },
+        {
+          "addr": 1879317173,
+          "bytes": "8f 82 9a cd 48 98 59 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879317181,
+          "bytes": "80 99 11",
+          "flags": "insn|no_reorder",
+          "size": 3
+        },
+        {
+          "addr": 1879317184,
+          "bytes": "8f 84 80 cd 48 c8 59 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879317192,
+          "bytes": "84 00 00",
+          "flags": "insn|no_reorder",
+          "size": 3
+        },
+        {
+          "addr": 1879317195,
+          "bytes": "0e 81 21 c2 05 e6 00 08 d7 24 00 02 40 08 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879317211,
+          "bytes": "80 99 11",
+          "flags": "insn|no_reorder",
+          "size": 3
+        },
+        {
+          "addr": 1879317214,
+          "bytes": "3e 81 21 96 5c 66 10 00 30 d0 05 37 f8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879317230,
+          "bytes": "9e 98 36 70 58 62 12 00 30 d0 85 5c f1 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 25
+        },
+        {
+          "addr": 1879317255,
+          "bytes": "8f 82 a2 cd 48 98 59 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879317263,
+          "bytes": "80 99 11",
+          "flags": "insn|no_reorder",
+          "size": 3
+        },
+        {
+          "addr": 1879317266,
+          "bytes": "8f 82 a0 cd 48 98 59 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879317274,
+          "bytes": "80 99 11",
+          "flags": "insn|no_reorder",
+          "size": 3
+        },
+        {
+          "addr": 1879317277,
+          "bytes": "3e 81 21 96 5c 66 10 00 30 d0 05 37 f8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879317293,
+          "bytes": "9e 98 16 70 5a 62 12 00 30 d0 85 5a f1 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 16
+        },
+        {
+          "addr": 1879317309,
+          "bytes": "3e 21 ac e0 5e 66 10 04 30 d0 85 38 d8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879317325,
+          "bytes": "2a 8f 0b 88 20 88 c2",
+          "flags": "insn|no_reorder",
+          "size": 7
+        },
+        {
+          "addr": 1879317332,
+          "bytes": "3e 81 28 f2 5c 66 10 04 30 d0 85 38 d8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879317348,
+          "bytes": "3e 86 4c 62 5a 66 12 0c 30 d0 05 4e d8 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 43
+        },
+        {
+          "addr": 1879317391,
+          "bytes": "fe 61 aa f9 5c 66 12 0c 30 d0 85 38 b8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 40
+        },
+        {
+          "addr": 1879317431,
+          "bytes": "6f 6d 0d bb fc 05 5a 00 80 77 c2",
+          "flags": "insn|no_reorder",
+          "size": 11
+        },
+        {
+          "addr": 1879317442,
+          "bytes": "3e 68 0c f2 5e 64 10 04 30 d0 85 50 d8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879317458,
+          "bytes": "0b 22 20 2e 82",
+          "flags": "insn|no_reorder",
+          "size": 5
+        },
+        {
+          "addr": 1879317463,
+          "bytes": "8f b8 16 c3 fc 05 5a 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879317471,
+          "bytes": "2f 8e 10 13 08 04 5a 00 2a ff 8f fd 1a 43 08 04",
+          "flags": "insn|no_reorder",
+          "size": 63
+        },
+        {
+          "addr": 1879317534,
+          "bytes": "0c 1c",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 2
+        },
+        {
+          "addr": 1879317536,
+          "bytes": "b2 61 c1 be 21 2c fa 5e 66 10 08 30 d0 85 38 b8",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 19
+        },
+        {
+          "addr": 1879317555,
+          "bytes": "1e 91 40 ce 9d 76 7c be c3 61 a4 38 c8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879317571,
+          "bytes": "1e 92 65 8a ac 5b fd 3b c3 a9 e4 50 f8 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 16
+        },
+        {
+          "addr": 1879317587,
+          "bytes": "fe fd 13 ba 5a 44 f1 03 31 a8 85 50 f8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 40
+        },
+        {
+          "addr": 1879317627,
+          "bytes": "80 ee 80 ef fb 76 cc 48 00 5a 00 b0 99 80 92 61",
+          "flags": "insn|no_reorder",
+          "size": 198
+        },
+        {
+          "addr": 1879317825,
+          "bytes": "d0 9a 82 86 4a 01",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 6
+        },
+        {
+          "addr": 1879317831,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879317831,
+          "bytes": "c2 02 2f d2 02 2e 4f 8c b8 d7 8a 08 82 00 d0 cc",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 89
+        },
+        {
+          "addr": 1879317920,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879317920,
+          "bytes": "0c 0c 1e c1 c6 02 5a 66 10 04 30 d0 85 38 c8 06",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 37
+        },
+        {
+          "addr": 1879317957,
+          "bytes": "0c 1e 1e e1 64 03 58 66 10 04 30 d0 85 38 c8 06",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 40
+        },
+        {
+          "addr": 1879317997,
+          "bytes": "92 02 07 a2 02 06 4f 89 f2 52 8a 08 82 00 a0 99",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 82
+        },
+        {
+          "addr": 1879318079,
+          "bytes": "b2 02 0b c2 02 0a 4f 8b 76 93 8a 08 82 00 c0 bb",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 493
+        },
+        {
+          "addr": 1879318572,
+          "bytes": "00 00 00 00 00 00 00 00 00 00",
+          "flags": "unreachable",
+          "size": 10
+        },
+        {
+          "addr": 1879318582,
+          "bytes": "c2 21 0e c2 61 08",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 6
+        },
+        {
+          "addr": 1879318588,
+          "bytes": "b2 02 0b c2 02 0a 4f 8b 76 93 8a 08 82 00 c0 bb",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 434
+        },
+        {
+          "addr": 1879319022,
+          "bytes": "4e 81 a1 09 5b c6 a0 8a 30 60 85 38 b8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879319038,
+          "bytes": "5e a1 de 30 5a 66 12 00 30 d0 85 38 c8 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 23
+        },
+        {
+          "addr": 1879319061,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879319072,
+          "bytes": "9e fd 18 70 58 66 12 00 30 d0 85 fa f0 06 04 02",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 67
+        },
+        {
+          "addr": 1879319139,
+          "bytes": "1b cd af cb 99 55 c8 04 5a 00 90 9d 82 ca 99",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 15
+        },
+        {
+          "addr": 1879319154,
+          "bytes": "3e 91 7f 8b 58 66 10 00 30 d0 85 38 f8 06 04 02",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 35
+        },
+        {
+          "addr": 1879319189,
+          "bytes": "0c 09 92 61 e1",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 5
+        },
+        {
+          "addr": 1879319194,
+          "bytes": "9e 6d 00 70 5a 62 12 00 30 d0 85 f0 f4 06 04 02",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 47
+        },
+        {
+          "addr": 1879319241,
+          "bytes": "af b1 81 d5 50 c8 59 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879319249,
+          "bytes": "b2 61 d2 f6 2a 3d 3e c1 c2 22 5e 66 12 04 30 d0",
+          "flags": "insn|no_reorder",
+          "size": 63
+        },
+        {
+          "addr": 1879319312,
+          "bytes": "0c 0f f2 61 d2 0c 08 82 61 ed b6 27 0a 92 02 4a",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 64
+        },
+        {
+          "addr": 1879319376,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        }
+      ],
+      "q4_status": "static_output_validation_owner_identified; this maps firmware output-shape validation owners. It does not yet identify the runtime settings+0x08 output-fill loop observed in completed wrapper replay.",
+      "referenced_patterns": [
+        "Inconsistent output height",
+        "Invalid output batch",
+        "Invalid output tile"
+      ]
+    },
+    {
+      "analysis_end": 1879315773,
+      "analysis_start": 1879311804,
+      "assessment": "Static output-height validation owner; adjacent output-shape evidence for Q4, separate from the runtime fill loop.",
+      "boundary_counts": {
+        "core24": 300,
+        "dens16": 54,
+        "flix128": 152,
+        "flix64": 67,
+        "truncated": 0
+      },
+      "evidence_refs": [
+        {
+          "kind": "l32r",
+          "literal_addr": 1879060364,
+          "literal_string_addr": 1879060364,
+          "literal_string_offset": 0,
+          "literal_string_value": "Inconsistent output height",
+          "owner_delta": 3758,
+          "pattern": "Inconsistent output height",
+          "prop_addr": 1879315531,
+          "prop_flags": "insn|branch_target|no_reorder",
+          "prop_size": 43,
+          "ref_addr": 1879315562,
+          "target_reg": 0,
+          "value_string_addr": null,
+          "value_string_offset": null,
+          "value_string_value": null
+        },
+        {
+          "kind": "l32r",
+          "literal_addr": 1879059296,
+          "literal_string_addr": 1879059292,
+          "literal_string_offset": 4,
+          "literal_string_value": "Inconsistent output batch index size",
+          "owner_delta": 3840,
+          "pattern": "Inconsistent output batch",
+          "prop_addr": 1879315617,
+          "prop_flags": "insn|branch_target|no_reorder",
+          "prop_size": 43,
+          "ref_addr": 1879315645,
+          "target_reg": 3,
+          "value_string_addr": null,
+          "value_string_offset": null,
+          "value_string_value": null
+        }
+      ],
+      "label": "output_height_validation_owner",
+      "next_action": "Use these owner anchors for targeted FLIX/TIE or runtime tracing if Q4 needs the exact settings+0x08 fill loop.",
+      "owner_entry": 1879311804,
+      "prop_runs": [
+        {
+          "addr": 1879311804,
+          "bytes": "36 01 04 82 af c0 6e 81 f0 a4 5c a2 59 01 31 a8",
+          "flags": "insn|no_reorder",
+          "size": 99
+        },
+        {
+          "addr": 1879311903,
+          "bytes": "fe e4 54 23 58 e4 61 07 31 a8 85 02 c8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879311919,
+          "bytes": "9e dc 3c 70 5a 60 12 00 30 d0 05 72 f0 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 699
+        },
+        {
+          "addr": 1879312618,
+          "bytes": "8f 98 85 e5 61 98 59 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879312626,
+          "bytes": "0f 8c 39 16 8a 08 82 00 90 cc 20 80 cc 11 80 cc",
+          "flags": "insn|no_reorder",
+          "size": 104
+        },
+        {
+          "addr": 1879312730,
+          "bytes": "00 39 23 30 81 60 9e 38 02 70 5a 60 12 00 30 d0",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 253
+        },
+        {
+          "addr": 1879312983,
+          "bytes": "0e 33 58 43 80 ee dd a6 41 a9 e4 50 c8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879312999,
+          "bytes": "f0 20 00 f0 20 00 e5 09 5f 9e 6a 06 70 5a 60 12",
+          "flags": "insn|no_reorder",
+          "size": 97
+        },
+        {
+          "addr": 1879313096,
+          "bytes": "0e 33 58 43 80 ee dd a6 c1 a9 e4 50 c8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879313112,
+          "bytes": "f0 20 00 f0 20 00 e5 02 5f 9e 6a 26 70 58 60 12",
+          "flags": "insn|no_reorder",
+          "size": 184
+        },
+        {
+          "addr": 1879313296,
+          "bytes": "6e 78 bf 0e 02 e0 04 18 07 22 00 02 40 08 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879313312,
+          "bytes": "cf 78 9d 31 94 0c 82 00 0e 78 7f 2e 01 e4 00 18",
+          "flags": "insn|no_reorder",
+          "size": 40
+        },
+        {
+          "addr": 1879313352,
+          "bytes": "8e 78 e2 7d 04 ed 80 19 37 0b 10 01 40 08 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 32
+        },
+        {
+          "addr": 1879313384,
+          "bytes": "cf c8 d9 52 04 0c 82 00 ce c8 1c 62 5e 40 bc 81",
+          "flags": "insn|no_reorder",
+          "size": 123
+        },
+        {
+          "addr": 1879313507,
+          "bytes": "2e 68 be 1d cb 91 c8 20 40 60 a4 38 b8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879313523,
+          "bytes": "0e b0 80 02 49 39 e0 05 30 60 85 3e c8 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 292
+        },
+        {
+          "addr": 1879313815,
+          "bytes": "3e b1 8a b3 5f c2 06 00 30 60 85 38 d8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879313831,
+          "bytes": "1e b1 2b fa 5e 62 12 0c 30 d0 85 38 b8 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 51
+        },
+        {
+          "addr": 1879313882,
+          "bytes": "92 21 6b 16 b9 52 0c 0a a2 61 68",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 11
+        },
+        {
+          "addr": 1879313893,
+          "bytes": "3e c1 e4 52 5e 62 12 00 30 d0 05 37 d8 06 04 02",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 86
+        },
+        {
+          "addr": 1879313979,
+          "bytes": "c2 21 67 92 21 6d 3e d1 20 62 5e 62 12 00 30 d0",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 63
+        },
+        {
+          "addr": 1879314042,
+          "bytes": "b2 21 70 3e 6b 00 13 5c 66 12 08 30 d0 85 00 d4",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 86
+        },
+        {
+          "addr": 1879314128,
+          "bytes": "ae 8e aa 56 5c c0 6d 03 31 a8 85 37 f8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879314144,
+          "bytes": "be ae 23 d2 5d c0 fd 03 31 a8 85 37 f8 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 32
+        },
+        {
+          "addr": 1879314176,
+          "bytes": "2e 9e 20 12 5c c0 2f 09 31 a8 85 37 d8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879314192,
+          "bytes": "af be a8 fd 78 98 59 00 9e 8d 1a 56 81 08 85 3b",
+          "flags": "insn|no_reorder",
+          "size": 24
+        },
+        {
+          "addr": 1879314216,
+          "bytes": "ee cd 5b f6 54 be 41 a2 01 a8 a4 50 f8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 80
+        },
+        {
+          "addr": 1879314296,
+          "bytes": "80 89 c0 80 b9 93",
+          "flags": "insn|no_reorder",
+          "size": 6
+        },
+        {
+          "addr": 1879314302,
+          "bytes": "9e 5b 57 81 03 04 01 68 06 22 00 02 40 08 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 32
+        },
+        {
+          "addr": 1879314334,
+          "bytes": "50 99 80 8f 50 80 4d c0 c8 59 00",
+          "flags": "insn|no_reorder",
+          "size": 11
+        },
+        {
+          "addr": 1879314345,
+          "bytes": "9e 81 04 ca 07 d0 84 0b da 2b 08 02 40 08 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 32
+        },
+        {
+          "addr": 1879314377,
+          "bytes": "65 2d ff c2 21 73 8f bc 15 b2 00 08 82 00 8f dc",
+          "flags": "insn|no_reorder",
+          "size": 86
+        },
+        {
+          "addr": 1879314463,
+          "bytes": "ae ac 09 d2 5d c0 fd 03 31 a8 85 37 f8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 64
+        },
+        {
+          "addr": 1879314527,
+          "bytes": "0e a7 d1 86 5c 40 6c 83 31 a8 85 38 f8 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 16
+        },
+        {
+          "addr": 1879314543,
+          "bytes": "de 8f 5e 92 5a c4 6d 03 31 a8 85 50 d8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879314559,
+          "bytes": "ee 97 32 f6 c0 ec 04 09 66 1c 10 01 40 08 04 02",
+          "flags": "insn|no_reorder",
+          "size": 40
+        },
+        {
+          "addr": 1879314599,
+          "bytes": "cf fb f6 3f 90 5a 83 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879314607,
+          "bytes": "f9 37 3e ed 9a a2 5e 64 12 00 30 d0 85 50 d8 06",
+          "flags": "insn|no_reorder",
+          "size": 34
+        },
+        {
+          "addr": 1879314641,
+          "bytes": "fe d7 c4 b5 5d c0 d0 02 31 a8 85 38 f8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879314657,
+          "bytes": "e5 34 ff",
+          "flags": "insn|no_reorder",
+          "size": 3
+        },
+        {
+          "addr": 1879314660,
+          "bytes": "88 03 a6 18 4d c4 00 70 d4 f0 7f d4 f0 50 af 50",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 83
+        },
+        {
+          "addr": 1879314743,
+          "bytes": "3e a1 2a 2f 5a 62 10 00 30 d0 05 37 b8 06 04 02",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 77
+        },
+        {
+          "addr": 1879314820,
+          "bytes": "f0 20 00 f0 20 00 65 fa 5e 56 5a 1b f2 21 73 82",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 21
+        },
+        {
+          "addr": 1879314841,
+          "bytes": "9e 41 2e bd 07 e4 00 0a 37 33 00 02 40 08 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 24
+        },
+        {
+          "addr": 1879314865,
+          "bytes": "80 44 11",
+          "flags": "insn|no_reorder",
+          "size": 3
+        },
+        {
+          "addr": 1879314868,
+          "bytes": "8f 9f 9b a5 20 98 59 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879314876,
+          "bytes": "ae c5 46 43 58 40 40 82 31 a8 05 37 d8 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 16
+        },
+        {
+          "addr": 1879314892,
+          "bytes": "8f 9f 93 c5 40 98 59 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879314900,
+          "bytes": "e2 0f 07 ef 84 a9 60 8a 08 82 00",
+          "flags": "insn|no_reorder",
+          "size": 11
+        },
+        {
+          "addr": 1879314911,
+          "bytes": "8f 9f 99 a5 20 98 59 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879314919,
+          "bytes": "ae a5 c0 82 58 40 f0 83 31 a8 05 37 d8 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 16
+        },
+        {
+          "addr": 1879314935,
+          "bytes": "0e 2f 0b 82 5d 80 f1 03 31 a8 85 37 f8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 24
+        },
+        {
+          "addr": 1879314959,
+          "bytes": "cf ff 09 e2 04 e8 82 00",
+          "flags": "insn|no_reorder",
+          "size": 8
+        },
+        {
+          "addr": 1879314967,
+          "bytes": "ae 31 ec 90 5b 82 f1 03 31 a8 85 38 d8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879314983,
+          "bytes": "ae 8e bc c0 5a 44 20 81 31 a8 05 4b d8 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 16
+        },
+        {
+          "addr": 1879314999,
+          "bytes": "be 94 48 f2 59 e6 f1 03 31 a8 85 50 d8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879315015,
+          "bytes": "af e3 e6 d3 90 ea 81 00 29 01 e0 99 82 40 2e 82",
+          "flags": "insn|no_reorder",
+          "size": 19
+        },
+        {
+          "addr": 1879315034,
+          "bytes": "7e 41 24 39 5a 62 10 00 30 d0 05 37 f8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879315050,
+          "bytes": "20 88 82",
+          "flags": "insn|no_reorder",
+          "size": 3
+        },
+        {
+          "addr": 1879315053,
+          "bytes": "3e 21 82 e0 5c 60 12 00 30 d0 85 38 d8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879315069,
+          "bytes": "80 44 82 4a 22 3e 32 04 71 5e 66 12 08 30 d0 05",
+          "flags": "insn|no_reorder",
+          "size": 21
+        },
+        {
+          "addr": 1879315090,
+          "bytes": "2f 25 74 dc 58 94 59 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879315098,
+          "bytes": "3e 21 c4 60 5c 60 12 08 30 d0 85 38 d8 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 44
+        },
+        {
+          "addr": 1879315142,
+          "bytes": "2e f4 dc 41 95 b1 93 09 31 a8 c5 dd d3 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        }
+      ],
+      "q4_status": "static_output_validation_owner_identified; this maps firmware output-shape validation owners. It does not yet identify the runtime settings+0x08 output-fill loop observed in completed wrapper replay.",
+      "referenced_patterns": [
+        "Inconsistent output batch",
+        "Inconsistent output height"
+      ]
+    },
+    {
+      "analysis_end": 1879688124,
+      "analysis_start": 1879684592,
+      "assessment": "Static output-height validation owner; adjacent output-shape evidence for Q4, separate from the runtime fill loop.",
+      "boundary_counts": {
+        "core24": 174,
+        "dens16": 89,
+        "flix128": 144,
+        "flix64": 66,
+        "truncated": 0
+      },
+      "evidence_refs": [
+        {
+          "kind": "rodata32",
+          "owner_delta": 2796,
+          "pattern": "Inconsistent output height",
+          "prop_addr": 1879687386,
+          "prop_flags": "insn|branch_target|no_reorder",
+          "prop_size": 69,
+          "ref_addr": 1879687388,
+          "string_addr": 1879060364,
+          "string_offset": 18,
+          "string_value": "Inconsistent output height"
+        },
+        {
+          "kind": "rodata32",
+          "owner_delta": 3404,
+          "pattern": "Inconsistent output height",
+          "prop_addr": 1879687994,
+          "prop_flags": "insn|branch_target|no_reorder",
+          "prop_size": 69,
+          "ref_addr": 1879687996,
+          "string_addr": 1879060364,
+          "string_offset": 18,
+          "string_value": "Inconsistent output height"
+        }
+      ],
+      "label": "output_height_validation_owner",
+      "next_action": "Use these owner anchors for targeted FLIX/TIE or runtime tracing if Q4 needs the exact settings+0x08 fill loop.",
+      "owner_entry": 1879684592,
+      "prop_runs": [
+        {
+          "addr": 1879684592,
+          "bytes": "36 a1 01 82 af c0 80 81 10 10 18 00 84 f0 7f d4",
+          "flags": "insn|no_reorder",
+          "size": 136
+        },
+        {
+          "addr": 1879684728,
+          "bytes": "5e b1 11 43 5e a0 dc 02 31 a8 85 38 c8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 32
+        },
+        {
+          "addr": 1879684760,
+          "bytes": "a0 a4 82 9e ab 18 70 58 62 12 00 30 d0 85 0f f0",
+          "flags": "insn|no_reorder",
+          "size": 53
+        },
+        {
+          "addr": 1879684813,
+          "bytes": "6e e1 92 22 5b c0 f0 03 31 a8 85 38 d8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 32
+        },
+        {
+          "addr": 1879684845,
+          "bytes": "9e fa 16 70 5a 60 12 00 30 d0 05 0d f0 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 24
+        },
+        {
+          "addr": 1879684869,
+          "bytes": "5e a1 8b ab 5a 60 10 00 30 d0 85 38 f8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879684885,
+          "bytes": "a0 ab 82",
+          "flags": "insn|no_reorder",
+          "size": 3
+        },
+        {
+          "addr": 1879684888,
+          "bytes": "3e e1 88 93 5e 60 10 00 30 d0 85 38 d8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879684904,
+          "bytes": "3e a7 d4 a3 5e 64 10 00 30 d0 85 50 d8 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 200
+        },
+        {
+          "addr": 1879685104,
+          "bytes": "1e 0c 43 02 58 66 12 04 30 d0 05 01 f4 06 04 02",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 48
+        },
+        {
+          "addr": 1879685152,
+          "bytes": "9e ff 04 70 58 60 12 00 30 d0 05 36 f0 06 04 02",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 115
+        },
+        {
+          "addr": 1879685267,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879685267,
+          "bytes": "a4 00 70 b4 00 70 e4 00 70 e4 44 59 0f b8 03 0e",
+          "flags": "insn|no_reorder",
+          "size": 20
+        },
+        {
+          "addr": 1879685287,
+          "bytes": "7e a0 53 02 5a c2 f8 04 31 a8 05 02 c8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879685303,
+          "bytes": "1e 9f 3e 27 5e 62 10 0c 30 d0 85 38 c8 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 23
+        },
+        {
+          "addr": 1879685326,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879685326,
+          "bytes": "a4 00 70 b4 00 70 e4 00 70 e4 e0 58 0f b8 03 0e",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 51
+        },
+        {
+          "addr": 1879685377,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879685377,
+          "bytes": "a4 00 70 b4 00 70 e4 00 70 e4 cc 58 0f b8 03 0e",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 51
+        },
+        {
+          "addr": 1879685428,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879685428,
+          "bytes": "a4 00 70 b4 00 70 e4 00 70 e4 fc 58 0f b8 03 0e",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 51
+        },
+        {
+          "addr": 1879685479,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879685479,
+          "bytes": "a4 00 70 b4 00 70 e4 00 70 e4 20 59 0f b8 03 0e",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 51
+        },
+        {
+          "addr": 1879685530,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879685530,
+          "bytes": "a4 00 70 b4 00 70 e4 00 70 0f e0 0b 0e 10 56 83",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 35
+        },
+        {
+          "addr": 1879685565,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879685565,
+          "bytes": "0c 02 1d f0",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 4
+        },
+        {
+          "addr": 1879685569,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879685569,
+          "bytes": "f8 53 27 6f 76 3e e3 50 82 5c 60 10 00 30 d0 05",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 61
+        },
+        {
+          "addr": 1879685630,
+          "bytes": "1e 91 45 8a 5a 60 10 00 30 d0 05 37 f8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879685646,
+          "bytes": "2a aa af 24 46 cc 48 14 5a 00 1e 39 23 d6 5c 60",
+          "flags": "insn|no_reorder",
+          "size": 45
+        },
+        {
+          "addr": 1879685691,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879685691,
+          "bytes": "f8 53 37 6f 51 20 ab 82 6e 83 44 92 59 c0 54 01",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 85
+        },
+        {
+          "addr": 1879685776,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879685776,
+          "bytes": "f8 53 9e 4f 00 70 5a 60 12 00 30 d0 85 04 f0 06",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 132
+        },
+        {
+          "addr": 1879685908,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879685908,
+          "bytes": "f8 53 7c fa a4 e1 7f a0 af 10 0f a3 8a 00 90 2c",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 20
+        },
+        {
+          "addr": 1879685928,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879685928,
+          "bytes": "7c fa a4 e1 7f a0 af 10 0f a3 8a 00 90 2c 82 00",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 18
+        },
+        {
+          "addr": 1879685946,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879685946,
+          "bytes": "b8 43 3d f0 c0 eb 82 1e fd 83 8b 59 60 8c 03 30",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 39
+        },
+        {
+          "addr": 1879685985,
+          "bytes": "a6 14 d5 bd 04",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 5
+        },
+        {
+          "addr": 1879685990,
+          "bytes": "f0 20 00 3d f0 3d f0 76 80 0a",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 10
+        },
+        {
+          "addr": 1879686000,
+          "bytes": "af bd 01 db 04 e0 59 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879686008,
+          "bytes": "a6 1b be",
+          "flags": "insn|no_reorder",
+          "size": 3
+        },
+        {
+          "addr": 1879686011,
+          "bytes": "c6 f9 ff",
+          "flags": "insn|loop_target|no_reorder",
+          "size": 3
+        },
+        {
+          "addr": 1879686014,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879686014,
+          "bytes": "b8 43 3d f0 f0 20 00 c0 ab 82 1e fd 83 8a 59 60",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 42
+        },
+        {
+          "addr": 1879686056,
+          "bytes": "a6 14 d2 bd 04 76 80 0a",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 8
+        },
+        {
+          "addr": 1879686064,
+          "bytes": "af bd 01 db 04 e0 59 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879686072,
+          "bytes": "a6 1b c2",
+          "flags": "insn|no_reorder",
+          "size": 3
+        },
+        {
+          "addr": 1879686075,
+          "bytes": "86 fb ff",
+          "flags": "insn|loop_target|no_reorder",
+          "size": 3
+        },
+        {
+          "addr": 1879686078,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879686078,
+          "bytes": "b8 43 3d f0 f0 20 00 c0 eb 82 1e fd 83 8b 59 60",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 42
+        },
+        {
+          "addr": 1879686120,
+          "bytes": "a6 19 d2 bd 09 76 80 0a",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 8
+        },
+        {
+          "addr": 1879686128,
+          "bytes": "af bd 01 db 04 e0 59 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879686136,
+          "bytes": "a6 1b c2",
+          "flags": "insn|no_reorder",
+          "size": 3
+        },
+        {
+          "addr": 1879686139,
+          "bytes": "86 fb ff",
+          "flags": "insn|loop_target|no_reorder",
+          "size": 3
+        },
+        {
+          "addr": 1879686142,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879686142,
+          "bytes": "a8 43 3d f0 f0 20 00 c0 aa 82 1e fd 83 8a 59 60",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 42
+        },
+        {
+          "addr": 1879686184,
+          "bytes": "a6 19 d2 bd 09 76 80 0a",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 8
+        },
+        {
+          "addr": 1879686192,
+          "bytes": "af bd 01 db 04 e0 59 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879686200,
+          "bytes": "a6 1b c2",
+          "flags": "insn|no_reorder",
+          "size": 3
+        },
+        {
+          "addr": 1879686203,
+          "bytes": "86 fb ff",
+          "flags": "insn|loop_target|no_reorder",
+          "size": 3
+        }
+      ],
+      "q4_status": "static_output_validation_owner_identified; this maps firmware output-shape validation owners. It does not yet identify the runtime settings+0x08 output-fill loop observed in completed wrapper replay.",
+      "referenced_patterns": [
+        "Inconsistent output height"
+      ]
+    },
+    {
+      "analysis_end": 1879855777,
+      "analysis_start": 1879854736,
+      "assessment": "Static output-height validation owner; adjacent output-shape evidence for Q4, separate from the runtime fill loop.",
+      "boundary_counts": {
+        "core24": 30,
+        "dens16": 23,
+        "flix128": 44,
+        "flix64": 26,
+        "truncated": 0
+      },
+      "evidence_refs": [
+        {
+          "kind": "l32r",
+          "literal_addr": 1879687996,
+          "literal_string_addr": null,
+          "literal_string_offset": null,
+          "literal_string_value": null,
+          "owner_delta": 912,
+          "pattern": "Inconsistent output height",
+          "prop_addr": 1879855472,
+          "prop_flags": "insn|no_reorder",
+          "prop_size": 232,
+          "ref_addr": 1879855649,
+          "target_reg": 0,
+          "value_string_addr": 1879060364,
+          "value_string_offset": 18,
+          "value_string_value": "Inconsistent output height"
+        }
+      ],
+      "label": "output_height_validation_owner",
+      "next_action": "Use these owner anchors for targeted FLIX/TIE or runtime tracing if Q4 needs the exact settings+0x08 fill loop.",
+      "owner_entry": 1879854736,
+      "prop_runs": [
+        {
+          "addr": 1879854736,
+          "bytes": "36 a1 00 16 d2 25 4f 52 a8 3f f8 55 83 00 d8 42",
+          "flags": "insn|no_reorder",
+          "size": 512
+        },
+        {
+          "addr": 1879855248,
+          "bytes": "1e 81 c8 71 59 80 fd 81 31 60 85 38 c8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879855264,
+          "bytes": "af 71 83 f3 94 ec 82 00 ef d3 8b 55 f8 04 5a 00",
+          "flags": "insn|no_reorder",
+          "size": 80
+        },
+        {
+          "addr": 1879855344,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879855344,
+          "bytes": "0c 42 1d f0",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 4
+        },
+        {
+          "addr": 1879855348,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879855348,
+          "bytes": "0c e2 1d f0",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 4
+        },
+        {
+          "addr": 1879855352,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879855352,
+          "bytes": "1c 42 1d f0",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 4
+        },
+        {
+          "addr": 1879855356,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879855356,
+          "bytes": "0c 52 1d f0",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 4
+        },
+        {
+          "addr": 1879855360,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879855360,
+          "bytes": "0c 72 1d f0",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 4
+        },
+        {
+          "addr": 1879855364,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879855364,
+          "bytes": "0c 82 1d f0",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 4
+        },
+        {
+          "addr": 1879855368,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879855368,
+          "bytes": "4f 03 87 05 81 15 5a 00 4f 0f 87 05 83 15 5a 00",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 24
+        },
+        {
+          "addr": 1879855392,
+          "bytes": "af 51 0a 02 94 9c 82 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879855400,
+          "bytes": "4f 8b 95 05 83 d7 59 00",
+          "flags": "insn|no_reorder",
+          "size": 8
+        },
+        {
+          "addr": 1879855408,
+          "bytes": "6f 31 0e 26 94 9c 82 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879855416,
+          "bytes": "4f 93 af 05 81 d7 59 00 4f 9b 99 05 83 d7 59 00",
+          "flags": "insn|no_reorder",
+          "size": 40
+        },
+        {
+          "addr": 1879855456,
+          "bytes": "5e 21 0c 32 64 71 12 28 1c d0 8d 38 e8 04 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879855472,
+          "bytes": "9e 92 2c 70 08 7c 12 30 2a d0 14 40 f8 04 04 02",
+          "flags": "insn|no_reorder",
+          "size": 232
+        },
+        {
+          "addr": 1879855704,
+          "bytes": "9e c1 15 57 54 78 10 60 d4 d0 0a 37 f8 04 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879855720,
+          "bytes": "fe 23 d7 2e 05 02 6c 1c 00 22 10 29 19 08 04 02",
+          "flags": "insn|no_reorder",
+          "size": 154
+        }
+      ],
+      "q4_status": "static_output_validation_owner_identified; this maps firmware output-shape validation owners. It does not yet identify the runtime settings+0x08 output-fill loop observed in completed wrapper replay.",
+      "referenced_patterns": [
+        "Inconsistent output height"
+      ]
+    }
+  ],
   "pointer_runs": [
     {
       "count": 12,

@@ -567,6 +567,53 @@ def apply_dma_owner_investigations(payload: dict[str, object]) -> int:
     return comments
 
 
+def apply_output_validation_investigations(payload: dict[str, object]) -> int:
+    comments = 0
+    for item in payload.get("output_validation_investigations", []):
+        owner = int(item["owner_entry"])
+        evidence = item.get("evidence_refs", [])
+        patterns = ", ".join(str(pattern) for pattern in item.get("referenced_patterns", []))
+        evidence_text = ", ".join(
+            "%s@%s" % (ref.get("pattern"), fmt_hex(ref.get("ref_addr")))
+            for ref in evidence[:8]
+        )
+        if append_comment(
+            owner,
+            "APUNN output-validation investigation %s; range=%s..%s "
+            "patterns=%s q4_status=%s evidence=%s"
+            % (
+                item.get("label"),
+                fmt_hex(item.get("analysis_start")),
+                fmt_hex(item.get("analysis_end")),
+                patterns[:220],
+                item.get("q4_status"),
+                evidence_text,
+            ),
+        ):
+            comments += 1
+        for ref in evidence:
+            ea = int(ref["ref_addr"])
+            comment_ea = idc.get_item_head(ea)
+            if comment_ea == idc.BADADDR or not has_segment(comment_ea):
+                comment_ea = ea
+            literal = ref.get("literal_addr", ref.get("string_addr"))
+            if append_comment(
+                comment_ea,
+                "APUNN output-validation evidence ref for owner %s; kind=%s "
+                "pattern=%s literal=%s prop=%s:%s"
+                % (
+                    fmt_hex(owner),
+                    ref.get("kind"),
+                    ref.get("pattern"),
+                    fmt_hex(literal),
+                    ref.get("prop_flags"),
+                    fmt_hex(ref.get("prop_size")),
+                ),
+            ):
+                comments += 1
+    return comments
+
+
 def fmt_hex(value: object) -> str:
     if value is None:
         return "None"
@@ -594,13 +641,15 @@ def main() -> None:
     flix_sweep_comments = apply_flix_sweeps(payload)
     cluster_comments = apply_critical_owner_clusters(payload)
     dma_owner_comments = apply_dma_owner_investigations(payload)
+    output_validation_comments = apply_output_validation_investigations(payload)
     ida_auto.auto_wait()
 
     print(
         "[APUNN] functions_created=%d bounded_functions=%d function_names=%d inside_existing=%d "
         "key_names=%d pointer_dwords=%d pointer_refs=%d strings=%d island_comments=%d "
         "l32r_comments=%d l32r_refs=%d loop_comments=%d focused_loop_comments=%d "
-        "flix_sweep_comments=%d cluster_comments=%d dma_owner_comments=%d"
+        "flix_sweep_comments=%d cluster_comments=%d dma_owner_comments=%d "
+        "output_validation_comments=%d"
         % (
             fn_created,
             fn_bounded,
@@ -618,6 +667,7 @@ def main() -> None:
             flix_sweep_comments,
             cluster_comments,
             dma_owner_comments,
+            output_validation_comments,
         )
     )
 

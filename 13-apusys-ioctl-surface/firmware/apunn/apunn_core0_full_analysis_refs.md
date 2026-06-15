@@ -792,6 +792,233 @@ These records promote the string-cluster leads into explicit Q1 owner investigat
 | `0x70045306` | `0x0` | `unreachable` | `` |
 | `0x70045306` | `0x22` | `insn|branch_target|no_reorder` | `0c 0f 1e f1 86 03 58 66 10 04 30 d0 85 38 c8 06` |
 
+### Output Validation Investigations
+
+These records map static output-shape validation owners from rodata32 and L32R-backed output diagnostics. They do not identify the runtime `settings+0x08` output-fill loop.
+
+#### `output_size_validation_owner` `0x700184b4`
+
+- range: `0x700184b4`..`0x700194b4`
+- referenced patterns: Inconsistent output batch, Inconsistent output size, Invalid input/output dimensions, Invalid output args, Invalid output data type
+- assessment: Static output-size validation owner selected by direct rodata32 or L32R-backed output-size diagnostics.
+- Q4 status: static_output_validation_owner_identified; this maps firmware output-shape validation owners. It does not yet identify the runtime settings+0x08 output-fill loop observed in completed wrapper replay.
+- boundary counts: core24=297, dens16=28, flix64=77, flix128=159, truncated=0
+- next action: Use these owner anchors for targeted FLIX/TIE or runtime tracing if Q4 needs the exact settings+0x08 fill loop.
+
+| kind | pattern | ref | delta | string/literal | prop |
+|---|---|---:|---:|---|---|
+| `l32r` | Invalid input/output dimensions | `0x7001956c` | `0x10b8` | `a0 -> 0x70003630` `Invalid input/output dimensions` | `insn|data|no_reorder|no_transform:0x10` |
+| `l32r` | Inconsistent output size | `0x70019926` | `0x1472` | `a2 -> 0x70002450` `Inconsistent output size` | `insn|branch_target|no_reorder:0x1b` |
+| `l32r` | Invalid output data type | `0x70019ac7` | `0x1612` | `a0 -> 0x70003b8c` `Invalid output data type` | `insn|data|no_reorder|no_transform:0x20` |
+| `l32r` | Invalid output args | `0x7001a152` | `0x1c9e` | `a3 -> 0x700022c4` `Invalid output args` | `insn|data|no_reorder|no_transform:0x28` |
+| `l32r` | Inconsistent output batch | `0x7001a4e9` | `0x2034` | `a1 -> 0x70003ca8` `Inconsistent output batch` | `insn|no_reorder:0xb` |
+
+| prop | size | flags | first bytes |
+|---:|---:|---|---|
+| `0x700184b4` | `0x44` | `insn|no_reorder` | `36 61 07 9e 62 20 65 5c 64 10 00 30 d0 05 f3 f4` |
+| `0x700184f8` | `0x10` | `insn|data|no_reorder|no_transform` | `de 44 55 52 58 c4 41 06 31 a8 85 02 c8 06 04 02` |
+| `0x70018508` | `0x3ad` | `insn|no_reorder` | `9e 98 1c 70 58 60 12 00 30 d0 05 33 f1 06 04 02` |
+| `0x700188b5` | `0x8` | `insn|data|no_reorder|no_transform` | `8f 92 bb c5 41 98 59 00` |
+| `0x700188bd` | `0x3` | `insn|no_reorder` | `80 88 11` |
+| `0x700188c0` | `0x8` | `insn|data|no_reorder|no_transform` | `8f 92 b9 c5 41 98 59 00` |
+| `0x700188c8` | `0x32` | `insn|no_reorder` | `80 88 11 90 88 20 82 61 ba 9e 68 00 70 58 62 12` |
+| `0x700188fa` | `0x8` | `insn|data|no_reorder|no_transform` | `8f 92 83 c5 42 98 59 00` |
+| `0x70018902` | `0x3` | `insn|no_reorder` | `80 88 11` |
+| `0x70018905` | `0x8` | `insn|data|no_reorder|no_transform` | `8f 92 81 c5 42 98 59 00` |
+| `0x7001890d` | `0x1f9` | `insn|no_reorder` | `80 88 11 90 88 20 82 61 b9 9e 68 20 70 5a 66 12` |
+| `0x70018b06` | `0x8` | `insn|data|no_reorder|no_transform` | `8f 82 a2 cd 48 98 59 00` |
+
+#### `output_size_validation_owner` `0x70015e98`
+
+- range: `0x70015e98`..`0x70016e98`
+- referenced patterns: Inconsistent output size
+- assessment: Static output-size validation owner selected by direct rodata32 or L32R-backed output-size diagnostics.
+- Q4 status: static_output_validation_owner_identified; this maps firmware output-shape validation owners. It does not yet identify the runtime settings+0x08 output-fill loop observed in completed wrapper replay.
+- boundary counts: core24=270, dens16=20, flix64=100, flix128=153, truncated=0
+- next action: Use these owner anchors for targeted FLIX/TIE or runtime tracing if Q4 needs the exact settings+0x08 fill loop.
+
+| kind | pattern | ref | delta | string/literal | prop |
+|---|---|---:|---:|---|---|
+| `l32r` | Inconsistent output size | `0x70017915` | `0x1a7c` | `a1 -> 0x70002458` `Inconsistent output size` | `insn|data|branch_target|no_reorder|no_transform:0x1d` |
+
+| prop | size | flags | first bytes |
+|---:|---:|---|---|
+| `0x70015e98` | `0xb09` | `insn|data|no_reorder|no_transform` | `36 01 07 82 af c0 2f 81 b1 9d 50 02 5a 00 10 18` |
+| `0x700169a1` | `0x0` | `data|unreachable|no_transform` | `` |
+| `0x700169a4` | `0x8` | `insn|data|no_reorder|no_transform` | `f4 17 70 f4 e0 82 f9 01` |
+| `0x700169ac` | `0x8c` | `insn|data|branch_target|no_reorder|no_transform` | `c0 82 82 60 55 82 30 bb 82 40 3d 82 70 4d 82 b0` |
+| `0x70016a38` | `0x157` | `insn|data|branch_target|no_reorder|no_transform` | `b2 21 d2 1e bb 42 43 81 8c e5 24 01 a9 e4 37 c8` |
+| `0x70016b8f` | `0x0` | `data|unreachable|no_transform` | `` |
+| `0x70016b90` | `0x5` | `insn|data|branch_target|no_reorder|no_transform` | `22 a1 00 1d f0` |
+| `0x70016b95` | `0x0` | `data|unreachable|no_transform` | `` |
+| `0x70016b95` | `0x13` | `insn|data|branch_target|no_reorder|no_transform` | `0c 03 0f 34 80 02 38 20 82 00 a4 01 60 a2 61 b1` |
+| `0x70016ba8` | `0x0` | `data|unreachable|no_transform` | `` |
+| `0x70016ba8` | `0x8` | `insn|data|branch_target|no_reorder|no_transform` | `0c 03 34 01 60 32 61 b1` |
+| `0x70016bb0` | `0x35e` | `insn|data|branch_target|no_reorder|no_transform` | `0e c8 f2 02 59 c0 04 04 30 60 85 3e c8 06 04 02` |
+
+#### `output_size_validation_owner` `0x70040430`
+
+- range: `0x70040430`..`0x700404d6`
+- referenced patterns: Inconsistent output size
+- assessment: Static output-size validation owner selected by direct rodata32 or L32R-backed output-size diagnostics.
+- Q4 status: static_output_validation_owner_identified; this maps firmware output-shape validation owners. It does not yet identify the runtime settings+0x08 output-fill loop observed in completed wrapper replay.
+- boundary counts: core24=1, dens16=0, flix64=5, flix128=8, truncated=0
+- next action: Use these owner anchors for targeted FLIX/TIE or runtime tracing if Q4 needs the exact settings+0x08 fill loop.
+
+| kind | pattern | ref | delta | string/literal | prop |
+|---|---|---:|---:|---|---|
+| `l32r` | Inconsistent output size | `0x70040456` | `0x26` | `a10 -> 0x70002458` `Inconsistent output size` | `insn|no_reorder:0x4b` |
+
+| prop | size | flags | first bytes |
+|---:|---:|---|---|
+| `0x70040430` | `0x4b` | `insn|no_reorder` | `36 61 00 8f 93 aa d1 f8 05 82 00 8f c4 dc f2 00` |
+| `0x7004047b` | `0x20` | `insn|data|no_reorder|no_transform` | `6e 73 03 c7 02 c4 84 0b 17 3c 18 02 40 08 04 02` |
+| `0x7004049b` | `0x10` | `insn|no_reorder` | `ae 5f 1f d2 5c 46 dc 82 31 a8 85 50 f8 06 04 02` |
+| `0x700404ab` | `0x20` | `insn|data|no_reorder|no_transform` | `6e 54 90 45 00 d4 84 0a 17 34 18 02 40 08 04 02` |
+| `0x700404cb` | `0x10` | `insn|no_reorder` | `ae 8f 3f d2 5e e4 dd 02 31 a8 05 4b f8 06 04 02` |
+
+#### `output_size_validation_owner` `0x700a7be0`
+
+- range: `0x700a7be0`..`0x700a7d68`
+- referenced patterns: Inconsistent output size
+- assessment: Static output-size validation owner selected by direct rodata32 or L32R-backed output-size diagnostics.
+- Q4 status: static_output_validation_owner_identified; this maps firmware output-shape validation owners. It does not yet identify the runtime settings+0x08 output-fill loop observed in completed wrapper replay.
+- boundary counts: core24=27, dens16=8, flix64=1, flix128=18, truncated=0
+- next action: Use these owner anchors for targeted FLIX/TIE or runtime tracing if Q4 needs the exact settings+0x08 fill loop.
+
+| kind | pattern | ref | delta | string/literal | prop |
+|---|---|---:|---:|---|---|
+| `rodata32` | Inconsistent output size | `0x700a7ce8` | `0x108` | `0x70002444+0x2` `Inconsistent output size` | `insn|branch_target|no_reorder:0x2e` |
+
+| prop | size | flags | first bytes |
+|---:|---:|---|---|
+| `0x700a7be0` | `0x93` | `insn|no_reorder` | `36 41 00 0c c3 be 23 15 01 5a 64 10 04 30 d0 05` |
+| `0x700a7c73` | `0x0` | `unreachable` | `` |
+| `0x700a7c73` | `0x50` | `insn|branch_target|no_reorder` | `a6 62 4c 9e 32 0e 70 5a 60 12 00 30 d0 85 0c f4` |
+| `0x700a7cc3` | `0x0` | `unreachable` | `` |
+| `0x700a7cc3` | `0x2e` | `insn|branch_target|no_reorder` | `a6 32 39 9e 32 08 70 5a 66 12 00 30 d0 85 0d f4` |
+| `0x700a7cf1` | `0xf` | `unreachable` | `00 00 00 00 00 00 00 00 00 00 00 00 00 00 00` |
+| `0x700a7d00` | `0x30` | `insn|branch_target|no_reorder` | `9e 32 02 70 58 62 12 00 30 d0 05 0f f4 06 04 02` |
+| `0x700a7d30` | `0x8` | `insn|branch_target|no_reorder` | `24 00 70 24 30 64 1d f0` |
+| `0x700a7d38` | `0x8` | `unreachable` | `00 00 00 00 00 00 00 00` |
+| `0x700a7d40` | `0x3b` | `insn|branch_target|no_reorder` | `5e 2e d5 13 04 22 80 03 08 22 00 02 40 08 04 02` |
+
+#### `output_height_validation_owner` `0x700414d0`
+
+- range: `0x700414d0`..`0x700424d0`
+- referenced patterns: Inconsistent output height, Invalid output batch, Invalid output tile
+- assessment: Static output-height validation owner; adjacent output-shape evidence for Q4, separate from the runtime fill loop.
+- Q4 status: static_output_validation_owner_identified; this maps firmware output-shape validation owners. It does not yet identify the runtime settings+0x08 output-fill loop observed in completed wrapper replay.
+- boundary counts: core24=317, dens16=40, flix64=77, flix128=154, truncated=0
+- next action: Use these owner anchors for targeted FLIX/TIE or runtime tracing if Q4 needs the exact settings+0x08 fill loop.
+
+| kind | pattern | ref | delta | string/literal | prop |
+|---|---|---:|---:|---|---|
+| `l32r` | Inconsistent output height | `0x70042a52` | `0x1582` | `a0 -> 0x70002f94` `Inconsistent output height` | `insn|branch_target|no_reorder:0x5a` |
+| `l32r` | Invalid output tile | `0x70042d16` | `0x1846` | `a3 -> 0x700043b8` `Invalid output tile height` | `insn|branch_target|no_reorder:0x64` |
+| `l32r` | Invalid output batch | `0x7004359b` | `0x20ca` | `a4 -> 0x70003a44` `Invalid output batch` | `insn|data|no_reorder|no_transform:0x28` |
+
+| prop | size | flags | first bytes |
+|---:|---:|---|---|
+| `0x700414d0` | `0x44` | `insn|no_reorder` | `36 61 08 9e 62 20 70 58 64 12 00 30 d0 85 73 f4` |
+| `0x70041514` | `0x10` | `insn|data|no_reorder|no_transform` | `7e e4 54 52 58 c4 41 06 31 a8 85 02 c8 06 04 02` |
+| `0x70041524` | `0x4cc` | `insn|no_reorder` | `9e 98 1c 70 5a 66 12 00 30 d0 05 8c f1 06 04 02` |
+| `0x700419f0` | `0x10` | `insn|data|no_reorder|no_transform` | `fe 91 08 02 58 46 c9 84 31 a8 85 38 c8 06 04 02` |
+| `0x70041a00` | `0x16` | `insn|no_reorder` | `9e 98 2a 70 58 66 12 00 30 d0 85 66 f1 06 04 02` |
+| `0x70041a16` | `0x10` | `insn|data|no_reorder|no_transform` | `3e 89 12 12 5e 64 10 0c 30 d0 85 50 d8 06 04 02` |
+| `0x70041a26` | `0x58` | `insn|no_reorder` | `52 61 ad 9e 98 36 70 5a 60 12 00 30 d0 05 67 f1` |
+| `0x70041a7e` | `0x8` | `insn|data|no_reorder|no_transform` | `8f 82 8a cd 48 98 59 00` |
+| `0x70041a86` | `0x3` | `insn|no_reorder` | `80 99 11` |
+| `0x70041a89` | `0x8` | `insn|data|no_reorder|no_transform` | `8f 82 88 cd 48 98 59 00` |
+| `0x70041a91` | `0x24` | `insn|no_reorder` | `80 99 11 80 99 20 9c 19 26 19 0f 9e 59 04 70 58` |
+| `0x70041ab5` | `0x8` | `insn|data|no_reorder|no_transform` | `8f 82 9a cd 48 98 59 00` |
+
+#### `output_height_validation_owner` `0x700405bc`
+
+- range: `0x700405bc`..`0x7004153d`
+- referenced patterns: Inconsistent output batch, Inconsistent output height
+- assessment: Static output-height validation owner; adjacent output-shape evidence for Q4, separate from the runtime fill loop.
+- Q4 status: static_output_validation_owner_identified; this maps firmware output-shape validation owners. It does not yet identify the runtime settings+0x08 output-fill loop observed in completed wrapper replay.
+- boundary counts: core24=300, dens16=54, flix64=67, flix128=152, truncated=0
+- next action: Use these owner anchors for targeted FLIX/TIE or runtime tracing if Q4 needs the exact settings+0x08 fill loop.
+
+| kind | pattern | ref | delta | string/literal | prop |
+|---|---|---:|---:|---|---|
+| `l32r` | Inconsistent output height | `0x7004146a` | `0xeae` | `a0 -> 0x70002f8c` `Inconsistent output height` | `insn|branch_target|no_reorder:0x2b` |
+| `l32r` | Inconsistent output batch | `0x700414bd` | `0xf00` | `a3 -> 0x70002b60` `Inconsistent output batch index size` | `insn|branch_target|no_reorder:0x2b` |
+
+| prop | size | flags | first bytes |
+|---:|---:|---|---|
+| `0x700405bc` | `0x63` | `insn|no_reorder` | `36 01 04 82 af c0 6e 81 f0 a4 5c a2 59 01 31 a8` |
+| `0x7004061f` | `0x10` | `insn|data|no_reorder|no_transform` | `fe e4 54 23 58 e4 61 07 31 a8 85 02 c8 06 04 02` |
+| `0x7004062f` | `0x2bb` | `insn|no_reorder` | `9e dc 3c 70 5a 60 12 00 30 d0 05 72 f0 06 04 02` |
+| `0x700408ea` | `0x8` | `insn|data|no_reorder|no_transform` | `8f 98 85 e5 61 98 59 00` |
+| `0x700408f2` | `0x68` | `insn|no_reorder` | `0f 8c 39 16 8a 08 82 00 90 cc 20 80 cc 11 80 cc` |
+| `0x7004095a` | `0xfd` | `insn|branch_target|no_reorder` | `00 39 23 30 81 60 9e 38 02 70 5a 60 12 00 30 d0` |
+| `0x70040a57` | `0x10` | `insn|data|no_reorder|no_transform` | `0e 33 58 43 80 ee dd a6 41 a9 e4 50 c8 06 04 02` |
+| `0x70040a67` | `0x61` | `insn|no_reorder` | `f0 20 00 f0 20 00 e5 09 5f 9e 6a 06 70 5a 60 12` |
+| `0x70040ac8` | `0x10` | `insn|data|no_reorder|no_transform` | `0e 33 58 43 80 ee dd a6 c1 a9 e4 50 c8 06 04 02` |
+| `0x70040ad8` | `0xb8` | `insn|no_reorder` | `f0 20 00 f0 20 00 e5 02 5f 9e 6a 26 70 58 60 12` |
+| `0x70040b90` | `0x10` | `insn|data|no_reorder|no_transform` | `6e 78 bf 0e 02 e0 04 18 07 22 00 02 40 08 04 02` |
+| `0x70040ba0` | `0x28` | `insn|no_reorder` | `cf 78 9d 31 94 0c 82 00 0e 78 7f 2e 01 e4 00 18` |
+
+#### `output_height_validation_owner` `0x7009b5f0`
+
+- range: `0x7009b5f0`..`0x7009c3bc`
+- referenced patterns: Inconsistent output height
+- assessment: Static output-height validation owner; adjacent output-shape evidence for Q4, separate from the runtime fill loop.
+- Q4 status: static_output_validation_owner_identified; this maps firmware output-shape validation owners. It does not yet identify the runtime settings+0x08 output-fill loop observed in completed wrapper replay.
+- boundary counts: core24=174, dens16=89, flix64=66, flix128=144, truncated=0
+- next action: Use these owner anchors for targeted FLIX/TIE or runtime tracing if Q4 needs the exact settings+0x08 fill loop.
+
+| kind | pattern | ref | delta | string/literal | prop |
+|---|---|---:|---:|---|---|
+| `rodata32` | Inconsistent output height | `0x7009c0dc` | `0xaec` | `0x70002f8c+0x12` `Inconsistent output height` | `insn|branch_target|no_reorder:0x45` |
+| `rodata32` | Inconsistent output height | `0x7009c33c` | `0xd4c` | `0x70002f8c+0x12` `Inconsistent output height` | `insn|branch_target|no_reorder:0x45` |
+
+| prop | size | flags | first bytes |
+|---:|---:|---|---|
+| `0x7009b5f0` | `0x88` | `insn|no_reorder` | `36 a1 01 82 af c0 80 81 10 10 18 00 84 f0 7f d4` |
+| `0x7009b678` | `0x20` | `insn|data|no_reorder|no_transform` | `5e b1 11 43 5e a0 dc 02 31 a8 85 38 c8 06 04 02` |
+| `0x7009b698` | `0x35` | `insn|no_reorder` | `a0 a4 82 9e ab 18 70 58 62 12 00 30 d0 85 0f f0` |
+| `0x7009b6cd` | `0x20` | `insn|data|no_reorder|no_transform` | `6e e1 92 22 5b c0 f0 03 31 a8 85 38 d8 06 04 02` |
+| `0x7009b6ed` | `0x18` | `insn|no_reorder` | `9e fa 16 70 5a 60 12 00 30 d0 05 0d f0 06 04 02` |
+| `0x7009b705` | `0x10` | `insn|data|no_reorder|no_transform` | `5e a1 8b ab 5a 60 10 00 30 d0 85 38 f8 06 04 02` |
+| `0x7009b715` | `0x3` | `insn|no_reorder` | `a0 ab 82` |
+| `0x7009b718` | `0x10` | `insn|data|no_reorder|no_transform` | `3e e1 88 93 5e 60 10 00 30 d0 85 38 d8 06 04 02` |
+| `0x7009b728` | `0xc8` | `insn|no_reorder` | `3e a7 d4 a3 5e 64 10 00 30 d0 85 50 d8 06 04 02` |
+| `0x7009b7f0` | `0x30` | `insn|branch_target|no_reorder` | `1e 0c 43 02 58 66 12 04 30 d0 05 01 f4 06 04 02` |
+| `0x7009b820` | `0x73` | `insn|branch_target|no_reorder` | `9e ff 04 70 58 60 12 00 30 d0 05 36 f0 06 04 02` |
+| `0x7009b893` | `0x0` | `unreachable` | `` |
+
+#### `output_height_validation_owner` `0x700c4e90`
+
+- range: `0x700c4e90`..`0x700c52a1`
+- referenced patterns: Inconsistent output height
+- assessment: Static output-height validation owner; adjacent output-shape evidence for Q4, separate from the runtime fill loop.
+- Q4 status: static_output_validation_owner_identified; this maps firmware output-shape validation owners. It does not yet identify the runtime settings+0x08 output-fill loop observed in completed wrapper replay.
+- boundary counts: core24=30, dens16=23, flix64=26, flix128=44, truncated=0
+- next action: Use these owner anchors for targeted FLIX/TIE or runtime tracing if Q4 needs the exact settings+0x08 fill loop.
+
+| kind | pattern | ref | delta | string/literal | prop |
+|---|---|---:|---:|---|---|
+| `l32r` | Inconsistent output height | `0x700c5221` | `0x390` | `a0 -> 0x7009c33c` `Inconsistent output height` | `insn|no_reorder:0xe8` |
+
+| prop | size | flags | first bytes |
+|---:|---:|---|---|
+| `0x700c4e90` | `0x200` | `insn|no_reorder` | `36 a1 00 16 d2 25 4f 52 a8 3f f8 55 83 00 d8 42` |
+| `0x700c5090` | `0x10` | `insn|data|no_reorder|no_transform` | `1e 81 c8 71 59 80 fd 81 31 60 85 38 c8 06 04 02` |
+| `0x700c50a0` | `0x50` | `insn|no_reorder` | `af 71 83 f3 94 ec 82 00 ef d3 8b 55 f8 04 5a 00` |
+| `0x700c50f0` | `0x0` | `unreachable` | `` |
+| `0x700c50f0` | `0x4` | `insn|branch_target|no_reorder` | `0c 42 1d f0` |
+| `0x700c50f4` | `0x0` | `unreachable` | `` |
+| `0x700c50f4` | `0x4` | `insn|branch_target|no_reorder` | `0c e2 1d f0` |
+| `0x700c50f8` | `0x0` | `unreachable` | `` |
+| `0x700c50f8` | `0x4` | `insn|branch_target|no_reorder` | `1c 42 1d f0` |
+| `0x700c50fc` | `0x0` | `unreachable` | `` |
+| `0x700c50fc` | `0x4` | `insn|branch_target|no_reorder` | `0c 52 1d f0` |
+| `0x700c5100` | `0x0` | `unreachable` | `` |
+
 ### `.dram_op.data` L32R References
 
 | addr | reg | literal | value | owner |

@@ -311,6 +311,21 @@ class DmaOwnerInvestigation:
 
 
 @dataclass
+class OutputValidationInvestigation:
+    label: str
+    owner_entry: int
+    analysis_start: int
+    analysis_end: int
+    assessment: str
+    q4_status: str
+    referenced_patterns: list[str]
+    evidence_refs: list[dict[str, object]]
+    prop_runs: list[dict[str, object]]
+    boundary_counts: dict[str, int]
+    next_action: str
+
+
+@dataclass
 class FlixSweepInstruction:
     addr: int
     length: int
@@ -2315,6 +2330,176 @@ def build_dma_owner_investigations(
     ]
 
 
+OUTPUT_VALIDATION_PATTERNS = (
+    "Inconsistent output size",
+    "Invalid output size",
+    "Inconsistent output height",
+    "Invalid input/output buffer size",
+    "Invalid input/output dimensions",
+    "Invalid output data type",
+    "Invalid output score shift",
+    "Invalid output args",
+    "Invalid output tile",
+    "Invalid output batch",
+    "Invalid output zero point",
+    "Invalid output tile dimensions",
+    "Inconsistent output batch",
+    "Inconsistent output depth",
+    "Output alignment requirements",
+    "output == NULL",
+    "output failed",
+)
+
+
+def output_validation_patterns(text: str | None) -> list[str]:
+    if not text or "output" not in text.lower():
+        return []
+    return [pattern for pattern in OUTPUT_VALIDATION_PATTERNS if pattern in text]
+
+
+def build_output_validation_investigations(
+    data: bytes,
+    sections: list[Section],
+    props: list[XtProp],
+    rodata_refs: list[RodataReference],
+    l32r_refs: list[L32RReference],
+    owner_limit: int = 8,
+    evidence_limit: int = 8,
+) -> list[OutputValidationInvestigation]:
+    grouped: dict[int, dict[str, object]] = {}
+
+    def add_evidence(owner: int | None, evidence: dict[str, object], patterns: list[str]) -> None:
+        if owner is None or not patterns:
+            return
+        item = grouped.setdefault(owner, {"patterns": set(), "evidence_refs": []})
+        pattern_set = item["patterns"]
+        refs = item["evidence_refs"]
+        assert isinstance(pattern_set, set)
+        assert isinstance(refs, list)
+        pattern_set.update(patterns)
+        if len(refs) < evidence_limit:
+            refs.append(evidence)
+
+    for ref in rodata_refs:
+        patterns = output_validation_patterns(ref.string_value)
+        if not patterns:
+            continue
+        prop = best_prop_for_addr(props, ref.ref_addr)
+        add_evidence(
+            ref.owner_entry,
+            {
+                "kind": "rodata32",
+                "pattern": patterns[0],
+                "ref_addr": ref.ref_addr,
+                "owner_delta": ref.owner_delta,
+                "string_addr": ref.string_addr,
+                "string_offset": ref.string_offset,
+                "string_value": ref.string_value,
+                "prop_addr": None if prop is None else prop.addr,
+                "prop_size": None if prop is None else prop.size,
+                "prop_flags": None if prop is None else flags_text(prop.flags),
+            },
+            patterns,
+        )
+
+    for ref in l32r_refs:
+        texts = [
+            value
+            for value in (ref.literal_string_value, ref.value_string_value)
+            if value
+        ]
+        if not texts:
+            continue
+        patterns = sorted(
+            {pattern for text in texts for pattern in output_validation_patterns(text)}
+        )
+        if not patterns:
+            continue
+        prop = best_prop_for_addr(props, ref.addr)
+        add_evidence(
+            ref.owner_entry,
+            {
+                "kind": "l32r",
+                "pattern": patterns[0],
+                "ref_addr": ref.addr,
+                "owner_delta": ref.owner_delta,
+                "target_reg": ref.target_reg,
+                "literal_addr": ref.literal_addr,
+                "literal_string_addr": ref.literal_string_addr,
+                "literal_string_offset": ref.literal_string_offset,
+                "literal_string_value": ref.literal_string_value,
+                "value_string_addr": ref.value_string_addr,
+                "value_string_offset": ref.value_string_offset,
+                "value_string_value": ref.value_string_value,
+                "prop_addr": None if prop is None else prop.addr,
+                "prop_size": None if prop is None else prop.size,
+                "prop_flags": None if prop is None else flags_text(prop.flags),
+            },
+            patterns,
+        )
+
+    def owner_score(owner_item: tuple[int, dict[str, object]]) -> tuple[int, int, int, int, int]:
+        owner, item = owner_item
+        patterns = item["patterns"]
+        refs = item["evidence_refs"]
+        assert isinstance(patterns, set)
+        assert isinstance(refs, list)
+        has_size = int("Inconsistent output size" in patterns or "Invalid output size" in patterns)
+        has_height = int("Inconsistent output height" in patterns)
+        return (has_size, has_height, len(patterns), len(refs), -owner)
+
+    investigations: list[OutputValidationInvestigation] = []
+    for owner, item in sorted(grouped.items(), key=owner_score, reverse=True)[:owner_limit]:
+        patterns = sorted(item["patterns"])
+        refs = item["evidence_refs"]
+        assert isinstance(patterns, list)
+        assert isinstance(refs, list)
+        max_ref = max(int(ref["ref_addr"]) for ref in refs)
+        end = max(owner + 0x80, min(owner + 0x1000, max_ref + 0x80))
+        if "Inconsistent output size" in patterns or "Invalid output size" in patterns:
+            label = "output_size_validation_owner"
+            assessment = (
+                "Static output-size validation owner selected by direct rodata32 "
+                "or L32R-backed output-size diagnostics."
+            )
+        elif "Inconsistent output height" in patterns:
+            label = "output_height_validation_owner"
+            assessment = (
+                "Static output-height validation owner; adjacent output-shape "
+                "evidence for Q4, separate from the runtime fill loop."
+            )
+        else:
+            label = "output_validation_owner"
+            assessment = (
+                "Output-related validation owner selected by output diagnostic "
+                "string references."
+            )
+        investigations.append(
+            OutputValidationInvestigation(
+                label=label,
+                owner_entry=owner,
+                analysis_start=owner,
+                analysis_end=end,
+                assessment=assessment,
+                q4_status=(
+                    "static_output_validation_owner_identified; this maps "
+                    "firmware output-shape validation owners. It does not yet "
+                    "identify the runtime settings+0x08 output-fill loop observed "
+                    "in completed wrapper replay."
+                ),
+                referenced_patterns=patterns,
+                evidence_refs=refs,
+                prop_runs=prop_run_samples(data, sections, props, owner, end),
+                boundary_counts=boundary_kind_counts(data, sections, owner, end),
+                next_action=(
+                    "Use these owner anchors for targeted FLIX/TIE or runtime "
+                    "tracing if Q4 needs the exact settings+0x08 fill loop."
+                ),
+            )
+        )
+    return investigations
+
+
 def prop_near(props: list[XtProp], addr: int, window: int = 0x20) -> list[XtProp]:
     return [
         prop
@@ -2822,6 +3007,77 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
                 f"`{prop['flags']}` | `{prop['bytes']}` |"
             )
         lines.append("")
+    lines.append("### Output Validation Investigations")
+    lines.append("")
+    lines.append(
+        "These records map static output-shape validation owners from rodata32 "
+        "and L32R-backed output diagnostics. They do not identify the runtime "
+        "`settings+0x08` output-fill loop."
+    )
+    lines.append("")
+    for item in payload["output_validation_investigations"]:
+        assert isinstance(item, dict)
+        lines.append(f"#### `{item['label']}` `{hx(item['owner_entry'])}`")
+        lines.append("")
+        lines.append(f"- range: `{hx(item['analysis_start'])}`..`{hx(item['analysis_end'])}`")
+        lines.append(
+            f"- referenced patterns: "
+            f"{display_text(', '.join(str(value) for value in item['referenced_patterns']))}"
+        )
+        lines.append(f"- assessment: {display_text(str(item['assessment']))}")
+        lines.append(f"- Q4 status: {display_text(str(item['q4_status']))}")
+        counts = item["boundary_counts"]
+        assert isinstance(counts, dict)
+        lines.append(
+            "- boundary counts: "
+            f"core24={counts.get('core24', 0)}, "
+            f"dens16={counts.get('dens16', 0)}, "
+            f"flix64={counts.get('flix64', 0)}, "
+            f"flix128={counts.get('flix128', 0)}, "
+            f"truncated={counts.get('truncated', 0)}"
+        )
+        lines.append(f"- next action: {display_text(str(item['next_action']))}")
+        lines.append("")
+        lines.append("| kind | pattern | ref | delta | string/literal | prop |")
+        lines.append("|---|---|---:|---:|---|---|")
+        evidence_refs = item["evidence_refs"]
+        assert isinstance(evidence_refs, list)
+        for ref in evidence_refs:
+            assert isinstance(ref, dict)
+            if ref["kind"] == "rodata32":
+                string_suffix = (
+                    ""
+                    if int(ref["string_offset"]) == 0
+                    else f"+0x{int(ref['string_offset']):x}"
+                )
+                target = (
+                    f"`{hx(ref['string_addr'])}{string_suffix}` "
+                    f"`{display_text(str(ref['string_value']))}`"
+                )
+            else:
+                parts = [f"`a{ref['target_reg']} -> {hx(ref['literal_addr'])}`"]
+                if ref.get("literal_string_value"):
+                    parts.append(f"`{display_text(str(ref['literal_string_value']))}`")
+                if ref.get("value_string_value"):
+                    parts.append(f"`{display_text(str(ref['value_string_value']))}`")
+                target = " ".join(parts)
+            lines.append(
+                f"| `{ref['kind']}` | {display_text(str(ref['pattern']))} | "
+                f"`{hx(ref['ref_addr'])}` | `{hx(ref.get('owner_delta'))}` | "
+                f"{target} | `{ref.get('prop_flags') or ''}:{hx(ref.get('prop_size'))}` |"
+            )
+        lines.append("")
+        lines.append("| prop | size | flags | first bytes |")
+        lines.append("|---:|---:|---|---|")
+        prop_runs = item["prop_runs"]
+        assert isinstance(prop_runs, list)
+        for prop in prop_runs[:12]:
+            assert isinstance(prop, dict)
+            lines.append(
+                f"| `{hx(prop['addr'])}` | `{hx(prop['size'])}` | "
+                f"`{prop['flags']}` | `{prop['bytes']}` |"
+            )
+        lines.append("")
     lines.append("### `.dram_op.data` L32R References")
     lines.append("")
     lines.append("| addr | reg | literal | value | owner |")
@@ -2968,6 +3224,9 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
     dma_owner_investigations = build_dma_owner_investigations(
         data, sections, props, l32r_refs_for_scans, critical_owner_clusters
     )
+    output_validation_investigations = build_output_validation_investigations(
+        data, sections, props, rodata_refs, l32r_refs_for_scans
+    )
     dram_op_l32r_refs = find_dram_op_l32r_refs(sections, l32r_refs_for_scans)
     loop_target_count, loop_target_candidates = find_loop_target_candidates(
         sections, props, function_candidates, standard_field_access_clusters
@@ -3013,6 +3272,7 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
         "critical_l32r_refs": to_jsonable(critical_l32r_refs),
         "critical_l32r_owner_clusters": to_jsonable(critical_owner_clusters),
         "dma_owner_investigations": to_jsonable(dma_owner_investigations),
+        "output_validation_investigations": to_jsonable(output_validation_investigations),
         "dram_op_l32r_refs": to_jsonable(dram_op_l32r_refs),
         "loop_target_count": loop_target_count,
         "loop_target_candidates": to_jsonable(loop_target_candidates),
@@ -3187,6 +3447,18 @@ def print_summary(payload: dict[str, object]) -> None:
             f"evidence={len(item['evidence_refs'])} "
             f"flix_framing_hits={item['flix_framing_hit_count']} "
             f"status={item['q1_status']}"
+        )
+    output_validators = payload["output_validation_investigations"]
+    assert isinstance(output_validators, list)
+    print(f"output_validation_investigations={len(output_validators)}")
+    for item in output_validators[:6]:
+        assert isinstance(item, dict)
+        print(
+            "  output_validation "
+            f"{item['label']} owner={hx(item['owner_entry'])} "
+            f"patterns={len(item['referenced_patterns'])} "
+            f"evidence={len(item['evidence_refs'])} "
+            f"status={item['q4_status']}"
         )
     print(f"pointer_runs={len(payload['pointer_runs'])}")
     for run in payload["pointer_runs"]:

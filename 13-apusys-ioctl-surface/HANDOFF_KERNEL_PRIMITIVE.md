@@ -91,7 +91,7 @@ copied descriptor-array IOVA and settings tuple to VPU MMIO, and dispatches
 | `INFO13` / descriptor-array IOVA | Kernel copy of `request+0x50 + i*0x40`, not the original user buffer | Descriptor slot order and descriptor-0 target explain the observed status/writeback deltas; this is a real firmware input but not yet an arbitrary write primitive |
 | `INFO14/INFO15` / settings tuple | `request+0x40` and `request+0x38` | The completed wrapper-shaped request clears this tuple, so it is not the required completion path for the target wrapper replay |
 | Descriptor-backed DSP command/settings buffer | Five native descriptors all point at the same imported DSP command/settings buffer | This is the current stable completion trigger: settings `0x5 -> 0x7`, standard data descriptor pointer clear, and bounded output fill |
-| Output/data descriptor sections | APUNN settings fields inside the descriptor-backed DSP buffer | `settings+0x08` bounds output fill; tested data payloads, data targets, and plane windows do not flow into source-sensitive output |
+| Output/data descriptor sections | APUNN settings fields inside the descriptor-backed DSP buffer | `settings+0x08` bounds output fill; static output-shape validators are now mapped (`0x700184b4`, `0x70015e98`, `0x700a7be0`, `0x7009b5f0`), but the exact runtime fill loop is still separate |
 | APUSYS command-buffer copyback | `mdw_cmd_sc_clr_hnd()` copies the provider-updated temporary `0xb70` request back to user-mapped command memory | Completed copies currently expose only scalar tail state (`request+0xb60`, preload slot in `request+0xb68`), not kernel pointers or imported-buffer IOVAs |
 
 ## Current APUNN request interpretation model
@@ -271,8 +271,11 @@ Primitive impact is unchanged for now, but INFO12/INFO13 and Q1 owner-finding
 are no longer the blocking questions. The firmware image gives a better map:
 the descriptor count/input model is closed at the provider boundary plus native
 record-layout level, and `0x70044b74` is the static DMA/iDMA schedule/wait
-anchor. It still has not proved a slower DMA path, a source-sensitive output
-path, a cross-buffer write, or missing plane/size validation. Kernel/provider
+anchor. Q4 also has a static output-shape validation owner map, including
+`0x700184b4`, `0x70015e98`, `0x700a7be0`, and `0x7009b5f0`; this does not yet
+identify the completed replay's `settings+0x08` output-fill loop. The image
+still has not proved a slower DMA path, a source-sensitive output path, a
+cross-buffer write, or missing plane/size validation. Kernel/provider
 `buffer_count` is capped below `0x21`, and the runtime race result still
 dominates: completed firmware writes finish before the Java-layer `mem_free`
 round trip can replace the IOVA.

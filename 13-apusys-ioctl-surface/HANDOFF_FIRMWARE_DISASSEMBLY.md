@@ -605,8 +605,11 @@ Current partial answers from the ELF pass:
   The firmware-local count-register name remains behind TIE/FLIX slot semantics;
   the count/stride proposition for the exposed interface is closed by
   `INFO12=buffer_count` and the 0x40-stride `INFO13` descriptor array.
-- Q4 has runtime evidence that `settings+0x08` bounds the visible output fill;
-  the static output-size enforcement path is not identified yet.
+- Q4 has runtime evidence that `settings+0x08` bounds the visible output fill.
+  Static output-shape validation owners are now identified from output diagnostic
+  strings, including `0x700184b4`, `0x70015e98`, `0x700a7be0`, and
+  `0x7009b5f0`; the exact runtime `settings+0x08` output-fill loop is still not
+  identified.
 
 #### Q1: DMA write timing and sequencing
 
@@ -672,6 +675,22 @@ firmware derives its own write size from the code section (e.g., from operand
 metadata), a mismatch between the declared `output_size` and the firmware's
 computed size could produce an overflow.
 
+Static owner map status: `analyze_apunn_elf.py` now emits
+`output_validation_investigations` from rodata32 and L32R-backed output
+diagnostics. The strongest current anchors are:
+
+| owner | evidence | interpretation |
+|---:|---|---|
+| `0x700184b4` | `Inconsistent output size`, invalid output args/data type/batch diagnostics | broad output-shape validator |
+| `0x70015e98` | L32R ref to `Inconsistent output size` | output-size validation owner near the ANN/FLK path |
+| `0x700a7be0` | direct rodata32 ref to `Inconsistent output size` at `0x700a7ce8` | compact output-size validator |
+| `0x7009b5f0` | direct rodata32 refs to `Inconsistent output height` at `0x7009c0dc` and `0x7009c33c` | output-height validator |
+
+This identifies firmware output-shape validation owners, not the completed
+wrapper replay's output-fill loop. The remaining Q4 static task is to connect
+one of these validators, or another nearby owner, to the runtime
+`settings+0x08` bound and the actual write/fill path.
+
 #### Q5: Data descriptor consumption
 
 Standard `data_desc_size=0x0c` is consumed and clears `settings+0x30`. Does the
@@ -707,8 +726,9 @@ slow-opcode shape.
 | Tool | Path | Status |
 |---|---|---|
 | VPU image parser | `13-apusys-ioctl-surface/tools/parse_vpu_image.py` | Parses preload metadata, carves raw segments, and reports embedded ELF offsets; use `--head-offset 0x200 --headers 1` for V260523 `cam_vpu2.img` |
-| APUNN ELF analyzer | `13-apusys-ioctl-surface/tools/analyze_apunn_elf.py` | Emits section map, `.xtensa.info`, `.xt.prop` property runs, `.xt.prop`-backed function-entry candidates, key address owners, byte-verified standard Xtensa islands, FLIX-correct boundary sweeps, `.text`→`.rodata` suffix refs, PC-relative `L32R` literal refs, focused loop investigations, L32R string-owner clusters, DMA/descriptor critical-string status, pointer runs, ANN op name table, interesting strings, JSON, and Markdown |
-| IDA `.xt.prop` applier | `13-apusys-ioctl-surface/tools/ida_apply_apunn_xt_prop.py` | Applies analyzer JSON to an IDA Xtensa ELF IDB: bounded function creation, key names/comments, pointer-run dwords/xrefs, critical-string annotations, selected `L32R` refs, loop-target candidates, focused loop notes, FLIX-correct sweep comments, L32R string-owner clusters, and byte-verified standard-island comments |
+| APUNN ELF analyzer | `13-apusys-ioctl-surface/tools/analyze_apunn_elf.py` | Emits section map, `.xtensa.info`, `.xt.prop` property runs, `.xt.prop`-backed function-entry candidates, key address owners, byte-verified standard Xtensa islands, FLIX-correct boundary sweeps, `.text`→`.rodata` suffix refs, PC-relative `L32R` literal refs, focused loop investigations, L32R string-owner clusters, output-validation owner investigations, DMA/descriptor critical-string status, pointer runs, ANN op name table, interesting strings, JSON, and Markdown |
+| Byte-aligned hardware-loop scanner | `13-apusys-ioctl-surface/tools/apunn_loop_scan.py` | Regression/negative-control scanner for `LOOP/LOOPNEZ/LOOPGTZ`; confirms no byte-aligned LOOP to `0x7003c102` and the downgraded `0x7003d3ea -> 0x7003d423` positive control |
+| IDA `.xt.prop` applier | `13-apusys-ioctl-surface/tools/ida_apply_apunn_xt_prop.py` | Applies analyzer JSON to an IDA Xtensa ELF IDB: bounded function creation, key names/comments, pointer-run dwords/xrefs, critical-string annotations, selected `L32R` refs, loop-target candidates, focused loop notes, FLIX-correct sweep comments, L32R string-owner clusters, output-validation comments, and byte-verified standard-island comments |
 | Ghidra export script | `13-apusys-ioctl-surface/tools/GhidraApunnExport.java` | Headless adjunct for function/string/decompiler snapshots from `/tmp/apunn_core0_full.elf`; decompiler output is advisory only |
 | Allocator gap profiler | `13-apusys-ioctl-surface/poc/ApusysIoctlProbe.java` | Active; 8+ probe modes |
 | Firmware-coupled gap reuse | `--run-cmd-vpu-xrp-mem-free-race-completed-gap-reuse-iova` | Ready to re-run with new shapes |
