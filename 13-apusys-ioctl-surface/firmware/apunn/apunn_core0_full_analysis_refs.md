@@ -127,8 +127,11 @@
 | `flk_pointer_target_cluster` | `0x70017d40` | `.text` | `0x70015e98` | `0x1ea8` | `insn|data|no_reorder|no_transform:0xb` |
 | `flk_pointer_table_owner` | `0x70015e98` | `.text` | `0x70015e98` | `0x0` | `insn|data|no_reorder|no_transform:0xb09` |
 | `dispatcher_like_locateBuffer` | `0x700301d8` | `.text` | `0x700301d8` | `0x0` | `insn|no_reorder:0x30` |
+| `flix_blocked_INFO13_record_lead` | `0x7003b468` | `.text` | `0x7003b468` | `0x0` | `insn|no_reorder:0x50` |
+| `flix_blocked_INFO13_record_loop_target` | `0x7003c102` | `.text` | `0x7003b468` | `0xc9a` | `insn|loop_target|no_reorder:0xaa` |
 | `buffer_record_high_field_validator_candidate` | `0x7003ce3c` | `.text` | `0x7003ce3c` | `0x0` | `insn|no_reorder:0x194` |
 | `large_auto_function` | `0x7003b424` | `.text` | `0x7003b424` | `0x0` | `insn|no_reorder:0x6` |
+| `top_dmaif_l32r_owner_cluster` | `0x70044b74` | `.text` | `0x70044b74` | `0x0` | `insn|no_reorder:0x44` |
 | `ann_pointer_table_owner` | `0x70081d50` | `.text` | `0x70081d50` | `0x0` | `insn|no_reorder:0xa3` |
 | `ann_pointer_target_cluster` | `0x70081ee7` | `.text` | `0x70081d50` | `0x196` | `insn|branch_target|no_reorder:0x5` |
 | `ann_type_helper` | `0x70083068` | `.text` | `0x70083068` | `0x0` | `insn|no_reorder:0x17` |
@@ -394,6 +397,111 @@ These clusters are produced by a lightweight standard Xtensa 24-bit load/store d
 | `0x7014ebd0` | `0x70149790` | `0x5440` | `a2` | `insn|loop_target|no_reorder:0x10` |
 | `0x70150020` | `0x70149790` | `0x6890` | `a2` | `insn|loop_target|no_reorder:0xa` |
 
+### Focused Loop Investigations
+
+`0x7003c102` remains a strong record-shaped loop-target lead, but the mainline no longer depends on hand-decoding it: the count/stride evidence is behind FLIX/TIE. INFO12/INFO13 closure is driven by the verified record layout plus the kernel/provider buffer_count cap. `0x7003d423` is kept as a downgraded local-control-flow lead.
+
+#### `flix_blocked_INFO13_record_lead` `0x7003b468` target `0x7003c102`
+
+- priority: `independent_flix_branch`
+- assessment: Clean 0xaa-byte loop_target property run inside the strongest 0x40-record-shaped field cluster, but standard-ISA scans do not expose a byte-aligned LOOP, an exact branch back-edge to the target, or an a2 += 0x40 stride. Treat this as a FLIX-blocked record-processing lead, not a blocker for the INFO12/INFO13 closure.
+- target prop: `insn|loop_target|no_reorder:0xaa`
+- FLIX selector `06 04 02` hits: 0x7003b481, 0x7003b4c5, 0x7003b4d5, 0x7003b4e5, 0x7003b502, 0x7003b512, 0x7003b522, 0x7003b532, 0x7003b54b, 0x7003b55b, 0x7003b56b, 0x7003b57b, 0x7003b599, 0x7003b5a9, 0x7003b5b9, 0x7003b5c9
+- FLIX selector deltas: 0x44, 0x10, 0x10, 0x1d, 0x10, 0x10, 0x10, 0x19, 0x10, 0x10, 0x10, 0x1e, 0x10, 0x10, 0x10, 0x13
+- standard loop opcode hits to target: none
+- stride status: blocked_in_flix; visible standard a2 accesses do not show a2 += 0x40, and raw 0x40 byte hits inside FLIX selector motifs are not stride proof.
+- next action: Stop hand-decoding 0x7003c102 on the mainline. Close the INFO12/INFO13 proposition with the verified 0x40 record layout and the kernel/provider buffer_count cap; keep FLIX overlay or format reverse engineering as an independent branch.
+
+| visible a2 field access | op | offset |
+|---:|---|---:|
+| `0x7003b484` | `l8ui a8,a2+0x3` | `0x3` |
+| `0x7003b487` | `l8ui a9,a2+0x2` | `0x2` |
+| `0x7003b488` | `l8ui a0,a2+0xf0` | `0xf0` |
+| `0x7003b4dd` | `l16ui a6,a2+0x0` | `0x0` |
+| `0x7003b573` | `l16ui a6,a2+0x0` | `0x0` |
+| `0x7003b5a1` | `l16ui a6,a2+0x0` | `0x0` |
+| `0x7003b5b1` | `l16ui a6,a2+0x0` | `0x0` |
+| `0x7003b5c1` | `l16ui a6,a2+0x0` | `0x0` |
+| `0x7003b5d4` | `l16ui a6,a2+0x0` | `0x0` |
+| `0x7003b5de` | `s16i a0,a2+0x48` | `0x48` |
+| `0x7003b63a` | `l8ui a8,a2+0x12` | `0x12` |
+| `0x7003b666` | `l16ui a6,a2+0x0` | `0x0` |
+| `0x7003b687` | `l8ui a10,a2+0x15` | `0x15` |
+| `0x7003b6a2` | `l16ui a6,a2+0x0` | `0x0` |
+| `0x7003b6b2` | `l16ui a6,a2+0x0` | `0x0` |
+| `0x7003b6df` | `s16i a0,a2+0x4` | `0x4` |
+| `0x7003b6e0` | `l8ui a5,a2+0xf` | `0xf` |
+| `0x7003b6e3` | `l8ui a8,a2+0xe` | `0xe` |
+| `0x7003b707` | `l16ui a6,a2+0x0` | `0x0` |
+| `0x7003b712` | `l8ui a11,a2+0xb` | `0xb` |
+| `0x7003b715` | `l8ui a14,a2+0xa` | `0xa` |
+| `0x7003b739` | `l16ui a6,a2+0x0` | `0x0` |
+| `0x7003b78b` | `l16ui a6,a2+0x8` | `0x8` |
+| `0x7003b7a6` | `l8ui a9,a2+0x29` | `0x29` |
+
+| prop | size | flags | first bytes |
+|---:|---:|---|---|
+| `0x7003b468` | `0x50` | `insn|no_reorder` | `36 e1 05 82 af c0 80 81 10 10 18 00 9e 62 20 70` |
+| `0x7003b4b8` | `0x10` | `insn|data|no_reorder|no_transform` | `de b4 55 32 58 c4 41 06 31 a8 85 02 c8 06 04 02` |
+| `0x7003b4c8` | `0x2de` | `insn|no_reorder` | `9e 98 1c 70 5a 66 12 00 30 d0 05 b7 f0 06 04 02` |
+| `0x7003b7a6` | `0x33` | `insn|branch_target|no_reorder` | `92 02 29 9e 69 20 70 5a 60 12 00 30 d0 05 76 f4` |
+| `0x7003b7d9` | `0x4f` | `insn|branch_target|no_reorder` | `b2 02 2d c2 02 2c 4f 8b 76 b7 8a 08 82 00 c0 bb` |
+| `0x7003b828` | `0xb7` | `insn|branch_target|no_reorder` | `c2 02 31 d2 02 30 4f 8c b8 f7 8a 08 82 00 d0 cc` |
+| `0x7003b8df` | `0xc` | `unreachable` | `00 00 00 00 00 00 00 00 00 00 00 00` |
+| `0x7003b8ed` | `0x63` | `insn|no_reorder` | `f2 02 14 ef 82 a4 12 00 08 82 00 ef 63 c2 22 91` |
+| `0x7003b950` | `0x10` | `insn|data|no_reorder|no_transform` | `ae c1 2e 33 01 e6 04 1a 17 34 08 02 40 08 04 02` |
+| `0x7003b960` | `0x10` | `insn|no_reorder` | `8e d2 bc b2 00 d4 04 0a 37 33 08 02 40 08 04 02` |
+| `0x7003b970` | `0x20` | `insn|data|no_reorder|no_transform` | `9e b2 14 41 59 c0 4d 02 31 a8 85 37 d8 06 04 02` |
+| `0x7003b990` | `0x10` | `insn|no_reorder` | `5e c2 19 a2 5c e0 9d 00 31 a8 85 37 f8 06 04 02` |
+| `0x7003b9a0` | `0x10` | `insn|data|no_reorder|no_transform` | `9e 82 1a 46 5d c0 d1 02 31 a8 85 37 f8 06 04 02` |
+| `0x7003b9b0` | `0x20` | `insn|no_reorder` | `8e d2 e2 82 01 d4 80 0a 37 33 10 02 40 08 04 02` |
+| `0x7003b9d0` | `0x10` | `insn|data|no_reorder|no_transform` | `4e 82 21 a2 5c c0 9d 00 31 a8 85 37 f8 06 04 02` |
+| `0x7003b9e0` | `0x50` | `insn|no_reorder` | `9e f1 74 47 5d c4 d1 02 31 a8 85 38 f8 06 04 02` |
+| `0x7003ba30` | `0x19` | `insn|branch_target|no_reorder` | `b2 02 35 d2 02 34 4f 8b 36 37 8e 08 82 00 cf 72` |
+| `0x7003ba49` | `0x10` | `insn|data|no_reorder|no_transform` | `7e c1 23 b7 5c 64 10 00 30 d0 05 37 f8 06 04 02` |
+| `0x7003ba59` | `0x70` | `insn|no_reorder` | `4f 37 7c 27 94 0a 82 00 6f ec 39 b2 94 ea 82 00` |
+| `0x7003bac9` | `0x10` | `insn|data|no_reorder|no_transform` | `7e c1 23 b7 5c 64 10 00 30 d0 05 37 f8 06 04 02` |
+| `0x7003bad9` | `0x56` | `insn|no_reorder` | `30 66 82 d2 0d 00 c0 c6 82 80 bb 11 cf fc b9 dd` |
+| `0x7003bb2f` | `0x10` | `insn|data|no_reorder|no_transform` | `7e c1 23 b7 5c 64 10 00 30 d0 05 37 f8 06 04 02` |
+| `0x7003bb3f` | `0x9` | `insn|no_reorder` | `d2 0d 00 c0 c3 82 80 bb 11` |
+| `0x7003bb48` | `0x10` | `insn|data|no_reorder|no_transform` | `9e c1 57 c3 5c e4 dd 02 31 a8 85 38 f8 06 04 02` |
+
+#### `downgraded_error_tail_loop_target` `0x7003ce3c` target `0x7003d423`
+
+- priority: `downgraded`
+- assessment: Loop-target property is real but surrounding props contain short branch targets, unreachable gaps, and insn\|data mixed runs. Treat as switch/error-tail lead, not a descriptor-array walk.
+- target prop: `insn|loop_target|no_reorder:0x3`
+- FLIX selector `06 04 02` hits: 0x7003d3b9, 0x7003d3df, 0x7003d3fd, 0x7003d40d, 0x7003d41d, 0x7003d44d
+- FLIX selector deltas: 0x26, 0x1e, 0x10, 0x10, 0x30
+- standard loop opcode hits to target: 0x7003d3ea
+- stride status: blocked_in_flix; visible standard a2 accesses do not show a2 += 0x40, and raw 0x40 byte hits inside FLIX selector motifs are not stride proof.
+- next action: Keep as secondary local-control-flow evidence only; do not use this downgraded target to drive INFO12/INFO13 closure.
+
+| visible a2 field access | op | offset |
+|---:|---|---:|
+
+| prop | size | flags | first bytes |
+|---:|---:|---|---|
+| `0x7003d3a9` | `0x1c` | `insn|branch_target|no_reorder` | `d2 21 68 8e db 96 02 5a a6 19 01 31 a8 05 4e d8` |
+| `0x7003d3c5` | `0x8` | `insn|data|no_reorder|no_transform` | `2f 66 89 9d 33 04 5a 00` |
+| `0x7003d3cd` | `0x15` | `insn|branch_target|no_reorder` | `e2 21 6c 3d f0 be e5 70 35 5c 60 10 00 30 d0 85` |
+| `0x7003d3e2` | `0x41` | `insn|branch_target|no_reorder` | `4f 90 01 1b 08 c8 59 00 76 80 35 16 99 ec 9e 09` |
+| `0x7003d423` | `0x3` | `insn|loop_target|no_reorder` | `c6 f0 ff` |
+| `0x7003d426` | `0x0` | `unreachable` | `` |
+| `0x7003d427` | `0x5` | `insn|branch_target|no_reorder` | `a5 d0 62 fc aa` |
+| `0x7003d42c` | `0x4` | `insn|branch_target|no_reorder` | `0c 02 1d f0` |
+| `0x7003d430` | `0x6` | `unreachable` | `00 00 00 00 00 00` |
+| `0x7003d436` | `0x5` | `insn|branch_target|no_reorder` | `22 a1 00 1d f0` |
+| `0x7003d43b` | `0x0` | `unreachable` | `` |
+| `0x7003d440` | `0x10` | `insn|data|branch_target|no_reorder|no_transform` | `0e d0 c8 42 28 f9 51 07 31 a8 c5 3e c8 06 04 02` |
+| `0x7003d450` | `0x9` | `insn|no_reorder` | `25 10 62 16 5a b9 86 03 00` |
+| `0x7003d459` | `0x6` | `unreachable` | `00 00 00 00 00 00` |
+| `0x7003d460` | `0x8` | `insn|branch_target|no_reorder` | `0c 0f f2 61 67 c6 65 ff` |
+| `0x7003d468` | `0x0` | `unreachable` | `` |
+| `0x7003d468` | `0x4` | `insn|branch_target|no_reorder` | `2d 0a 1d f0` |
+| `0x7003d46c` | `0x0` | `unreachable` | `` |
+| `0x7003d46c` | `0x2b` | `insn|no_reorder` | `a4 00 70 94 00 70 d4 00 70 6f d8 19 0e 09 50 83` |
+
 ## L32R Literal References
 
 These references are decoded only inside `.xt.prop` instruction-covered `.text` ranges. `literal` is the PC-relative L32R literal address; `value` is the 32-bit word stored there when it is readable.
@@ -502,6 +610,27 @@ Because a property range can contain extension bundles, these are section-filter
 | `No error` | `0x70005f98` | 1 | 0x7001972a:a8 lit=0x70005f98+0x0 owner=0x700184b4 |
 | `Data buffer does not start in DRAM` | `0x700058fc` | 3 | 0x700260ef:a6 lit=0x70005908+0xc owner=0x70024b10; 0x700335e2:a11 lit=0x70005918+0x1c owner=0x700304f8; 0x700452ef:a11 lit=0x70005900+0x4 owner=0x70044b74 |
 | `Data buffer does not fit in DRAM` | `0x70005920` | 4 | 0x70017b22:a3 lit=0x70005928+0x8 owner=0x70015e98; 0x70025111:a9 lit=0x70005934+0x14 owner=0x70024b10; 0x70043834:a0 lit=0x70005934+0x14 owner=0x700414d0; 0x70045319:a14 lit=0x7000592c+0xc owner=0x70044b74 |
+
+### Critical L32R Owner Clusters
+
+Owners are ranked by how many distinct DMA/iDMA-related strings are referenced through L32R. This is a string-cluster lead, not full control flow.
+
+| owner | patterns | hits | assessment | samples |
+|---:|---:|---:|---|---|
+| `0x70044b74` | 4 | 4 | top DMA/iDMA owner candidate | iDMA schedule error@0x70044e3a; iDMA wait error@0x70044e53; ../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c@0x70044f1f; sDesc > eDesc@0x70044f45 |
+| `0x70024710` | 2 | 3 | secondary DMA/iDMA owner candidate | iDMA schedule error@0x700247ad; iDMA schedule error@0x700247bd; iDMA wait error@0x700247cd |
+| `0x7001b040` | 2 | 2 | secondary DMA/iDMA owner candidate | sDesc > eDesc@0x7001be9b; eDesc >= TM_DMA_DESC_IDX_MAX@0x7001beab |
+| `0x700248a0` | 2 | 2 | secondary DMA/iDMA owner candidate | eDesc >= TM_DMA_DESC_IDX_MAX@0x700248de; _DMA_STALL@0x700248ee |
+| `0x70036110` | 2 | 2 | secondary DMA/iDMA owner candidate | iDMA wait error@0x70036861; ../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c@0x7003693e |
+| `0x700414d0` | 2 | 2 | secondary DMA/iDMA owner candidate | iDMA schedule error@0x7004429c; eDesc >= TM_DMA_DESC_IDX_MAX@0x7004445b |
+| `0x70044850` | 2 | 2 | secondary DMA/iDMA owner candidate | ../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c@0x7004489d; eDesc >= TM_DMA_DESC_IDX_MAX@0x700448dd |
+| `0x70007e24` | 1 | 1 | single-string lead | sDesc > eDesc@0x7000947a |
+| `0x700184b4` | 1 | 1 | single-string lead | No error@0x7001972a |
+| `0x7001dffc` | 1 | 1 | single-string lead | _DMA_STALL@0x7001fd67 |
+| `0x7002d88c` | 1 | 1 | single-string lead | _DMA_STALL@0x7002de1f |
+| `0x70035c64` | 1 | 1 | single-string lead | iDMA schedule error@0x70035e60 |
+| `0x70038378` | 1 | 1 | single-string lead | INTERRUPT CALLBACK : processing iDMA interrupt@0x70038f14 |
+| `0x70039b40` | 1 | 1 | single-string lead | eDesc >= TM_DMA_DESC_IDX_MAX@0x70039b66 |
 
 ### `.dram_op.data` L32R References
 

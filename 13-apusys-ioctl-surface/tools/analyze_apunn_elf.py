@@ -253,6 +253,35 @@ class LoopTargetCandidate:
     matched_field_bases: list[int]
 
 
+@dataclass
+class FocusedLoopInvestigation:
+    label: str
+    owner_entry: int
+    loop_target: int
+    priority: str
+    assessment: str
+    target_prop_size: int | None
+    target_prop_flags: str | None
+    prop_runs: list[dict[str, object]]
+    visible_field_accesses: list[StandardFieldAccess]
+    flix_selector: str
+    flix_selector_hits: list[int]
+    flix_selector_deltas: list[int]
+    standard_loop_opcode_hits: list[int]
+    stride_0x40_status: str
+    next_action: str
+
+
+@dataclass
+class CriticalOwnerCluster:
+    owner_entry: int
+    pattern_count: int
+    hit_count: int
+    patterns: list[str]
+    sample_refs: list[dict[str, object]]
+    assessment: str
+
+
 CRITICAL_STRING_PATTERNS = (
     "add idma request fail in %s",
     "ERROR CALLBACK: iDMA in Error",
@@ -868,8 +897,11 @@ KEY_ADDRESS_LABELS = (
     ("flk_pointer_target_cluster", 0x70017D40),
     ("flk_pointer_table_owner", 0x70015E98),
     ("dispatcher_like_locateBuffer", 0x700301D8),
+    ("flix_blocked_INFO13_record_lead", 0x7003B468),
+    ("flix_blocked_INFO13_record_loop_target", 0x7003C102),
     ("buffer_record_high_field_validator_candidate", 0x7003CE3C),
     ("large_auto_function", 0x7003B424),
+    ("top_dmaif_l32r_owner_cluster", 0x70044B74),
     ("ann_pointer_table_owner", 0x70081D50),
     ("ann_pointer_target_cluster", 0x70081EE7),
     ("ann_type_helper", 0x70083068),
@@ -1484,6 +1516,268 @@ def find_loop_target_candidates(
     return count, candidates
 
 
+def prop_run_samples(
+    data: bytes,
+    sections: list[Section],
+    props: list[XtProp],
+    start: int,
+    end: int,
+    sample_limit: int = 64,
+) -> list[dict[str, object]]:
+    out: list[dict[str, object]] = []
+    for prop in props:
+        if not (start <= prop.addr < end):
+            continue
+        raw = va_bytes(data, sections, prop.addr, min(prop.size, 16)) if prop.size else b""
+        out.append(
+            {
+                "addr": prop.addr,
+                "size": prop.size,
+                "flags": flags_text(prop.flags),
+                "bytes": raw.hex(" ") if raw else "",
+            }
+        )
+        if len(out) >= sample_limit:
+            break
+    return out
+
+
+def visible_base_accesses_in_range(
+    data: bytes,
+    sections: list[Section],
+    owner_entry: int,
+    start: int,
+    end: int,
+    base_reg: int,
+    max_offset: int = 0x100,
+    sample_limit: int = 64,
+) -> list[StandardFieldAccess]:
+    text = section_by_name(sections, ".text")
+    if text is None:
+        return []
+    blob = section_bytes(data, text)
+    out: list[StandardFieldAccess] = []
+    for addr in range(start, max(start, end - 2)):
+        decoded = decode_standard_mem_access(blob, addr - text.addr)
+        if decoded is None:
+            continue
+        mnemonic, found_base, value_reg, mem_offset, access_size, is_store = decoded
+        if found_base != base_reg or mem_offset > max_offset:
+            continue
+        out.append(
+            StandardFieldAccess(
+                addr=addr,
+                op=mnemonic,
+                base_reg=found_base,
+                value_reg=value_reg,
+                offset=mem_offset,
+                access_size=access_size,
+                is_store=is_store,
+                owner_entry=owner_entry,
+                owner_delta=addr - owner_entry,
+            )
+        )
+        if len(out) >= sample_limit:
+            break
+    return out
+
+
+def byte_pattern_hits(data: bytes, sections: list[Section], start: int, end: int, pattern: bytes) -> list[int]:
+    raw = va_bytes(data, sections, start, end - start)
+    if raw is None:
+        return []
+    hits: list[int] = []
+    for off in range(0, len(raw) - len(pattern) + 1):
+        if raw[off : off + len(pattern)] == pattern:
+            hits.append(start + off)
+    return hits
+
+
+def possible_standard_loop_hits_to_target(
+    data: bytes,
+    sections: list[Section],
+    target: int,
+    search_start: int,
+    search_end: int,
+) -> list[int]:
+    text = section_by_name(sections, ".text")
+    if text is None:
+        return []
+    blob = section_bytes(data, text)
+    hits: list[int] = []
+    for addr in range(search_start, search_end):
+        off = addr - text.addr
+        if off < 0 or off + 3 > len(blob):
+            continue
+        b0, _b1, b2 = blob[off], blob[off + 1], blob[off + 2]
+        if b0 == 0x76 and addr + 4 + b2 == target:
+            hits.append(addr)
+    return hits
+
+
+def build_focused_loop_investigations(
+    data: bytes,
+    sections: list[Section],
+    props: list[XtProp],
+) -> list[FocusedLoopInvestigation]:
+    specs = (
+        {
+            "label": "flix_blocked_INFO13_record_lead",
+            "owner": 0x7003B468,
+            "target": 0x7003C102,
+            "priority": "independent_flix_branch",
+            "assessment": (
+                "Clean 0xaa-byte loop_target property run inside the strongest "
+                "0x40-record-shaped field cluster, but standard-ISA scans do not "
+                "expose a byte-aligned LOOP, an exact branch back-edge to the "
+                "target, or an a2 += 0x40 stride. Treat this as a FLIX-blocked "
+                "record-processing lead, not a blocker for the INFO12/INFO13 "
+                "closure."
+            ),
+            "range_start": 0x7003B468,
+            "range_end": 0x7003C1C0,
+            "base": 2,
+            "next_action": (
+                "Stop hand-decoding 0x7003c102 on the mainline. Close the "
+                "INFO12/INFO13 proposition with the verified 0x40 record layout "
+                "and the kernel/provider buffer_count cap; keep FLIX overlay or "
+                "format reverse engineering as an independent branch."
+            ),
+        },
+        {
+            "label": "downgraded_error_tail_loop_target",
+            "owner": 0x7003CE3C,
+            "target": 0x7003D423,
+            "priority": "downgraded",
+            "assessment": (
+                "Loop-target property is real but surrounding props contain short "
+                "branch targets, unreachable gaps, and insn|data mixed runs. Treat "
+                "as switch/error-tail lead, not a descriptor-array walk."
+            ),
+            "range_start": 0x7003D3A0,
+            "range_end": 0x7003D470,
+            "base": 2,
+            "next_action": (
+                "Keep as secondary local-control-flow evidence only; do not use "
+                "this downgraded target to drive INFO12/INFO13 closure."
+            ),
+        },
+    )
+    investigations: list[FocusedLoopInvestigation] = []
+    for spec in specs:
+        target = int(spec["target"])
+        target_prop = best_prop_for_addr(props, target)
+        range_start = int(spec["range_start"])
+        range_end = int(spec["range_end"])
+        selector_hits = byte_pattern_hits(data, sections, range_start, range_end, b"\x06\x04\x02")
+        investigations.append(
+            FocusedLoopInvestigation(
+                label=str(spec["label"]),
+                owner_entry=int(spec["owner"]),
+                loop_target=target,
+                priority=str(spec["priority"]),
+                assessment=str(spec["assessment"]),
+                target_prop_size=None if target_prop is None else target_prop.size,
+                target_prop_flags=None if target_prop is None else flags_text(target_prop.flags),
+                prop_runs=prop_run_samples(data, sections, props, range_start, range_end),
+                visible_field_accesses=visible_base_accesses_in_range(
+                    data,
+                    sections,
+                    int(spec["owner"]),
+                    range_start,
+                    range_end,
+                    int(spec["base"]),
+                ),
+                flix_selector="06 04 02",
+                flix_selector_hits=selector_hits[:32],
+                flix_selector_deltas=[
+                    selector_hits[index + 1] - selector_hits[index]
+                    for index in range(len(selector_hits) - 1)
+                ][:31],
+                standard_loop_opcode_hits=possible_standard_loop_hits_to_target(
+                    data, sections, target, range_start, target
+                ),
+                stride_0x40_status=(
+                    "blocked_in_flix; visible standard a2 accesses do not show "
+                    "a2 += 0x40, and raw 0x40 byte hits inside FLIX selector "
+                    "motifs are not stride proof."
+                ),
+                next_action=str(spec["next_action"]),
+            )
+        )
+    return investigations
+
+
+IDMA_CLUSTER_PATTERNS = {
+    "add idma request fail in %s",
+    "ERROR CALLBACK: iDMA in Error",
+    "INTERRUPT CALLBACK : processing iDMA interrupt",
+    "iDMA error",
+    "iDMA schedule error",
+    "iDMA wait error",
+    "../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c",
+    "sDesc > eDesc",
+    "eDesc >= TM_DMA_DESC_IDX_MAX",
+    "_DMA_STALL",
+    "No error",
+}
+
+
+def build_critical_owner_clusters(
+    critical_l32r_refs: list[CriticalL32RScan],
+    sample_limit: int = 8,
+) -> list[CriticalOwnerCluster]:
+    raw: dict[int, dict[str, object]] = {}
+    for scan in critical_l32r_refs:
+        if scan.pattern not in IDMA_CLUSTER_PATTERNS:
+            continue
+        for hit in scan.hits:
+            if hit.owner_entry is None:
+                continue
+            item = raw.setdefault(
+                hit.owner_entry,
+                {"patterns": set(), "hits": 0, "sample_refs": []},
+            )
+            patterns = item["patterns"]
+            assert isinstance(patterns, set)
+            patterns.add(scan.pattern)
+            item["hits"] = int(item["hits"]) + 1
+            sample_refs = item["sample_refs"]
+            assert isinstance(sample_refs, list)
+            if len(sample_refs) < sample_limit:
+                sample_refs.append(
+                    {
+                        "pattern": scan.pattern,
+                        "ref_addr": hit.addr,
+                        "literal_addr": hit.literal_addr,
+                        "literal_string_offset": hit.literal_string_offset,
+                    }
+                )
+    out: list[CriticalOwnerCluster] = []
+    for owner, item in raw.items():
+        patterns = sorted(item["patterns"])
+        assert isinstance(patterns, list)
+        hit_count = int(item["hits"])
+        if len(patterns) >= 4:
+            assessment = "top DMA/iDMA owner candidate"
+        elif len(patterns) >= 2:
+            assessment = "secondary DMA/iDMA owner candidate"
+        else:
+            assessment = "single-string lead"
+        out.append(
+            CriticalOwnerCluster(
+                owner_entry=owner,
+                pattern_count=len(patterns),
+                hit_count=hit_count,
+                patterns=patterns,
+                sample_refs=item["sample_refs"],
+                assessment=assessment,
+            )
+        )
+    out.sort(key=lambda item: (item.pattern_count, item.hit_count, -item.owner_entry), reverse=True)
+    return out
+
+
 def prop_near(props: list[XtProp], addr: int, window: int = 0x20) -> list[XtProp]:
     return [
         prop
@@ -1693,6 +1987,65 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
             f"`{item['prop_flags']}:{hx(item['prop_size'])}` |"
         )
     lines.append("")
+    lines.append("### Focused Loop Investigations")
+    lines.append("")
+    lines.append(
+        "`0x7003c102` remains a strong record-shaped loop-target lead, but the "
+        "mainline no longer depends on hand-decoding it: the count/stride evidence "
+        "is behind FLIX/TIE. INFO12/INFO13 closure is driven by the verified record "
+        "layout plus the kernel/provider buffer_count cap. `0x7003d423` is kept as "
+        "a downgraded local-control-flow lead."
+    )
+    lines.append("")
+    for item in payload["focused_loop_investigations"]:
+        assert isinstance(item, dict)
+        lines.append(
+            f"#### `{item['label']}` `{hx(item['owner_entry'])}` target `{hx(item['loop_target'])}`"
+        )
+        lines.append("")
+        lines.append(f"- priority: `{item['priority']}`")
+        lines.append(f"- assessment: {display_text(str(item['assessment']))}")
+        lines.append(
+            f"- target prop: `{item.get('target_prop_flags') or ''}:"
+            f"{hx(item.get('target_prop_size'))}`"
+        )
+        lines.append(
+            f"- FLIX selector `{item['flix_selector']}` hits: "
+            f"{', '.join(hx(value) or '' for value in item['flix_selector_hits'][:16])}"
+        )
+        lines.append(
+            f"- FLIX selector deltas: "
+            f"{', '.join(hx(value) or '' for value in item['flix_selector_deltas'][:16])}"
+        )
+        lines.append(
+            f"- standard loop opcode hits to target: "
+            f"{', '.join(hx(value) or '' for value in item['standard_loop_opcode_hits']) or 'none'}"
+        )
+        lines.append(f"- stride status: {display_text(str(item['stride_0x40_status']))}")
+        lines.append(f"- next action: {display_text(str(item['next_action']))}")
+        lines.append("")
+        lines.append("| visible a2 field access | op | offset |")
+        lines.append("|---:|---|---:|")
+        accesses = item["visible_field_accesses"]
+        assert isinstance(accesses, list)
+        for hit in accesses[:24]:
+            assert isinstance(hit, dict)
+            lines.append(
+                f"| `{hx(hit['addr'])}` | `{hit['op']} a{hit['value_reg']},"
+                f"a{hit['base_reg']}+{hx(hit['offset'])}` | `{hx(hit['offset'])}` |"
+            )
+        lines.append("")
+        lines.append("| prop | size | flags | first bytes |")
+        lines.append("|---:|---:|---|---|")
+        prop_runs = item["prop_runs"]
+        assert isinstance(prop_runs, list)
+        for prop in prop_runs[:24]:
+            assert isinstance(prop, dict)
+            lines.append(
+                f"| `{hx(prop['addr'])}` | `{hx(prop['size'])}` | "
+                f"`{prop['flags']}` | `{prop['bytes']}` |"
+            )
+        lines.append("")
     lines.append("## L32R Literal References")
     lines.append("")
     lines.append(
@@ -1758,6 +2111,30 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
         lines.append(
             f"| `{display_text(str(item['pattern']))}` | `{hx(item.get('string_addr'))}` | "
             f"{item['hit_count']} | {display_text('; '.join(samples))} |"
+        )
+    lines.append("")
+    lines.append("### Critical L32R Owner Clusters")
+    lines.append("")
+    lines.append(
+        "Owners are ranked by how many distinct DMA/iDMA-related strings are "
+        "referenced through L32R. This is a string-cluster lead, not full control "
+        "flow."
+    )
+    lines.append("")
+    lines.append("| owner | patterns | hits | assessment | samples |")
+    lines.append("|---:|---:|---:|---|---|")
+    for item in payload["critical_l32r_owner_clusters"]:
+        assert isinstance(item, dict)
+        samples: list[str] = []
+        sample_refs = item["sample_refs"]
+        assert isinstance(sample_refs, list)
+        for ref in sample_refs[:6]:
+            assert isinstance(ref, dict)
+            samples.append(f"{ref['pattern']}@{hx(ref['ref_addr'])}")
+        lines.append(
+            f"| `{hx(item['owner_entry'])}` | {item['pattern_count']} | "
+            f"{item['hit_count']} | {display_text(str(item['assessment']))} | "
+            f"{display_text('; '.join(samples))} |"
         )
     lines.append("")
     lines.append("### `.dram_op.data` L32R References")
@@ -1902,9 +2279,13 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
         data, sections, strings, props, function_candidates, xtensa_info
     )
     critical_l32r_refs = find_critical_l32r_refs(strings, l32r_refs_for_scans)
+    critical_owner_clusters = build_critical_owner_clusters(critical_l32r_refs)
     dram_op_l32r_refs = find_dram_op_l32r_refs(sections, l32r_refs_for_scans)
     loop_target_count, loop_target_candidates = find_loop_target_candidates(
         sections, props, function_candidates, standard_field_access_clusters
+    )
+    focused_loop_investigations = build_focused_loop_investigations(
+        data, sections, props
     )
 
     entry_props = []
@@ -1941,9 +2322,11 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
         "l32r_ref_count": l32r_ref_count,
         "interesting_l32r_refs": to_jsonable(interesting_l32r_refs),
         "critical_l32r_refs": to_jsonable(critical_l32r_refs),
+        "critical_l32r_owner_clusters": to_jsonable(critical_owner_clusters),
         "dram_op_l32r_refs": to_jsonable(dram_op_l32r_refs),
         "loop_target_count": loop_target_count,
         "loop_target_candidates": to_jsonable(loop_target_candidates),
+        "focused_loop_investigations": to_jsonable(focused_loop_investigations),
         "pointer_runs": to_jsonable(pointer_runs),
         "ann_op_name_table": op_name_table(
             data, sections, section_by_name(sections, ".dram_op.data"), strings_by_addr
@@ -2024,6 +2407,19 @@ def print_summary(payload: dict[str, object]) -> None:
             f"addr={hx(item['addr'])} owner={hx(item.get('owner_entry'))}+"
             f"{hx(item.get('owner_delta'))} bases={bases}"
         )
+    focused_loops = payload["focused_loop_investigations"]
+    assert isinstance(focused_loops, list)
+    print(f"focused_loop_investigations={len(focused_loops)}")
+    for item in focused_loops:
+        assert isinstance(item, dict)
+        print(
+            "  focused_loop "
+            f"{item['label']} priority={item['priority']} "
+            f"owner={hx(item['owner_entry'])} target={hx(item['loop_target'])} "
+            f"target_prop={item.get('target_prop_flags')}:{hx(item.get('target_prop_size'))} "
+            f"flix_hits={len(item['flix_selector_hits'])} "
+            f"standard_loop_hits={len(item['standard_loop_opcode_hits'])}"
+        )
     interesting_l32r = payload["interesting_l32r_refs"]
     assert isinstance(interesting_l32r, list)
     print(
@@ -2064,6 +2460,16 @@ def print_summary(payload: dict[str, object]) -> None:
             "  critical_l32r "
             f"{item['pattern']} addr={hx(item.get('string_addr'))} "
             f"hits={item['hit_count']}"
+        )
+    clusters = payload["critical_l32r_owner_clusters"]
+    assert isinstance(clusters, list)
+    print(f"critical_l32r_owner_clusters={len(clusters)}")
+    for cluster in clusters[:8]:
+        assert isinstance(cluster, dict)
+        print(
+            "  critical_owner_cluster "
+            f"owner={hx(cluster['owner_entry'])} patterns={cluster['pattern_count']} "
+            f"hits={cluster['hit_count']} assessment={cluster['assessment']}"
         )
     print(f"pointer_runs={len(payload['pointer_runs'])}")
     for run in payload["pointer_runs"]:

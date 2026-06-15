@@ -379,6 +379,315 @@
       "string_addr": 1879056660
     }
   ],
+  "critical_l32r_owner_clusters": [
+    {
+      "assessment": "top DMA/iDMA owner candidate",
+      "hit_count": 4,
+      "owner_entry": 1879329652,
+      "pattern_count": 4,
+      "patterns": [
+        "../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c",
+        "iDMA schedule error",
+        "iDMA wait error",
+        "sDesc > eDesc"
+      ],
+      "sample_refs": [
+        {
+          "literal_addr": 1879072340,
+          "literal_string_offset": 4,
+          "pattern": "iDMA schedule error",
+          "ref_addr": 1879330362
+        },
+        {
+          "literal_addr": 1879072364,
+          "literal_string_offset": 8,
+          "pattern": "iDMA wait error",
+          "ref_addr": 1879330387
+        },
+        {
+          "literal_addr": 1879072568,
+          "literal_string_offset": 8,
+          "pattern": "../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c",
+          "ref_addr": 1879330591
+        },
+        {
+          "literal_addr": 1879072608,
+          "literal_string_offset": 4,
+          "pattern": "sDesc > eDesc",
+          "ref_addr": 1879330629
+        }
+      ]
+    },
+    {
+      "assessment": "secondary DMA/iDMA owner candidate",
+      "hit_count": 3,
+      "owner_entry": 1879197456,
+      "pattern_count": 2,
+      "patterns": [
+        "iDMA schedule error",
+        "iDMA wait error"
+      ],
+      "sample_refs": [
+        {
+          "literal_addr": 1879072336,
+          "literal_string_offset": 0,
+          "pattern": "iDMA schedule error",
+          "ref_addr": 1879197613
+        },
+        {
+          "literal_addr": 1879072352,
+          "literal_string_offset": 16,
+          "pattern": "iDMA schedule error",
+          "ref_addr": 1879197629
+        },
+        {
+          "literal_addr": 1879072368,
+          "literal_string_offset": 12,
+          "pattern": "iDMA wait error",
+          "ref_addr": 1879197645
+        }
+      ]
+    },
+    {
+      "assessment": "secondary DMA/iDMA owner candidate",
+      "hit_count": 2,
+      "owner_entry": 1879158848,
+      "pattern_count": 2,
+      "patterns": [
+        "eDesc >= TM_DMA_DESC_IDX_MAX",
+        "sDesc > eDesc"
+      ],
+      "sample_refs": [
+        {
+          "literal_addr": 1879072608,
+          "literal_string_offset": 4,
+          "pattern": "sDesc > eDesc",
+          "ref_addr": 1879162523
+        },
+        {
+          "literal_addr": 1879072624,
+          "literal_string_offset": 4,
+          "pattern": "eDesc >= TM_DMA_DESC_IDX_MAX",
+          "ref_addr": 1879162539
+        }
+      ]
+    },
+    {
+      "assessment": "secondary DMA/iDMA owner candidate",
+      "hit_count": 2,
+      "owner_entry": 1879197856,
+      "pattern_count": 2,
+      "patterns": [
+        "_DMA_STALL",
+        "eDesc >= TM_DMA_DESC_IDX_MAX"
+      ],
+      "sample_refs": [
+        {
+          "literal_addr": 1879072640,
+          "literal_string_offset": 20,
+          "pattern": "eDesc >= TM_DMA_DESC_IDX_MAX",
+          "ref_addr": 1879197918
+        },
+        {
+          "literal_addr": 1879072656,
+          "literal_string_offset": 4,
+          "pattern": "_DMA_STALL",
+          "ref_addr": 1879197934
+        }
+      ]
+    },
+    {
+      "assessment": "secondary DMA/iDMA owner candidate",
+      "hit_count": 2,
+      "owner_entry": 1879269648,
+      "pattern_count": 2,
+      "patterns": [
+        "../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c",
+        "iDMA wait error"
+      ],
+      "sample_refs": [
+        {
+          "literal_addr": 1879072360,
+          "literal_string_offset": 4,
+          "pattern": "iDMA wait error",
+          "ref_addr": 1879271521
+        },
+        {
+          "literal_addr": 1879072580,
+          "literal_string_offset": 20,
+          "pattern": "../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c",
+          "ref_addr": 1879271742
+        }
+      ]
+    },
+    {
+      "assessment": "secondary DMA/iDMA owner candidate",
+      "hit_count": 2,
+      "owner_entry": 1879315664,
+      "pattern_count": 2,
+      "patterns": [
+        "eDesc >= TM_DMA_DESC_IDX_MAX",
+        "iDMA schedule error"
+      ],
+      "sample_refs": [
+        {
+          "literal_addr": 1879072348,
+          "literal_string_offset": 12,
+          "pattern": "iDMA schedule error",
+          "ref_addr": 1879327388
+        },
+        {
+          "literal_addr": 1879072636,
+          "literal_string_offset": 16,
+          "pattern": "eDesc >= TM_DMA_DESC_IDX_MAX",
+          "ref_addr": 1879327835
+        }
+      ]
+    },
+    {
+      "assessment": "secondary DMA/iDMA owner candidate",
+      "hit_count": 2,
+      "owner_entry": 1879328848,
+      "pattern_count": 2,
+      "patterns": [
+        "../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c",
+        "eDesc >= TM_DMA_DESC_IDX_MAX"
+      ],
+      "sample_refs": [
+        {
+          "literal_addr": 1879072576,
+          "literal_string_offset": 16,
+          "pattern": "../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c",
+          "ref_addr": 1879328925
+        },
+        {
+          "literal_addr": 1879072640,
+          "literal_string_offset": 20,
+          "pattern": "eDesc >= TM_DMA_DESC_IDX_MAX",
+          "ref_addr": 1879328989
+        }
+      ]
+    },
+    {
+      "assessment": "single-string lead",
+      "hit_count": 1,
+      "owner_entry": 1879080484,
+      "pattern_count": 1,
+      "patterns": [
+        "sDesc > eDesc"
+      ],
+      "sample_refs": [
+        {
+          "literal_addr": 1879072608,
+          "literal_string_offset": 4,
+          "pattern": "sDesc > eDesc",
+          "ref_addr": 1879086202
+        }
+      ]
+    },
+    {
+      "assessment": "single-string lead",
+      "hit_count": 1,
+      "owner_entry": 1879147700,
+      "pattern_count": 1,
+      "patterns": [
+        "No error"
+      ],
+      "sample_refs": [
+        {
+          "literal_addr": 1879072664,
+          "literal_string_offset": 0,
+          "pattern": "No error",
+          "ref_addr": 1879152426
+        }
+      ]
+    },
+    {
+      "assessment": "single-string lead",
+      "hit_count": 1,
+      "owner_entry": 1879171068,
+      "pattern_count": 1,
+      "patterns": [
+        "_DMA_STALL"
+      ],
+      "sample_refs": [
+        {
+          "literal_addr": 1879072660,
+          "literal_string_offset": 8,
+          "pattern": "_DMA_STALL",
+          "ref_addr": 1879178599
+        }
+      ]
+    },
+    {
+      "assessment": "single-string lead",
+      "hit_count": 1,
+      "owner_entry": 1879234700,
+      "pattern_count": 1,
+      "patterns": [
+        "_DMA_STALL"
+      ],
+      "sample_refs": [
+        {
+          "literal_addr": 1879072656,
+          "literal_string_offset": 4,
+          "pattern": "_DMA_STALL",
+          "ref_addr": 1879236127
+        }
+      ]
+    },
+    {
+      "assessment": "single-string lead",
+      "hit_count": 1,
+      "owner_entry": 1879268452,
+      "pattern_count": 1,
+      "patterns": [
+        "iDMA schedule error"
+      ],
+      "sample_refs": [
+        {
+          "literal_addr": 1879072352,
+          "literal_string_offset": 16,
+          "pattern": "iDMA schedule error",
+          "ref_addr": 1879268960
+        }
+      ]
+    },
+    {
+      "assessment": "single-string lead",
+      "hit_count": 1,
+      "owner_entry": 1879278456,
+      "pattern_count": 1,
+      "patterns": [
+        "INTERRUPT CALLBACK : processing iDMA interrupt"
+      ],
+      "sample_refs": [
+        {
+          "literal_addr": 1879070624,
+          "literal_string_offset": 8,
+          "pattern": "INTERRUPT CALLBACK : processing iDMA interrupt",
+          "ref_addr": 1879281428
+        }
+      ]
+    },
+    {
+      "assessment": "single-string lead",
+      "hit_count": 1,
+      "owner_entry": 1879284544,
+      "pattern_count": 1,
+      "patterns": [
+        "eDesc >= TM_DMA_DESC_IDX_MAX"
+      ],
+      "sample_refs": [
+        {
+          "literal_addr": 1879072620,
+          "literal_string_offset": 0,
+          "pattern": "eDesc >= TM_DMA_DESC_IDX_MAX",
+          "ref_addr": 1879284582
+        }
+      ]
+    }
+  ],
   "critical_l32r_refs": [
     {
       "hit_count": 0,
@@ -1332,6 +1641,942 @@
       "flags": 130,
       "flags_text": "insn|no_reorder",
       "size": 172
+    }
+  ],
+  "focused_loop_investigations": [
+    {
+      "assessment": "Clean 0xaa-byte loop_target property run inside the strongest 0x40-record-shaped field cluster, but standard-ISA scans do not expose a byte-aligned LOOP, an exact branch back-edge to the target, or an a2 += 0x40 stride. Treat this as a FLIX-blocked record-processing lead, not a blocker for the INFO12/INFO13 closure.",
+      "flix_selector": "06 04 02",
+      "flix_selector_deltas": [
+        68,
+        16,
+        16,
+        29,
+        16,
+        16,
+        16,
+        25,
+        16,
+        16,
+        16,
+        30,
+        16,
+        16,
+        16,
+        19,
+        19,
+        16,
+        16,
+        16,
+        16,
+        63,
+        22,
+        22,
+        16,
+        16,
+        19,
+        16,
+        50,
+        50,
+        25
+      ],
+      "flix_selector_hits": [
+        1879291009,
+        1879291077,
+        1879291093,
+        1879291109,
+        1879291138,
+        1879291154,
+        1879291170,
+        1879291186,
+        1879291211,
+        1879291227,
+        1879291243,
+        1879291259,
+        1879291289,
+        1879291305,
+        1879291321,
+        1879291337,
+        1879291356,
+        1879291375,
+        1879291391,
+        1879291407,
+        1879291423,
+        1879291439,
+        1879291502,
+        1879291524,
+        1879291546,
+        1879291562,
+        1879291578,
+        1879291597,
+        1879291613,
+        1879291663,
+        1879291713,
+        1879291738
+      ],
+      "label": "flix_blocked_INFO13_record_lead",
+      "loop_target": 1879294210,
+      "next_action": "Stop hand-decoding 0x7003c102 on the mainline. Close the INFO12/INFO13 proposition with the verified 0x40 record layout and the kernel/provider buffer_count cap; keep FLIX overlay or format reverse engineering as an independent branch.",
+      "owner_entry": 1879290984,
+      "priority": "independent_flix_branch",
+      "prop_runs": [
+        {
+          "addr": 1879290984,
+          "bytes": "36 e1 05 82 af c0 80 81 10 10 18 00 9e 62 20 70",
+          "flags": "insn|no_reorder",
+          "size": 80
+        },
+        {
+          "addr": 1879291064,
+          "bytes": "de b4 55 32 58 c4 41 06 31 a8 85 02 c8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879291080,
+          "bytes": "9e 98 1c 70 5a 66 12 00 30 d0 05 b7 f0 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 734
+        },
+        {
+          "addr": 1879291814,
+          "bytes": "92 02 29 9e 69 20 70 5a 60 12 00 30 d0 05 76 f4",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 51
+        },
+        {
+          "addr": 1879291865,
+          "bytes": "b2 02 2d c2 02 2c 4f 8b 76 b7 8a 08 82 00 c0 bb",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 79
+        },
+        {
+          "addr": 1879291944,
+          "bytes": "c2 02 31 d2 02 30 4f 8c b8 f7 8a 08 82 00 d0 cc",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 183
+        },
+        {
+          "addr": 1879292127,
+          "bytes": "00 00 00 00 00 00 00 00 00 00 00 00",
+          "flags": "unreachable",
+          "size": 12
+        },
+        {
+          "addr": 1879292141,
+          "bytes": "f2 02 14 ef 82 a4 12 00 08 82 00 ef 63 c2 22 91",
+          "flags": "insn|no_reorder",
+          "size": 99
+        },
+        {
+          "addr": 1879292240,
+          "bytes": "ae c1 2e 33 01 e6 04 1a 17 34 08 02 40 08 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879292256,
+          "bytes": "8e d2 bc b2 00 d4 04 0a 37 33 08 02 40 08 04 02",
+          "flags": "insn|no_reorder",
+          "size": 16
+        },
+        {
+          "addr": 1879292272,
+          "bytes": "9e b2 14 41 59 c0 4d 02 31 a8 85 37 d8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 32
+        },
+        {
+          "addr": 1879292304,
+          "bytes": "5e c2 19 a2 5c e0 9d 00 31 a8 85 37 f8 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 16
+        },
+        {
+          "addr": 1879292320,
+          "bytes": "9e 82 1a 46 5d c0 d1 02 31 a8 85 37 f8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879292336,
+          "bytes": "8e d2 e2 82 01 d4 80 0a 37 33 10 02 40 08 04 02",
+          "flags": "insn|no_reorder",
+          "size": 32
+        },
+        {
+          "addr": 1879292368,
+          "bytes": "4e 82 21 a2 5c c0 9d 00 31 a8 85 37 f8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879292384,
+          "bytes": "9e f1 74 47 5d c4 d1 02 31 a8 85 38 f8 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 80
+        },
+        {
+          "addr": 1879292464,
+          "bytes": "b2 02 35 d2 02 34 4f 8b 36 37 8e 08 82 00 cf 72",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 25
+        },
+        {
+          "addr": 1879292489,
+          "bytes": "7e c1 23 b7 5c 64 10 00 30 d0 05 37 f8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879292505,
+          "bytes": "4f 37 7c 27 94 0a 82 00 6f ec 39 b2 94 ea 82 00",
+          "flags": "insn|no_reorder",
+          "size": 112
+        },
+        {
+          "addr": 1879292617,
+          "bytes": "7e c1 23 b7 5c 64 10 00 30 d0 05 37 f8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879292633,
+          "bytes": "30 66 82 d2 0d 00 c0 c6 82 80 bb 11 cf fc b9 dd",
+          "flags": "insn|no_reorder",
+          "size": 86
+        },
+        {
+          "addr": 1879292719,
+          "bytes": "7e c1 23 b7 5c 64 10 00 30 d0 05 37 f8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879292735,
+          "bytes": "d2 0d 00 c0 c3 82 80 bb 11",
+          "flags": "insn|no_reorder",
+          "size": 9
+        },
+        {
+          "addr": 1879292744,
+          "bytes": "9e c1 57 c3 5c e4 dd 02 31 a8 85 38 f8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879292760,
+          "bytes": "ce c1 f9 b2 80 ee 00 08 00 0a 43 00 40 08 04 02",
+          "flags": "insn|no_reorder",
+          "size": 77
+        },
+        {
+          "addr": 1879292837,
+          "bytes": "7e c1 23 b7 5c 64 10 00 30 d0 05 37 f8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879292853,
+          "bytes": "e0 cc 11 de c1 e1 b2 81 ee 00 08 00 8a 43 00 40",
+          "flags": "insn|no_reorder",
+          "size": 253
+        },
+        {
+          "addr": 1879293106,
+          "bytes": "cf 47 98 dd 58 04 5a 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879293114,
+          "bytes": "ce c1 f3 b6 82 ee 00 08 00 0a 45 00 40 08 04 02",
+          "flags": "insn|no_reorder",
+          "size": 73
+        },
+        {
+          "addr": 1879293187,
+          "bytes": "7e c1 35 b7 5c 64 10 00 30 d0 05 37 f8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879293203,
+          "bytes": "d2 0d 00 f0 20 00 40 cc 82 80 bb 11 cf fc b9 dd",
+          "flags": "insn|no_reorder",
+          "size": 745
+        },
+        {
+          "addr": 1879293948,
+          "bytes": "ae b1 ad 83 00 e6 04 18 07 21 10 02 40 08 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879293964,
+          "bytes": "4f eb 68 63 0c 08 82 00",
+          "flags": "insn|no_reorder",
+          "size": 8
+        },
+        {
+          "addr": 1879293972,
+          "bytes": "8e db 64 73 02 f0 80 1a 37 33 10 02 40 08 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879293988,
+          "bytes": "4e db 07 a7 5e 40 fc 83 31 a8 05 39 f8 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 49
+        },
+        {
+          "addr": 1879294037,
+          "bytes": "2f 83 40 22 18 a4 81 00 8f 80 3d 4b a1 2c 58 00",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 22
+        },
+        {
+          "addr": 1879294059,
+          "bytes": "a2 21 8f 3e b1 06 03 5a 62 10 0c 30 d0 05 37 d8",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 119
+        },
+        {
+          "addr": 1879294178,
+          "bytes": "00 00 00 00 00 00 00 00 00 00 00 00",
+          "flags": "unreachable",
+          "size": 12
+        },
+        {
+          "addr": 1879294190,
+          "bytes": "4b dd 7e 9d c1 1a 59 e0 f5 03 31 a8 85 38 b8 06",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 18
+        },
+        {
+          "addr": 1879294208,
+          "bytes": "3d f0",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 2
+        },
+        {
+          "addr": 1879294210,
+          "bytes": "62 61 a3 52 61 a2 42 61 a1 32 61 af 9e 3b 02 70",
+          "flags": "insn|loop_target|no_reorder",
+          "size": 170
+        },
+        {
+          "addr": 1879294380,
+          "bytes": "42 61 b0 de 51 a2 02 5a 64 10 00 30 d0 85 38 d8",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 194
+        }
+      ],
+      "standard_loop_opcode_hits": [],
+      "stride_0x40_status": "blocked_in_flix; visible standard a2 accesses do not show a2 += 0x40, and raw 0x40 byte hits inside FLIX selector motifs are not stride proof.",
+      "target_prop_flags": "insn|loop_target|no_reorder",
+      "target_prop_size": 170,
+      "visible_field_accesses": [
+        {
+          "access_size": 1,
+          "addr": 1879291012,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 3,
+          "op": "l8ui",
+          "owner_delta": 28,
+          "owner_entry": 1879290984,
+          "value_reg": 8
+        },
+        {
+          "access_size": 1,
+          "addr": 1879291015,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 2,
+          "op": "l8ui",
+          "owner_delta": 31,
+          "owner_entry": 1879290984,
+          "value_reg": 9
+        },
+        {
+          "access_size": 1,
+          "addr": 1879291016,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 240,
+          "op": "l8ui",
+          "owner_delta": 32,
+          "owner_entry": 1879290984,
+          "value_reg": 0
+        },
+        {
+          "access_size": 2,
+          "addr": 1879291101,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 0,
+          "op": "l16ui",
+          "owner_delta": 117,
+          "owner_entry": 1879290984,
+          "value_reg": 6
+        },
+        {
+          "access_size": 2,
+          "addr": 1879291251,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 0,
+          "op": "l16ui",
+          "owner_delta": 267,
+          "owner_entry": 1879290984,
+          "value_reg": 6
+        },
+        {
+          "access_size": 2,
+          "addr": 1879291297,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 0,
+          "op": "l16ui",
+          "owner_delta": 313,
+          "owner_entry": 1879290984,
+          "value_reg": 6
+        },
+        {
+          "access_size": 2,
+          "addr": 1879291313,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 0,
+          "op": "l16ui",
+          "owner_delta": 329,
+          "owner_entry": 1879290984,
+          "value_reg": 6
+        },
+        {
+          "access_size": 2,
+          "addr": 1879291329,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 0,
+          "op": "l16ui",
+          "owner_delta": 345,
+          "owner_entry": 1879290984,
+          "value_reg": 6
+        },
+        {
+          "access_size": 2,
+          "addr": 1879291348,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 0,
+          "op": "l16ui",
+          "owner_delta": 364,
+          "owner_entry": 1879290984,
+          "value_reg": 6
+        },
+        {
+          "access_size": 2,
+          "addr": 1879291358,
+          "base_reg": 2,
+          "is_store": true,
+          "offset": 72,
+          "op": "s16i",
+          "owner_delta": 374,
+          "owner_entry": 1879290984,
+          "value_reg": 0
+        },
+        {
+          "access_size": 1,
+          "addr": 1879291450,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 18,
+          "op": "l8ui",
+          "owner_delta": 466,
+          "owner_entry": 1879290984,
+          "value_reg": 8
+        },
+        {
+          "access_size": 2,
+          "addr": 1879291494,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 0,
+          "op": "l16ui",
+          "owner_delta": 510,
+          "owner_entry": 1879290984,
+          "value_reg": 6
+        },
+        {
+          "access_size": 1,
+          "addr": 1879291527,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 21,
+          "op": "l8ui",
+          "owner_delta": 543,
+          "owner_entry": 1879290984,
+          "value_reg": 10
+        },
+        {
+          "access_size": 2,
+          "addr": 1879291554,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 0,
+          "op": "l16ui",
+          "owner_delta": 570,
+          "owner_entry": 1879290984,
+          "value_reg": 6
+        },
+        {
+          "access_size": 2,
+          "addr": 1879291570,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 0,
+          "op": "l16ui",
+          "owner_delta": 586,
+          "owner_entry": 1879290984,
+          "value_reg": 6
+        },
+        {
+          "access_size": 2,
+          "addr": 1879291615,
+          "base_reg": 2,
+          "is_store": true,
+          "offset": 4,
+          "op": "s16i",
+          "owner_delta": 631,
+          "owner_entry": 1879290984,
+          "value_reg": 0
+        },
+        {
+          "access_size": 1,
+          "addr": 1879291616,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 15,
+          "op": "l8ui",
+          "owner_delta": 632,
+          "owner_entry": 1879290984,
+          "value_reg": 5
+        },
+        {
+          "access_size": 1,
+          "addr": 1879291619,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 14,
+          "op": "l8ui",
+          "owner_delta": 635,
+          "owner_entry": 1879290984,
+          "value_reg": 8
+        },
+        {
+          "access_size": 2,
+          "addr": 1879291655,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 0,
+          "op": "l16ui",
+          "owner_delta": 671,
+          "owner_entry": 1879290984,
+          "value_reg": 6
+        },
+        {
+          "access_size": 1,
+          "addr": 1879291666,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 11,
+          "op": "l8ui",
+          "owner_delta": 682,
+          "owner_entry": 1879290984,
+          "value_reg": 11
+        },
+        {
+          "access_size": 1,
+          "addr": 1879291669,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 10,
+          "op": "l8ui",
+          "owner_delta": 685,
+          "owner_entry": 1879290984,
+          "value_reg": 14
+        },
+        {
+          "access_size": 2,
+          "addr": 1879291705,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 0,
+          "op": "l16ui",
+          "owner_delta": 721,
+          "owner_entry": 1879290984,
+          "value_reg": 6
+        },
+        {
+          "access_size": 2,
+          "addr": 1879291787,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 8,
+          "op": "l16ui",
+          "owner_delta": 803,
+          "owner_entry": 1879290984,
+          "value_reg": 6
+        },
+        {
+          "access_size": 1,
+          "addr": 1879291814,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 41,
+          "op": "l8ui",
+          "owner_delta": 830,
+          "owner_entry": 1879290984,
+          "value_reg": 9
+        },
+        {
+          "access_size": 1,
+          "addr": 1879291865,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 45,
+          "op": "l8ui",
+          "owner_delta": 881,
+          "owner_entry": 1879290984,
+          "value_reg": 11
+        },
+        {
+          "access_size": 1,
+          "addr": 1879291868,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 44,
+          "op": "l8ui",
+          "owner_delta": 884,
+          "owner_entry": 1879290984,
+          "value_reg": 12
+        },
+        {
+          "access_size": 1,
+          "addr": 1879291944,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 49,
+          "op": "l8ui",
+          "owner_delta": 960,
+          "owner_entry": 1879290984,
+          "value_reg": 12
+        },
+        {
+          "access_size": 1,
+          "addr": 1879291947,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 48,
+          "op": "l8ui",
+          "owner_delta": 963,
+          "owner_entry": 1879290984,
+          "value_reg": 13
+        },
+        {
+          "access_size": 1,
+          "addr": 1879291994,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 57,
+          "op": "l8ui",
+          "owner_delta": 1010,
+          "owner_entry": 1879290984,
+          "value_reg": 13
+        },
+        {
+          "access_size": 1,
+          "addr": 1879291997,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 56,
+          "op": "l8ui",
+          "owner_delta": 1013,
+          "owner_entry": 1879290984,
+          "value_reg": 14
+        },
+        {
+          "access_size": 1,
+          "addr": 1879292054,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 61,
+          "op": "l8ui",
+          "owner_delta": 1070,
+          "owner_entry": 1879290984,
+          "value_reg": 14
+        },
+        {
+          "access_size": 1,
+          "addr": 1879292057,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 60,
+          "op": "l8ui",
+          "owner_delta": 1073,
+          "owner_entry": 1879290984,
+          "value_reg": 15
+        },
+        {
+          "access_size": 1,
+          "addr": 1879292141,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 20,
+          "op": "l8ui",
+          "owner_delta": 1157,
+          "owner_entry": 1879290984,
+          "value_reg": 15
+        },
+        {
+          "access_size": 1,
+          "addr": 1879292402,
+          "base_reg": 2,
+          "is_store": true,
+          "offset": 92,
+          "op": "s8i",
+          "owner_delta": 1418,
+          "owner_entry": 1879290984,
+          "value_reg": 2
+        },
+        {
+          "access_size": 1,
+          "addr": 1879292464,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 53,
+          "op": "l8ui",
+          "owner_delta": 1480,
+          "owner_entry": 1879290984,
+          "value_reg": 11
+        },
+        {
+          "access_size": 1,
+          "addr": 1879292467,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 52,
+          "op": "l8ui",
+          "owner_delta": 1483,
+          "owner_entry": 1879290984,
+          "value_reg": 13
+        },
+        {
+          "access_size": 1,
+          "addr": 1879293414,
+          "base_reg": 2,
+          "is_store": true,
+          "offset": 81,
+          "op": "s8i",
+          "owner_delta": 2430,
+          "owner_entry": 1879290984,
+          "value_reg": 5
+        },
+        {
+          "access_size": 2,
+          "addr": 1879293429,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 0,
+          "op": "l16ui",
+          "owner_delta": 2445,
+          "owner_entry": 1879290984,
+          "value_reg": 6
+        },
+        {
+          "access_size": 1,
+          "addr": 1879294215,
+          "base_reg": 2,
+          "is_store": true,
+          "offset": 97,
+          "op": "s8i",
+          "owner_delta": 3231,
+          "owner_entry": 1879290984,
+          "value_reg": 10
+        },
+        {
+          "access_size": 1,
+          "addr": 1879294379,
+          "base_reg": 2,
+          "is_store": true,
+          "offset": 97,
+          "op": "s8i",
+          "owner_delta": 3395,
+          "owner_entry": 1879290984,
+          "value_reg": 0
+        },
+        {
+          "access_size": 1,
+          "addr": 1879294385,
+          "base_reg": 2,
+          "is_store": false,
+          "offset": 90,
+          "op": "l8ui",
+          "owner_delta": 3401,
+          "owner_entry": 1879290984,
+          "value_reg": 10
+        }
+      ]
+    },
+    {
+      "assessment": "Loop-target property is real but surrounding props contain short branch targets, unreachable gaps, and insn|data mixed runs. Treat as switch/error-tail lead, not a descriptor-array walk.",
+      "flix_selector": "06 04 02",
+      "flix_selector_deltas": [
+        38,
+        30,
+        16,
+        16,
+        48
+      ],
+      "flix_selector_hits": [
+        1879299001,
+        1879299039,
+        1879299069,
+        1879299085,
+        1879299101,
+        1879299149
+      ],
+      "label": "downgraded_error_tail_loop_target",
+      "loop_target": 1879299107,
+      "next_action": "Keep as secondary local-control-flow evidence only; do not use this downgraded target to drive INFO12/INFO13 closure.",
+      "owner_entry": 1879297596,
+      "priority": "downgraded",
+      "prop_runs": [
+        {
+          "addr": 1879298985,
+          "bytes": "d2 21 68 8e db 96 02 5a a6 19 01 31 a8 05 4e d8",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 28
+        },
+        {
+          "addr": 1879299013,
+          "bytes": "2f 66 89 9d 33 04 5a 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879299021,
+          "bytes": "e2 21 6c 3d f0 be e5 70 35 5c 60 10 00 30 d0 85",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 21
+        },
+        {
+          "addr": 1879299042,
+          "bytes": "4f 90 01 1b 08 c8 59 00 76 80 35 16 99 ec 9e 09",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 65
+        },
+        {
+          "addr": 1879299107,
+          "bytes": "c6 f0 ff",
+          "flags": "insn|loop_target|no_reorder",
+          "size": 3
+        },
+        {
+          "addr": 1879299110,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879299111,
+          "bytes": "a5 d0 62 fc aa",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 5
+        },
+        {
+          "addr": 1879299116,
+          "bytes": "0c 02 1d f0",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 4
+        },
+        {
+          "addr": 1879299120,
+          "bytes": "00 00 00 00 00 00",
+          "flags": "unreachable",
+          "size": 6
+        },
+        {
+          "addr": 1879299126,
+          "bytes": "22 a1 00 1d f0",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 5
+        },
+        {
+          "addr": 1879299131,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879299136,
+          "bytes": "0e d0 c8 42 28 f9 51 07 31 a8 c5 3e c8 06 04 02",
+          "flags": "insn|data|branch_target|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879299152,
+          "bytes": "25 10 62 16 5a b9 86 03 00",
+          "flags": "insn|no_reorder",
+          "size": 9
+        },
+        {
+          "addr": 1879299161,
+          "bytes": "00 00 00 00 00 00",
+          "flags": "unreachable",
+          "size": 6
+        },
+        {
+          "addr": 1879299168,
+          "bytes": "0c 0f f2 61 67 c6 65 ff",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 8
+        },
+        {
+          "addr": 1879299176,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879299176,
+          "bytes": "2d 0a 1d f0",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 4
+        },
+        {
+          "addr": 1879299180,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879299180,
+          "bytes": "a4 00 70 94 00 70 d4 00 70 6f d8 19 0e 09 50 83",
+          "flags": "insn|no_reorder",
+          "size": 43
+        }
+      ],
+      "standard_loop_opcode_hits": [
+        1879299050
+      ],
+      "stride_0x40_status": "blocked_in_flix; visible standard a2 accesses do not show a2 += 0x40, and raw 0x40 byte hits inside FLIX selector motifs are not stride proof.",
+      "target_prop_flags": "insn|loop_target|no_reorder",
+      "target_prop_size": 3,
+      "visible_field_accesses": []
     }
   ],
   "function_candidate_count": 1019,
@@ -14438,6 +15683,24 @@
       "section": ".text"
     },
     {
+      "addr": 1879290984,
+      "label": "flix_blocked_INFO13_record_lead",
+      "owner_delta": 0,
+      "owner_entry": 1879290984,
+      "prop_flags": "insn|no_reorder",
+      "prop_size": 80,
+      "section": ".text"
+    },
+    {
+      "addr": 1879294210,
+      "label": "flix_blocked_INFO13_record_loop_target",
+      "owner_delta": 3226,
+      "owner_entry": 1879290984,
+      "prop_flags": "insn|loop_target|no_reorder",
+      "prop_size": 170,
+      "section": ".text"
+    },
+    {
       "addr": 1879297596,
       "label": "buffer_record_high_field_validator_candidate",
       "owner_delta": 0,
@@ -14453,6 +15716,15 @@
       "owner_entry": 1879290916,
       "prop_flags": "insn|no_reorder",
       "prop_size": 6,
+      "section": ".text"
+    },
+    {
+      "addr": 1879329652,
+      "label": "top_dmaif_l32r_owner_cluster",
+      "owner_delta": 0,
+      "owner_entry": 1879329652,
+      "prop_flags": "insn|no_reorder",
+      "prop_size": 68,
       "section": ".text"
     },
     {

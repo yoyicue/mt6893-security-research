@@ -201,6 +201,10 @@ Static firmware impact so far:
   `0x70036110`, `0x70044b74`), and `dmaif.c` (`0x70036110`, `0x70044850`,
   `0x70044b74`). These are leads for local validation, not a closed DMA timing
   answer.
+- String-cluster scoring now ranks `0x70044b74` as the top DMA/iDMA owner
+  candidate because it is the only current owner with four distinct
+  DMA/iDMA-related L32R strings: `iDMA schedule error`, `iDMA wait error`,
+  `dmaif.c`, and `sDesc > eDesc`.
 - Byte-verified standard Xtensa islands now make the early path reproducible:
   `0x70006794` copies `a12+0x00..0x14` into `a10+0x04..0x18` and
   `a2+0x44/0x4c/0x50` into `a10+0x28/0x1c/0x20`; `0x70006590` loads
@@ -220,16 +224,24 @@ Static firmware impact so far:
   `+0x10`, `+0x1c`, `+0x20/+0x24/+0x28`, and `+0x34/+0x38`, plus high byte
   fields at `+0x39/+0x3a/+0x3b`. Those offsets overlap the native VPU buffer/plane
   field region from the reference kernel layout. This is evidence for native
-  buffer-record validation; the separate `INFO12`/`INFO13` loop and iteration
-  bound still need to be tied to it.
+  buffer-record validation. Combined with the provider-gated `INFO12`
+  `buffer_count < 0x21` and kernel-copied `INFO13` descriptor-array IOVA, the
+  INFO12/INFO13 input proposition is closed for the current primitive model.
 - `analyze_apunn_elf.py` now emits a standard 24-bit Xtensa field-access cluster
   scan. Current high-priority clusters include `0x7003b468/a2`,
   `0x70039cfc/a2`, and the verified `0x7003ce3c/a2`, giving reproducible
-  next-hop targets for the descriptor loop pass. Unresolved TIE/FLIX
+  record-layout correlation targets. Unresolved TIE/FLIX
   instructions still prevent complete prototypes.
-- `.xt.prop` loop-target candidates now narrow the next pass further:
-  `0x7003c102` inside `0x7003b468/a2` and `0x7003d423` inside
-  `0x7003ce3c/a2` are the current record-loop/count follow-up addresses.
+- `.xt.prop` loop-target candidates now narrow the next pass further.
+  `0x7003c102` inside `0x7003b468/a2` remains the strongest record-shaped
+  FLIX-blocked lead: it is a clean `0xaa`-byte `insn|loop_target|no_reorder`
+  run and has repeated `06 04 02` FLIX selector motifs. The companion scan found
+  no byte-aligned hardware LOOP, no exact standard branch back-edge to
+  `0x7003c102`, and no byte-aligned `addi ..., 0x40` stride in that owner.
+  Mainline analysis therefore stops hand-decoding this address; FLIX overlay or
+  format recovery is a separate branch. `0x7003d423` is downgraded to a
+  switch/error-tail lead because its neighborhood mixes short branch targets,
+  unreachable gaps, and `insn|data` runs.
 - `.dram_op.data` contains a 63-entry ANN op-name table, and strings confirm
   the relevant APUNN paths: `process_command`, `execute_op`, `dma_barrier`,
   buffer validation, and iDMA schedule/wait errors.
@@ -238,10 +250,12 @@ Static firmware impact so far:
   `INFO16` entry and `INFO12..15`/descriptor boundary, not by requiring a direct
   APUNN-side `INFO01` switch.
 
-Primitive impact is unchanged for now. The firmware image gives a better map,
-but it has not yet proved a slower DMA path, a missing descriptor cap, a
-source-sensitive output path, or a cross-buffer write. Kernel/provider
-`buffer_count` is still capped below `0x21`, and the runtime race result still
+Primitive impact is unchanged for now, but INFO12/INFO13 is no longer the
+blocking question. The firmware image gives a better map and the descriptor
+count/input model is closed at the provider boundary plus native record-layout
+level. It still has not proved a slower DMA path, a source-sensitive output
+path, a cross-buffer write, or missing plane/size validation. Kernel/provider
+`buffer_count` is capped below `0x21`, and the runtime race result still
 dominates: completed firmware writes finish before the Java-layer `mem_free`
 round trip can replace the IOVA.
 

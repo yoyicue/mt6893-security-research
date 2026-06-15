@@ -210,9 +210,12 @@ Current core-0 ELF facts from
 | `.xt.prop` | n/a | `0x26c940` | `0xb9aa8` |
 
 The Xtensa property table is the strongest non-decompiler source for code
-ranges. It contains `63374` entries, including `54282` instruction ranges,
-`14383` branch targets, and `8838` unreachable/align entries. Around the
-kernel-provided entry, it marks `0x70006794` as a real instruction range:
+ranges. It contains `63374` entries, including `54282` instruction property
+runs, `14383` branch targets, and `8838` unreachable/align entries. These are
+property runs, not guaranteed per-instruction boundaries; a single entry can
+cover a FLIX/TIE-heavy block such as the `0x7003c102` `0xaa`-byte loop body.
+Around the kernel-provided entry, it marks `0x70006794` as a real instruction
+range:
 
 | Address | Size | Flags |
 |---:|---:|---|
@@ -303,6 +306,11 @@ Recovered pointer/name tables:
   owners `0x70036110`, `0x70044850`, and `0x70044b74`. These are
   section-filtered decode leads from property-covered ranges, not complete CFG
   proof yet.
+- String-cluster scoring ranks `0x70044b74` as the top DMA/iDMA owner
+  candidate because the same owner references `iDMA schedule error`,
+  `iDMA wait error`, `../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c`, and
+  `sDesc > eDesc` through L32R. The next tier has only two distinct
+  DMA/iDMA-related strings per owner.
 - `Data buffer does not fit in DRAM` has no aligned refs but has six all-byte
   suffix-pointer samples at owners `0x700c13b0`, `0x700cc080`, `0x700cda20`,
   `0x7016bc40`, `0x70262690`, and `0x70262a00`. Because these are unaligned
@@ -352,19 +360,31 @@ field validator island. Standard Xtensa instructions read and zero-check an
 low `l16ui` reload at `+0x00`. These offsets overlap the high half of the
 0x40-byte VPU buffer-shaped record layout, including plane length/pointer
 fields from the kernel reference `struct vpu_buffer`. This establishes a native
-buffer-record validation lead distinct from the wrapper operand parser; the
-remaining INFO12/INFO13 question is the loop/count source that feeds this kind
-of record.
+buffer-record validation lead distinct from the wrapper operand parser. Together
+with the kernel/provider boundary, this closes the INFO12/INFO13 proposition for
+the current primitive model: `INFO12` is the firmware-visible descriptor count
+capped by the provider below `0x21`, and `INFO13` is the kernel-copied
+0x40-byte descriptor array IOVA consumed through native record-shaped accesses.
 
 `analyze_apunn_elf.py` also emits a reproducible standard field-access cluster
 scan. It decodes only standard 24-bit `l8ui/l16ui/l32i/s8i/s16i/s32i`
 instructions and groups them by `.xt.prop` owner plus base register. The current
 top clusters include `0x7003b468/a2`, `0x70039cfc/a2`, and the byte-verified
 `0x7003ce3c/a2`, giving a prioritized list of 0x40-record-shaped leads for the
-next INFO13 loop pass without depending on a decompiler.
-The same pass now emits `.xt.prop` loop-target candidates near those owners:
-`0x7003c102` inside the `0x7003b468/a2` cluster and `0x7003d423` inside the
-`0x7003ce3c/a2` cluster are the current first-pass loop/count follow-up points.
+INFO13 record-layout correlation pass without depending on a decompiler.
+The same pass now emits `.xt.prop` loop-target candidates near those owners.
+`0x7003c102` inside the `0x7003b468/a2` cluster remains the strongest
+record-shaped loop-target lead: it is a clean `0xaa`-byte
+`insn|loop_target|no_reorder` run, has visible `a2` field accesses around the
+0x40-record-shaped offsets, and contains repeated `06 04 02` FLIX selector
+motifs at mostly `0x10`-byte spacing. The companion Ghidra/SLEIGH scan found no
+byte-aligned hardware LOOP, no exact standard branch back-edge to `0x7003c102`,
+and no byte-aligned `addi ..., 0x40` stride in that owner. Mainline analysis
+therefore stops hand-decoding `0x7003c102`; the missing count/stride is treated
+as FLIX/TIE-covered implementation detail. `0x7003d423` inside `0x7003ce3c/a2`
+is downgraded: its surroundings are short branch targets, unreachable gaps, and
+`insn|data` mixed runs, making it more likely a switch/error-tail lead than the
+descriptor array walk.
 
 IDA Pro MCP state after reloading the same ELF as **ELF for Xtensa** (not raw
 `Binary File`): processor `XTENSA`, 32-bit, sections mapped at the ELF VAs
@@ -560,14 +580,14 @@ Current partial answers from the ELF pass:
   island now connect one mid-level dispatcher path to the DSP command
   code/operand region. More work is still needed to connect host opcodes to ANN
   kernel dispatch entries.
-- Q3 is bounded at the kernel/provider boundary: `buffer_count` is capped below
-  `0x21` before firmware, and runtime shows `0` suppresses descriptor-following
-  state writeback while nonzero tested counts enter the descriptor path. The
-  firmware-internal cap/size check is still unresolved in APUNN static analysis.
-  The `0x70030a0c` island is an operand/code-record parser. The new
-  `0x7003ce3c` island is native buffer-record-shaped validation evidence, but
-  the loop/count source that binds it to `INFO12`/`INFO13` remains the open
-  subproblem.
+- Q3 is closed for the current INFO12/INFO13 proposition at the
+  kernel/provider boundary plus record-layout level: `buffer_count` is capped
+  below `0x21` before firmware, runtime shows `0` suppresses
+  descriptor-following state writeback while nonzero tested counts enter the
+  descriptor path, and the ELF now has native 0x40-record-shaped descriptor
+  validation evidence. The exact firmware-internal count/stride instruction
+  remains behind FLIX/TIE and is moved to the independent FLIX overlay/format
+  branch rather than blocking the primitive model.
 - Q4 has runtime evidence that `settings+0x08` bounds the visible output fill;
   the static output-size enforcement path is not identified yet.
 
@@ -596,13 +616,19 @@ Any of these would increase the exploitable DMA window.
 #### Q3: Descriptor bounds checking
 
 `INFO12` (buffer_count) + `INFO13` (descriptor array IOVA) define the
-firmware's view of the descriptor array. Does the firmware:
-- trust `buffer_count` as the iteration limit, or does it have an internal cap?
-- validate descriptor plane MVA/IOVA before DMA?
-- check plane sizes before writing?
+firmware's view of the descriptor array. The current answer for the exposed
+kernel interface is:
+- `buffer_count` is provider-gated below `0x21` before MMIO, so userland cannot
+  enlarge the firmware-visible descriptor count through this path.
+- `INFO13` is the kernel-copied 0x40-byte descriptor array, not the original
+  user buffer.
+- Native firmware code has verified 0x40-record-shaped validation/consumption
+  islands; the precise FLIX-hidden loop count/stride is no longer required for
+  the current race primitive decision.
 
-An unchecked `buffer_count` or missing size validation would be a direct
-firmware-side primitive.
+Remaining descriptor questions are size/plane validation quality and DMA owner
+timing, not whether the current interface exposes an unchecked descriptor-count
+primitive.
 
 #### Q4: Output write bounds
 
@@ -647,8 +673,8 @@ slow-opcode shape.
 | Tool | Path | Status |
 |---|---|---|
 | VPU image parser | `13-apusys-ioctl-surface/tools/parse_vpu_image.py` | Parses preload metadata, carves raw segments, and reports embedded ELF offsets; use `--head-offset 0x200 --headers 1` for V260523 `cam_vpu2.img` |
-| APUNN ELF analyzer | `13-apusys-ioctl-surface/tools/analyze_apunn_elf.py` | Emits section map, `.xtensa.info`, `.xt.prop` instruction ranges, `.xt.prop`-backed function-entry candidates, key address owners, byte-verified standard Xtensa islands, `.text`→`.rodata` suffix refs, PC-relative `L32R` literal refs, loop-target candidates near field clusters, DMA/descriptor critical-string status, pointer runs, ANN op name table, interesting strings, JSON, and Markdown |
-| IDA `.xt.prop` applier | `13-apusys-ioctl-surface/tools/ida_apply_apunn_xt_prop.py` | Applies analyzer JSON to an IDA Xtensa ELF IDB: bounded function creation, key names/comments, pointer-run dwords/xrefs, critical-string annotations, selected `L32R` refs, loop-target candidates, and byte-verified standard-island comments |
+| APUNN ELF analyzer | `13-apusys-ioctl-surface/tools/analyze_apunn_elf.py` | Emits section map, `.xtensa.info`, `.xt.prop` property runs, `.xt.prop`-backed function-entry candidates, key address owners, byte-verified standard Xtensa islands, `.text`→`.rodata` suffix refs, PC-relative `L32R` literal refs, focused loop investigations, L32R string-owner clusters, DMA/descriptor critical-string status, pointer runs, ANN op name table, interesting strings, JSON, and Markdown |
+| IDA `.xt.prop` applier | `13-apusys-ioctl-surface/tools/ida_apply_apunn_xt_prop.py` | Applies analyzer JSON to an IDA Xtensa ELF IDB: bounded function creation, key names/comments, pointer-run dwords/xrefs, critical-string annotations, selected `L32R` refs, loop-target candidates, focused loop notes, L32R string-owner clusters, and byte-verified standard-island comments |
 | Ghidra export script | `13-apusys-ioctl-surface/tools/GhidraApunnExport.java` | Headless adjunct for function/string/decompiler snapshots from `/tmp/apunn_core0_full.elf`; decompiler output is advisory only |
 | Allocator gap profiler | `13-apusys-ioctl-surface/poc/ApusysIoctlProbe.java` | Active; 8+ probe modes |
 | Firmware-coupled gap reuse | `--run-cmd-vpu-xrp-mem-free-race-completed-gap-reuse-iova` | Ready to re-run with new shapes |
@@ -667,8 +693,9 @@ The firmware disassembly task is complete when:
    command buffer to firmware code.
 3. Q1 (DMA timing) has a concrete answer: single burst, or sequenced with
    measured/estimated inter-store gap
-4. Q3 (descriptor bounds) has a concrete answer: firmware-side `buffer_count`
-   cap exists or doesn't
+4. Q3 (descriptor bounds) has a concrete answer for the current interface:
+   kernel/provider `buffer_count` cap plus native 0x40-record layout evidence
+   close INFO12/INFO13, with FLIX-hidden loop internals tracked separately
 5. Findings are written back to `HANDOFF_KERNEL_PRIMITIVE.md`
 
 Q2/Q4/Q5/Q6 are valuable follow-ups but not blocking for the immediate

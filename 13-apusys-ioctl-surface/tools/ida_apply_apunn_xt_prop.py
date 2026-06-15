@@ -35,6 +35,16 @@ import idc
 
 DEFAULT_JSON = Path("/tmp/apunn_core0_full_analysis_refs.json")
 MAX_BOUNDED_FUNCTION_DELTA = 0x2000
+OBSOLETE_COMMENT_MARKERS = (
+    "primary_INFO13_record_loop_candidate",
+    "primary_INFO13_record_loop_target",
+    "primary_INFO13_loop_candidate",
+    "priority=primary target=0x7003c102",
+    "stride_status=not_closed",
+    "Count/stride are not closed",
+    "do not spend primary effort here until 0x7003c102 is exhausted",
+    "not the primary INFO13 array walk",
+)
 
 
 def get_json_path() -> Path:
@@ -63,8 +73,20 @@ def safe_name(text: str, fallback: str) -> str:
 def append_comment(ea: int, text: str, repeatable: bool = False) -> bool:
     if not has_segment(ea):
         return False
-    old = idc.get_cmt(ea, repeatable) or ""
+    old_raw = idc.get_cmt(ea, repeatable) or ""
+    kept: list[str] = []
+    seen: set[str] = set()
+    for line in old_raw.splitlines():
+        if any(marker in line for marker in OBSOLETE_COMMENT_MARKERS):
+            continue
+        if line in seen:
+            continue
+        kept.append(line)
+        seen.add(line)
+    old = "\n".join(kept)
     if text in old:
+        if old != old_raw:
+            return bool(idc.set_cmt(ea, old, repeatable))
         return False
     new = text if not old else old + "\n" + text
     return bool(idc.set_cmt(ea, new, repeatable))
@@ -377,6 +399,64 @@ def apply_loop_targets(payload: dict[str, object]) -> int:
     return comments
 
 
+def apply_focused_loop_investigations(payload: dict[str, object]) -> int:
+    comments = 0
+    for item in payload.get("focused_loop_investigations", []):
+        owner = int(item["owner_entry"])
+        target = int(item["loop_target"])
+        text = (
+            "APUNN focused loop investigation %s; priority=%s target=%s "
+            "target_prop=%s:%s stride_status=%s"
+            % (
+                item.get("label"),
+                item.get("priority"),
+                fmt_hex(target),
+                item.get("target_prop_flags"),
+                fmt_hex(item.get("target_prop_size")),
+                item.get("stride_0x40_status"),
+            )
+        )
+        if append_comment(owner, text):
+            comments += 1
+        if has_segment(target):
+            head = idc.get_item_head(target)
+            if head == idc.BADADDR or not has_segment(head):
+                head = target
+            if append_comment(
+                head,
+                "APUNN focused loop target %s; owner=%s priority=%s assessment=%s"
+                % (
+                    fmt_hex(target),
+                    fmt_hex(owner),
+                    item.get("priority"),
+                    item.get("assessment"),
+                ),
+            ):
+                comments += 1
+    return comments
+
+
+def apply_critical_owner_clusters(payload: dict[str, object]) -> int:
+    comments = 0
+    for item in payload.get("critical_l32r_owner_clusters", [])[:8]:
+        owner = int(item["owner_entry"])
+        if not has_segment(owner):
+            continue
+        patterns = ", ".join(str(pattern) for pattern in item.get("patterns", []))
+        if append_comment(
+            owner,
+            "APUNN L32R string-cluster owner; patterns=%d hits=%d assessment=%s strings=%s"
+            % (
+                int(item["pattern_count"]),
+                int(item["hit_count"]),
+                item.get("assessment"),
+                patterns[:220],
+            ),
+        ):
+            comments += 1
+    return comments
+
+
 def fmt_hex(value: object) -> str:
     if value is None:
         return "None"
@@ -400,12 +480,15 @@ def main() -> None:
     island_comments = apply_standard_islands(payload)
     l32r_comments, l32r_refs = apply_l32r_refs(payload)
     loop_comments = apply_loop_targets(payload)
+    focused_loop_comments = apply_focused_loop_investigations(payload)
+    cluster_comments = apply_critical_owner_clusters(payload)
     ida_auto.auto_wait()
 
     print(
         "[APUNN] functions_created=%d bounded_functions=%d function_names=%d inside_existing=%d "
         "key_names=%d pointer_dwords=%d pointer_refs=%d strings=%d island_comments=%d "
-        "l32r_comments=%d l32r_refs=%d loop_comments=%d"
+        "l32r_comments=%d l32r_refs=%d loop_comments=%d focused_loop_comments=%d "
+        "cluster_comments=%d"
         % (
             fn_created,
             fn_bounded,
@@ -419,6 +502,8 @@ def main() -> None:
             l32r_comments,
             l32r_refs,
             loop_comments,
+            focused_loop_comments,
+            cluster_comments,
         )
     )
 
