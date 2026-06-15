@@ -635,9 +635,26 @@ first dword changes from marker to `0x504c4e31` (PLN0→PLN1 redirect byte).
 - Suggested mode name:
   `--run-cmd-vpu-xrp-plane-redirect-gap-reuse-iova`
 
-**Status**: implemented (commit `a9d7c5a`). Cases: 64K p16/r8 (30 iter) +
-64K p12/r8 (20 iter). Summary line: `[+] gap_plane_redirect_summary`.
-Success oracle: `getU32LE(replacement, 0x700) == 0x504c4e31` (PLN1 marker).
+**Status**: first run completed (2026-06-15). Results:
+
+```
+64K p16/r8 30iter: pair_found=30/30(100%) exact_iter=11/30(37%) first_exact_hist=[3:11] pln_hits=0 wait_eio=28
+64K p12/r8 20iter: pair_found=20/20(100%) exact_iter=17/20(85%) first_exact_hist=[2:15] pln_hits=0 wait_eio=19
+```
+
+**Allocator half: major breakthrough.** 85% exact-hit rate, index-stable
+(`first_exact_hist=[2:15]` — index 2 in 88% of cases). Exceeds firmware
+re-entry gate (≥10%) by 8.5×.
+
+**Firmware write: not yet observed.** `pln_hits=0` because `mem_free` is
+called ~2ms after `run_cmd_async`, tearing down VPU IOMMU mapping before
+firmware attempts to write PLN1 (~9 s into execution). No new IOMMU faults
+for our pool IOVAs; kernel faults are pre-existing unrelated traffic.
+`wait_eio=28/30`: firmware times out without writing.
+
+**Next experiment**: add `freeDelayMs=7000/8500` — delay `mem_free` until
+firmware is near its write point, then replace IOVA just before the write.
+Mode to add: `--run-cmd-vpu-xrp-plane-redirect-gap-reuse-iova-delay-matrix`
 
 ## Current stop conditions
 

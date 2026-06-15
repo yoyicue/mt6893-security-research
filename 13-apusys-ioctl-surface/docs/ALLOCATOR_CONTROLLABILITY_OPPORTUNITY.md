@@ -70,7 +70,27 @@ The tie-breakers are:
 
 ## Maximal Window
 
-Current allocator-only evidence points to a 64K same-size adjacent-gap window:
+**Updated 2026-06-15** (plane-redirect gap-reuse probe, commit a9d7c5a):
+
+The plane-redirect probe `--run-cmd-vpu-xrp-plane-redirect-gap-reuse-iova`
+produced the strongest allocator result to date:
+
+```text
+64K p12/r8, target_then_lower, precreated replacements:
+  pair_found=20/20 (100%)
+  exact_target_iterations=17/20 (85%)   ← 8.5× the ≥10% firmware re-entry gate
+  exact_target_total=28/160 (17.5%)
+  first_exact_hist=[2:15, 5:2]          ← index 2 in 88% of exact-hit iters
+  → ALLOCATOR HALF FULLY DEMONSTRATED: stable, slot-predictable, high-rate
+```
+
+The plane-redirect probe uses pool=12 with the APUSYS fd opened per iteration.
+The higher rate vs previous profiler runs (max 5%) is likely due to:
+  (a) per-iteration fd lifecycle (fresh allocator state), and/or
+  (b) plane-redirect command shape using a different HardwareBuffer size path.
+
+Current allocator-only evidence (pre-plane-redirect) pointed to a 64K
+same-size adjacent-gap window:
 
 ```text
 size=0x10000
@@ -80,7 +100,7 @@ replacement source=precreated
 critical window=mem_free(target), mem_free(lower), immediate same-size imports
 ```
 
-Observed maxima split three ways:
+Observed maxima split three ways (pre-2026-06-15):
 
 ```text
 highest observed usable-iteration rate:
@@ -649,13 +669,23 @@ wait result is 0, or replacement shows completion-like bytes before timeout
 `exact_target=1` plus `wait=-EIO` and unchanged replacement bytes is an
 allocator hit, not a firmware primitive.
 
-Current gate result: do not re-enter firmware yet. The focused 64K `p16/r8
-target, lower, lower-2` run produced `exact_target_iterations=0/23`, so it fails
-the `>=10%` gate and has no histogram to promote. The best broader 64K pressure
-case remains `p16/r8` at `4/80`, still below 10% and with a broad
-`first_exact_hist=[0:1,1:1,4:1,7:1]`. The burn sweep does not change that gate:
-the only positive recorded burn case was `1/17` usable iterations and still a
-single isolated hit.
+**Gate result updated 2026-06-15: GATE PASSED.** The plane-redirect gap-reuse
+probe (`--run-cmd-vpu-xrp-plane-redirect-gap-reuse-iova`) produced:
+
+```
+64K p12/r8: exact_target_iterations=17/20 = 85%   ← passes ≥10% gate by 8.5×
+            first_exact_hist=[2:15, 5:2]           ← slot-stable (index 2 in 88%)
+64K p16/r8: exact_target_iterations=11/30 = 37%   ← also passes gate
+            first_exact_hist=[3:11]                ← perfectly stable (always index 3)
+```
+
+The allocator gate is passed. The blocking question is now **firmware write
+timing**: `pln_hits=0` because `mem_free` is called ~2ms after `run_cmd_async`,
+removing the VPU IOMMU mapping before firmware attempts to write PLN1 (~9s).
+
+Re-entry criterion for next firmware timing experiment: add `freeDelayMs` (try
+7000 ms and 8500 ms) to delay the IOMMU teardown until the firmware is near
+its write point. The allocator side is stable; only timing remains.
 
 ## Stop Conditions
 

