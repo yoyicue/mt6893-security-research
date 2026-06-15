@@ -29,21 +29,31 @@ The research objective is not a kernel read/write primitive. The objective is
 to decide whether exact target IOVA reuse can be made frequent enough and
 slot-stable enough to justify more firmware writeback timing work.
 
-Current new target:
+Current next-round experiment:
 
 ```text
 64K p16/r8, target_mode=first, replacement_source=precreated
 free target, then lower, then lower-2
-collect at least 100 usable lower-2 pairs
+attempt to collect at least 100 usable lower-2 pairs
 promote only if exact_target_iterations/adjacent_found >= 10%
 or first_exact_hist collapses into a narrow replacement-index window
 ```
 
-This replaces broad spray expansion as the next step. The current broader best
-case is 64K `p16/r8` with `exact_target_iterations=4/80 = 5%` and dispersed
-first-hit indexes `[0,1,4,7]`; the current strongest shaped candidate is
-`target, lower, lower-2` at `1/14`, but it has only one exact hit and needs a
-focused sample before any firmware-coupled retry.
+This replaced broad spray expansion for the next allocator-only pass. The run
+completed with a negative result: the focused 64K `p16/r8 target, lower,
+lower-2` mode reached the configured cap at `5000` iterations with only
+`23` usable lower-2 pairs and no exact target reuse:
+
+```text
+adjacent_found=23/5000
+exact_target_iterations=0/23
+exact_target_total=0/184
+first_exact_hist=[-]
+```
+
+The result does not meet the firmware re-entry gate. Treat `target, lower,
+lower-2` as measured-negative for exact amplification unless a new allocator
+path variable changes usable-pair yield or exact-hit behavior.
 
 The primary score is:
 
@@ -193,6 +203,22 @@ Free-neighborhood follow-up:
 64K p16/r8 target, lower, guard import: exact_target=0/344
 ```
 
+Focused lower-2 follow-up:
+
+```text
+--apusys-iova-gap-lower2-focus-profiler
+64K p16/r8 target, lower, lower-2 pilot:
+  iterations=600, adjacent_found=17/600, exact_target=0/136
+
+64K p16/r8 target, lower, lower-2 until100:
+  iterations=5000/5000, target_adjacent_found=100
+  adjacent_found=23/5000
+  no_target_lower=3821
+  free_shape_unavailable=1156
+  exact_target=0/184
+  closest_delta_to_target=0x20000
+```
+
 First exact replacement indexes observed so far:
 
 ```text
@@ -206,11 +232,10 @@ but with low adjacent-pair yield, so it is not a new baseline. 4K pressure
 changes did not improve control. 64K pressure is the strongest current
 allocator-only signal, especially `p16/r8`, but exact-hit indexes are still
 broad and below the firmware re-entry threshold. Fresh replacement allocation
-and guard-before-replacement import do not improve the 4K or 64K profiles in
-the current run. The only free-neighborhood shape worth carrying forward is
-64K `target, lower, lower-2`; it has the highest current usable-pair score
-(`1/14 = 7.14%`) but too little adjacent yield and too little hit count to
-justify firmware re-entry.
+and guard-before-replacement import do not improve the 4K or 64K profiles.
+The expanded lower-2 focus run demotes 64K `target, lower, lower-2`: the initial
+`1/14` hit did not reproduce, the focused run got only `23/5000` usable pairs,
+and exact target reuse stayed `0/23`.
 
 ## Best-Practice Refresh
 
@@ -250,18 +275,18 @@ Local best practice from the current APUSYS runs:
   and one tight loop. If a native helper is later added, pinning to a stable CPU
   is worth testing because IOVA caches can be per-CPU/per-domain, but that should
   be a separate variable.
-- Prefer targeted hole shaping over wider pressure. The best next shape is
-  `target, lower, lower-2`, using the first adjacent target pair in a 64K
-  `p16/r8` pool. It currently has the best usable-pair hit rate (`1/14`), but
-  the sample is too small.
-- Do not re-enter firmware on a single exact hit. The next allocator-only run
-  should collect at least 100 usable `lower-2` pairs, then decide from
-  `exact_target_iterations / adjacent_found` and `first_exact_hist`.
+- Prefer targeted hole shaping over wider pressure, but require a focused sample
+  before promotion. The 64K `p16/r8 target, lower, lower-2` sample did not
+  amplify exact reuse: it stopped at `5000` iterations with `23` usable pairs and
+  `exact_target_iterations=0/23`.
+- Do not re-enter firmware on a single exact hit. The focused lower-2 run failed
+  the re-entry gate; further firmware work needs a different allocator variable
+  or kernel-side timing evidence.
 - Treat index spread as a real blocker. `[0,1,4,7]` means the replacement set is
   attacker-owned but not slot-predictable. Promote a shape only if the hit rate
   improves or the histogram collapses.
 
-Current next-run recipe:
+Completed focused-run recipe:
 
 ```text
 size=0x10000
@@ -270,14 +295,15 @@ replacements=8
 target_mode=first
 replacement_source=precreated
 free_shape=target_lower_lower2
-run_until=at least 100 usable lower-2 pairs, or host timeout
+run_until=100 usable lower-2 pairs, or max_iterations=5000
 firmware_reentry_gate=exact_target_iterations/adjacent_found >= 10%
 ```
 
-If `target, lower, lower-2` cannot reach enough usable pairs in a reasonable
-loop, add a focused profiler that records why each iteration was unusable:
-missing lower neighbor, missing lower-2 neighbor, pool import failure,
-replacement import failure, or non-exact closest delta.
+The focused profiler records why iterations were unusable: missing target/lower
+pair (`no_target_lower`), missing lower-2 (`free_shape_unavailable`), pool import
+failure, replacement import failure, and closest non-exact delta. In the current
+run, the dominant miss reasons were `no_target_lower=3821` and
+`free_shape_unavailable=1156`.
 
 Firmware-coupled status:
 
@@ -489,14 +515,15 @@ profile.
 | Free shape | Purpose |
 |---|---|
 | target, lower | Baseline positive; latest 64K repeat `1/584` |
-| target, lower, lower-2 | Best new candidate: `1/112`, usable-pair score `1/14`; next focused run should collect at least 100 usable pairs |
+| target, lower, lower-2 | Expanded negative: pilot `0/17`, focused until100 `0/23`, maxed at `23/5000` usable pairs; demote unless a new allocator variable changes usable-pair yield |
 | upper, target, lower | Measured negative and often unavailable: `0/24` |
 | target, unrelated same-size, lower | Measured below candidate: `1/400` |
 | target, lower, import one guard, import replacements | Measured negative: `0/344` |
 
 The success condition remains exact target reuse, not lower-neighbor reuse.
-`target, lower, lower-2` should be the next allocator-only focus if the run
-continues, but it is not firmware-ready yet.
+`target, lower, lower-2` is no longer the next allocator-only focus by itself:
+the expanded run did not reach 100 usable pairs and produced no exact target
+reuse.
 
 ## Firmware Re-entry Criteria
 
@@ -532,10 +559,10 @@ wait result is 0, or replacement shows completion-like bytes before timeout
 `exact_target=1` plus `wait=-EIO` and unchanged replacement bytes is an
 allocator hit, not a firmware primitive.
 
-Current gate result: do not re-enter firmware yet. The best allocator-only
-candidate is 64K `target, lower, lower-2` at `1/14` usable-pair hit rate, but
-it has only one exact hit and low adjacent-pair yield. The best broader 64K
-pressure case is `p16/r8` at `4/80`, still below 10% and with a broad
+Current gate result: do not re-enter firmware yet. The focused 64K `p16/r8
+target, lower, lower-2` run produced `exact_target_iterations=0/23`, so it fails
+the `>=10%` gate and has no histogram to promote. The best broader 64K pressure
+case remains `p16/r8` at `4/80`, still below 10% and with a broad
 `first_exact_hist=[0:1,1:1,4:1,7:1]`.
 
 ## Stop Conditions
@@ -571,6 +598,8 @@ instrumentation or alternate ioctl side-effect paths such as `dev_ctrl` /
   `poc/ApusysIoctlProbe.java --apusys-iova-gap-source-profiler`
 - Target/lower free-neighborhood follow-up:
   `poc/ApusysIoctlProbe.java --apusys-iova-gap-free-neighborhood-profiler`
+- Focused lower-2 next-round run:
+  `poc/ApusysIoctlProbe.java --apusys-iova-gap-lower2-focus-profiler`
 - Firmware-coupled gap reuse:
   `poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-mem-free-race-completed-gap-reuse-iova`
 
@@ -590,6 +619,10 @@ instrumentation or alternate ioctl side-effect paths such as `dev_ctrl` /
 - `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_source_profiler_kernel_relevant.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_free_neighborhood_profiler.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_free_neighborhood_profiler_kernel_relevant.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_lower2_focus_profiler.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_lower2_focus_profiler_kernel_relevant.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_lower2_focus_until100_profiler.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_lower2_focus_until100_profiler_kernel_relevant.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_allocator_setup_query.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_allocator_setup_query_kernel_relevant.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_allocator_results.tsv`

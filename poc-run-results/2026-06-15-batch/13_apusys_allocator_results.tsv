@@ -23,3 +23,5 @@ run_tag	commit	mode	size	pool	replacements	iterations	adjacent_found	exact_iter_
 2026-06-15-gap-free-neighborhood	dirty	--apusys-iova-gap-free-neighborhood-profiler	0x10000	16	8	80	3/80	0.0000	0.0000	[-]	discard	64k upper target lower unavailable often
 2026-06-15-gap-free-neighborhood	dirty	--apusys-iova-gap-free-neighborhood-profiler	0x10000	16	8	80	50/80	0.0200	0.0025	[6:1]	discard	64k target unrelated lower
 2026-06-15-gap-free-neighborhood	dirty	--apusys-iova-gap-free-neighborhood-profiler	0x10000	16	8	80	43/80	0.0000	0.0000	[-]	discard	64k target lower guard free shape
+2026-06-15-gap-lower2-focus	dirty	--apusys-iova-gap-lower2-focus-profiler	0x10000	16	8	600	17/600	0.0000	0.0000	[-]	discard	64k target lower lower2 pilot exact zero
+2026-06-15-gap-lower2-focus	dirty	--apusys-iova-gap-lower2-focus-profiler	0x10000	16	8	5000	23/5000	0.0000	0.0000	[-]	discard	64k target lower lower2 until100 maxed at 23 usable

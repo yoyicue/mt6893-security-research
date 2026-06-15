@@ -426,6 +426,7 @@ public final class ApusysIoctlProbe {
         boolean apusysIovaGapPressureProfiler = false;
         boolean apusysIovaGapSourceProfiler = false;
         boolean apusysIovaGapFreeNeighborhoodProfiler = false;
+        boolean apusysIovaGapLower2FocusProfiler = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlotControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix = false;
@@ -669,6 +670,8 @@ public final class ApusysIoctlProbe {
                 apusysIovaGapSourceProfiler = true;
             } else if ("--apusys-iova-gap-free-neighborhood-profiler".equals(arg)) {
                 apusysIovaGapFreeNeighborhoodProfiler = true;
+            } else if ("--apusys-iova-gap-lower2-focus-profiler".equals(arg)) {
+                apusysIovaGapLower2FocusProfiler = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot".equals(arg)) {
                 runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot-control".equals(arg)) {
@@ -1434,6 +1437,10 @@ public final class ApusysIoctlProbe {
 
             if (apusysIovaGapFreeNeighborhoodProfiler) {
                 runApusysIovaGapFreeNeighborhoodProfiler();
+            }
+
+            if (apusysIovaGapLower2FocusProfiler) {
+                runApusysIovaGapLower2FocusProfiler();
             }
 
             if (runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot) {
@@ -4950,6 +4957,21 @@ public final class ApusysIoctlProbe {
             "target_lower");
     }
 
+    private static void runApusysIovaGapLower2FocusProfiler()
+            throws Exception {
+        System.out.println("\n[*] === APUSYS IOVA gap lower-2 focus"
+            + " profiler ===");
+        System.out.println("[*] Mode: allocator-only focused next-round case."
+            + " Fixed constraints: 64K p16/r8, first adjacent target,"
+            + " pre-created replacements, free target then lower then lower-2.");
+        loadRuntimeLibraries();
+
+        runApusysIovaGapControlProfilerCase(
+            "gap_focus_64k_p16_r8_until100_target_lower_lower2",
+            0x10000, 16, 8, 5000, "first", "precreated",
+            "target_lower_lower2", 100);
+    }
+
     private static void runApusysIovaGapControlProfilerCase(
             String label,
             int importSize,
@@ -4973,7 +4995,7 @@ public final class ApusysIoctlProbe {
             throws Exception {
         runApusysIovaGapControlProfilerCase(label, importSize, poolCount,
             replacementCount, iterations, targetMode, replacementSource,
-            "target_lower");
+            "target_lower", 0);
     }
 
     private static void runApusysIovaGapControlProfilerCase(
@@ -4985,6 +5007,22 @@ public final class ApusysIoctlProbe {
             String targetMode,
             String replacementSource,
             String freeShape)
+            throws Exception {
+        runApusysIovaGapControlProfilerCase(label, importSize, poolCount,
+            replacementCount, iterations, targetMode, replacementSource,
+            freeShape, 0);
+    }
+
+    private static void runApusysIovaGapControlProfilerCase(
+            String label,
+            int importSize,
+            int poolCount,
+            int replacementCount,
+            int iterations,
+            String targetMode,
+            String replacementSource,
+            String freeShape,
+            int targetAdjacentFound)
             throws Exception {
         if (poolCount < 2 || replacementCount < 1 || iterations < 1) {
             return;
@@ -5009,11 +5047,15 @@ public final class ApusysIoctlProbe {
             + " target_mode=" + targetMode
             + " replacement_source=" + replacementSource
             + " free_shape=" + freeShape
+            + " target_adjacent_found=" + targetAdjacentFound
             + " ===");
 
         int apusysFd = -1;
+        int iterationsRun = 0;
         int adjacentFound = 0;
         int noAdjacent = 0;
+        int noTargetLower = 0;
+        int freeShapeUnavailable = 0;
         int exactTargetTotal = 0;
         int exactTargetIterations = 0;
         int lowerHitTotal = 0;
@@ -5029,6 +5071,11 @@ public final class ApusysIoctlProbe {
         try {
             apusysFd = DrmTrigger.openDev(APUSYS_DEV);
             for (int iter = 0; iter < iterations; iter++) {
+                if (targetAdjacentFound > 0
+                        && adjacentFound >= targetAdjacentFound) {
+                    break;
+                }
+                iterationsRun = iter + 1;
                 ReplacementImport[] pool = null;
                 ReplacementImport[] replacements = null;
                 ReplacementImport guard = null;
@@ -5066,6 +5113,7 @@ public final class ApusysIoctlProbe {
                         : -1;
                     if (targetIndex < 0 || lowerIndex < 0) {
                         noAdjacent++;
+                        noTargetLower++;
                         System.out.println("[*] iova_gap_control_iter "
                             + label
                             + " iter=" + iter
@@ -5093,6 +5141,7 @@ public final class ApusysIoctlProbe {
                     if (!"target_lower".equals(freeShape)
                             && extraIndex < 0) {
                         noAdjacent++;
+                        freeShapeUnavailable++;
                         System.out.println("[*] iova_gap_control_iter "
                             + label
                             + " iter=" + iter
@@ -5316,11 +5365,15 @@ public final class ApusysIoctlProbe {
                 + " size=0x" + Integer.toHexString(importSize)
                 + " pool=" + poolCount
                 + " replacements=" + replacementCount
-                + " iterations=" + iterations
+                + " iterations=" + iterationsRun
+                + " max_iterations=" + iterations
+                + " target_adjacent_found=" + targetAdjacentFound
                 + " target_mode=" + targetMode
                 + " replacement_source=" + replacementSource
-                + " adjacent_found=" + adjacentFound + "/" + iterations
+                + " adjacent_found=" + adjacentFound + "/" + iterationsRun
                 + " no_adjacent=" + noAdjacent
+                + " no_target_lower=" + noTargetLower
+                + " free_shape_unavailable=" + freeShapeUnavailable
                 + " exact_target_total=" + exactTargetTotal + "/"
                 + totalReplacementImports
                 + " exact_target_iterations=" + exactTargetIterations
