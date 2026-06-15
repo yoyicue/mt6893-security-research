@@ -296,6 +296,63 @@ def apply_pointer_run_investigations(payload: dict[str, object]) -> int:
     return comments
 
 
+def apply_dispatcher_parser_investigation(payload: dict[str, object]) -> int:
+    item = payload.get("dispatcher_parser_investigation")
+    if not isinstance(item, dict):
+        return 0
+    comments = 0
+    owner = int(item["owner_entry"])
+    landing = int(item["parser_landing"])
+    if append_comment(
+        owner,
+        "APUNN Q2 dispatcher parser owner; landing=%s source=%s slot_refs=%d status=%s"
+        % (
+            fmt_hex(landing),
+            fmt_hex(item.get("source_trampoline")),
+            len(item.get("pointer_run_slot_refs", [])),
+            item.get("q2_status"),
+        ),
+    ):
+        comments += 1
+    if append_comment(
+        landing,
+        "APUNN Q2 parser landing; decodes a2+0x49/a2+0x4a bits %s special_values=%s"
+        % (
+            item.get("extracted_bit_range"),
+            ",".join(str(value) for value in item.get("special_values", [])),
+        ),
+    ):
+        comments += 1
+    for branch in item.get("branch_targets", []):
+        addr = int(branch["addr"])
+        if append_comment(
+            addr,
+            "APUNN Q2 parser branch target %s; owner=%s+%s prop=%s:%s"
+            % (
+                branch.get("label"),
+                fmt_hex(branch.get("owner_entry")),
+                fmt_hex(branch.get("owner_delta")),
+                branch.get("prop_flags"),
+                fmt_hex(branch.get("prop_size")),
+            ),
+        ):
+            comments += 1
+    for ref in item.get("pointer_run_slot_refs", []):
+        addr = int(ref["ref_addr"])
+        if append_comment(
+            addr,
+            "APUNN Q2 parser-owner pointer-run slot ref; run=%s slot=%s value=%s status=%s"
+            % (
+                fmt_hex(ref.get("run_start")),
+                fmt_hex(ref.get("literal_addr")),
+                fmt_hex(ref.get("literal_value")),
+                ref.get("q2_status"),
+            ),
+        ):
+            comments += 1
+    return comments
+
+
 def apply_strings(payload: dict[str, object]) -> int:
     count = 0
     for entry in payload.get("interesting_strings", []):
@@ -744,6 +801,7 @@ def main() -> None:
     key_named = apply_key_addresses(payload)
     data_items, data_refs = apply_pointer_runs(payload)
     pointer_run_comments = apply_pointer_run_investigations(payload)
+    dispatcher_parser_comments = apply_dispatcher_parser_investigation(payload)
     strings = apply_strings(payload)
     island_comments = apply_standard_islands(payload)
     l32r_comments, l32r_refs = apply_l32r_refs(payload)
@@ -762,7 +820,8 @@ def main() -> None:
         "key_names=%d pointer_dwords=%d pointer_refs=%d strings=%d island_comments=%d "
         "l32r_comments=%d l32r_refs=%d loop_comments=%d focused_loop_comments=%d "
         "flix_sweep_comments=%d flix_rule_comments=%d cluster_comments=%d dma_owner_comments=%d "
-        "output_validation_comments=%d pointer_run_comments=%d ann_op_table_comments=%d"
+        "output_validation_comments=%d pointer_run_comments=%d dispatcher_parser_comments=%d "
+        "ann_op_table_comments=%d"
         % (
             fn_created,
             fn_bounded,
@@ -783,6 +842,7 @@ def main() -> None:
             dma_owner_comments,
             output_validation_comments,
             pointer_run_comments,
+            dispatcher_parser_comments,
             ann_op_table_comments,
         )
     )

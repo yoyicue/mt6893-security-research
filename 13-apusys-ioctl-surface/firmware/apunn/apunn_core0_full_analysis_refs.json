@@ -1617,6 +1617,1035 @@
       "string_value": "Data buffer does not fit in DRAM"
     }
   ],
+  "dispatcher_parser_investigation": {
+    "assessment": "The 0x700304f8 owner now ties the locateBuffer trampoline landing to a concrete a2-record field decode and to direct L32R loads from FLK and ANN code-pointer table slots. This is stronger Q2 dispatch evidence than the standalone ANN op-name vocabulary table.",
+    "branch_targets": [
+      {
+        "addr": 1879182242,
+        "bad_framing_count": 3,
+        "core_mem_accesses": [],
+        "first_items": [
+          {
+            "addr": 1879182242,
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "dens16",
+            "length": 2,
+            "raw": "1df0"
+          },
+          {
+            "addr": 1879182244,
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "00a400"
+          },
+          {
+            "addr": 1879182247,
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "70e400"
+          },
+          {
+            "addr": 1879182250,
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "70b400"
+          },
+          {
+            "addr": 1879182253,
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "7084f0"
+          },
+          {
+            "addr": 1879182256,
+            "fmt": "0x1f",
+            "framing_ok": false,
+            "framing_warn": [
+              "fmt!=0x0f",
+              "topbyte!=0"
+            ],
+            "kind": "flix64",
+            "length": 8,
+            "raw": "7fd40070d4882884"
+          },
+          {
+            "addr": 1879182264,
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "a4580f"
+          },
+          {
+            "addr": 1879182267,
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "dens16",
+            "length": 2,
+            "raw": "bc0b"
+          },
+          {
+            "addr": 1879182269,
+            "fmt": "0xe",
+            "framing_ok": true,
+            "framing_warn": [],
+            "kind": "flix128",
+            "length": 16,
+            "raw": "0e0b528300e4c002cfa407e30d208200"
+          },
+          {
+            "addr": 1879182285,
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "e00800"
+          },
+          {
+            "addr": 1879182288,
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "dens16",
+            "length": 2,
+            "raw": "0c42"
+          },
+          {
+            "addr": 1879182290,
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "dens16",
+            "length": 2,
+            "raw": "1df0"
+          }
+        ],
+        "label": "decoded_field_dispatch_exit",
+        "note": "Jump target from 0x70030a3c after the a2+0x49/+0x4a extui(2,4) decode.",
+        "owner_delta": 11174,
+        "owner_entry": 1879171068,
+        "prop_addr": 1879182197,
+        "prop_flags": "insn|branch_target|no_reorder",
+        "prop_size": 47,
+        "sweep_counts": {
+          "core24": 18,
+          "dens16": 9,
+          "flix128": 3,
+          "flix64": 3,
+          "truncated": 0
+        }
+      },
+      {
+        "addr": 1879249498,
+        "bad_framing_count": 1,
+        "core_mem_accesses": [
+          {
+            "addr": 1879249541,
+            "core_mem_access": {
+              "access_size": 4,
+              "addr": 1879249541,
+              "base_reg": 1,
+              "is_store": true,
+              "offset": 968,
+              "op": "s32i",
+              "owner_delta": 3468,
+              "owner_entry": 1879246072,
+              "value_reg": 14
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "e261f2"
+          },
+          {
+            "addr": 1879249560,
+            "core_mem_access": {
+              "access_size": 1,
+              "addr": 1879249560,
+              "base_reg": 2,
+              "is_store": false,
+              "offset": 47,
+              "op": "l8ui",
+              "owner_delta": 3488,
+              "owner_entry": 1879246072,
+              "value_reg": 8
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "82022f"
+          },
+          {
+            "addr": 1879249563,
+            "core_mem_access": {
+              "access_size": 1,
+              "addr": 1879249563,
+              "base_reg": 2,
+              "is_store": false,
+              "offset": 46,
+              "op": "l8ui",
+              "owner_delta": 3490,
+              "owner_entry": 1879246072,
+              "value_reg": 9
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "92022e"
+          },
+          {
+            "addr": 1879249599,
+            "core_mem_access": {
+              "access_size": 4,
+              "addr": 1879249599,
+              "base_reg": 1,
+              "is_store": true,
+              "offset": 828,
+              "op": "s32i",
+              "owner_delta": 3526,
+              "owner_entry": 1879246072,
+              "value_reg": 9
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "9261cf"
+          },
+          {
+            "addr": 1879249605,
+            "core_mem_access": {
+              "access_size": 4,
+              "addr": 1879249605,
+              "base_reg": 1,
+              "is_store": false,
+              "offset": 944,
+              "op": "l32i",
+              "owner_delta": 3532,
+              "owner_entry": 1879246072,
+              "value_reg": 9
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "9221ec"
+          },
+          {
+            "addr": 1879249616,
+            "core_mem_access": {
+              "access_size": 4,
+              "addr": 1879249616,
+              "base_reg": 1,
+              "is_store": true,
+              "offset": 828,
+              "op": "s32i",
+              "owner_delta": 3544,
+              "owner_entry": 1879246072,
+              "value_reg": 10
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "a261cf"
+          },
+          {
+            "addr": 1879249619,
+            "core_mem_access": {
+              "access_size": 4,
+              "addr": 1879249619,
+              "base_reg": 1,
+              "is_store": false,
+              "offset": 992,
+              "op": "l32i",
+              "owner_delta": 3546,
+              "owner_entry": 1879246072,
+              "value_reg": 11
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "b221f8"
+          },
+          {
+            "addr": 1879249624,
+            "core_mem_access": {
+              "access_size": 4,
+              "addr": 1879249624,
+              "base_reg": 1,
+              "is_store": true,
+              "offset": 1016,
+              "op": "s32i",
+              "owner_delta": 3552,
+              "owner_entry": 1879246072,
+              "value_reg": 12
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "c261fe"
+          },
+          {
+            "addr": 1879249635,
+            "core_mem_access": {
+              "access_size": 1,
+              "addr": 1879249635,
+              "base_reg": 14,
+              "is_store": false,
+              "offset": 1,
+              "op": "l8ui",
+              "owner_delta": 3562,
+              "owner_entry": 1879246072,
+              "value_reg": 13
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "d20e01"
+          },
+          {
+            "addr": 1879249638,
+            "core_mem_access": {
+              "access_size": 1,
+              "addr": 1879249638,
+              "base_reg": 14,
+              "is_store": false,
+              "offset": 0,
+              "op": "l8ui",
+              "owner_delta": 3566,
+              "owner_entry": 1879246072,
+              "value_reg": 14
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "e20e00"
+          }
+        ],
+        "first_items": [
+          {
+            "addr": 1879249498,
+            "fmt": "0xe",
+            "framing_ok": false,
+            "framing_warn": [
+              "bits122-127!=0"
+            ],
+            "kind": "flix128",
+            "length": 16,
+            "raw": "5e60100830d085d3f30604021bdcafdb"
+          },
+          {
+            "addr": 1879249514,
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "dens16",
+            "length": 2,
+            "raw": "9b55"
+          },
+          {
+            "addr": 1879249516,
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "dens16",
+            "length": 2,
+            "raw": "c804"
+          },
+          {
+            "addr": 1879249518,
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "dens16",
+            "length": 2,
+            "raw": "5a00"
+          },
+          {
+            "addr": 1879249520,
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "909c82"
+          },
+          {
+            "addr": 1879249523,
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "dens16",
+            "length": 2,
+            "raw": "da99"
+          },
+          {
+            "addr": 1879249525,
+            "fmt": "0xe",
+            "framing_ok": true,
+            "framing_warn": [],
+            "kind": "flix128",
+            "length": 16,
+            "raw": "3e911deb5a66100030d08538f8060402"
+          },
+          {
+            "addr": 1879249541,
+            "core_mem_access": {
+              "access_size": 4,
+              "addr": 1879249541,
+              "base_reg": 1,
+              "is_store": true,
+              "offset": 968,
+              "op": "s32i",
+              "owner_delta": 3468,
+              "owner_entry": 1879246072,
+              "value_reg": 14
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "e261f2"
+          },
+          {
+            "addr": 1879249544,
+            "fmt": "0xe",
+            "framing_ok": true,
+            "framing_warn": [],
+            "kind": "flix128",
+            "length": 16,
+            "raw": "9e6c20705860120030d005a7f5060402"
+          },
+          {
+            "addr": 1879249560,
+            "core_mem_access": {
+              "access_size": 1,
+              "addr": 1879249560,
+              "base_reg": 2,
+              "is_store": false,
+              "offset": 47,
+              "op": "l8ui",
+              "owner_delta": 3488,
+              "owner_entry": 1879246072,
+              "value_reg": 8
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "82022f"
+          },
+          {
+            "addr": 1879249563,
+            "core_mem_access": {
+              "access_size": 1,
+              "addr": 1879249563,
+              "base_reg": 2,
+              "is_store": false,
+              "offset": 46,
+              "op": "l8ui",
+              "owner_delta": 3490,
+              "owner_entry": 1879246072,
+              "value_reg": 9
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "92022e"
+          },
+          {
+            "addr": 1879249566,
+            "fmt": "0x0f",
+            "framing_ok": true,
+            "framing_warn": [],
+            "kind": "flix64",
+            "length": 8,
+            "raw": "4f88b0d68a088200"
+          }
+        ],
+        "label": "alternate_deeper_parser",
+        "note": "Jump target from 0x70030a46 into the same 0x700304f8 owner.",
+        "owner_delta": 3426,
+        "owner_entry": 1879246072,
+        "prop_addr": 1879249442,
+        "prop_flags": "insn|branch_target|no_reorder",
+        "prop_size": 68,
+        "sweep_counts": {
+          "core24": 20,
+          "dens16": 7,
+          "flix128": 3,
+          "flix64": 3,
+          "truncated": 0
+        }
+      },
+      {
+        "addr": 1879249514,
+        "bad_framing_count": 0,
+        "core_mem_accesses": [
+          {
+            "addr": 1879249541,
+            "core_mem_access": {
+              "access_size": 4,
+              "addr": 1879249541,
+              "base_reg": 1,
+              "is_store": true,
+              "offset": 968,
+              "op": "s32i",
+              "owner_delta": 3468,
+              "owner_entry": 1879246072,
+              "value_reg": 14
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "e261f2"
+          },
+          {
+            "addr": 1879249560,
+            "core_mem_access": {
+              "access_size": 1,
+              "addr": 1879249560,
+              "base_reg": 2,
+              "is_store": false,
+              "offset": 47,
+              "op": "l8ui",
+              "owner_delta": 3488,
+              "owner_entry": 1879246072,
+              "value_reg": 8
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "82022f"
+          },
+          {
+            "addr": 1879249563,
+            "core_mem_access": {
+              "access_size": 1,
+              "addr": 1879249563,
+              "base_reg": 2,
+              "is_store": false,
+              "offset": 46,
+              "op": "l8ui",
+              "owner_delta": 3490,
+              "owner_entry": 1879246072,
+              "value_reg": 9
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "92022e"
+          },
+          {
+            "addr": 1879249599,
+            "core_mem_access": {
+              "access_size": 4,
+              "addr": 1879249599,
+              "base_reg": 1,
+              "is_store": true,
+              "offset": 828,
+              "op": "s32i",
+              "owner_delta": 3526,
+              "owner_entry": 1879246072,
+              "value_reg": 9
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "9261cf"
+          },
+          {
+            "addr": 1879249605,
+            "core_mem_access": {
+              "access_size": 4,
+              "addr": 1879249605,
+              "base_reg": 1,
+              "is_store": false,
+              "offset": 944,
+              "op": "l32i",
+              "owner_delta": 3532,
+              "owner_entry": 1879246072,
+              "value_reg": 9
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "9221ec"
+          },
+          {
+            "addr": 1879249616,
+            "core_mem_access": {
+              "access_size": 4,
+              "addr": 1879249616,
+              "base_reg": 1,
+              "is_store": true,
+              "offset": 828,
+              "op": "s32i",
+              "owner_delta": 3544,
+              "owner_entry": 1879246072,
+              "value_reg": 10
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "a261cf"
+          },
+          {
+            "addr": 1879249619,
+            "core_mem_access": {
+              "access_size": 4,
+              "addr": 1879249619,
+              "base_reg": 1,
+              "is_store": false,
+              "offset": 992,
+              "op": "l32i",
+              "owner_delta": 3546,
+              "owner_entry": 1879246072,
+              "value_reg": 11
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "b221f8"
+          },
+          {
+            "addr": 1879249624,
+            "core_mem_access": {
+              "access_size": 4,
+              "addr": 1879249624,
+              "base_reg": 1,
+              "is_store": true,
+              "offset": 1016,
+              "op": "s32i",
+              "owner_delta": 3552,
+              "owner_entry": 1879246072,
+              "value_reg": 12
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "c261fe"
+          },
+          {
+            "addr": 1879249635,
+            "core_mem_access": {
+              "access_size": 1,
+              "addr": 1879249635,
+              "base_reg": 14,
+              "is_store": false,
+              "offset": 1,
+              "op": "l8ui",
+              "owner_delta": 3562,
+              "owner_entry": 1879246072,
+              "value_reg": 13
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "d20e01"
+          },
+          {
+            "addr": 1879249638,
+            "core_mem_access": {
+              "access_size": 1,
+              "addr": 1879249638,
+              "base_reg": 14,
+              "is_store": false,
+              "offset": 0,
+              "op": "l8ui",
+              "owner_delta": 3566,
+              "owner_entry": 1879246072,
+              "value_reg": 14
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "e20e00"
+          },
+          {
+            "addr": 1879249652,
+            "core_mem_access": {
+              "access_size": 4,
+              "addr": 1879249652,
+              "base_reg": 1,
+              "is_store": true,
+              "offset": 1016,
+              "op": "s32i",
+              "owner_delta": 3580,
+              "owner_entry": 1879246072,
+              "value_reg": 15
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "f261fe"
+          },
+          {
+            "addr": 1879249655,
+            "core_mem_access": {
+              "access_size": 4,
+              "addr": 1879249655,
+              "base_reg": 1,
+              "is_store": false,
+              "offset": 828,
+              "op": "l32i",
+              "owner_delta": 3582,
+              "owner_entry": 1879246072,
+              "value_reg": 8
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "8221cf"
+          }
+        ],
+        "first_items": [
+          {
+            "addr": 1879249514,
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "dens16",
+            "length": 2,
+            "raw": "9b55"
+          },
+          {
+            "addr": 1879249516,
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "dens16",
+            "length": 2,
+            "raw": "c804"
+          },
+          {
+            "addr": 1879249518,
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "dens16",
+            "length": 2,
+            "raw": "5a00"
+          },
+          {
+            "addr": 1879249520,
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "909c82"
+          },
+          {
+            "addr": 1879249523,
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "dens16",
+            "length": 2,
+            "raw": "da99"
+          },
+          {
+            "addr": 1879249525,
+            "fmt": "0xe",
+            "framing_ok": true,
+            "framing_warn": [],
+            "kind": "flix128",
+            "length": 16,
+            "raw": "3e911deb5a66100030d08538f8060402"
+          },
+          {
+            "addr": 1879249541,
+            "core_mem_access": {
+              "access_size": 4,
+              "addr": 1879249541,
+              "base_reg": 1,
+              "is_store": true,
+              "offset": 968,
+              "op": "s32i",
+              "owner_delta": 3468,
+              "owner_entry": 1879246072,
+              "value_reg": 14
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "e261f2"
+          },
+          {
+            "addr": 1879249544,
+            "fmt": "0xe",
+            "framing_ok": true,
+            "framing_warn": [],
+            "kind": "flix128",
+            "length": 16,
+            "raw": "9e6c20705860120030d005a7f5060402"
+          },
+          {
+            "addr": 1879249560,
+            "core_mem_access": {
+              "access_size": 1,
+              "addr": 1879249560,
+              "base_reg": 2,
+              "is_store": false,
+              "offset": 47,
+              "op": "l8ui",
+              "owner_delta": 3488,
+              "owner_entry": 1879246072,
+              "value_reg": 8
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "82022f"
+          },
+          {
+            "addr": 1879249563,
+            "core_mem_access": {
+              "access_size": 1,
+              "addr": 1879249563,
+              "base_reg": 2,
+              "is_store": false,
+              "offset": 46,
+              "op": "l8ui",
+              "owner_delta": 3490,
+              "owner_entry": 1879246072,
+              "value_reg": 9
+            },
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "92022e"
+          },
+          {
+            "addr": 1879249566,
+            "fmt": "0x0f",
+            "framing_ok": true,
+            "framing_warn": [],
+            "kind": "flix64",
+            "length": 8,
+            "raw": "4f88b0d68a088200"
+          },
+          {
+            "addr": 1879249574,
+            "fmt": null,
+            "framing_ok": null,
+            "framing_warn": [],
+            "kind": "core24",
+            "length": 3,
+            "raw": "908820"
+          }
+        ],
+        "label": "post_context_load_deeper_parser",
+        "note": "Jump target from 0x70030a56 after loading a8+0x34 context/table field.",
+        "owner_delta": 3442,
+        "owner_entry": 1879246072,
+        "prop_addr": 1879249510,
+        "prop_flags": "insn|branch_target|no_reorder",
+        "prop_size": 15,
+        "sweep_counts": {
+          "core24": 24,
+          "dens16": 8,
+          "flix128": 2,
+          "flix64": 3,
+          "truncated": 0
+        }
+      }
+    ],
+    "extracted_bit_range": "2..5",
+    "extracted_field_offsets": [
+      73,
+      74
+    ],
+    "label": "dispatcher_operand_parser_owner",
+    "next_action": "Validate the 0x700304f8 slot-ref sites locally or with runtime traces to determine whether these direct slot loads are bounds, cases, or opcode-indexed table accesses.",
+    "owner_entry": 1879246072,
+    "parser_landing": 1879247372,
+    "pointer_run_slot_refs": [
+      {
+        "literal_addr": 1879048612,
+        "literal_delta": 36,
+        "literal_slot_aligned": true,
+        "literal_value": 1879145826,
+        "owner_delta": 14502,
+        "q2_status": "pointer_run_has_direct_slot_refs; validate source owners and local instructions before assigning index semantics.",
+        "ref_addr": 1879260574,
+        "run_count": 12,
+        "run_start": 1879048576,
+        "target_owner_counts": [
+          {
+            "count": 12,
+            "first_slot": 1879048576,
+            "last_slot": 1879048620,
+            "max_target": 1879145914,
+            "min_target": 1879145792,
+            "owner_entry": 1879137944
+          }
+        ]
+      },
+      {
+        "literal_addr": 1879048604,
+        "literal_delta": 28,
+        "literal_slot_aligned": true,
+        "literal_value": 1879145848,
+        "owner_delta": 15510,
+        "q2_status": "pointer_run_has_direct_slot_refs; validate source owners and local instructions before assigning index semantics.",
+        "ref_addr": 1879261583,
+        "run_count": 12,
+        "run_start": 1879048576,
+        "target_owner_counts": [
+          {
+            "count": 12,
+            "first_slot": 1879048576,
+            "last_slot": 1879048620,
+            "max_target": 1879145914,
+            "min_target": 1879145792,
+            "owner_entry": 1879137944
+          }
+        ]
+      },
+      {
+        "literal_addr": 1879048640,
+        "literal_delta": 0,
+        "literal_slot_aligned": true,
+        "literal_value": 1879145925,
+        "owner_delta": 14528,
+        "q2_status": "pointer_run_has_direct_slot_refs; validate source owners and local instructions before assigning index semantics.",
+        "ref_addr": 1879260601,
+        "run_count": 12,
+        "run_start": 1879048640,
+        "target_owner_counts": [
+          {
+            "count": 12,
+            "first_slot": 1879048640,
+            "last_slot": 1879048684,
+            "max_target": 1879146046,
+            "min_target": 1879145924,
+            "owner_entry": 1879137944
+          }
+        ]
+      },
+      {
+        "literal_addr": 1879051204,
+        "literal_delta": 68,
+        "literal_slot_aligned": true,
+        "literal_value": 1879581684,
+        "owner_delta": 10654,
+        "q2_status": "ann_code_pointer_run_has_direct_slot_refs_no_indexed_base; L32R refs load individual 0x70000b80 slots, but no table-base value ref proving indexed opcode dispatch was found.",
+        "ref_addr": 1879256727,
+        "run_count": 31,
+        "run_start": 1879051136,
+        "target_owner_counts": [
+          {
+            "count": 31,
+            "first_slot": 1879051136,
+            "last_slot": 1879051256,
+            "max_target": 1879583404,
+            "min_target": 1879580356,
+            "owner_entry": 1879579984
+          }
+        ]
+      },
+      {
+        "literal_addr": 1879051140,
+        "literal_delta": 4,
+        "literal_slot_aligned": true,
+        "literal_value": 1879583404,
+        "owner_delta": 12768,
+        "q2_status": "ann_code_pointer_run_has_direct_slot_refs_no_indexed_base; L32R refs load individual 0x70000b80 slots, but no table-base value ref proving indexed opcode dispatch was found.",
+        "ref_addr": 1879258840,
+        "run_count": 31,
+        "run_start": 1879051136,
+        "target_owner_counts": [
+          {
+            "count": 31,
+            "first_slot": 1879051136,
+            "last_slot": 1879051256,
+            "max_target": 1879583404,
+            "min_target": 1879580356,
+            "owner_entry": 1879579984
+          }
+        ]
+      }
+    ],
+    "q2_status": "parser_owner_links_record_decode_to_pointer_run_slots; no table-base value or wrapper 10001..10009 index mapping is proven yet.",
+    "source_trampoline": 1879245272,
+    "special_values": [
+      1,
+      5,
+      6,
+      9
+    ]
+  },
   "dma_owner_investigations": [
     {
       "analysis_end": 1879331712,

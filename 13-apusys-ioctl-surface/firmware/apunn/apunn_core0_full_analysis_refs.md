@@ -1232,6 +1232,31 @@ These records map static output-shape validation owners from rodata32 and L32R-b
 | `0x70000200`..`0x70000230` | 12 | `0x70015e98`:12 `0x700169a4`..`0x70017d36` | 10/10 | 4/4 | 0 | raw `0x701393dc`->`0x7000022c` owner=`0x70137c80` slot=True align=0<br>raw `0x7013940c`->`0x7000022c` owner=`0x70137c80` slot=True align=0<br>raw `0x7013943c`->`0x7000022c` owner=`0x70137c80` slot=True align=0<br>raw `0x701394ac`->`0x7000022c` owner=`0x70137c80` slot=True align=0<br>l32r `0x700100bf` literal=`0x70000220` value=`0x70017cf4` owner=`0x7000dcc4`<br>l32r `0x7002eb78` literal=`0x70000218` value=`0x70017d0a` owner=`0x7002ea90` | pointer_run_has_direct_slot_refs; validate source owners and local instructions before assigning index semantics. |
 | `0x70000b80`..`0x70000bfc` | 31 | `0x70081d50`:31 `0x70081ec4`..`0x70082aac` | 0/10 | 6/8 | 0 | raw `0x70012baf`->`0x70000b9e` owner=`0x70011ab8` slot=False align=3<br>raw `0x7008f787`->`0x70000b9e` owner=`0x7008f490` slot=False align=3<br>raw `0x700c1993`->`0x70000b8e` owner=`0x700c13b0` slot=False align=3<br>raw `0x70131e20`->`0x70000b9e` owner=`0x70131c80` slot=False align=0<br>l32r `0x7001c954` literal=`0x70000b90` value=`0x70082974` owner=`0x7001c59c`<br>l32r `0x7002a4b0` literal=`0x70000bf8` value=`0x70081f5e` owner=`0x70029b7c` | ann_code_pointer_run_has_direct_slot_refs_no_indexed_base; L32R refs load individual 0x70000b80 slots, but no table-base value ref proving indexed opcode dispatch was found. |
 
+## Q2 Dispatcher Parser Investigation
+
+- owner: `0x700304f8`
+- parser landing: `0x70030a0c`
+- source trampoline: `0x700301d8`
+- decoded a2 offsets: 0x49, 0x4a bits 2..5
+- special decoded values: 1, 5, 6, 9
+- assessment: The 0x700304f8 owner now ties the locateBuffer trampoline landing to a concrete a2-record field decode and to direct L32R loads from FLK and ANN code-pointer table slots. This is stronger Q2 dispatch evidence than the standalone ANN op-name vocabulary table.
+- Q2 status: parser_owner_links_record_decode_to_pointer_run_slots; no table-base value or wrapper 10001..10009 index mapping is proven yet.
+- next action: Validate the 0x700304f8 slot-ref sites locally or with runtime traces to determine whether these direct slot loads are bounds, cases, or opcode-indexed table accesses.
+
+| branch target | owner | prop | sweep counts | core mem samples | note |
+|---:|---:|---|---|---|---|
+| `0x70020ba2` `decoded_field_dispatch_exit` | `0x7001dffc`+`0x2ba6` | `insn|branch_target|no_reorder:0x2f` | core24=18, dens16=9, flix64=3, flix128=3, bad=3 | none | Jump target from 0x70030a3c after the a2+0x49/+0x4a extui(2,4) decode. |
+| `0x7003125a` `alternate_deeper_parser` | `0x700304f8`+`0xd62` | `insn|branch_target|no_reorder:0x44` | core24=20, dens16=7, flix64=3, flix128=3, bad=1 | `0x70031285` s32i a14,a1+`0x3c8`<br>`0x70031298` l8ui a8,a2+`0x2f`<br>`0x7003129b` l8ui a9,a2+`0x2e`<br>`0x700312bf` s32i a9,a1+`0x33c` | Jump target from 0x70030a46 into the same 0x700304f8 owner. |
+| `0x7003126a` `post_context_load_deeper_parser` | `0x700304f8`+`0xd72` | `insn|branch_target|no_reorder:0xf` | core24=24, dens16=8, flix64=3, flix128=2, bad=0 | `0x70031285` s32i a14,a1+`0x3c8`<br>`0x70031298` l8ui a8,a2+`0x2f`<br>`0x7003129b` l8ui a9,a2+`0x2e`<br>`0x700312bf` s32i a9,a1+`0x33c` | Jump target from 0x70030a56 after loading a8+0x34 context/table field. |
+
+| pointer run | ref | literal slot | target value | target owners | status |
+|---:|---:|---:|---:|---|---|
+| `0x70000180` count 12 | `0x70033d9e`+`0x38a6` | `0x700001a4` | `0x70017d62` | `0x70015e98`:12 | pointer_run_has_direct_slot_refs; validate source owners and local instructions before assigning index semantics. |
+| `0x70000180` count 12 | `0x7003418f`+`0x3c96` | `0x7000019c` | `0x70017d78` | `0x70015e98`:12 | pointer_run_has_direct_slot_refs; validate source owners and local instructions before assigning index semantics. |
+| `0x700001c0` count 12 | `0x70033db9`+`0x38c0` | `0x700001c0` | `0x70017dc5` | `0x70015e98`:12 | pointer_run_has_direct_slot_refs; validate source owners and local instructions before assigning index semantics. |
+| `0x70000b80` count 31 | `0x70032e97`+`0x299e` | `0x70000bc4` | `0x700823f4` | `0x70081d50`:31 | ann_code_pointer_run_has_direct_slot_refs_no_indexed_base; L32R refs load individual 0x70000b80 slots, but no table-base value ref proving indexed opcode dispatch was found. |
+| `0x70000b80` count 31 | `0x700336d8`+`0x31e0` | `0x70000b84` | `0x70082aac` | `0x70081d50`:31 | ann_code_pointer_run_has_direct_slot_refs_no_indexed_base; L32R refs load individual 0x70000b80 slots, but no table-base value ref proving indexed opcode dispatch was found. |
+
 ## ANN Op Name Table Reachability
 
 - table: `0x7ff3b000`..`0x7ff3b218`

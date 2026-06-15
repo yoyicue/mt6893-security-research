@@ -135,6 +135,22 @@ class PointerRunInvestigation:
 
 
 @dataclass
+class DispatcherParserInvestigation:
+    label: str
+    owner_entry: int
+    parser_landing: int
+    source_trampoline: int
+    extracted_field_offsets: list[int]
+    extracted_bit_range: str
+    special_values: list[int]
+    branch_targets: list[dict[str, object]]
+    pointer_run_slot_refs: list[dict[str, object]]
+    assessment: str
+    q2_status: str
+    next_action: str
+
+
+@dataclass
 class FunctionCandidate:
     addr: int
     prop_size: int
@@ -2905,6 +2921,131 @@ def build_pointer_run_investigations(
     return investigations
 
 
+def simplified_sweep_item(insn: FlixSweepInstruction) -> dict[str, object]:
+    item: dict[str, object] = {
+        "addr": insn.addr,
+        "length": insn.length,
+        "kind": insn.kind,
+        "raw": insn.raw,
+        "fmt": insn.fmt,
+        "framing_ok": insn.framing_ok,
+        "framing_warn": insn.framing_warn,
+    }
+    if insn.core_mem_access is not None:
+        item["core_mem_access"] = to_jsonable(insn.core_mem_access)
+    return item
+
+
+def build_dispatcher_parser_investigation(
+    data: bytes,
+    sections: list[Section],
+    props: list[XtProp],
+    function_candidates: list[FunctionCandidate],
+    pointer_run_investigations: list[PointerRunInvestigation],
+) -> DispatcherParserInvestigation:
+    owner = 0x700304F8
+    parser_landing = 0x70030A0C
+    branch_defs = (
+        (
+            0x70020BA2,
+            "decoded_field_dispatch_exit",
+            "Jump target from 0x70030a3c after the a2+0x49/+0x4a extui(2,4) decode.",
+        ),
+        (
+            0x7003125A,
+            "alternate_deeper_parser",
+            "Jump target from 0x70030a46 into the same 0x700304f8 owner.",
+        ),
+        (
+            0x7003126A,
+            "post_context_load_deeper_parser",
+            "Jump target from 0x70030a56 after loading a8+0x34 context/table field.",
+        ),
+    )
+    branch_targets: list[dict[str, object]] = []
+    for addr, label, note in branch_defs:
+        target_owner, target_delta = owner_for_addr(function_candidates, addr)
+        prop = best_prop_for_addr(props, addr)
+        sweep = flix_sweep_range(
+            data=data,
+            sections=sections,
+            props=props,
+            function_candidates=function_candidates,
+            label=label,
+            start=addr,
+            end=addr + 0x90,
+            description=note,
+            next_action="Use as a Q2 parser branch target; not a standalone function unless a real entry is found.",
+        )
+        core_accesses = [
+            simplified_sweep_item(insn)
+            for insn in sweep.instructions
+            if insn.core_mem_access is not None
+        ]
+        branch_targets.append(
+            {
+                "label": label,
+                "addr": addr,
+                "owner_entry": target_owner,
+                "owner_delta": target_delta,
+                "prop_addr": None if prop is None else prop.addr,
+                "prop_size": None if prop is None else prop.size,
+                "prop_flags": None if prop is None else flags_text(prop.flags),
+                "note": note,
+                "sweep_counts": sweep.counts,
+                "bad_framing_count": sweep.bad_framing_count,
+                "first_items": [simplified_sweep_item(insn) for insn in sweep.instructions[:12]],
+                "core_mem_accesses": core_accesses[:12],
+            }
+        )
+    slot_refs: list[dict[str, object]] = []
+    for run in pointer_run_investigations:
+        for hit in run.l32r_ref_hits:
+            if hit.get("owner_entry") != owner:
+                continue
+            slot_refs.append(
+                {
+                    "run_start": run.start,
+                    "run_count": run.count,
+                    "ref_addr": hit.get("ref_addr"),
+                    "owner_delta": hit.get("owner_delta"),
+                    "literal_addr": hit.get("literal_addr"),
+                    "literal_value": hit.get("literal_value"),
+                    "literal_delta": hit.get("literal_delta"),
+                    "literal_slot_aligned": hit.get("literal_slot_aligned"),
+                    "target_owner_counts": run.target_owner_counts,
+                    "q2_status": run.q2_status,
+                }
+            )
+    slot_refs.sort(key=lambda item: (int(item["run_start"]), int(item["ref_addr"])))
+    return DispatcherParserInvestigation(
+        label="dispatcher_operand_parser_owner",
+        owner_entry=owner,
+        parser_landing=parser_landing,
+        source_trampoline=0x700301D8,
+        extracted_field_offsets=[0x49, 0x4A],
+        extracted_bit_range="2..5",
+        special_values=[1, 5, 6, 9],
+        branch_targets=branch_targets,
+        pointer_run_slot_refs=slot_refs,
+        assessment=(
+            "The 0x700304f8 owner now ties the locateBuffer trampoline landing "
+            "to a concrete a2-record field decode and to direct L32R loads from "
+            "FLK and ANN code-pointer table slots. This is stronger Q2 dispatch "
+            "evidence than the standalone ANN op-name vocabulary table."
+        ),
+        q2_status=(
+            "parser_owner_links_record_decode_to_pointer_run_slots; no table-base "
+            "value or wrapper 10001..10009 index mapping is proven yet."
+        ),
+        next_action=(
+            "Validate the 0x700304f8 slot-ref sites locally or with runtime traces "
+            "to determine whether these direct slot loads are bounds, cases, or "
+            "opcode-indexed table accesses."
+        ),
+    )
+
+
 def build_ann_op_table_investigation(
     data: bytes,
     sections: list[Section],
@@ -3750,6 +3891,80 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
                 f"{display_text(str(item['q2_status']))} |"
             )
         lines.append("")
+    dispatcher_parser = payload.get("dispatcher_parser_investigation")
+    if isinstance(dispatcher_parser, dict):
+        lines.append("## Q2 Dispatcher Parser Investigation")
+        lines.append("")
+        lines.append(f"- owner: `{hx(dispatcher_parser['owner_entry'])}`")
+        lines.append(f"- parser landing: `{hx(dispatcher_parser['parser_landing'])}`")
+        lines.append(f"- source trampoline: `{hx(dispatcher_parser['source_trampoline'])}`")
+        offsets = dispatcher_parser["extracted_field_offsets"]
+        assert isinstance(offsets, list)
+        lines.append(
+            f"- decoded a2 offsets: {', '.join(hx(int(value)) or '' for value in offsets)} "
+            f"bits {dispatcher_parser['extracted_bit_range']}"
+        )
+        special_values = dispatcher_parser["special_values"]
+        assert isinstance(special_values, list)
+        lines.append(
+            f"- special decoded values: {', '.join(str(int(value)) for value in special_values)}"
+        )
+        lines.append(f"- assessment: {display_text(str(dispatcher_parser['assessment']))}")
+        lines.append(f"- Q2 status: {display_text(str(dispatcher_parser['q2_status']))}")
+        lines.append(f"- next action: {display_text(str(dispatcher_parser['next_action']))}")
+        lines.append("")
+        lines.append("| branch target | owner | prop | sweep counts | core mem samples | note |")
+        lines.append("|---:|---:|---|---|---|---|")
+        branch_targets = dispatcher_parser["branch_targets"]
+        assert isinstance(branch_targets, list)
+        for item in branch_targets:
+            assert isinstance(item, dict)
+            counts = item["sweep_counts"]
+            assert isinstance(counts, dict)
+            count_text = (
+                f"core24={counts.get('core24', 0)}, dens16={counts.get('dens16', 0)}, "
+                f"flix64={counts.get('flix64', 0)}, flix128={counts.get('flix128', 0)}, "
+                f"bad={item.get('bad_framing_count', 0)}"
+            )
+            core_samples: list[str] = []
+            core_accesses = item["core_mem_accesses"]
+            assert isinstance(core_accesses, list)
+            for access_item in core_accesses[:4]:
+                assert isinstance(access_item, dict)
+                access = access_item.get("core_mem_access")
+                if not isinstance(access, dict):
+                    continue
+                core_samples.append(
+                    f"`{hx(access_item['addr'])}` {access['op']} "
+                    f"a{access['value_reg']},a{access['base_reg']}+`{hx(access['offset'])}`"
+                )
+            lines.append(
+                f"| `{hx(item['addr'])}` `{item['label']}` | "
+                f"`{hx(item.get('owner_entry'))}`+`{hx(item.get('owner_delta'))}` | "
+                f"`{item.get('prop_flags') or ''}:{hx(item.get('prop_size'))}` | "
+                f"{count_text} | {'<br>'.join(core_samples) if core_samples else 'none'} | "
+                f"{display_text(str(item['note']))} |"
+            )
+        lines.append("")
+        lines.append("| pointer run | ref | literal slot | target value | target owners | status |")
+        lines.append("|---:|---:|---:|---:|---|---|")
+        slot_refs = dispatcher_parser["pointer_run_slot_refs"]
+        assert isinstance(slot_refs, list)
+        for item in slot_refs:
+            assert isinstance(item, dict)
+            owner_counts = item["target_owner_counts"]
+            assert isinstance(owner_counts, list)
+            owner_text: list[str] = []
+            for owner in owner_counts:
+                assert isinstance(owner, dict)
+                owner_text.append(f"`{hx(owner.get('owner_entry'))}`:{owner['count']}")
+            lines.append(
+                f"| `{hx(item['run_start'])}` count {item['run_count']} | "
+                f"`{hx(item['ref_addr'])}`+`{hx(item.get('owner_delta'))}` | "
+                f"`{hx(item.get('literal_addr'))}` | `{hx(item.get('literal_value'))}` | "
+                f"{', '.join(owner_text)} | {display_text(str(item['q2_status']))} |"
+            )
+        lines.append("")
     ann_table = payload.get("ann_op_table_investigation")
     if isinstance(ann_table, dict):
         lines.append("## ANN Op Name Table Reachability")
@@ -3853,6 +4068,9 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
     pointer_run_investigations = build_pointer_run_investigations(
         data, sections, pointer_runs, function_candidates, l32r_refs_for_scans
     )
+    dispatcher_parser_investigation = build_dispatcher_parser_investigation(
+        data, sections, props, function_candidates, pointer_run_investigations
+    )
     critical_l32r_refs = find_critical_l32r_refs(strings, l32r_refs_for_scans)
     critical_owner_clusters = build_critical_owner_clusters(critical_l32r_refs)
     dma_owner_investigations = build_dma_owner_investigations(
@@ -3910,6 +4128,7 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
         "critical_l32r_refs": to_jsonable(critical_l32r_refs),
         "critical_l32r_owner_clusters": to_jsonable(critical_owner_clusters),
         "pointer_run_investigations": to_jsonable(pointer_run_investigations),
+        "dispatcher_parser_investigation": to_jsonable(dispatcher_parser_investigation),
         "dma_owner_investigations": to_jsonable(dma_owner_investigations),
         "output_validation_investigations": to_jsonable(output_validation_investigations),
         "ann_op_table_investigation": to_jsonable(ann_op_table_investigation),
@@ -4136,6 +4355,16 @@ def print_summary(payload: dict[str, object]) -> None:
                 f"table_base_refs={item.get('table_base_value_ref_count', 0)} "
                 f"status={item['q2_status']}"
             )
+    dispatcher_parser = payload.get("dispatcher_parser_investigation")
+    if isinstance(dispatcher_parser, dict):
+        print(
+            "dispatcher_parser "
+            f"owner={hx(dispatcher_parser['owner_entry'])} "
+            f"landing={hx(dispatcher_parser['parser_landing'])} "
+            f"branch_targets={len(dispatcher_parser['branch_targets'])} "
+            f"pointer_run_slot_refs={len(dispatcher_parser['pointer_run_slot_refs'])} "
+            f"status={dispatcher_parser['q2_status']}"
+        )
     ann_investigation = payload.get("ann_op_table_investigation")
     if isinstance(ann_investigation, dict):
         print(

@@ -386,6 +386,15 @@ also reads little-endian byte pairs at `a2+0x0e/+0x0f`,
 the descriptor-backed DSP command buffer parser, but not yet to the firmware's
 native `INFO12`/`INFO13` iteration bounds.
 
+The same `0x700304f8` parser owner now has direct L32R slot references to the
+nearby code-pointer runs: two slots from the `0x70000180` FLK run, one slot from
+the `0x700001c0` FLK run, and two slots from the `0x70000b80` ANN run. The
+branch targets from the decoded `a2+0x49/+0x4a` field are now tracked as
+`0x70020ba2` (cross-owner target in `0x7001dffc`) and `0x7003125a`/`0x7003126a`
+(deeper paths inside `0x700304f8`). This ties the parser to concrete FLK/ANN
+code-pointer slots; it still does not prove a table-base/index mapping for
+wrapper opcodes `10001..10009`.
+
 The `0x7003ce3c` owner now has a separate byte-verified buffer-record-shaped
 field validator island. Standard Xtensa instructions read and zero-check an
 `a2`-based record at `+0x08`, `+0x0c`, `+0x10`, `+0x1c`, `+0x20`, `+0x24`,
@@ -620,8 +629,10 @@ Current partial answers from the ELF pass:
   resolves to owner `0x70081d50` and has direct L32R slot refs, but still no
   table-base value ref proving indexed opcode dispatch. The
   byte-verified `0x700301d8` `locateBuffer` trampoline and `0x70030a0c`
-  operand-record decode island remain the stronger path for connecting
-  wrapper/runtime `10001..10009` opcodes to firmware behavior.
+  operand-record decode island now connect the parser owner `0x700304f8` to
+  direct FLK/ANN pointer-run slot refs. That is the strongest current Q2 static
+  path, but it still lacks a table-base/index mapping for wrapper/runtime
+  `10001..10009` opcodes.
 - Q3 is closed for the current INFO12/INFO13 proposition at the
   kernel/provider boundary plus record-layout level: `buffer_count` is capped
   below `0x21` before firmware, runtime shows `0` suppresses
@@ -668,13 +679,14 @@ from string ownership alone.
 The wrapper generates opcodes `10001..10009` in the Xtensa code section. The
 firmware presumably has a switch or table dispatch, but `.dram_op.data` is not
 that proof: it currently resolves as a 63-entry ANN op-name vocabulary table,
-with no raw-u32 or L32R code reference to the table. Keep Q2 centered on the
-byte-verified command parser path (`0x700301d8`/`0x70030a0c`) and the nearby
-pointer/code tables. Current pointer-run reachability separates two cases:
-the three 12-entry FLK runs have direct slot refs into owner `0x70015e98`, and
-the 31-entry ANN run at `0x70000b80` has direct L32R slot refs into owner
-`0x70081d50`; neither currently has a table-base value ref that proves an
-opcode-indexed dispatch mapping. Open runtime questions:
+with no raw-u32 or L32R code reference to the table. The strongest Q2 static
+path is now `0x700301d8 -> 0x70030a0c -> 0x700304f8`: it decodes
+`a2+0x49/+0x4a` bits `2..5`, branches to `0x70020ba2` and
+`0x7003125a/0x7003126a`, and the same owner directly references FLK and ANN
+pointer-run slots. Current pointer-run reachability still separates direct slot
+loads from table-base/indexed dispatch: neither the FLK nor ANN runs currently
+have a table-base value ref that proves wrapper-opcode index mapping. Open
+runtime questions:
 - which `10001..10009` opcodes produce the most DMA traffic?
 - are there opcodes that write to multiple descriptor-backed buffers in
   sequence?
