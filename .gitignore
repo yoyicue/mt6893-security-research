@@ -1,0 +1,16 @@
+.DS_Store
+**/.DS_Store
+.mcp.json
+__pycache__/
+*.py[cod]
+*.class
+*.dex
+
+# Native PoC build outputs.
+/01-cve-2023-4622-sock-dead/poc/trigger_race
+/02-mali-no-user-free-count/poc/diag_dont_need
+/02-mali-no-user-free-count/poc/vuln_check_jit
+/03-cve-2022-36449-retraction/poc/diag_refcount
+/04-arm64-skb-offset-divergence/poc/skb_spray_demo
+/05-gpu-write-value-boundary/poc/probe_mprotect_bypass
+/05-gpu-write-value-boundary/poc/probe_write_value

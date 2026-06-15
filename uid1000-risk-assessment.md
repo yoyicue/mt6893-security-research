@@ -8,7 +8,12 @@ This changes the risk model for MediaTek vendor vulnerabilities whose advisory p
 
 This does not mean every listed CVE is exploitable. Each candidate still needs a reachable entry point, compatible SELinux allow rules, correct device node or service access, and a matching vulnerable code path in the actual firmware binary.
 
-Runtime update: after running the safe PoCs and reachability probes on 2026-06-14, the post-run ranking is recorded in [`poc-run-results/2026-06-14-batch/README.md`](poc-run-results/2026-06-14-batch/README.md). That result supersedes the theoretical ordering below when they differ.
+Runtime update: after the 2026-06-14 and 2026-06-15 ioctl runs, the risk model has narrowed from broad theoretical reachability to two practical tracks:
+
+- APUSYS lifetime / IOVA-reuse research, where the strongest open question is whether in-flight firmware writeback can land in an exact-reused replacement buffer.
+- Display DRM PQPARAM, where a real missing-bounds check is confirmed but the sink is display MMIO/register state rather than kernel memory.
+
+These runtime results supersede the earlier theoretical ordering when they differ.
 
 ## Confirmed Runtime Access
 
@@ -61,6 +66,8 @@ Important permissions observed on device:
 | CVE-2023-32834 secmem | High increase | MediaTek 2023-11 lists High EoP, System privileges required, MT6893/MT8797/Android 13 affected. |
 | CVE-2023-32835 keyinstall | High increase | Same bulletin class as secmem: High EoP, System privileges required, MT6893/MT8797/Android 13 affected. |
 | CVE-2023-32836 display | Access precondition satisfied, tested direct paths not vulnerable | `/dev/dri/card0` is reachable, but current `CREATE_DUMB` path uses MTK 64-bit multiply and returns `-EINVAL`; `mtk_plane_atomic_update` lacks the historical MVA offset pattern; direct `DRM_MODE_ATOMIC TEST_ONLY` returns `-EACCES`. |
+| APUSYS ioctl surface | Highest current practical opportunity, not a demonstrated primitive | `/dev/apusys` opens from `system_app`, HardwareBuffer-backed dmabuf import works, APUNN completion is reachable, and descriptor-plane fields can redirect a firmware-visible write inside the imported IOVA. The best remaining bridge is in-flight `mem_free(shared_iova)` plus exact IOVA reuse by a replacement HardwareBuffer, but replacement-buffer mutation has not been observed in the same run. |
+| Display DRM `MTK_SET_PQPARAM` | Confirmed real bug, lower exploitation ceiling | `u4PartialY` is missing bounds validation and OOB indexes return success. The OOB data is written into display COLOR Y-slope registers through cmdq; CPU readback is currently blocked by display clock gating, and no kernel-memory corruption sink is confirmed. |
 | CVE-2024-20005 DA | High increase, entry point unknown | MediaTek 2024-03 says exploitation requires already having System privilege; MT6893/Android 13 affected. |
 | CVE-2024-20022 LK | High increase, special entry point | Affects MT8797/Android 13 and requires System privilege, but LK/bootloader paths may not be ordinary runtime ioctls. |
 | CVE-2024-20025 / 20027 / 20028 DA | High increase, entry point unknown | MediaTek 2024-03 lists EoP after obtaining System privilege; MT6893/Android 13 affected. |
@@ -76,10 +83,10 @@ Because `/dev/dri/card0` is now reachable from `system_app`, display/display-drm
 | CVE-2023-32863 | display drm | OOB read; MT6893 and Android 13 affected. Current safe probe shows partial reachability: `GET_DISPLAY_CAPS`/`GET_SESSION_INFO` return `EACCES`, while `GET_MASTER_INFO`/`GET_LCM_INDEX`/`AAL_GET_SIZE` succeed. No OOB-read shape confirmed yet. |
 | CVE-2023-32864 | display drm | OOB write; MT6893 and Android 13 affected. Current register-write guard probe shows `WRITE_REG`/`READ_REG` are reachable but invalid physical addresses are rejected with `EFAULT`; `WRITE_SW_REG` unknown ids do not hit bounded table writes. |
 | CVE-2023-32865 | display drm | OOB write; MT6893 and Android 13 affected. Current safe probe confirms `MTK_SUPPORT_COLOR_TRANSFORM` is reachable from `system_app`: zero matrix returns success, unsupported offset returns `EFAULT`. No exploitable write path is confirmed yet. |
-| CVE-2023-32867 | display drm | OOB write; MT6893 and Android 13 affected. |
-| CVE-2023-32868 | display drm | OOB write; MT6893 and Android 13 affected. |
+| CVE-2023-32867 | display drm | Likely maps to the confirmed `MTK_SET_PQPARAM` missing-bounds class. Runtime accepts `u4PartialY >= 22`, causing OOB reads from display global tables and cmdq writes into DISP_COLOR Y-slope registers. Current readback/leak path is blocked by clock gating. |
+| CVE-2023-32868 | display drm | Same current treatment as CVE-2023-32867 until the exact ALPS fix mapping is pinned down: real PQPARAM bug confirmed, but current sink is display register state, not kernel memory. |
 
-The current CVE-2023-32836 checks disprove both tested direct paths on this firmware: `CREATE_DUMB` uses the MTK 64-bit size calculation, and direct atomic commit from `system_app` is denied with `-EACCES`. This does not prove the rest of the display driver is safe.
+The current CVE-2023-32836 checks disprove both tested direct paths on this firmware: `CREATE_DUMB` uses the MTK 64-bit size calculation, and direct atomic commit from `system_app` is denied with `-EACCES`. The PQPARAM finding keeps the broader display DRM family security-relevant, but its current exploitation ceiling is limited by the MMIO-only sink and blocked CPU readback.
 
 ## Medium-High Priority Candidates
 
@@ -92,7 +99,7 @@ The current CVE-2023-32836 checks disprove both tested direct paths on this firm
 | CVE-2023-20761 ril | Increased, likely service path | MT6893/MT8797/Android 13 affected; likely binder/socket/service rather than direct device-node ioctl. |
 | CVE-2023-20766 gps | Increased, likely service path | MT6893/MT8797/Android 13 affected; likely service path. |
 | CVE-2023-20768 ion | Lower for direct node access | `/dev/ion` is visible and DAC-permissive, but dedicated old-ION probing from `system_app` returns `EACCES` at open. Revisit only through framework/HAL dmabuf paths or another lab context. |
-| APUSYS ioctl surface | High research priority | `/dev/apusys` opens from `system_app`; provider opcode-0 dispatch, memory-create, normal VPU opcode-7 `ucmd`, and `run_cmd_async` parser reachability are mapped. Direct node fd sources are constrained, but `app_process64` can create a HardwareBuffer dmabuf, both APUSYS type-2/type-3 memory-create paths import it successfully, normal VPU `ucmd` reaches the userspace-compatible `0x8001 + key` lookup path, and `apu_lib_apunn` returns provider success on core `0` and `1`. Runtime confirms the recovered command/subcommand header gates by reaching `mdw_cmd_sc_valid invalid type(32)`, confirms the queued provider handoff through the normal VPU request-size guard, then accepts full-size `0xb70` normal-VPU requests. The corrected IOVA request reaches VPU boot/map-side activity, and the XRP-shaped split-target runs localize the visible writeback to native VPU plane0 MVA (`0x504c4e30 -> 0x504c4e31`) while APUNN data descriptor/payload and command-buffer copyback windows stay unchanged. A nonzero `code_size=0x1c8` / opcode `10003` APUNN/XRP entry is tolerated at dispatch level but still leaves APUNN output/data windows unchanged. Static recovery maps the handoff: `mdw_sched_dev_routine` calls `mdw_cmd_sc_set_hnd`, copies the parsed codebuf into a provider argument buffer, invokes `provider_desc+0x18` with opcode `4`, then `mdw_cmd_sc_clr_hnd` copies the temporary buffer back to the source KVA and frees it. APUNN `0x1c8` operation-entry semantics remain the next unresolved piece. |
+| APUSYS ioctl surface | Highest practical research track, bounded by missing bridge evidence | `/dev/apusys` opens from `system_app`; provider opcode-0 dispatch, memory-create, normal VPU opcode-7 `ucmd`, `run_cmd_async`, full-size `0xb70` normal-VPU request acceptance, and APUNN completion are mapped. The stable `settings5/no-settings` shape changes settings `0x5 -> 0x7` and writes bounded output. Descriptor-plane relationship fuzz over native descriptor `+0x20/+0x24/+0x28/+0x34/+0x38..+0x3b` can redirect a firmware-visible write into the caller-imported plane window (`PLN0 -> PLN1`) but remains inside the imported IOVA. Completed command-buffer copyback currently exposes scalar tail state only; timeout/close/free and `dev_ctrl` race matrices did not produce kernel crashes, sensitive copyback, or replacement-buffer corruption. The current top APUSYS opportunity is therefore in-flight `mem_free(shared_iova)` plus exact IOVA reuse by a replacement HardwareBuffer, not broad APUNN parser fuzzing. |
 
 ## Not Significantly Changed
 
@@ -100,14 +107,15 @@ The current CVE-2023-32836 checks disprove both tested direct paths on this firm
 |---|---|
 | Mali CVE-2022-38181 / CVE-2023-4211 | `/dev/mali0` was already world-writable from shell. Existing analysis shows `no_user_free_count` blocks the key JIT free/change path. |
 | CVE-2022-36449 Mali | Existing refcount retraction still stands: `MEM_FREE` drops the GPU ref but the user mmap still holds the page. |
+| CVE-2023-33200 Mali | Downgraded to patched/dead on this target. `kbase_vmap_prot` rejects non-NATIVE allocations, so imported USER_BUF regions cannot enter the soft-event vmap path required for the race. |
 | CVE-2023-4622 AF_UNIX | Not gated by `uid=1000`; existing blocker is the `SOCK_DEAD` ordering constraint. |
 | sk_buff offset divergence | This is an exploit-porting correction, not a newly reachable bug. |
 | GPU WRITE_VALUE boundary | Primitive already available from shell via `/dev/mali0`; still bounded to GPU-mapped userspace VA. |
 
 ## Recommended Next Triage
 
-1. Display/display-drm: enumerate ioctls and symbol paths for CVE-2023-20775 and CVE-2023-32860/32867/32868. For CVE-2023-32863, CVE-2023-32864, and CVE-2023-32865, prioritize locating the exact `ALPS07326314` / `ALPS07292187` / `ALPS07363456` patched handlers because the first probes did not confirm exploitable paths.
-2. APUSYS: continue from the corrected VPU IOVA dispatch. The top-level command header, 0x28-byte subcommand header, queued scheduler handoff, `mdw_cmd_sc_set_hnd` codebuf copy, provider opcode-4 call, normal VPU request-size guard, full-size request acceptance, VPU boot/map-side activity, split-target native VPU plane0-MVA writeback, and tolerated nonzero `0x1c8` APUNN/XRP code section are now runtime-confirmed. The next target is `apu_lib_apunn` `0x1c8` operation-entry semantics and output/data-descriptor behavior, plus separate MDLA/EDMA request mapping.
+1. APUSYS: focus on the only current cross-boundary opportunity: `run_cmd_async`, `mem_free(shared_iova)` while in flight, exact IOVA reuse by a replacement HardwareBuffer, then replacement-buffer inspection after firmware completion or timeout. Descriptor-plane redirect is useful only if it can be combined with post-free exact reuse or normal completion into a replacement import.
+2. Display/display-drm: keep `MTK_SET_PQPARAM` as the confirmed 32867/32868-class finding, but treat it as low-to-medium exploitation value until a clock-open readback, cmdq readback, display side channel, or secondary kernel-memory sink is found. Continue exact ALPS/CVE mapping for CVE-2023-32863/32864/32865/32867/32868.
 3. secmem/keyinstall: identify runtime entry points, likely trusted execution / key management interfaces, then test reachability from `system_app`.
 4. CMDQ/PQ/MMP: map device nodes, binder services, and ioctl numbers; prioritize any path accessible from `system_app`.
 5. DA/AEE/LK: determine whether the advisory entry point exists at runtime or only during update/boot flows.
