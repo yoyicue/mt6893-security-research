@@ -632,6 +632,55 @@ Owners are ranked by how many distinct DMA/iDMA-related strings are referenced t
 | `0x70038378` | 1 | 1 | single-string lead | INTERRUPT CALLBACK : processing iDMA interrupt@0x70038f14 |
 | `0x70039b40` | 1 | 1 | single-string lead | eDesc >= TM_DMA_DESC_IDX_MAX@0x70039b66 |
 
+### DMA/iDMA Owner Investigations
+
+These records promote the string-cluster leads into explicit Q1 owner investigations. They identify schedule/wait ownership, not completion write timing.
+
+#### `top_dmaif_schedule_wait_owner` `0x70044b74`
+
+- range: `0x70044b74`..`0x70045380`
+- assessment: Top iDMA schedule/wait wrapper candidate. The same .xt.prop owner contains L32R refs to iDMA schedule error, iDMA wait error, dmaif.c, descriptor range validation, and data-buffer DRAM validation strings.
+- Q1 status: owner_narrowed_not_timing_closed; this identifies the DMA/iDMA schedule/wait layer but does not prove completion-write burst shape or inter-store gap because the owner is FLIX/TIE-heavy.
+- FLIX selector `06 04 02` hits: 83 (first 0x70044b84, 0x70044bc5, 0x70044bd5, 0x70044be5, 0x70044bf7, 0x70044c09, 0x70044c1c, 0x70044c2e, 0x70044c41, 0x70044c53, 0x70044c66, 0x70044c78)
+- standard a2 access signals: 55 hits, offsets 0x0, 0x2, 0x3, 0x4, 0x6, 0x7, 0x8, 0xa, 0xb, 0x16, 0x17, 0x1a, 0x1b, 0x1e, 0x1f, 0x22, 0x23, 0x26, 0x27, 0x2a, 0x2b, 0x2e, 0x2f, 0x3a, 0x3b, 0x3e, 0x3f, 0x42, 0x43, 0x44, 0x45, 0x46
+- next action: Use this owner as the Q1 firmware anchor for DMA schedule/wait. Close timing with runtime instrumentation or a FLIX overlay/format decoder; do not infer inter-store timing from string ownership alone.
+
+| evidence | ref | delta | literal | prop |
+|---|---:|---:|---:|---|
+| iDMA schedule error | `0x70044e3a` | `0x2c6` | `a15 -> 0x70005e54` | `insn|no_reorder:0x361` |
+| iDMA wait error | `0x70044e53` | `0x2de` | `a15 -> 0x70005e6c` | `insn|no_reorder:0x361` |
+| ../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c | `0x70044f1f` | `0x3aa` | `a15 -> 0x70005f38` | `insn|no_reorder:0x361` |
+| sDesc > eDesc | `0x70044f45` | `0x3d0` | `a15 -> 0x70005f60` | `insn|no_reorder:0x1d3` |
+| Data buffer does not start in DRAM | `0x700452ef` | `0x77a` | `a11 -> 0x70005900` | `insn|no_reorder:0x3a` |
+| Data buffer does not fit in DRAM | `0x70045319` | `0x7a4` | `a14 -> 0x7000592c` | `insn|branch_target|no_reorder:0x22` |
+
+| prop | size | flags | first bytes |
+|---:|---:|---|---|
+| `0x70044b74` | `0x44` | `insn|no_reorder` | `36 41 07 9e 62 20 70 58 64 12 00 30 d0 05 e7 f4` |
+| `0x70044bb8` | `0x10` | `insn|data|no_reorder|no_transform` | `7e d4 54 52 58 c4 41 06 31 a8 85 02 c8 06 04 02` |
+| `0x70044bc8` | `0x361` | `insn|no_reorder` | `9e 98 3c 70 58 62 12 00 30 d0 05 29 f1 06 04 02` |
+| `0x70044f29` | `0x10` | `insn|data|no_reorder|no_transform` | `3e 89 12 62 5e 64 10 04 30 d0 85 50 d8 06 04 02` |
+| `0x70044f39` | `0x1d3` | `insn|no_reorder` | `9e 98 16 70 5a 64 12 00 30 d0 05 03 f1 06 04 02` |
+| `0x7004510c` | `0x10` | `insn|data|no_reorder|no_transform` | `3e 61 88 90 5f 84 f9 8d 31 60 05 37 d8 06 04 02` |
+| `0x7004511c` | `0x13` | `insn|no_reorder` | `42 61 de 6e 32 87 89 5a a4 fd 81 31 60 85 50 f8` |
+| `0x7004512f` | `0x10` | `insn|data|no_reorder|no_transform` | `2e 42 04 51 5e c4 79 86 31 60 85 50 d8 06 04 02` |
+| `0x7004513f` | `0x6` | `insn|no_reorder` | `60 88 c2 82 61 b7` |
+| `0x70045145` | `0x10` | `insn|data|no_reorder|no_transform` | `ce 6e 90 f9 5e a4 4e 0f 31 a8 85 50 b8 06 04 02` |
+| `0x70045155` | `0x11` | `insn|no_reorder` | `8f 6c 0d cb fc 05 5a 00 40 99 c2 80 84 82 82 61` |
+| `0x70045166` | `0x10` | `insn|data|no_reorder|no_transform` | `ce 91 b0 19 13 f5 c8 32 cf a9 a4 38 b8 06 04 02` |
+| `0x70045176` | `0x2b` | `insn|no_reorder` | `2e 4c 49 fa 5f a4 9e 0c 31 a8 85 50 b8 06 04 02` |
+| `0x700451a1` | `0x20` | `insn|data|no_reorder|no_transform` | `3e 32 c4 40 5e 64 10 0c 30 d0 85 50 d8 06 04 02` |
+| `0x700451c1` | `0x43` | `insn|no_reorder` | `22 61 ac 3e e3 06 e1 5a 64 12 0c 30 d0 85 50 d8` |
+| `0x70045204` | `0x87` | `insn|branch_target|no_reorder` | `0c 0a a9 41 a9 51 3e a1 4c 72 5c 60 10 0c 30 d0` |
+| `0x7004528b` | `0x6` | `insn|branch_target|no_reorder` | `b0 9a 82 86 8b 05` |
+| `0x70045291` | `0xc` | `unreachable` | `00 00 00 00 00 00 00 00 00 00 00 00` |
+| `0x7004529d` | `0x1f` | `insn|branch_target|no_reorder` | `f2 02 2f 82 02 2e 4f 8f 7e d6 8a 08 82 00 80 ff` |
+| `0x700452bc` | `0x8` | `insn|data|no_reorder|no_transform` | `8f 81 80 fd 78 c8 59 00` |
+| `0x700452c4` | `0x3a` | `insn|no_reorder` | `82 61 d2 f6 2f 3b 82 21 b7 e6 28 35 92 21 b8 e6` |
+| `0x700452fe` | `0x8` | `insn|branch_target|no_reorder` | `0c 0d d2 61 d2 46 08 00` |
+| `0x70045306` | `0x0` | `unreachable` | `` |
+| `0x70045306` | `0x22` | `insn|branch_target|no_reorder` | `0c 0f 1e f1 86 03 58 66 10 04 30 d0 85 38 c8 06` |
+
 ### `.dram_op.data` L32R References
 
 | addr | reg | literal | value | owner |

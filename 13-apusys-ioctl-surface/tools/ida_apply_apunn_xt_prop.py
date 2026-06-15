@@ -457,6 +457,47 @@ def apply_critical_owner_clusters(payload: dict[str, object]) -> int:
     return comments
 
 
+def apply_dma_owner_investigations(payload: dict[str, object]) -> int:
+    comments = 0
+    for item in payload.get("dma_owner_investigations", []):
+        owner = int(item["owner_entry"])
+        evidence = item.get("evidence_refs", [])
+        evidence_text = ", ".join(
+            "%s@%s" % (ref.get("pattern"), fmt_hex(ref.get("ref_addr")))
+            for ref in evidence[:8]
+        )
+        if append_comment(
+            owner,
+            "APUNN DMA/iDMA owner investigation %s; range=%s..%s q1_status=%s evidence=%s"
+            % (
+                item.get("label"),
+                fmt_hex(item.get("analysis_start")),
+                fmt_hex(item.get("analysis_end")),
+                item.get("q1_status"),
+                evidence_text,
+            ),
+        ):
+            comments += 1
+        for ref in evidence:
+            ea = int(ref["ref_addr"])
+            comment_ea = idc.get_item_head(ea)
+            if comment_ea == idc.BADADDR or not has_segment(comment_ea):
+                comment_ea = ea
+            if append_comment(
+                comment_ea,
+                "APUNN DMA/iDMA evidence ref for owner %s; pattern=%s literal=%s prop=%s:%s"
+                % (
+                    fmt_hex(owner),
+                    ref.get("pattern"),
+                    fmt_hex(ref.get("literal_addr")),
+                    ref.get("prop_flags"),
+                    fmt_hex(ref.get("prop_size")),
+                ),
+            ):
+                comments += 1
+    return comments
+
+
 def fmt_hex(value: object) -> str:
     if value is None:
         return "None"
@@ -482,13 +523,14 @@ def main() -> None:
     loop_comments = apply_loop_targets(payload)
     focused_loop_comments = apply_focused_loop_investigations(payload)
     cluster_comments = apply_critical_owner_clusters(payload)
+    dma_owner_comments = apply_dma_owner_investigations(payload)
     ida_auto.auto_wait()
 
     print(
         "[APUNN] functions_created=%d bounded_functions=%d function_names=%d inside_existing=%d "
         "key_names=%d pointer_dwords=%d pointer_refs=%d strings=%d island_comments=%d "
         "l32r_comments=%d l32r_refs=%d loop_comments=%d focused_loop_comments=%d "
-        "cluster_comments=%d"
+        "cluster_comments=%d dma_owner_comments=%d"
         % (
             fn_created,
             fn_bounded,
@@ -504,6 +546,7 @@ def main() -> None:
             loop_comments,
             focused_loop_comments,
             cluster_comments,
+            dma_owner_comments,
         )
     )
 

@@ -311,6 +311,13 @@ Recovered pointer/name tables:
   `iDMA wait error`, `../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c`, and
   `sDesc > eDesc` through L32R. The next tier has only two distinct
   DMA/iDMA-related strings per owner.
+- The new DMA/iDMA owner investigation promotes that lead to the Q1 firmware
+  anchor. In `0x70044b74..0x70045380`, the same owner has ordered L32R refs to
+  `iDMA schedule error` (`0x70044e3a`), `iDMA wait error` (`0x70044e53`),
+  `dmaif.c` (`0x70044f1f`), `sDesc > eDesc` (`0x70044f45`), and the DRAM data
+  buffer validation strings (`0x700452ef`, `0x70045319`). The range has 83
+  `06 04 02` FLIX selector hits, so it identifies the schedule/wait owner but
+  still does not expose completion-write burst shape or inter-store timing.
 - `Data buffer does not fit in DRAM` has no aligned refs but has six all-byte
   suffix-pointer samples at owners `0x700c13b0`, `0x700cc080`, `0x700cda20`,
   `0x7016bc40`, `0x70262690`, and `0x70262a00`. Because these are unaligned
@@ -560,19 +567,14 @@ priority order:
 
 Current partial answers from the ELF pass:
 
-- Q1 is still unresolved statically. The ELF contains `dma_barrier`,
-  `iDMA schedule error`, `iDMA wait error`, and
-  `../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c`, so the right DMA subsystem is
-  present. The direct-reference scan finds no aligned or all-byte `.text`
-  pointer to those strings, but the PC-relative `L32R` pass now recovers
-  section-filtered owner candidates for the iDMA schedule/wait and dmaif
-  strings. Ghidra still does not produce a reliable schedule/wait loop
-  decompilation on the TIE/FLIX-heavy ranges. The newly verified `0x70007440`
-  callback loop is a timing/dispatcher lead because it uses `ccount`, repeated
-  `callx8 a8`, and `0x700068c0`, but it is not yet tied to the descriptor DMA
-  writeback path. Runtime remains the strongest evidence: the tested completed
-  shape finishes before the Java-layer `mem_free` round trip can replace the
-  IOVA.
+- Q1 is narrowed but not timing-closed. `0x70044b74` is now the top
+  DMA/iDMA schedule/wait owner: it contains the schedule error, wait error,
+  `dmaif.c`, descriptor range, and DRAM data-buffer validation string refs in
+  one FLIX-heavy owner. This identifies the firmware schedule/wait layer to
+  instrument, but it does not prove whether the APUNN completion writes are a
+  single burst or a sequenced writeback with a useful inter-store gap. Runtime
+  remains the strongest evidence: the tested completed shape finishes before the
+  Java-layer `mem_free` round trip can replace the IOVA.
 - Q2 has a real firmware-side op vocabulary now. The 63-entry
   `.dram_op.data` ANN table is distinct from the wrapper/runtime
   `10001..10009` query/status opcodes already tested. The byte-verified
@@ -601,6 +603,10 @@ allocator-reuse race window.
 Look for: loops that iterate over descriptor entries, conditional writes gated
 on intermediate results, explicit DSP wait/sleep/barrier instructions between
 DMA stores.
+
+Current static anchor: `0x70044b74` is the best DMA/iDMA schedule/wait owner
+candidate. Use it for runtime tracing or FLIX-overlay work; do not infer the
+completion write timing from string ownership alone.
 
 #### Q2: Opcode dispatch table
 

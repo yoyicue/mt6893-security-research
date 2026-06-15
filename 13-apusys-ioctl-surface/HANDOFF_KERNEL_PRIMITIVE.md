@@ -205,6 +205,13 @@ Static firmware impact so far:
   candidate because it is the only current owner with four distinct
   DMA/iDMA-related L32R strings: `iDMA schedule error`, `iDMA wait error`,
   `dmaif.c`, and `sDesc > eDesc`.
+- DMA/iDMA owner investigation now promotes `0x70044b74` to the Q1 firmware
+  anchor. In `0x70044b74..0x70045380`, the same owner has L32R refs to
+  `iDMA schedule error` (`0x70044e3a`), `iDMA wait error` (`0x70044e53`),
+  `dmaif.c` (`0x70044f1f`), `sDesc > eDesc` (`0x70044f45`), and both DRAM data
+  buffer validation strings (`0x700452ef`, `0x70045319`). The range has 83
+  `06 04 02` FLIX selector hits, so this closes the owner-finding part of Q1
+  but not the completion-write timing.
 - Byte-verified standard Xtensa islands now make the early path reproducible:
   `0x70006794` copies `a12+0x00..0x14` into `a10+0x04..0x18` and
   `a2+0x44/0x4c/0x50` into `a10+0x28/0x1c/0x20`; `0x70006590` loads
@@ -250,10 +257,11 @@ Static firmware impact so far:
   `INFO16` entry and `INFO12..15`/descriptor boundary, not by requiring a direct
   APUNN-side `INFO01` switch.
 
-Primitive impact is unchanged for now, but INFO12/INFO13 is no longer the
-blocking question. The firmware image gives a better map and the descriptor
-count/input model is closed at the provider boundary plus native record-layout
-level. It still has not proved a slower DMA path, a source-sensitive output
+Primitive impact is unchanged for now, but INFO12/INFO13 and Q1 owner-finding
+are no longer the blocking questions. The firmware image gives a better map:
+the descriptor count/input model is closed at the provider boundary plus native
+record-layout level, and `0x70044b74` is the static DMA/iDMA schedule/wait
+anchor. It still has not proved a slower DMA path, a source-sensitive output
 path, a cross-buffer write, or missing plane/size validation. Kernel/provider
 `buffer_count` is capped below `0x21`, and the runtime race result still
 dominates: completed firmware writes finish before the Java-layer `mem_free`

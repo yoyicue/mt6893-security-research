@@ -1604,6 +1604,319 @@
       "string_value": "Data buffer does not fit in DRAM"
     }
   ],
+  "dma_owner_investigations": [
+    {
+      "analysis_end": 1879331712,
+      "analysis_start": 1879329652,
+      "assessment": "Top iDMA schedule/wait wrapper candidate. The same .xt.prop owner contains L32R refs to iDMA schedule error, iDMA wait error, dmaif.c, descriptor range validation, and data-buffer DRAM validation strings.",
+      "evidence_refs": [
+        {
+          "literal_addr": 1879072340,
+          "literal_string_offset": 4,
+          "owner_delta": 710,
+          "pattern": "iDMA schedule error",
+          "prop_addr": 1879329736,
+          "prop_flags": "insn|no_reorder",
+          "prop_size": 865,
+          "ref_addr": 1879330362,
+          "target_reg": 15
+        },
+        {
+          "literal_addr": 1879072364,
+          "literal_string_offset": 8,
+          "owner_delta": 734,
+          "pattern": "iDMA wait error",
+          "prop_addr": 1879329736,
+          "prop_flags": "insn|no_reorder",
+          "prop_size": 865,
+          "ref_addr": 1879330387,
+          "target_reg": 15
+        },
+        {
+          "literal_addr": 1879072568,
+          "literal_string_offset": 8,
+          "owner_delta": 938,
+          "pattern": "../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c",
+          "prop_addr": 1879329736,
+          "prop_flags": "insn|no_reorder",
+          "prop_size": 865,
+          "ref_addr": 1879330591,
+          "target_reg": 15
+        },
+        {
+          "literal_addr": 1879072608,
+          "literal_string_offset": 4,
+          "owner_delta": 976,
+          "pattern": "sDesc > eDesc",
+          "prop_addr": 1879330617,
+          "prop_flags": "insn|no_reorder",
+          "prop_size": 467,
+          "ref_addr": 1879330629,
+          "target_reg": 15
+        },
+        {
+          "literal_addr": 1879070976,
+          "literal_string_offset": 4,
+          "owner_delta": 1914,
+          "pattern": "Data buffer does not start in DRAM",
+          "prop_addr": 1879331524,
+          "prop_flags": "insn|no_reorder",
+          "prop_size": 58,
+          "ref_addr": 1879331567,
+          "target_reg": 11
+        },
+        {
+          "literal_addr": 1879071020,
+          "literal_string_offset": 12,
+          "owner_delta": 1956,
+          "pattern": "Data buffer does not fit in DRAM",
+          "prop_addr": 1879331590,
+          "prop_flags": "insn|branch_target|no_reorder",
+          "prop_size": 34,
+          "ref_addr": 1879331609,
+          "target_reg": 14
+        }
+      ],
+      "flix_selector": "06 04 02",
+      "flix_selector_hit_count": 83,
+      "flix_selector_hits": [
+        1879329668,
+        1879329733,
+        1879329749,
+        1879329765,
+        1879329783,
+        1879329801,
+        1879329820,
+        1879329838,
+        1879329857,
+        1879329875,
+        1879329894,
+        1879329912,
+        1879329931,
+        1879329949,
+        1879329968,
+        1879329984,
+        1879330002,
+        1879330020,
+        1879330039,
+        1879330089,
+        1879330105,
+        1879330124,
+        1879330143,
+        1879330162,
+        1879330212,
+        1879330231,
+        1879330281,
+        1879330297,
+        1879330347,
+        1879330363,
+        1879330388,
+        1879330438
+      ],
+      "label": "top_dmaif_schedule_wait_owner",
+      "next_action": "Use this owner as the Q1 firmware anchor for DMA schedule/wait. Close timing with runtime instrumentation or a FLIX overlay/format decoder; do not infer inter-store timing from string ownership alone.",
+      "owner_entry": 1879329652,
+      "prop_runs": [
+        {
+          "addr": 1879329652,
+          "bytes": "36 41 07 9e 62 20 70 58 64 12 00 30 d0 05 e7 f4",
+          "flags": "insn|no_reorder",
+          "size": 68
+        },
+        {
+          "addr": 1879329720,
+          "bytes": "7e d4 54 52 58 c4 41 06 31 a8 85 02 c8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879329736,
+          "bytes": "9e 98 3c 70 58 62 12 00 30 d0 05 29 f1 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 865
+        },
+        {
+          "addr": 1879330601,
+          "bytes": "3e 89 12 62 5e 64 10 04 30 d0 85 50 d8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879330617,
+          "bytes": "9e 98 16 70 5a 64 12 00 30 d0 05 03 f1 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 467
+        },
+        {
+          "addr": 1879331084,
+          "bytes": "3e 61 88 90 5f 84 f9 8d 31 60 05 37 d8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879331100,
+          "bytes": "42 61 de 6e 32 87 89 5a a4 fd 81 31 60 85 50 f8",
+          "flags": "insn|no_reorder",
+          "size": 19
+        },
+        {
+          "addr": 1879331119,
+          "bytes": "2e 42 04 51 5e c4 79 86 31 60 85 50 d8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879331135,
+          "bytes": "60 88 c2 82 61 b7",
+          "flags": "insn|no_reorder",
+          "size": 6
+        },
+        {
+          "addr": 1879331141,
+          "bytes": "ce 6e 90 f9 5e a4 4e 0f 31 a8 85 50 b8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879331157,
+          "bytes": "8f 6c 0d cb fc 05 5a 00 40 99 c2 80 84 82 82 61",
+          "flags": "insn|no_reorder",
+          "size": 17
+        },
+        {
+          "addr": 1879331174,
+          "bytes": "ce 91 b0 19 13 f5 c8 32 cf a9 a4 38 b8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 16
+        },
+        {
+          "addr": 1879331190,
+          "bytes": "2e 4c 49 fa 5f a4 9e 0c 31 a8 85 50 b8 06 04 02",
+          "flags": "insn|no_reorder",
+          "size": 43
+        },
+        {
+          "addr": 1879331233,
+          "bytes": "3e 32 c4 40 5e 64 10 0c 30 d0 85 50 d8 06 04 02",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 32
+        },
+        {
+          "addr": 1879331265,
+          "bytes": "22 61 ac 3e e3 06 e1 5a 64 12 0c 30 d0 85 50 d8",
+          "flags": "insn|no_reorder",
+          "size": 67
+        },
+        {
+          "addr": 1879331332,
+          "bytes": "0c 0a a9 41 a9 51 3e a1 4c 72 5c 60 10 0c 30 d0",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 135
+        },
+        {
+          "addr": 1879331467,
+          "bytes": "b0 9a 82 86 8b 05",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 6
+        },
+        {
+          "addr": 1879331473,
+          "bytes": "00 00 00 00 00 00 00 00 00 00 00 00",
+          "flags": "unreachable",
+          "size": 12
+        },
+        {
+          "addr": 1879331485,
+          "bytes": "f2 02 2f 82 02 2e 4f 8f 7e d6 8a 08 82 00 80 ff",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 31
+        },
+        {
+          "addr": 1879331516,
+          "bytes": "8f 81 80 fd 78 c8 59 00",
+          "flags": "insn|data|no_reorder|no_transform",
+          "size": 8
+        },
+        {
+          "addr": 1879331524,
+          "bytes": "82 61 d2 f6 2f 3b 82 21 b7 e6 28 35 92 21 b8 e6",
+          "flags": "insn|no_reorder",
+          "size": 58
+        },
+        {
+          "addr": 1879331582,
+          "bytes": "0c 0d d2 61 d2 46 08 00",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 8
+        },
+        {
+          "addr": 1879331590,
+          "bytes": "",
+          "flags": "unreachable",
+          "size": 0
+        },
+        {
+          "addr": 1879331590,
+          "bytes": "0c 0f 1e f1 86 03 58 66 10 04 30 d0 85 38 c8 06",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 34
+        },
+        {
+          "addr": 1879331624,
+          "bytes": "92 02 07 a2 02 06 4f 89 f2 52 8a 08 82 00 a0 99",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 82
+        },
+        {
+          "addr": 1879331706,
+          "bytes": "b2 02 0b c2 02 0a 4f 8b 76 93 8a 08 82 00 c0 bb",
+          "flags": "insn|branch_target|no_reorder",
+          "size": 454
+        }
+      ],
+      "q1_status": "owner_narrowed_not_timing_closed; this identifies the DMA/iDMA schedule/wait layer but does not prove completion-write burst shape or inter-store gap because the owner is FLIX/TIE-heavy.",
+      "standard_a2_access_count": 55,
+      "standard_a2_offsets": [
+        0,
+        2,
+        3,
+        4,
+        6,
+        7,
+        8,
+        10,
+        11,
+        22,
+        23,
+        26,
+        27,
+        30,
+        31,
+        34,
+        35,
+        38,
+        39,
+        42,
+        43,
+        46,
+        47,
+        58,
+        59,
+        62,
+        63,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        79,
+        97
+      ]
+    }
+  ],
   "dram_op_l32r_refs": [],
   "elf_header": {
     "entry": 1879074708,

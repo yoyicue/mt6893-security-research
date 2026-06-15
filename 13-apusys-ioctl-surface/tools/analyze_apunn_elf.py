@@ -282,6 +282,24 @@ class CriticalOwnerCluster:
     assessment: str
 
 
+@dataclass
+class DmaOwnerInvestigation:
+    label: str
+    owner_entry: int
+    analysis_start: int
+    analysis_end: int
+    assessment: str
+    q1_status: str
+    evidence_refs: list[dict[str, object]]
+    prop_runs: list[dict[str, object]]
+    flix_selector: str
+    flix_selector_hit_count: int
+    flix_selector_hits: list[int]
+    standard_a2_offsets: list[int]
+    standard_a2_access_count: int
+    next_action: str
+
+
 CRITICAL_STRING_PATTERNS = (
     "add idma request fail in %s",
     "ERROR CALLBACK: iDMA in Error",
@@ -1778,6 +1796,114 @@ def build_critical_owner_clusters(
     return out
 
 
+DMA_OWNER_INVESTIGATION_PATTERNS = (
+    "iDMA schedule error",
+    "iDMA wait error",
+    "../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c",
+    "sDesc > eDesc",
+    "Data buffer does not start in DRAM",
+    "Data buffer does not fit in DRAM",
+)
+
+
+def standard_a2_access_summary(
+    data: bytes,
+    sections: list[Section],
+    start: int,
+    end: int,
+    max_offset: int = 0x80,
+) -> tuple[list[int], int]:
+    text = section_by_name(sections, ".text")
+    if text is None:
+        return [], 0
+    blob = section_bytes(data, text)
+    offsets: set[int] = set()
+    count = 0
+    for addr in range(start, max(start, end - 2)):
+        decoded = decode_standard_mem_access(blob, addr - text.addr)
+        if decoded is None:
+            continue
+        _mnemonic, base_reg, _value_reg, mem_offset, _access_size, _is_store = decoded
+        if base_reg != 2 or mem_offset > max_offset:
+            continue
+        count += 1
+        offsets.add(mem_offset)
+    return sorted(offsets), count
+
+
+def build_dma_owner_investigations(
+    data: bytes,
+    sections: list[Section],
+    props: list[XtProp],
+    l32r_refs: list[L32RReference],
+) -> list[DmaOwnerInvestigation]:
+    owner = 0x70044B74
+    start = owner
+    end = 0x70045380
+    evidence_refs: list[dict[str, object]] = []
+    for pattern in DMA_OWNER_INVESTIGATION_PATTERNS:
+        candidates = [
+            ref
+            for ref in l32r_refs
+            if ref.owner_entry == owner
+            and (
+                (ref.literal_string_value is not None and pattern in ref.literal_string_value)
+                or (ref.value_string_value is not None and pattern in ref.value_string_value)
+            )
+        ]
+        candidates.sort(key=lambda ref: ref.addr)
+        if not candidates:
+            continue
+        ref = candidates[0]
+        prop = best_prop_for_addr(props, ref.addr)
+        evidence_refs.append(
+            {
+                "pattern": pattern,
+                "ref_addr": ref.addr,
+                "owner_delta": ref.owner_delta,
+                "target_reg": ref.target_reg,
+                "literal_addr": ref.literal_addr,
+                "literal_string_offset": ref.literal_string_offset,
+                "prop_addr": None if prop is None else prop.addr,
+                "prop_size": None if prop is None else prop.size,
+                "prop_flags": None if prop is None else flags_text(prop.flags),
+            }
+        )
+
+    selector_hits = byte_pattern_hits(data, sections, start, end, b"\x06\x04\x02")
+    a2_offsets, a2_count = standard_a2_access_summary(data, sections, start, end)
+    return [
+        DmaOwnerInvestigation(
+            label="top_dmaif_schedule_wait_owner",
+            owner_entry=owner,
+            analysis_start=start,
+            analysis_end=end,
+            assessment=(
+                "Top iDMA schedule/wait wrapper candidate. The same .xt.prop owner "
+                "contains L32R refs to iDMA schedule error, iDMA wait error, dmaif.c, "
+                "descriptor range validation, and data-buffer DRAM validation strings."
+            ),
+            q1_status=(
+                "owner_narrowed_not_timing_closed; this identifies the DMA/iDMA "
+                "schedule/wait layer but does not prove completion-write burst shape "
+                "or inter-store gap because the owner is FLIX/TIE-heavy."
+            ),
+            evidence_refs=evidence_refs,
+            prop_runs=prop_run_samples(data, sections, props, start, end),
+            flix_selector="06 04 02",
+            flix_selector_hit_count=len(selector_hits),
+            flix_selector_hits=selector_hits[:32],
+            standard_a2_offsets=a2_offsets,
+            standard_a2_access_count=a2_count,
+            next_action=(
+                "Use this owner as the Q1 firmware anchor for DMA schedule/wait. "
+                "Close timing with runtime instrumentation or a FLIX overlay/format "
+                "decoder; do not infer inter-store timing from string ownership alone."
+            ),
+        )
+    ]
+
+
 def prop_near(props: list[XtProp], addr: int, window: int = 0x20) -> list[XtProp]:
     return [
         prop
@@ -2137,6 +2263,56 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
             f"{display_text('; '.join(samples))} |"
         )
     lines.append("")
+    lines.append("### DMA/iDMA Owner Investigations")
+    lines.append("")
+    lines.append(
+        "These records promote the string-cluster leads into explicit Q1 owner "
+        "investigations. They identify schedule/wait ownership, not completion "
+        "write timing."
+    )
+    lines.append("")
+    for item in payload["dma_owner_investigations"]:
+        assert isinstance(item, dict)
+        lines.append(f"#### `{item['label']}` `{hx(item['owner_entry'])}`")
+        lines.append("")
+        lines.append(f"- range: `{hx(item['analysis_start'])}`..`{hx(item['analysis_end'])}`")
+        lines.append(f"- assessment: {display_text(str(item['assessment']))}")
+        lines.append(f"- Q1 status: {display_text(str(item['q1_status']))}")
+        lines.append(
+            f"- FLIX selector `{item['flix_selector']}` hits: "
+            f"{item['flix_selector_hit_count']} "
+            f"(first {', '.join(hx(value) or '' for value in item['flix_selector_hits'][:12])})"
+        )
+        lines.append(
+            f"- standard a2 access signals: {item['standard_a2_access_count']} hits, "
+            f"offsets {', '.join(hx(value) or '' for value in item['standard_a2_offsets'][:32])}"
+        )
+        lines.append(f"- next action: {display_text(str(item['next_action']))}")
+        lines.append("")
+        lines.append("| evidence | ref | delta | literal | prop |")
+        lines.append("|---|---:|---:|---:|---|")
+        evidence_refs = item["evidence_refs"]
+        assert isinstance(evidence_refs, list)
+        for ref in evidence_refs:
+            assert isinstance(ref, dict)
+            lines.append(
+                f"| {display_text(str(ref['pattern']))} | `{hx(ref['ref_addr'])}` | "
+                f"`{hx(ref.get('owner_delta'))}` | "
+                f"`a{ref['target_reg']} -> {hx(ref['literal_addr'])}` | "
+                f"`{ref.get('prop_flags') or ''}:{hx(ref.get('prop_size'))}` |"
+            )
+        lines.append("")
+        lines.append("| prop | size | flags | first bytes |")
+        lines.append("|---:|---:|---|---|")
+        prop_runs = item["prop_runs"]
+        assert isinstance(prop_runs, list)
+        for prop in prop_runs[:24]:
+            assert isinstance(prop, dict)
+            lines.append(
+                f"| `{hx(prop['addr'])}` | `{hx(prop['size'])}` | "
+                f"`{prop['flags']}` | `{prop['bytes']}` |"
+            )
+        lines.append("")
     lines.append("### `.dram_op.data` L32R References")
     lines.append("")
     lines.append("| addr | reg | literal | value | owner |")
@@ -2280,6 +2456,9 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
     )
     critical_l32r_refs = find_critical_l32r_refs(strings, l32r_refs_for_scans)
     critical_owner_clusters = build_critical_owner_clusters(critical_l32r_refs)
+    dma_owner_investigations = build_dma_owner_investigations(
+        data, sections, props, l32r_refs_for_scans
+    )
     dram_op_l32r_refs = find_dram_op_l32r_refs(sections, l32r_refs_for_scans)
     loop_target_count, loop_target_candidates = find_loop_target_candidates(
         sections, props, function_candidates, standard_field_access_clusters
@@ -2323,6 +2502,7 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
         "interesting_l32r_refs": to_jsonable(interesting_l32r_refs),
         "critical_l32r_refs": to_jsonable(critical_l32r_refs),
         "critical_l32r_owner_clusters": to_jsonable(critical_owner_clusters),
+        "dma_owner_investigations": to_jsonable(dma_owner_investigations),
         "dram_op_l32r_refs": to_jsonable(dram_op_l32r_refs),
         "loop_target_count": loop_target_count,
         "loop_target_candidates": to_jsonable(loop_target_candidates),
@@ -2470,6 +2650,18 @@ def print_summary(payload: dict[str, object]) -> None:
             "  critical_owner_cluster "
             f"owner={hx(cluster['owner_entry'])} patterns={cluster['pattern_count']} "
             f"hits={cluster['hit_count']} assessment={cluster['assessment']}"
+        )
+    investigations = payload["dma_owner_investigations"]
+    assert isinstance(investigations, list)
+    print(f"dma_owner_investigations={len(investigations)}")
+    for item in investigations:
+        assert isinstance(item, dict)
+        print(
+            "  dma_owner "
+            f"{item['label']} owner={hx(item['owner_entry'])} "
+            f"evidence={len(item['evidence_refs'])} "
+            f"flix_hits={item['flix_selector_hit_count']} "
+            f"status={item['q1_status']}"
         )
     print(f"pointer_runs={len(payload['pointer_runs'])}")
     for run in payload["pointer_runs"]:
