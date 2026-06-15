@@ -490,6 +490,47 @@ Additional functions identified during iDMA timing analysis (2026-06-15):
 | `0x70024710` | `sp+0x20` | 0x190 B | **iDMA diagnostic dump**: 9× `bbsi a8, 0x13, skip` + `rsr.*` (reads hw status registers); called on iDMA error to log state; NOT a schedule/wait primitive | Disassembly: `bbsi`-loop + `rsr.memctl/ccompare1/mesr` pattern; direct xref to "iDMA schedule error" |
 | `0x70035c64` | `sp+0x20` | ~680 B | **iDMA schedule candidate**: `l8ui a6, a4, 0x34` → `beqz skip`; loads descriptor control field, conditionally skips; only 3 visible basic blocks; no direct xrefs (called via function pointer) | Disassembly; L32R `iDMA schedule error` owner |
 | `0x70036110` | `sp+0x250` | >0x1550 B | **iDMA wait candidate**: `entry sp, 0x250`, 64-byte aligned stack, very large; `iDMA wait error` L32R at fn+0x751; no direct xrefs | Disassembly; L32R `iDMA wait error` + `dmaif.c` owner |
+| `0x70016e2d` | `sp+0x2480` | ~0xB46 B | **FLK dispatch target A** (hidden, FLIX128-dense): `entry sp,0x2480`; IDA `add_func` failed; target of `g_flix_dispatch_table_A/B/C` (0x70000180–200) | Hidden entry scan; frame decode `36 90 e4` |
+| `0x70017b73` | `sp+0x5380` | ~0xB5E B | **FLK dispatch target B** (CONV2D candidate): `entry sp,0x5380` (largest frame); FLIX128-dense | Hidden entry scan; frame decode `36 70 5a` |
+| `0x70017cd1` | `sp+0x27d8` | ~0x4BF B | **FLK dispatch target C**: `entry sp,0x27d8`; FLIX128-dense | Hidden entry scan; frame decode `36 fb 84` |
+
+New DMA string confirmed (2026-06-15):
+
+| Address | String | Security relevance |
+|---:|---|---|
+| `0x70004ab4` | `dma_2d_loc2sys_no_schedule fail in %s` | `loc2sys` = DSP LocalMem → System DRAM (output write direction); **`no_schedule` = synchronous blocking DMA** → confirms output write path is sync, not iDMA-scheduled, not raceable |
+| `0x70005f8c` | `_DMA_STALL` | DMA stall error string |
+
+Full FLIX distribution (global scan over `.text` 2026-06-15):
+
+```
+FLIX128 (op0=0xe, 16B): 100,644 bundles  33.1% by count  /  code bytes 33.1%
+FLIX64  (op0=0xf,  8B):  63,550 bundles  20.9%           /  code bytes 20.9%
+core24  (3B):           109,229 instrs   35.9%            /  code bytes 13.5%
+dens16  (2B):            30,899 instrs   10.2%            /  code bytes  5.1%
+FLIX total:             164,194 bundles  54.0% count      /  code bytes 54.0%
+```
+FLIX bundles account for **84.5% of code bytes**. FLIX128 : FLIX64 ≈ 1.58 : 1.
+
+Dispatch table D (`g_flix_dispatch_table_D`, `0x70000b80`): 31 entries,
+stride **−0x68** (functions at decreasing addresses, 104 bytes each = 6 FLIX128 + 8 B).
+Entries[1..30] span `0x70082aac..0x70082aac − 29×0x68`.
+
+Op-id mapping (`.dram_op.data` pointer table at `0x7ff3b008`):
+
+```
+0=CONV2D   1=DWCONV2D  2=POOL2D      3=LOGISTIC  4=RELU      5=SOFTMAX
+6=RESHAPE  7=CONCAT    8=ELEWISE     9=L2NORM    10=RESZBILINR 11=TRANSPOSE
+12=DECONV2D 13=PAD     14=STRIDESLICE 15=MEAN    16=BATCH2SPACE 17=SPACE2BATCH
+18=DEPTHNSPACE 19=REQUANT 20=DIDWCONV2D 21=DICONV2D 22=PRELU  23=TANH
+24=ARGMINMAX 25=GROUPCONV2D 26=SHUFFLE 27=REDUCE 28=PCCONV2D 29=PCDWCONV2D
+30=DIPCCONV2D 31=DIPCDWCONV2D 32=CAST 33=BOXTRANSFORM 34=SPLIT 35=QUANT16LSTM
+36=BOXWITHNMS 37=GENPROPOSALS 38=HEATMAXKEY 39=TOPKV2 40=ROIALIGN 41=RESZNEAR
+42=TILE    43=GATHER    44=SELECT    45=QUANTIZE  46=DEQUANTIZE 47=INSTANCENORM
+48=LAYERNORM 49=DIV    50=SQRT      51=RSQRT     52=QUANTLSTM  53=HARDSWISH
+54=FILL    55=TYPECONVERT 56=ELTCOMPARE 57=ROIALIGNV2 58=RESZBILINRV2
+59=RESZNEARV2 60=ARGMINMAX4D 61=XFL_SQRT_QUANT 62=XFL_RSQRT_QUANT
+```
 
 #### Path 2: Live memory dump (needs kernel read)
 
