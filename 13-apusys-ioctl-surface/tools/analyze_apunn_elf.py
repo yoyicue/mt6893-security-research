@@ -183,6 +183,29 @@ class StandardIsland:
     instructions: list[StandardIslandInstruction]
 
 
+@dataclass
+class StandardFieldAccess:
+    addr: int
+    op: str
+    base_reg: int
+    value_reg: int
+    offset: int
+    access_size: int
+    is_store: bool
+    owner_entry: int | None
+    owner_delta: int | None
+
+
+@dataclass
+class FieldAccessCluster:
+    owner_entry: int
+    base_reg: int
+    hit_count: int
+    unique_offsets: list[int]
+    vpu_buffer_offsets: list[int]
+    sample_hits: list[StandardFieldAccess]
+
+
 CRITICAL_STRING_PATTERNS = (
     "add idma request fail in %s",
     "ERROR CALLBACK: iDMA in Error",
@@ -357,6 +380,51 @@ KNOWN_STANDARD_ISLANDS = (
             (0x70030D74, "a2 02 06", "l8ui a10, a2, 0x06", "load byte field from a2+0x06"),
             (0x70030D7F, "a0 99 20", "or a9, a9, a10", "combine bytes from a2+0x06/+0x07"),
             (0x70030D8D, "80 99 11", "slli a9, a9, 8", "shift combined field for later use"),
+        ),
+    },
+    {
+        "label": "buffer_record_high_field_validator_candidate",
+        "note": (
+            "Byte-verified standard-instruction island in the 0x7003ce3c owner. "
+            "It performs null/zero checks on an a2-based record using offsets "
+            "+0x08, +0x0c, +0x10, +0x1c, +0x20, +0x24, +0x28, +0x34, and +0x38, "
+            "plus byte fields at +0x39/+0x3a/+0x3b. These offsets overlap the high "
+            "half of a 0x40-byte VPU buffer-shaped record, including plane "
+            "length/pointer fields, but this island by itself does not prove "
+            "the INFO12/INFO13 array loop or its iteration bound."
+        ),
+        "instructions": (
+            (0x7003CE3C, "36 c1 03", "entry sp, 0x1e0", "open a 0x1e0-byte stack frame"),
+            (0x7003CE3F, "82 af c0", "movi a8, -0x40", "prepare 64-byte stack alignment mask"),
+            (0x7003CE42, "80 81 10", "and a8, sp, a8", "align stack pointer down to 64 bytes"),
+            (0x7003CE45, "10 18 00", "movsp sp, a8", "install aligned stack pointer"),
+            (0x7003CE95, "16 e3 5f", "beqz a3, 0x7003d497", "reject null/zero context field"),
+            (0x7003CE98, "62 2a 21", "l32i a6, a10, 0x84", "load context field from a10+0x84"),
+            (0x7003CE9B, "16 86 5f", "beqz a6, 0x7003d497", "reject null context field"),
+            (0x7003CE9E, "16 04 62", "beqz a4, 0x7003d4c2", "reject null record-related pointer"),
+            (0x7003CED8, "d8 22", "l32i.n a13, a2, 0x08", "load a2 record field +0x08"),
+            (0x7003CEDA, "16 ed 58", "beqz a13, 0x7003d46c", "reject zero field +0x08"),
+            (0x7003CEED, "f8 32", "l32i.n a15, a2, 0x0c", "load a2 record field +0x0c"),
+            (0x7003CEEF, "16 9f 57", "beqz a15, 0x7003d46c", "reject zero field +0x0c"),
+            (0x7003CF02, "48 42", "l32i.n a4, a2, 0x10", "load a2 record field +0x10"),
+            (0x7003CF04, "16 44 56", "beqz a4, 0x7003d46c", "reject zero field +0x10"),
+            (0x7003CF1D, "d2 02 3a", "l8ui a13, a2, 0x3a", "load high byte field from a2+0x3a"),
+            (0x7003CF36, "f2 02 3b", "l8ui a15, a2, 0x3b", "load high byte field from a2+0x3b"),
+            (0x7003CF39, "c8 72", "l32i.n a12, a2, 0x1c", "load a2 record field +0x1c"),
+            (0x7003CF5E, "c2 22 08", "l32i a12, a2, 0x20", "load a2 record field +0x20"),
+            (0x7003CF61, "16 bc 60", "beqz a12, 0x7003d570", "reject zero field +0x20"),
+            (0x7003CF64, "a2 22 09", "l32i a10, a2, 0x24", "load a2 record field +0x24"),
+            (0x7003CF67, "16 0a 63", "beqz a10, 0x7003d59b", "reject zero field +0x24"),
+            (0x7003CF6A, "82 22 0a", "l32i a8, a2, 0x28", "load a2 record field +0x28"),
+            (0x7003CF6D, "16 58 65", "beqz a8, 0x7003d5c6", "reject zero field +0x28"),
+            (0x7003CF70, "a2 22 0d", "l32i a10, a2, 0x34", "load a2 record field +0x34"),
+            (0x7003CF73, "16 aa 67", "beqz a10, 0x7003d5f1", "reject zero field +0x34"),
+            (0x7003CF76, "92 02 38", "l8ui a9, a2, 0x38", "load byte field from a2+0x38"),
+            (0x7003CF79, "8c e9", "beqz.n a9, 0x7003cf8b", "branch on zero byte field +0x38"),
+            (0x7003CF8B, "42 02 39", "l8ui a4, a2, 0x39", "load byte field from a2+0x39"),
+            (0x7003CF8E, "8c e4", "beqz.n a4, 0x7003cfa0", "branch on zero byte field +0x39"),
+            (0x7003CFB5, "62 12 00", "l16ui a6, a2, 0x00", "reload low 16-bit field from a2+0x00"),
+            (0x7003CFEC, "b2 02 38", "l8ui a11, a2, 0x38", "reload byte field from a2+0x38"),
         ),
     },
 )
@@ -723,6 +791,7 @@ KEY_ADDRESS_LABELS = (
     ("flk_pointer_target_cluster", 0x70017D40),
     ("flk_pointer_table_owner", 0x70015E98),
     ("dispatcher_like_locateBuffer", 0x700301D8),
+    ("buffer_record_high_field_validator_candidate", 0x7003CE3C),
     ("large_auto_function", 0x7003B424),
     ("ann_pointer_table_owner", 0x70081D50),
     ("ann_pointer_target_cluster", 0x70081EE7),
@@ -930,6 +999,138 @@ def build_standard_islands(data: bytes, sections: list[Section]) -> list[Standar
     return islands
 
 
+STANDARD_MEM_OPS = {
+    0x0: ("l8ui", 1, False),
+    0x1: ("l16ui", 2, False),
+    0x2: ("l32i", 4, False),
+    0x4: ("s8i", 1, True),
+    0x5: ("s16i", 2, True),
+    0x6: ("s32i", 4, True),
+}
+
+
+VPU_BUFFER_OFFSETS = {
+    0x00,
+    0x01,
+    0x02,
+    0x04,
+    0x08,
+    0x0C,
+    0x10,
+    0x14,
+    0x18,
+    0x1C,
+    0x20,
+    0x24,
+    0x28,
+    0x2C,
+    0x30,
+    0x34,
+    0x38,
+    0x39,
+    0x3A,
+    0x3B,
+}
+
+
+def decode_standard_mem_access(blob: bytes, offset: int) -> tuple[str, int, int, int, int, bool] | None:
+    if offset + 3 > len(blob):
+        return None
+    b0, b1, b2 = blob[offset], blob[offset + 1], blob[offset + 2]
+    if b0 & 0x0F != 0x02:
+        return None
+    op_kind = b1 >> 4
+    op = STANDARD_MEM_OPS.get(op_kind)
+    if op is None:
+        return None
+    mnemonic, access_size, is_store = op
+    value_reg = b0 >> 4
+    base_reg = b1 & 0x0F
+    mem_offset = b2 * access_size
+    return mnemonic, base_reg, value_reg, mem_offset, access_size, is_store
+
+
+def find_standard_field_access_clusters(
+    data: bytes,
+    sections: list[Section],
+    props: list[XtProp],
+    function_candidates: list[FunctionCandidate],
+    max_offset: int = 0x80,
+    min_vpu_offsets: int = 6,
+    sample_limit: int = 8,
+    cluster_limit: int = 24,
+) -> list[FieldAccessCluster]:
+    text = section_by_name(sections, ".text")
+    if text is None:
+        return []
+    blob = section_bytes(data, text)
+    insn_coverage = bytearray(len(blob))
+    for prop in props:
+        if not prop.flags & XT_PROP_INSN:
+            continue
+        start = max(prop.addr, text.addr) - text.addr
+        end = min(prop.addr + max(prop.size, 1), text.addr + text.size) - text.addr
+        if 0 <= start < end <= len(insn_coverage):
+            insn_coverage[start:end] = b"\x01" * (end - start)
+    raw_clusters: dict[tuple[int, int], list[StandardFieldAccess]] = {}
+    for off in range(0, len(blob) - 2):
+        if not insn_coverage[off]:
+            continue
+        decoded = decode_standard_mem_access(blob, off)
+        if decoded is None:
+            continue
+        mnemonic, base_reg, value_reg, mem_offset, access_size, is_store = decoded
+        if mem_offset > max_offset:
+            continue
+        if base_reg in {0, 1}:
+            continue
+        addr = text.addr + off
+        owner_entry, owner_delta = owner_for_addr(function_candidates, addr)
+        if owner_entry is None:
+            continue
+        hit = StandardFieldAccess(
+            addr=addr,
+            op=mnemonic,
+            base_reg=base_reg,
+            value_reg=value_reg,
+            offset=mem_offset,
+            access_size=access_size,
+            is_store=is_store,
+            owner_entry=owner_entry,
+            owner_delta=owner_delta,
+        )
+        raw_clusters.setdefault((owner_entry, base_reg), []).append(hit)
+
+    clusters: list[FieldAccessCluster] = []
+    for (owner_entry, base_reg), hits in raw_clusters.items():
+        unique_offsets = sorted({hit.offset for hit in hits})
+        vpu_offsets = sorted({hit.offset for hit in hits if hit.offset in VPU_BUFFER_OFFSETS})
+        if len(vpu_offsets) < min_vpu_offsets:
+            continue
+        hits.sort(key=lambda hit: hit.addr)
+        clusters.append(
+            FieldAccessCluster(
+                owner_entry=owner_entry,
+                base_reg=base_reg,
+                hit_count=len(hits),
+                unique_offsets=unique_offsets,
+                vpu_buffer_offsets=vpu_offsets,
+                sample_hits=hits[:sample_limit],
+            )
+        )
+
+    clusters.sort(
+        key=lambda cluster: (
+            len(cluster.vpu_buffer_offsets),
+            len(cluster.unique_offsets),
+            cluster.hit_count,
+            -cluster.owner_entry,
+        ),
+        reverse=True,
+    )
+    return clusters[:cluster_limit]
+
+
 def prop_near(props: list[XtProp], addr: int, window: int = 0x20) -> list[XtProp]:
     return [
         prop
@@ -1071,6 +1272,35 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
                 f"{display_text(str(insn['effect']))} |"
             )
         lines.append("")
+    lines.append("## Standard Field-Access Clusters")
+    lines.append("")
+    lines.append(
+        "These clusters are produced by a lightweight standard Xtensa 24-bit "
+        "load/store decoder (`l8ui/l16ui/l32i/s8i/s16i/s32i`) and grouped by "
+        "function owner plus base register. They are leads for record-shape "
+        "analysis, not decompiler output."
+    )
+    lines.append("")
+    lines.append("| owner | base | hits | unique offsets | VPU-buffer-shaped offsets | samples |")
+    lines.append("|---:|---:|---:|---:|---|---|")
+    for cluster in payload["standard_field_access_clusters"]:
+        assert isinstance(cluster, dict)
+        samples: list[str] = []
+        sample_hits = cluster["sample_hits"]
+        assert isinstance(sample_hits, list)
+        for hit in sample_hits[:8]:
+            assert isinstance(hit, dict)
+            samples.append(
+                f"{hx(hit['addr'])}:{hit['op']} a{hit['value_reg']},"
+                f"a{hit['base_reg']}+{hx(hit['offset'])}"
+            )
+        offsets = ", ".join(hx(value) or "" for value in cluster["vpu_buffer_offsets"])
+        lines.append(
+            f"| `{hx(cluster['owner_entry'])}` | `a{cluster['base_reg']}` | "
+            f"{cluster['hit_count']} | {len(cluster['unique_offsets'])} | "
+            f"{offsets} | {display_text('; '.join(samples))} |"
+        )
+    lines.append("")
     lines.append("## Rodata String References")
     lines.append("")
     lines.append(f"- `.text` 32-bit references into `.rodata` strings: {payload['rodata_ref_count']}")
@@ -1191,6 +1421,9 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
         data, sections, strings, function_candidates
     )
     standard_islands = build_standard_islands(data, sections)
+    standard_field_access_clusters = find_standard_field_access_clusters(
+        data, sections, props, function_candidates
+    )
 
     entry_props = []
     for prop in prop_near(props, eh.entry):
@@ -1215,6 +1448,7 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
             build_key_addresses(sections, props, function_candidates)
         ),
         "standard_islands": to_jsonable(standard_islands),
+        "standard_field_access_clusters": to_jsonable(standard_field_access_clusters),
         "rodata_ref_count": len(rodata_refs),
         "rodata_refs": to_jsonable(rodata_refs),
         "interesting_rodata_refs": to_jsonable(
@@ -1264,6 +1498,17 @@ def print_summary(payload: dict[str, object]) -> None:
             "  island "
             f"{island['label']} range={hx(island['start'])}-{hx(island['end'])} "
             f"verified={island['verified']}"
+        )
+    clusters = payload["standard_field_access_clusters"]
+    assert isinstance(clusters, list)
+    print(f"standard_field_access_clusters={len(clusters)}")
+    for cluster in clusters[:10]:
+        assert isinstance(cluster, dict)
+        offsets = ",".join(hx(value) or "" for value in cluster["vpu_buffer_offsets"])
+        print(
+            "  field_cluster "
+            f"owner={hx(cluster['owner_entry'])} base=a{cluster['base_reg']} "
+            f"hits={cluster['hit_count']} vpu_offsets={offsets}"
         )
     print(
         "rodata_refs="

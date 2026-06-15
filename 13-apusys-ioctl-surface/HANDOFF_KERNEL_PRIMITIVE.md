@@ -207,8 +207,19 @@ Static firmware impact so far:
   `1/5/6/9`, and reads additional byte pairs at
   `a2+0x0e/+0x0f`, `+0x12/+0x13`, `+0x2e/+0x2f`, and `+0x06/+0x07`. These
   offsets match the wrapper's code/operand area, not the native 0x40-byte
-  `struct vpu_buffer` slots. Unresolved TIE/FLIX instructions still prevent a
-  complete prototype or native `INFO13` loop proof.
+  `struct vpu_buffer` slots.
+- The `0x7003ce3c` island is now a separate verified 0x40-record-shaped field
+  validation lead. It reads and zero-checks an `a2` record at `+0x08/+0x0c`,
+  `+0x10`, `+0x1c`, `+0x20/+0x24/+0x28`, and `+0x34/+0x38`, plus high byte
+  fields at `+0x39/+0x3a/+0x3b`. Those offsets overlap the native VPU buffer/plane
+  field region from the reference kernel layout. This is evidence for native
+  buffer-record validation; the separate `INFO12`/`INFO13` loop and iteration
+  bound still need to be tied to it.
+- `analyze_apunn_elf.py` now emits a standard 24-bit Xtensa field-access cluster
+  scan. Current high-priority clusters include `0x7003b468/a2`,
+  `0x70039cfc/a2`, and the verified `0x7003ce3c/a2`, giving reproducible
+  next-hop targets for the descriptor loop pass. Unresolved TIE/FLIX
+  instructions still prevent complete prototypes.
 - `.dram_op.data` contains a 63-entry ANN op-name table, and strings confirm
   the relevant APUNN paths: `process_command`, `execute_op`, `dma_barrier`,
   buffer validation, and iDMA schedule/wait errors.

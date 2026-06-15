@@ -332,6 +332,24 @@ also reads little-endian byte pairs at `a2+0x0e/+0x0f`,
 the descriptor-backed DSP command buffer parser, but not yet to the firmware's
 native `INFO12`/`INFO13` iteration bounds.
 
+The `0x7003ce3c` owner now has a separate byte-verified buffer-record-shaped
+field validator island. Standard Xtensa instructions read and zero-check an
+`a2`-based record at `+0x08`, `+0x0c`, `+0x10`, `+0x1c`, `+0x20`, `+0x24`,
+`+0x28`, `+0x34`, and `+0x38`, with byte fields at `+0x39/+0x3a/+0x3b` and a
+low `l16ui` reload at `+0x00`. These offsets overlap the high half of the
+0x40-byte VPU buffer-shaped record layout, including plane length/pointer
+fields from the kernel reference `struct vpu_buffer`. This establishes a native
+buffer-record validation lead distinct from the wrapper operand parser; the
+remaining INFO12/INFO13 question is the loop/count source that feeds this kind
+of record.
+
+`analyze_apunn_elf.py` also emits a reproducible standard field-access cluster
+scan. It decodes only standard 24-bit `l8ui/l16ui/l32i/s8i/s16i/s32i`
+instructions and groups them by `.xt.prop` owner plus base register. The current
+top clusters include `0x7003b468/a2`, `0x70039cfc/a2`, and the byte-verified
+`0x7003ce3c/a2`, giving a prioritized list of 0x40-record-shaped leads for the
+next INFO13 loop pass without depending on a decompiler.
+
 IDA Pro MCP state after reloading the same ELF as **ELF for Xtensa** (not raw
 `Binary File`): processor `XTENSA`, 32-bit, sections mapped at the ELF VAs
 above, saved IDB
@@ -349,6 +367,7 @@ IDA count is `663` functions, including:
 | `0x70015e98` | `apunn_flk_pointer_table_owner_70015e98` | owner for the three 12-entry FLK pointer runs |
 | `0x70081d50` | `apunn_ann_pointer_table_owner_70081d50` | owner for the 31-entry ANN pointer run |
 | `0x700301d8` | `apunn_dispatcher_like_locateBuffer_700301d8` | byte-verified `locateBuffer` trampoline; reaches operand parser at `0x70030a0c` |
+| `0x7003ce3c` | `apunn_buffer_record_high_field_validator_candidate_7003ce3c` | byte-verified 0x40-record-shaped high-field/null-check island |
 
 #### Path 2: Live memory dump (needs kernel read)
 
@@ -524,10 +543,12 @@ Current partial answers from the ELF pass:
   kernel dispatch entries.
 - Q3 is bounded at the kernel/provider boundary: `buffer_count` is capped below
   `0x21` before firmware, and runtime shows `0` suppresses descriptor-following
-  state writeback while nonzero tested counts enter the descriptor path. A
-  firmware-internal cap/size check has not been proven yet. The new
-  `0x70030a0c` island is an operand/code-record parser, not the native
-  `INFO13` `struct vpu_buffer[]` loop.
+  state writeback while nonzero tested counts enter the descriptor path. The
+  firmware-internal cap/size check is still unresolved in APUNN static analysis.
+  The `0x70030a0c` island is an operand/code-record parser. The new
+  `0x7003ce3c` island is native buffer-record-shaped validation evidence, but
+  the loop/count source that binds it to `INFO12`/`INFO13` remains the open
+  subproblem.
 - Q4 has runtime evidence that `settings+0x08` bounds the visible output fill;
   the static output-size enforcement path is not identified yet.
 
