@@ -1186,6 +1186,20 @@ These records map static output-shape validation owners from rodata32 and L32R-b
 | `0x70000bf4` | `0x70081fd3` | `.text` | `0x70081d50` | `insn|no_reorder` |  |
 | `0x70000bf8` | `0x70081f5e` | `.text` | `0x70081d50` | `insn|no_reorder` |  |
 
+## ANN Op Name Table Reachability
+
+- table: `0x7ff3b000`..`0x7ff3b218`
+- nonzero entries: 63
+- zero tail bytes: `0x11c`
+- all nonzero entries are rodata strings: True
+- assessment: The .dram_op.data section is a 63-entry table of rodata operation name pointers followed by zero tail bytes. Current static evidence does not show it being indexed as the host opcode dispatch table.
+- Q2 status: ann_op_name_table_is_vocabulary_not_dispatch_proof; no reproducible .text/.rodata/.data/.dram0.data raw u32 refs or L32R refs to .dram_op.data were found.
+- next action: Keep Q2 focused on the 0x700301d8/0x70030a0c command parser and nearby pointer/code tables; do not treat ANN op-name indices as the wrapper 10001..10009 dispatch mapping without a code reference.
+
+| ref type | ref | section/owner | value | delta/prop |
+|---|---:|---|---:|---|
+| none |  |  |  | no raw-u32 or L32R refs to `.dram_op.data` |
+
 ## ANN Op Name Table
 
 | index | entry | name | string |

@@ -379,6 +379,19 @@
       "string_addr": 1879056660
     }
   ],
+  "ann_op_table_investigation": {
+    "all_entries_are_rodata_strings": true,
+    "assessment": "The .dram_op.data section is a 63-entry table of rodata operation name pointers followed by zero tail bytes. Current static evidence does not show it being indexed as the host opcode dispatch table.",
+    "l32r_ref_hits": [],
+    "next_action": "Keep Q2 focused on the 0x700301d8/0x70030a0c command parser and nearby pointer/code tables; do not treat ANN op-name indices as the wrapper 10001..10009 dispatch mapping without a code reference.",
+    "nonzero_entry_count": 63,
+    "q2_status": "ann_op_name_table_is_vocabulary_not_dispatch_proof; no reproducible .text/.rodata/.data/.dram0.data raw u32 refs or L32R refs to .dram_op.data were found.",
+    "raw_ref_hits": [],
+    "table_end": 2146677272,
+    "table_size": 536,
+    "table_start": 2146676736,
+    "zero_tail_bytes": 284
+  },
   "critical_l32r_owner_clusters": [
     {
       "assessment": "top DMA/iDMA owner candidate",

@@ -614,6 +614,30 @@ def apply_output_validation_investigations(payload: dict[str, object]) -> int:
     return comments
 
 
+def apply_ann_op_table_investigation(payload: dict[str, object]) -> int:
+    item = payload.get("ann_op_table_investigation")
+    if not isinstance(item, dict):
+        return 0
+    start = int(item["table_start"])
+    if not has_segment(start):
+        return 0
+    return int(
+        append_comment(
+            start,
+            "APUNN ANN op-name table reachability; range=%s..%s entries=%s "
+            "raw_refs=%s l32r_refs=%s q2_status=%s"
+            % (
+                fmt_hex(item.get("table_start")),
+                fmt_hex(item.get("table_end")),
+                item.get("nonzero_entry_count"),
+                len(item.get("raw_ref_hits", [])),
+                len(item.get("l32r_ref_hits", [])),
+                item.get("q2_status"),
+            ),
+        )
+    )
+
+
 def fmt_hex(value: object) -> str:
     if value is None:
         return "None"
@@ -642,6 +666,7 @@ def main() -> None:
     cluster_comments = apply_critical_owner_clusters(payload)
     dma_owner_comments = apply_dma_owner_investigations(payload)
     output_validation_comments = apply_output_validation_investigations(payload)
+    ann_op_table_comments = apply_ann_op_table_investigation(payload)
     ida_auto.auto_wait()
 
     print(
@@ -649,7 +674,7 @@ def main() -> None:
         "key_names=%d pointer_dwords=%d pointer_refs=%d strings=%d island_comments=%d "
         "l32r_comments=%d l32r_refs=%d loop_comments=%d focused_loop_comments=%d "
         "flix_sweep_comments=%d cluster_comments=%d dma_owner_comments=%d "
-        "output_validation_comments=%d"
+        "output_validation_comments=%d ann_op_table_comments=%d"
         % (
             fn_created,
             fn_bounded,
@@ -668,6 +693,7 @@ def main() -> None:
             cluster_comments,
             dma_owner_comments,
             output_validation_comments,
+            ann_op_table_comments,
         )
     )
 

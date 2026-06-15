@@ -326,6 +326,21 @@ class OutputValidationInvestigation:
 
 
 @dataclass
+class AnnOpTableInvestigation:
+    table_start: int
+    table_end: int
+    table_size: int
+    nonzero_entry_count: int
+    zero_tail_bytes: int
+    all_entries_are_rodata_strings: bool
+    raw_ref_hits: list[dict[str, object]]
+    l32r_ref_hits: list[dict[str, object]]
+    assessment: str
+    q2_status: str
+    next_action: str
+
+
+@dataclass
 class FlixSweepInstruction:
     addr: int
     length: int
@@ -2500,6 +2515,122 @@ def build_output_validation_investigations(
     return investigations
 
 
+def raw_u32_refs_to_range(
+    data: bytes,
+    sections: list[Section],
+    start: int,
+    end: int,
+    source_names: set[str] | None = None,
+    sample_limit: int = 32,
+) -> list[dict[str, object]]:
+    hits: list[dict[str, object]] = []
+    for section in sections:
+        if source_names is not None and section.name not in source_names:
+            continue
+        blob = section_bytes(data, section)
+        for off in range(0, max(0, len(blob) - 3), 4):
+            value = struct.unpack_from("<I", blob, off)[0]
+            if start <= value < end:
+                hits.append(
+                    {
+                        "ref_addr": section.addr + off,
+                        "source_section": section.name,
+                        "value": value,
+                        "delta": value - start,
+                    }
+                )
+                if len(hits) >= sample_limit:
+                    return hits
+    return hits
+
+
+def build_ann_op_table_investigation(
+    data: bytes,
+    sections: list[Section],
+    strings_by_addr: dict[int, str],
+    l32r_refs: list[L32RReference],
+) -> AnnOpTableInvestigation | None:
+    table = section_by_name(sections, ".dram_op.data")
+    if table is None:
+        return None
+    blob = section_bytes(data, table)
+    nonzero = 0
+    all_rodata_strings = True
+    for off in range(0, len(blob) - 3, 4):
+        value = struct.unpack_from("<I", blob, off)[0]
+        if value == 0:
+            break
+        nonzero += 1
+        if (ro_string_at(strings_by_addr, value) or cstring_at_va(data, sections, value, {".rodata"})) is None:
+            all_rodata_strings = False
+    zero_tail_bytes = max(0, table.size - nonzero * 4)
+    raw_hits = raw_u32_refs_to_range(
+        data=data,
+        sections=sections,
+        start=table.addr,
+        end=table.addr + table.size,
+        source_names={".text", ".rodata", ".data", ".dram0.data"},
+    )
+    l32r_hits: list[dict[str, object]] = []
+    for ref in l32r_refs:
+        literal_hit = table.addr <= ref.literal_addr < table.addr + table.size
+        value_hit = (
+            ref.literal_value is not None
+            and table.addr <= (ref.literal_value & ~1) < table.addr + table.size
+        )
+        if literal_hit or value_hit:
+            l32r_hits.append(
+                {
+                    "ref_addr": ref.addr,
+                    "owner_entry": ref.owner_entry,
+                    "owner_delta": ref.owner_delta,
+                    "target_reg": ref.target_reg,
+                    "literal_addr": ref.literal_addr,
+                    "literal_value": ref.literal_value,
+                    "prop_addr": ref.prop_addr,
+                    "prop_size": ref.prop_size,
+                    "prop_flags": ref.prop_flags,
+                }
+            )
+    if nonzero == 63 and all_rodata_strings and not raw_hits and not l32r_hits:
+        q2_status = (
+            "ann_op_name_table_is_vocabulary_not_dispatch_proof; no reproducible "
+            ".text/.rodata/.data/.dram0.data raw u32 refs or L32R refs to "
+            ".dram_op.data were found."
+        )
+        assessment = (
+            "The .dram_op.data section is a 63-entry table of rodata operation "
+            "name pointers followed by zero tail bytes. Current static evidence "
+            "does not show it being indexed as the host opcode dispatch table."
+        )
+    else:
+        q2_status = (
+            "ann_op_name_table_has_references_or_nonstandard_shape; inspect "
+            "raw_ref_hits and l32r_ref_hits before using it as dispatch evidence."
+        )
+        assessment = (
+            "The .dram_op.data section needs manual review before classifying it "
+            "as vocabulary-only or dispatch-related."
+        )
+    return AnnOpTableInvestigation(
+        table_start=table.addr,
+        table_end=table.addr + table.size,
+        table_size=table.size,
+        nonzero_entry_count=nonzero,
+        zero_tail_bytes=zero_tail_bytes,
+        all_entries_are_rodata_strings=all_rodata_strings,
+        raw_ref_hits=raw_hits,
+        l32r_ref_hits=l32r_hits,
+        assessment=assessment,
+        q2_status=q2_status,
+        next_action=(
+            "Keep Q2 focused on the 0x700301d8/0x70030a0c command parser and "
+            "nearby pointer/code tables; do not treat ANN op-name indices as "
+            "the wrapper 10001..10009 dispatch mapping without a code reference."
+        ),
+    )
+
+
 def prop_near(props: list[XtProp], addr: int, window: int = 0x20) -> list[XtProp]:
     return [
         prop
@@ -3157,6 +3288,43 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
                 f"{display_text(str(entry.get('target_string') or ''))} |"
             )
         lines.append("")
+    ann_table = payload.get("ann_op_table_investigation")
+    if isinstance(ann_table, dict):
+        lines.append("## ANN Op Name Table Reachability")
+        lines.append("")
+        lines.append(f"- table: `{hx(ann_table['table_start'])}`..`{hx(ann_table['table_end'])}`")
+        lines.append(f"- nonzero entries: {ann_table['nonzero_entry_count']}")
+        lines.append(f"- zero tail bytes: `{hx(ann_table['zero_tail_bytes'])}`")
+        lines.append(
+            f"- all nonzero entries are rodata strings: "
+            f"{ann_table['all_entries_are_rodata_strings']}"
+        )
+        lines.append(f"- assessment: {display_text(str(ann_table['assessment']))}")
+        lines.append(f"- Q2 status: {display_text(str(ann_table['q2_status']))}")
+        lines.append(f"- next action: {display_text(str(ann_table['next_action']))}")
+        lines.append("")
+        lines.append("| ref type | ref | section/owner | value | delta/prop |")
+        lines.append("|---|---:|---|---:|---|")
+        raw_hits = ann_table["raw_ref_hits"]
+        assert isinstance(raw_hits, list)
+        for hit in raw_hits:
+            assert isinstance(hit, dict)
+            lines.append(
+                f"| raw-u32 | `{hx(hit['ref_addr'])}` | `{hit['source_section']}` | "
+                f"`{hx(hit['value'])}` | `{hx(hit['delta'])}` |"
+            )
+        l32r_hits = ann_table["l32r_ref_hits"]
+        assert isinstance(l32r_hits, list)
+        for hit in l32r_hits:
+            assert isinstance(hit, dict)
+            lines.append(
+                f"| l32r | `{hx(hit['ref_addr'])}` | `{hx(hit.get('owner_entry'))}` | "
+                f"`{hx(hit.get('literal_value'))}` | "
+                f"`{hit.get('prop_flags') or ''}:{hx(hit.get('prop_size'))}` |"
+            )
+        if not raw_hits and not l32r_hits:
+            lines.append("| none |  |  |  | no raw-u32 or L32R refs to `.dram_op.data` |")
+        lines.append("")
     lines.append("## ANN Op Name Table")
     lines.append("")
     lines.append("| index | entry | name | string |")
@@ -3227,6 +3395,9 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
     output_validation_investigations = build_output_validation_investigations(
         data, sections, props, rodata_refs, l32r_refs_for_scans
     )
+    ann_op_table_investigation = build_ann_op_table_investigation(
+        data, sections, strings_by_addr, l32r_refs_for_scans
+    )
     dram_op_l32r_refs = find_dram_op_l32r_refs(sections, l32r_refs_for_scans)
     loop_target_count, loop_target_candidates = find_loop_target_candidates(
         sections, props, function_candidates, standard_field_access_clusters
@@ -3273,6 +3444,7 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
         "critical_l32r_owner_clusters": to_jsonable(critical_owner_clusters),
         "dma_owner_investigations": to_jsonable(dma_owner_investigations),
         "output_validation_investigations": to_jsonable(output_validation_investigations),
+        "ann_op_table_investigation": to_jsonable(ann_op_table_investigation),
         "dram_op_l32r_refs": to_jsonable(dram_op_l32r_refs),
         "loop_target_count": loop_target_count,
         "loop_target_candidates": to_jsonable(loop_target_candidates),
@@ -3464,6 +3636,17 @@ def print_summary(payload: dict[str, object]) -> None:
     for run in payload["pointer_runs"]:
         assert isinstance(run, dict)
         print(f"  run {hx(run['start'])}-{hx(run['end'])} count={run['count']}")
+    ann_investigation = payload.get("ann_op_table_investigation")
+    if isinstance(ann_investigation, dict):
+        print(
+            "ann_op_table "
+            f"range={hx(ann_investigation['table_start'])}.."
+            f"{hx(ann_investigation['table_end'])} "
+            f"entries={ann_investigation['nonzero_entry_count']} "
+            f"raw_refs={len(ann_investigation['raw_ref_hits'])} "
+            f"l32r_refs={len(ann_investigation['l32r_ref_hits'])} "
+            f"status={ann_investigation['q2_status']}"
+        )
     print(f"ann_op_names={len(payload['ann_op_name_table'])}")
 
 

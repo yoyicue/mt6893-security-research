@@ -588,13 +588,13 @@ Current partial answers from the ELF pass:
   post-`run_async`, pre-`wait_cmd` field sequencing to Java: a 10 ms busy-poll
   saw no settings/output/data-desc mutation, and `wait_cmd` returned success
   before the normal completion bytes were visible in the shared mapping.
-- Q2 has a real firmware-side op vocabulary now. The 63-entry
-  `.dram_op.data` ANN table is distinct from the wrapper/runtime
-  `10001..10009` query/status opcodes already tested. The byte-verified
-  `0x700301d8` `locateBuffer` trampoline and `0x70030a0c` operand-record decode
-  island now connect one mid-level dispatcher path to the DSP command
-  code/operand region. More work is still needed to connect host opcodes to ANN
-  kernel dispatch entries.
+- Q2 has a real firmware-side op vocabulary now, but the 63-entry
+  `.dram_op.data` ANN op-name table is not static dispatch proof. It is a table
+  of `.rodata` strings followed by zero tail bytes; the analyzer finds no
+  reproducible raw-u32 or L32R refs from code/data to `.dram_op.data`. The
+  byte-verified `0x700301d8` `locateBuffer` trampoline and `0x70030a0c`
+  operand-record decode island remain the stronger path for connecting
+  wrapper/runtime `10001..10009` opcodes to firmware behavior.
 - Q3 is closed for the current INFO12/INFO13 proposition at the
   kernel/provider boundary plus record-layout level: `buffer_count` is capped
   below `0x21` before firmware, runtime shows `0` suppresses
@@ -639,11 +639,18 @@ from string ownership alone.
 #### Q2: Opcode dispatch table
 
 The wrapper generates opcodes `10001..10009` in the Xtensa code section. The
-firmware presumably has a switch or table dispatch. Which opcodes produce the
-most DMA traffic? Are there opcodes that:
-- write to multiple descriptor-backed buffers in sequence
-- perform iterative computation with repeated output writes
-- read from one descriptor and write to another (copy-style operations)
+firmware presumably has a switch or table dispatch, but `.dram_op.data` is not
+that proof: it currently resolves as a 63-entry ANN op-name vocabulary table,
+with no raw-u32 or L32R code reference to the table. Keep Q2 centered on the
+byte-verified command parser path (`0x700301d8`/`0x70030a0c`) and nearby
+pointer/code tables. Open runtime questions:
+- which `10001..10009` opcodes produce the most DMA traffic?
+- are there opcodes that write to multiple descriptor-backed buffers in
+  sequence?
+- are there opcodes that perform iterative computation with repeated output
+  writes?
+- are there opcodes that read from one descriptor and write to another
+  (copy-style operations)?
 
 Any of these would increase the exploitable DMA window.
 
