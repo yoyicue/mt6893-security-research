@@ -222,19 +222,36 @@ public final class ApusysIoctlProbe {
         final int dataDescSize;
         final boolean includeDataDesc;
         final Integer codeSizeOverride;
+        final VpuDescriptorPlaneOverride descriptorPlaneOverride;
 
         XrpSettingsShape(String label, int outputSize, int dataDescSize,
                          boolean includeDataDesc) {
-            this(label, outputSize, dataDescSize, includeDataDesc, null);
+            this(label, outputSize, dataDescSize, includeDataDesc,
+                (Integer) null);
         }
 
         XrpSettingsShape(String label, int outputSize, int dataDescSize,
                          boolean includeDataDesc, Integer codeSizeOverride) {
+            this(label, outputSize, dataDescSize, includeDataDesc,
+                codeSizeOverride, null);
+        }
+
+        XrpSettingsShape(String label, int outputSize, int dataDescSize,
+                         boolean includeDataDesc,
+                         VpuDescriptorPlaneOverride descriptorPlaneOverride) {
+            this(label, outputSize, dataDescSize, includeDataDesc, null,
+                descriptorPlaneOverride);
+        }
+
+        XrpSettingsShape(String label, int outputSize, int dataDescSize,
+                         boolean includeDataDesc, Integer codeSizeOverride,
+                         VpuDescriptorPlaneOverride descriptorPlaneOverride) {
             this.label = label;
             this.outputSize = outputSize;
             this.dataDescSize = dataDescSize;
             this.includeDataDesc = includeDataDesc;
             this.codeSizeOverride = codeSizeOverride;
+            this.descriptorPlaneOverride = descriptorPlaneOverride;
         }
     }
 
@@ -257,6 +274,93 @@ public final class ApusysIoctlProbe {
         XrpDataEntryCase(String label, XrpDataDescEntry[] entries) {
             this.label = label;
             this.entries = entries;
+        }
+    }
+
+    private static final class VpuDescriptorPlaneOverride {
+        final Integer planeMvaOffset;
+        final Integer word20;
+        final Integer word24;
+        final Integer word28;
+        final Integer word34;
+        final Integer byte38;
+        final Integer byte39;
+        final Integer byte3a;
+        final Integer byte3b;
+
+        VpuDescriptorPlaneOverride(Integer planeMvaOffset,
+                                   Integer word20,
+                                   Integer word24,
+                                   Integer word28,
+                                   Integer word34,
+                                   Integer byte38,
+                                   Integer byte39,
+                                   Integer byte3a,
+                                   Integer byte3b) {
+            this.planeMvaOffset = planeMvaOffset;
+            this.word20 = word20;
+            this.word24 = word24;
+            this.word28 = word28;
+            this.word34 = word34;
+            this.byte38 = byte38;
+            this.byte39 = byte39;
+            this.byte3a = byte3a;
+            this.byte3b = byte3b;
+        }
+
+        String toLogString() {
+            String s = "";
+            if (planeMvaOffset != null) {
+                s += " mva_off=0x" + Integer.toHexString(planeMvaOffset);
+            }
+            if (word20 != null) {
+                s += " +20=0x" + Integer.toHexString(word20);
+            }
+            if (word24 != null) {
+                s += " +24=0x" + Integer.toHexString(word24);
+            }
+            if (word28 != null) {
+                s += " +28=0x" + Integer.toHexString(word28);
+            }
+            if (word34 != null) {
+                s += " +34=0x" + Integer.toHexString(word34);
+            }
+            if (byte38 != null) {
+                s += " +38=0x" + Integer.toHexString(byte38);
+            }
+            if (byte39 != null) {
+                s += " +39=0x" + Integer.toHexString(byte39);
+            }
+            if (byte3a != null) {
+                s += " +3a=0x" + Integer.toHexString(byte3a);
+            }
+            if (byte3b != null) {
+                s += " +3b=0x" + Integer.toHexString(byte3b);
+            }
+            return s.length() == 0 ? " defaults" : s;
+        }
+    }
+
+    private static final class VpuDescriptorPlaneCase {
+        final String label;
+        final Integer descriptorPayloadSize;
+        final Integer descriptorPlaneCount;
+        final Integer descriptorHeight;
+        final XrpSettingsShape settingsShape;
+        final XrpDataDescEntry[] dataDescEntries;
+
+        VpuDescriptorPlaneCase(String label,
+                               Integer descriptorPayloadSize,
+                               Integer descriptorPlaneCount,
+                               Integer descriptorHeight,
+                               XrpSettingsShape settingsShape,
+                               XrpDataDescEntry[] dataDescEntries) {
+            this.label = label;
+            this.descriptorPayloadSize = descriptorPayloadSize;
+            this.descriptorPlaneCount = descriptorPlaneCount;
+            this.descriptorHeight = descriptorHeight;
+            this.settingsShape = settingsShape;
+            this.dataDescEntries = dataDescEntries;
         }
     }
 
@@ -415,6 +519,8 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpTargetSettings5NoSettingsDataTargetMatrixIovaControl = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsDataPayloadMatrixIova = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsDataPayloadMatrixIovaControl = false;
+        boolean runCmdVpuXrpTargetSettings5NoSettingsDescriptorPlaneFuzzIova = false;
+        boolean runCmdVpuXrpTargetSettings5NoSettingsDescriptorPlaneFuzzIovaControl = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIova = false;
         boolean runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIovaControl = false;
         boolean runCmdVpuXrpCloseRaceIova = false;
@@ -645,6 +751,10 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpTargetSettings5NoSettingsDataPayloadMatrixIova = true;
             } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-data-payload-matrix-iova-control".equals(arg)) {
                 runCmdVpuXrpTargetSettings5NoSettingsDataPayloadMatrixIovaControl = true;
+            } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-descriptor-plane-fuzz-iova".equals(arg)) {
+                runCmdVpuXrpTargetSettings5NoSettingsDescriptorPlaneFuzzIova = true;
+            } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-descriptor-plane-fuzz-iova-control".equals(arg)) {
+                runCmdVpuXrpTargetSettings5NoSettingsDescriptorPlaneFuzzIovaControl = true;
             } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-cmd-copyback-diff-iova".equals(arg)) {
                 runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIova = true;
             } else if ("--run-cmd-vpu-xrp-target-settings5-no-settings-cmd-copyback-diff-iova-control".equals(arg)) {
@@ -818,6 +928,8 @@ public final class ApusysIoctlProbe {
                 || runCmdVpuXrpTargetSettings5NoSettingsDataTargetMatrixIovaControl
                 || runCmdVpuXrpTargetSettings5NoSettingsDataPayloadMatrixIova
                 || runCmdVpuXrpTargetSettings5NoSettingsDataPayloadMatrixIovaControl
+                || runCmdVpuXrpTargetSettings5NoSettingsDescriptorPlaneFuzzIova
+                || runCmdVpuXrpTargetSettings5NoSettingsDescriptorPlaneFuzzIovaControl
                 || runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIova
                 || runCmdVpuXrpTargetSettings5NoSettingsCmdCopybackDiffIovaControl
                 || runCmdVpuXrpCloseRaceIova
@@ -1384,6 +1496,16 @@ public final class ApusysIoctlProbe {
 
             if (runCmdVpuXrpTargetSettings5NoSettingsDataPayloadMatrixIovaControl) {
                 runRunCmdVpuXrpTargetSettings5NoSettingsDataPayloadMatrixProbe(
+                    fd, false);
+            }
+
+            if (runCmdVpuXrpTargetSettings5NoSettingsDescriptorPlaneFuzzIova) {
+                runRunCmdVpuXrpTargetSettings5NoSettingsDescriptorPlaneFuzzProbe(
+                    fd, true);
+            }
+
+            if (runCmdVpuXrpTargetSettings5NoSettingsDescriptorPlaneFuzzIovaControl) {
+                runRunCmdVpuXrpTargetSettings5NoSettingsDescriptorPlaneFuzzProbe(
                     fd, false);
             }
 
@@ -2646,6 +2768,11 @@ public final class ApusysIoctlProbe {
             if (dataDescEntriesOverride != null) {
                 System.out.println("[*] XRP data descriptor entries override: "
                     + dataDescEntriesText(dataDescEntriesOverride));
+            }
+            if (settingsShape.descriptorPlaneOverride != null) {
+                System.out.println("[*] Native descriptor plane relationship"
+                    + " override:"
+                    + settingsShape.descriptorPlaneOverride.toLogString());
             }
             if (fullCommandCopybackDiff) {
                 System.out.println("[*] Full command-buffer copyback diff:"
@@ -4207,6 +4334,144 @@ public final class ApusysIoctlProbe {
                 VPU_REQUEST_FLAGS_DEFAULT, false, XRP_OPCODE_XTENSA_ANN_VERSION,
                 null, null, null, null, null, null, null, null, wordBase,
                 null);
+        }
+    }
+
+    private static void runRunCmdVpuXrpTargetSettings5NoSettingsDescriptorPlaneFuzzProbe(
+            int apusysFd, boolean dispatch) throws Exception {
+        VpuDescriptorPlaneOverride planeValid =
+            new VpuDescriptorPlaneOverride(XRP_NZ_PLANE_PAYLOAD_OFF,
+                XRP_PLANE_PAYLOAD_SIZE, 0, XRP_PLANE_PAYLOAD_SIZE, 0,
+                1, 0, 0, 0);
+        VpuDescriptorPlaneOverride planeZeroSize =
+            new VpuDescriptorPlaneOverride(XRP_NZ_PLANE_PAYLOAD_OFF,
+                0, 0, 0, 0, 1, 0, 0, 0);
+        VpuDescriptorPlaneOverride planeOneByte =
+            new VpuDescriptorPlaneOverride(XRP_NZ_PLANE_PAYLOAD_OFF,
+                1, 0, 1, 0, 1, 0, 0, 0);
+        VpuDescriptorPlaneOverride planeTailExact =
+            new VpuDescriptorPlaneOverride(0x3f80, XRP_PLANE_PAYLOAD_SIZE,
+                0, XRP_PLANE_PAYLOAD_SIZE, 0, 1, 0, 0, 0);
+        VpuDescriptorPlaneOverride planeTailOverflow =
+            new VpuDescriptorPlaneOverride(0x3ff0, 0x20, 0, 0x20, 0,
+                1, 0, 0, 0);
+        VpuDescriptorPlaneOverride planeOnePast =
+            new VpuDescriptorPlaneOverride(0x4000, 4, 0, 4, 0,
+                1, 0, 0, 0);
+        VpuDescriptorPlaneOverride planeTailBytes =
+            new VpuDescriptorPlaneOverride(XRP_NZ_PLANE_PAYLOAD_OFF,
+                XRP_PLANE_PAYLOAD_SIZE, 1, XRP_PLANE_PAYLOAD_SIZE, 1,
+                0xff, 0xff, 0xff, 0xff);
+        VpuDescriptorPlaneOverride planeMismatchedWords =
+            new VpuDescriptorPlaneOverride(XRP_NZ_PLANE_PAYLOAD_OFF,
+                0x4000, 0x100, 0x4010, 0xffffffff, 2, 1, 0, 1);
+
+        XrpDataDescEntry[] payloadThenPlane = {
+            new XrpDataDescEntry(3, XRP_DATA_PAYLOAD_SIZE,
+                XRP_NZ_DATA_PAYLOAD_OFF),
+            new XrpDataDescEntry(3, XRP_PLANE_PAYLOAD_SIZE,
+                XRP_NZ_PLANE_PAYLOAD_OFF),
+        };
+        XrpDataDescEntry[] planeThenPayload = {
+            new XrpDataDescEntry(3, XRP_PLANE_PAYLOAD_SIZE,
+                XRP_NZ_PLANE_PAYLOAD_OFF),
+            new XrpDataDescEntry(3, XRP_DATA_PAYLOAD_SIZE,
+                XRP_NZ_DATA_PAYLOAD_OFF),
+        };
+
+        VpuDescriptorPlaneCase[] cases = {
+            new VpuDescriptorPlaneCase("baseline_default_tail",
+                null, null, null, XrpSettingsShape.WRAPPER_ONE_DATA, null),
+            new VpuDescriptorPlaneCase("plane_valid_tail",
+                XRP_PLANE_PAYLOAD_SIZE, 1, 1,
+                new XrpSettingsShape("plane_valid_tail",
+                    XRP_OUTPUT_SIZE_WRAPPER_DEFAULT, XRP_DATA_DESC_SIZE,
+                    true, planeValid), null),
+            new VpuDescriptorPlaneCase("plane_count0",
+                XRP_PLANE_PAYLOAD_SIZE, 0, 1,
+                new XrpSettingsShape("plane_count0",
+                    XRP_OUTPUT_SIZE_WRAPPER_DEFAULT, XRP_DATA_DESC_SIZE,
+                    true, planeValid), null),
+            new VpuDescriptorPlaneCase("plane_count2",
+                XRP_PLANE_PAYLOAD_SIZE, 2, 1,
+                new XrpSettingsShape("plane_count2",
+                    XRP_OUTPUT_SIZE_WRAPPER_DEFAULT, XRP_DATA_DESC_SIZE,
+                    true, planeValid), null),
+            new VpuDescriptorPlaneCase("plane_countff",
+                XRP_PLANE_PAYLOAD_SIZE, 0xff, 1,
+                new XrpSettingsShape("plane_countff",
+                    XRP_OUTPUT_SIZE_WRAPPER_DEFAULT, XRP_DATA_DESC_SIZE,
+                    true, planeValid), null),
+            new VpuDescriptorPlaneCase("plane_size0",
+                0, 1, 1,
+                new XrpSettingsShape("plane_size0",
+                    XRP_OUTPUT_SIZE_WRAPPER_DEFAULT, XRP_DATA_DESC_SIZE,
+                    true, planeZeroSize), null),
+            new VpuDescriptorPlaneCase("plane_size1",
+                1, 1, 1,
+                new XrpSettingsShape("plane_size1",
+                    XRP_OUTPUT_SIZE_WRAPPER_DEFAULT, XRP_DATA_DESC_SIZE,
+                    true, planeOneByte), null),
+            new VpuDescriptorPlaneCase("plane_tail_exact",
+                XRP_PLANE_PAYLOAD_SIZE, 1, 1,
+                new XrpSettingsShape("plane_tail_exact",
+                    XRP_OUTPUT_SIZE_WRAPPER_DEFAULT, XRP_DATA_DESC_SIZE,
+                    true, planeTailExact), null),
+            new VpuDescriptorPlaneCase("plane_tail_overflow",
+                0x20, 1, 1,
+                new XrpSettingsShape("plane_tail_overflow",
+                    XRP_OUTPUT_SIZE_WRAPPER_DEFAULT, XRP_DATA_DESC_SIZE,
+                    true, planeTailOverflow), null),
+            new VpuDescriptorPlaneCase("plane_one_past",
+                4, 1, 1,
+                new XrpSettingsShape("plane_one_past",
+                    XRP_OUTPUT_SIZE_WRAPPER_DEFAULT, XRP_DATA_DESC_SIZE,
+                    true, planeOnePast), null),
+            new VpuDescriptorPlaneCase("tail_bytes_ff",
+                XRP_PLANE_PAYLOAD_SIZE, 1, 1,
+                new XrpSettingsShape("tail_bytes_ff",
+                    XRP_OUTPUT_SIZE_WRAPPER_DEFAULT, XRP_DATA_DESC_SIZE,
+                    true, planeTailBytes), null),
+            new VpuDescriptorPlaneCase("tail_word_mismatch",
+                XRP_PLANE_PAYLOAD_SIZE, 1, 1,
+                new XrpSettingsShape("tail_word_mismatch",
+                    XRP_OUTPUT_SIZE_WRAPPER_DEFAULT, XRP_DATA_DESC_SIZE,
+                    true, planeMismatchedWords), null),
+            new VpuDescriptorPlaneCase("data_desc_size0_nonnull",
+                XRP_PLANE_PAYLOAD_SIZE, 1, 1,
+                new XrpSettingsShape("data_desc_size0_nonnull",
+                    XRP_OUTPUT_SIZE_WRAPPER_DEFAULT, 0, true, planeValid),
+                null),
+            new VpuDescriptorPlaneCase("data_desc_size18_payload_then_plane",
+                XRP_PLANE_PAYLOAD_SIZE, 1, 1,
+                new XrpSettingsShape("data_desc_size18_payload_then_plane",
+                    XRP_OUTPUT_SIZE_WRAPPER_DEFAULT, 0x18, true, planeValid),
+                payloadThenPlane),
+            new VpuDescriptorPlaneCase("data_desc_size18_plane_then_payload",
+                XRP_PLANE_PAYLOAD_SIZE, 1, 1,
+                new XrpSettingsShape("data_desc_size18_plane_then_payload",
+                    XRP_OUTPUT_SIZE_WRAPPER_DEFAULT, 0x18, true, planeValid),
+                planeThenPayload),
+            new VpuDescriptorPlaneCase("data_desc_size80_tail_bytes",
+                XRP_PLANE_PAYLOAD_SIZE, 1, 1,
+                new XrpSettingsShape("data_desc_size80_tail_bytes",
+                    XRP_OUTPUT_SIZE_WRAPPER_DEFAULT, 0x80, true,
+                    planeTailBytes), payloadThenPlane),
+        };
+
+        for (VpuDescriptorPlaneCase planeCase : cases) {
+            System.out.println("\n[*] === target-settings5/no-settings"
+                + " descriptor-plane case " + planeCase.label
+                + " dispatch=" + (dispatch ? 1 : 0) + " ===");
+            runRunCmdVpuIovaHardwareBufferProbe(apusysFd, dispatch, true, true,
+                XRP_OP_ANN_VERSION, 1000, true, VPU_DESC_LIBVPU_SETTINGS5,
+                XRP_CMD_FLAGS_SEND, VPU_DESC_ORDER_CODE_OUTPUT,
+                XRP_SETTINGS_LEN_WRAPPER, XRP_OUTPUT_HEADER_FLAG_DEFAULT,
+                planeCase.settingsShape, dispatch, VPU_REQUEST_FLAGS_DEFAULT,
+                false, XRP_OPCODE_XTENSA_ANN_VERSION,
+                planeCase.descriptorPayloadSize, null, null, null, null,
+                planeCase.descriptorPlaneCount, planeCase.descriptorHeight,
+                null, null, planeCase.dataDescEntries);
         }
     }
 
@@ -7120,6 +7385,10 @@ public final class ApusysIoctlProbe {
         int codePayloadSize = xrpOp.hasCode() ? XRP_CODE_OP_SIZE : settingsLen;
         int codeDescriptorPayloadSize = descriptorPayloadSizeOverride != null
             ? descriptorPayloadSizeOverride : codePayloadSize;
+        int settingsDescriptorPayloadSize = descriptorPayloadSizeOverride != null
+            ? descriptorPayloadSizeOverride : settingsLen;
+        VpuDescriptorPlaneOverride descriptorPlaneOverride =
+            settingsShape.descriptorPlaneOverride;
         int outputPayloadOff = xrpOutputOff(xrpOp);
         int dataDescPayloadOff = xrpDataDescOff(xrpOp);
         int buf0PayloadOff = twoVpuBuffers ? XRP_CODE_OFF : planePayloadOff;
@@ -7146,10 +7415,10 @@ public final class ApusysIoctlProbe {
         if (descriptorMode == VPU_DESC_LIBVPU_SETTINGS5) {
             for (int i = 0; i < 5; i++) {
                 putVpuBufferDescriptor(buffer, reqBase + 0x50 + (i * 0x40),
-                    iovaAddr, XRP_SETTINGS_OFF, settingsLen,
+                    iovaAddr, XRP_SETTINGS_OFF, settingsDescriptorPayloadSize,
                     descriptorMode, descriptorPortIdOverride,
                     descriptorFormatOverride, descriptorPlaneCountOverride,
-                    descriptorHeightOverride);
+                    descriptorHeightOverride, descriptorPlaneOverride);
             }
         } else if (descriptorMode == VPU_DESC_LIBVPU_CODE5) {
             for (int i = 0; i < 5; i++) {
@@ -7157,7 +7426,7 @@ public final class ApusysIoctlProbe {
                     iovaAddr, XRP_CODE_OFF, codeDescriptorPayloadSize,
                     descriptorMode, descriptorPortIdOverride,
                     descriptorFormatOverride, descriptorPlaneCountOverride,
-                    descriptorHeightOverride);
+                    descriptorHeightOverride, descriptorPlaneOverride);
             }
         } else if (descriptorMode == VPU_DESC_LIBVPU_MIXED5
                 || descriptorMode == VPU_DESC_LIBVPU_MIXED5_OUTPUT_FIRST) {
@@ -7199,13 +7468,14 @@ public final class ApusysIoctlProbe {
                     iovaAddr, payloadOffs[i], payloadSizes[i],
                     descriptorMode, descriptorPortIdOverride,
                     descriptorFormatOverride, descriptorPlaneCountOverride,
-                    descriptorHeightOverride);
+                    descriptorHeightOverride, descriptorPlaneOverride);
             }
         } else {
             putVpuBufferDescriptor(buffer, reqBase + 0x50, iovaAddr,
                 buf0PayloadOff, buf0PayloadSize, descriptorMode,
                 descriptorPortIdOverride, descriptorFormatOverride,
-                descriptorPlaneCountOverride, descriptorHeightOverride);
+                descriptorPlaneCountOverride, descriptorHeightOverride,
+                descriptorPlaneOverride);
         }
 
         if (twoVpuBuffers && !vpuDescriptorModeHasExplicitFiveLayout(
@@ -7213,26 +7483,35 @@ public final class ApusysIoctlProbe {
             putVpuBufferDescriptor(buffer, reqBase + 0x90, iovaAddr,
                 buf1PayloadOff, buf1PayloadSize, descriptorMode,
                 descriptorPortIdOverride, descriptorFormatOverride,
-                descriptorPlaneCountOverride, descriptorHeightOverride);
+                descriptorPlaneCountOverride, descriptorHeightOverride,
+                descriptorPlaneOverride);
         }
 
         if (descriptorMode == VPU_DESC_LIBVPU_ALIAS5) {
             putVpuBufferDescriptor(buffer, reqBase + 0xd0, iovaAddr,
                 legacyBuf0PayloadOff, legacyBuf0PayloadSize, descriptorMode,
                 descriptorPortIdOverride, descriptorFormatOverride,
-                descriptorPlaneCountOverride, descriptorHeightOverride);
+                descriptorPlaneCountOverride, descriptorHeightOverride,
+                descriptorPlaneOverride);
             putVpuBufferDescriptor(buffer, reqBase + 0x110, iovaAddr,
                 outputPayloadOff, XRP_OUTPUT_SIZE, descriptorMode,
                 descriptorPortIdOverride, descriptorFormatOverride,
-                descriptorPlaneCountOverride, descriptorHeightOverride);
+                descriptorPlaneCountOverride, descriptorHeightOverride,
+                descriptorPlaneOverride);
             putVpuBufferDescriptor(buffer, reqBase + 0x150, iovaAddr,
                 legacyBuf0PayloadOff, legacyBuf0PayloadSize, descriptorMode,
                 descriptorPortIdOverride, descriptorFormatOverride,
-                descriptorPlaneCountOverride, descriptorHeightOverride);
+                descriptorPlaneCountOverride, descriptorHeightOverride,
+                descriptorPlaneOverride);
         }
 
         int loggedPlane0PayloadOff = firstVpuDescriptorPayloadOff(
             descriptorMode, descriptorOrder, buf0PayloadOff, outputPayloadOff);
+        if (descriptorPlaneOverride != null
+                && descriptorPlaneOverride.planeMvaOffset != null) {
+            loggedPlane0PayloadOff =
+                descriptorPlaneOverride.planeMvaOffset.intValue();
+        }
         image.setTimestamp(System.nanoTime());
         System.out.println("[+] input run_cmd " + label + " payload:"
             + " magic=0x3d2070ece309c231 version=1 num_sc=1"
@@ -7287,6 +7566,9 @@ public final class ApusysIoctlProbe {
             + (descriptorHeightOverride != null
                 ? " descriptor_height_override=0x"
                 + Integer.toHexString(descriptorHeightOverride) : "")
+            + (descriptorPlaneOverride != null
+                ? " descriptor_plane_override="
+                + descriptorPlaneOverride.toLogString() : "")
             + " descriptor_order=" + vpuDescriptorOrderName(descriptorOrder)
             + " xrp_opcode=" + xrpOp.opcode
             + " xrp_name=" + xrpOp.name
@@ -7404,7 +7686,8 @@ public final class ApusysIoctlProbe {
                                                Integer descriptorPortIdOverride,
                                                Integer descriptorFormatOverride,
                                                Integer descriptorPlaneCountOverride,
-                                               Integer descriptorHeightOverride) {
+                                               Integer descriptorHeightOverride,
+                                               VpuDescriptorPlaneOverride descriptorPlaneOverride) {
         boolean libvpuShape = descriptorMode != VPU_DESC_MINIMAL;
         int portId = descriptorPortIdOverride != null
             ? descriptorPortIdOverride : (libvpuShape ? 1 : 0);
@@ -7422,6 +7705,46 @@ public final class ApusysIoctlProbe {
         putU32LE(buffer, off + 0x10, libvpuShape ? payloadSize : 0);
         putU32LE(buffer, off + 0x14, payloadSize);            // length
         putU64LE(buffer, off + 0x18, iovaLow32(baseIova, payloadOff));
+        if (descriptorPlaneOverride == null) {
+            return;
+        }
+        if (descriptorPlaneOverride.planeMvaOffset != null) {
+            putU64LE(buffer, off + 0x18,
+                iovaLow32(baseIova,
+                    descriptorPlaneOverride.planeMvaOffset.intValue()));
+        }
+        if (descriptorPlaneOverride.word20 != null) {
+            putU32LE(buffer, off + 0x20,
+                descriptorPlaneOverride.word20.intValue());
+        }
+        if (descriptorPlaneOverride.word24 != null) {
+            putU32LE(buffer, off + 0x24,
+                descriptorPlaneOverride.word24.intValue());
+        }
+        if (descriptorPlaneOverride.word28 != null) {
+            putU32LE(buffer, off + 0x28,
+                descriptorPlaneOverride.word28.intValue());
+        }
+        if (descriptorPlaneOverride.word34 != null) {
+            putU32LE(buffer, off + 0x34,
+                descriptorPlaneOverride.word34.intValue());
+        }
+        if (descriptorPlaneOverride.byte38 != null) {
+            buffer.put(off + 0x38,
+                (byte) (descriptorPlaneOverride.byte38.intValue() & 0xff));
+        }
+        if (descriptorPlaneOverride.byte39 != null) {
+            buffer.put(off + 0x39,
+                (byte) (descriptorPlaneOverride.byte39.intValue() & 0xff));
+        }
+        if (descriptorPlaneOverride.byte3a != null) {
+            buffer.put(off + 0x3a,
+                (byte) (descriptorPlaneOverride.byte3a.intValue() & 0xff));
+        }
+        if (descriptorPlaneOverride.byte3b != null) {
+            buffer.put(off + 0x3b,
+                (byte) (descriptorPlaneOverride.byte3b.intValue() & 0xff));
+        }
     }
 
     private static void fillXrpSettingsBuffer(java.nio.ByteBuffer buffer,

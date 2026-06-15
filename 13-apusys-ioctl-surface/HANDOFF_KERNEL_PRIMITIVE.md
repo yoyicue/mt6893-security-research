@@ -31,7 +31,11 @@ trigger:
 Current negative primitive evidence:
 
 - completed output does not reflect tested input data payload patterns
-- data/plane payload windows are preserved in data-entry/data-target matrices
+- data/plane payload windows are preserved in data-entry/data-target matrices;
+  the descriptor-plane relationship fuzz can redirect one firmware-visible
+  status/data write into an imported plane window, but it stays inside the
+  caller-imported IOVA and has not crossed into a replacement buffer or kernel
+  copyback primitive
 - descriptor-slot writebacks are firmware/provider-decided status words, not an
   arbitrary write primitive
 - IOMMU limits VPU DMA targets to mapped/imported buffers
@@ -57,6 +61,45 @@ For the current experiment backlog and controllable surfaces, use
 `CONTROLLED_OPPORTUNITIES.md`. It keeps the actionable controls separate from
 the longer evidence narrative here.
 
+## Current APUSYS risk ranking
+
+As of the 2026-06-15 descriptor-plane fuzz and allocator-reuse runs, the risk
+order is:
+
+| Rank | Risk shape | Current assessment | Why it ranks here |
+|---|---|---|---|
+| 1 | In-flight `mem_free(shared_iova)` + exact IOVA reuse + replacement buffer | Highest current APUSYS opportunity, but not closed as a primitive | This is the only demonstrated path that can plausibly cross from APUNN firmware writeback into a different user-controlled buffer: submit a command, free the imported IOVA while it is still referenced, then reclaim the exact IOVA with a replacement HardwareBuffer. Current evidence shows allocator exact-reuse opportunities, but no observed APUNN completion write into the replacement yet. |
+| 2 | Descriptor-plane relationship write redirect | Strong firmware-control lead; not yet a kernel/user boundary bridge | Runtime fuzz of descriptor `+0x20/+0x24/+0x28/+0x34/+0x38..+0x3b` can redirect a firmware-visible write into the imported plane window, changing `PLN0 -> PLN1`. The write is still confined to the caller-imported IOVA; boundary cases `0x3f80/0x3ff0/0x4000` did not produce a cross-buffer write. |
+| 3 | Timeout / abort / close / explicit-free lifetime races | Medium risk, currently negative without reuse | `run_cmd_async` followed by fd close or explicit `mem_free` can leave residual in-flight commands and exercise provider teardown. Tested close-delay, timeout, and mem-free windows show normal timeout/EIO cleanup, no panic/Oops/BUG/KASAN, and no stale pointer copyback. This becomes more interesting only when combined with exact reuse or descriptor-plane writes. |
+| 4 | `dev_ctrl` + in-flight command reset/control race | Medium-low after control matrix | Static analysis shows `dev_ctrl` reaches VPU control/reset-like paths, and runtime can issue it during completed and timeout commands. Tested controls `0/1/2/3/0xff` did not widen copyback, create reset-level corruption, or crash the kernel. |
+| 5 | Completed command-buffer copyback leak | Low | Full `0xb70` copyback diffs expose scalar provider/tail state only, including `request+0xb60` and preload slot state. No kernel pointer, slab address, imported-buffer IOVA, or pointer-shaped value has been observed. |
+| 6 | APUNN output / source-sensitive leak | Low for current synthetic shapes | `settings+0x08` bounds output, tested data payload patterns do not flow into output, and completed output looks deterministic/provider-generated. This should only move up if real wrapper/provider bindings produce source-sensitive output or broader copyback fields. |
+
+Practical priority: keep rank 1 as the main kernel-primitive path, with rank 2
+as the strongest way to add a firmware-controlled write target. Single-track
+APUNN parser fuzzing is lower value unless it produces source-sensitive output,
+replacement-buffer writeback, stable exact reuse, or sensitive copyback.
+
+### Rank 1 uncertainty
+
+The open question for `mem_free(shared_iova)` + exact reuse + replacement is
+not whether the individual ioctls are reachable. The uncertainty is whether the
+following conditions can overlap in one run:
+
+| Condition | Current evidence | Remaining uncertainty |
+|---|---|---|
+| Firmware/provider writes after `mem_free` | Explicit `mem_free` during in-flight commands is reachable from `system_app`; timeout cases return clean `-EIO` and completed cases usually finish normally | Completed APUNN writeback is often faster than the Java-layer `mem_free` round trip, so the shared IOVA may already be written before it is freed |
+| The in-flight command still uses the old IOVA reference | The VPU request and APUNN settings/descriptors carry shared IOVA values copied before `mem_free` | It is not proven that a post-free firmware/provider write still happens after the memory object is removed from the APUSYS user mem list |
+| Allocator returns the exact freed IOVA to a replacement import | Gap profiling and replacement-pressure runs show exact reuse opportunities, including broader 64K cases and targeted gap cases | Exact reuse is probabilistic and replacement index is dispersed; current runs do not provide a reliable one-shot replacement selection |
+| Replacement buffer receives APUNN completion data | Replacement imports can be placed at target or nearby IOVAs and dumped after wait | No replacement buffer has shown settings `0x7`, output fill, data-desc cleanup, or marker corruption after an exact-hit run |
+| Descriptor-plane write can be combined with replacement reuse | Descriptor-plane fuzz can redirect a firmware-visible write into the imported plane window (`PLN0 -> PLN1`) | The redirect is currently confined to the original imported IOVA; it is untested as a post-free write into an exact-reused replacement |
+| IOMMU/driver cleanup does not block the cross-buffer write | Kernel logs show controlled VPU IOMMU read faults and clean timeout/EIO behavior, with no panic/Oops/BUG/KASAN | The IOMMU or driver teardown may invalidate the old mapping before firmware writes, turning the race into a contained fault instead of replacement-buffer corruption |
+
+So rank 1 remains the best opportunity because it is the only path with a
+plausible cross-buffer boundary. It is not a demonstrated primitive yet:
+allocator reuse, post-free write timing, and replacement-buffer mutation have
+not been observed in the same execution.
+
 ## Kernel primitive triage
 
 The direct ioctl work is past reachability. Current risk is concentrated in
@@ -68,7 +111,7 @@ step.
 |---|---|---|
 | Firmware interaction | Keep as a stable trigger, not the primary primitive | `settings5/no-settings` completes from `system_app`, with exact `0xb70` VPU request size, five native descriptors, settings `0x5 -> 0x7`, output write, and standard data descriptor cleanup |
 | Completed command-buffer copyback leak | De-prioritize | Full `0xb70` before/after diff changes only scalar tail state (`request+0xb60`, and preload-slot `request+0xb68 = 1`); no kernel pointer, slab address, imported-buffer IOVA, or pointer-shaped copyback |
-| Completed output/writeback leak | De-prioritize for synthetic payloads | Output is bounded by `settings+0x08`; tested data payload patterns and data/plane target windows do not flow into output; descriptor-slot deltas behave like provider status words |
+| Completed output/writeback leak | De-prioritize for synthetic payloads; keep descriptor-plane write as a controlled firmware primitive lead | Output is bounded by `settings+0x08`; tested payload bytes do not flow into output. Descriptor-plane fuzz can change the first dword of the imported plane window, but current boundary cases do not cross the imported IOVA or produce kernel copyback |
 | Timeout/abort lifetime | De-prioritize for current close windows | fd close after async dispatch reliably reaches residual command teardown, including timeout shapes, but the `0/10/50/100/500/1000 ms` close-delay matrix shows only normal scalar copyback and expected timeout teardown; no oops/KASAN/panic or stale object copyback |
 | Provider control race (`dev_ctrl`) | De-prioritize after control matrix | IDA shows `arg+8` reaches `vpu_send_cmd_op0` and the VPU power/control path; runtime matrix over controls `0/1/2/3/0xff` during completed and timeout commands returns cleanly with the same completion/timeout copyback as baseline |
 | Service-wrapper path | Supportive, not a blocker for kernel primitive triage | Direct ioctl already reproduces the wrapper-shaped completed request. A positive wrapper dump is useful for real NN binding semantics, but not required to classify completed-path copyback or the first teardown race |
@@ -111,6 +154,7 @@ fields not listed here are not proven firmware semantics yet.
 | Native VPU request | `request+0x50 + i*0x40` `struct vpu_buffer[]` | Firmware-visible copied descriptor array through `INFO13`. In incomplete shapes, descriptor slot `0` determines the visible status/writeback target. The completed target shape points all five descriptors at the same DSP command/settings buffer. |
 | Native descriptor | `port_id`, `format`, `plane_count`, `height` | Accepted metadata in the tested matrices, not hard role or completion gates for the current oracle. |
 | Native descriptor | plane MVA/IOVA | Actual firmware-accessible target window. Descriptor-slot ordering, not the settings output pointer, explains the earlier code/output/plane first-word writebacks. |
+| Native descriptor | `+0x20/+0x24/+0x28/+0x34/+0x38..+0x3b` relationship fields | Runtime descriptor-plane fuzz confirms these fields affect parser/completion behavior. Valid-looking plane redirects and metadata variants write the first dword of the imported plane window then end in timeout/EIO; tail/end-of-IOVA shapes return success without observed plane/output mutation. |
 | DSP settings buffer | `settings+0x00` flags | Completion state. The completed replay changes `0x5 -> 0x7`, satisfying the host predicate `(flags & 0x0a) == 0x02`; pre-seeding flags alone does not trigger completion. |
 | DSP settings buffer | `settings+0x04` code size | Real APUNN code-section acceptance gate. Sizes `0/4/8/0xc/0x10` fail; `0x11` is the smallest tested completed size. |
 | DSP settings buffer | `settings+0x08` output size | Maximum output-fill bound. Larger values allow longer completion-style output fill; small values leave initialized output-header words intact. |
@@ -118,7 +162,7 @@ fields not listed here are not proven firmware semantics yet.
 | Xtensa code section | operation entry fields | Wrapper debug/static evidence maps stride at code `+0x04`, opcode at entry `+0x00`, operand-list offset at `+0x08`, input/output counts at `+0x0c/+0x10`, and operand ids at `entry+0x48+operand_off`. Runtime confirms these fields are accepted by the completed parser. |
 | Xtensa code section | opcodes `10001..10009` | In the completed settings-backed shape, all tested opcodes complete. `10004` fills output through `0x3c`; the others fill through `0x40`. The earlier `10005..10007` timeout/error class was descriptor-target dependent, not the completed opcode contract. |
 | Xtensa code section | operand ids / operand offsets / op counts | Accepted metadata under the current oracle. Tested operand ids `0/1/2/3/0xffff`, offsets `0/0x10/0x40/0x100/0x17e/0x180`, and count tuples all complete; offset `0x180` is just outside the advertised `0x1c8` operation entry and is not a visible bounds gate here. |
-| Output/data windows | output fill and data payloads | Output currently looks like deterministic completion data with tail variability. Tested data payload patterns and target windows are preserved and do not produce source-sensitive output. |
+| Output/data windows | output fill and data payloads | Output currently looks like deterministic completion data with tail variability. Tested data payload patterns do not produce source-sensitive output. Descriptor-plane fuzz can mutate the first dword of the imported plane window, but this is still inside the same imported IOVA and has not become a cross-buffer write. |
 | Command copyback | `request+0x34`, `+0xb60`, `+0xb68`, `+0xb6c` | Provider/kernel completion state copied back by midware. Current completed diffs expose scalar status/timing/slot-like words only, not kernel pointers or imported-buffer IOVAs. |
 
 Further firmware reconstruction is still required for the exact internal
@@ -132,6 +176,49 @@ bounded output, settings state, descriptor-following status words, and APUSYS
 request tail state. More opcode/operand matrices are useful only if they create
 source-sensitive output, change host copyback contents, or alter async command
 lifetime.
+
+## Descriptor-plane relationship fuzz
+
+Implemented in `ApusysIoctlProbe.java` as:
+
+```
+--run-cmd-vpu-xrp-target-settings5-no-settings-descriptor-plane-fuzz-iova
+--run-cmd-vpu-xrp-target-settings5-no-settings-descriptor-plane-fuzz-iova-control
+```
+
+This mode writes the native descriptor fields used by the `0x7003ce3c`
+APUNN owner lead: base fields plus descriptor `+0x20/+0x24/+0x28/+0x34` and
+bytes `+0x38..+0x3b`. The control run confirms the fields are placed into all
+five emitted `settings5/no-settings` native descriptors.
+
+Observed from `system_app` on 2026-06-15:
+
+```
+control=poc-run-results/2026-06-15-batch/13_apusys_target_settings5_descriptor_plane_fuzz_control.txt
+control_kernel=poc-run-results/2026-06-15-batch/13_apusys_target_settings5_descriptor_plane_fuzz_control_kernel.txt
+dispatch=poc-run-results/2026-06-15-batch/13_apusys_target_settings5_descriptor_plane_fuzz_dispatch.txt
+dispatch_kernel=poc-run-results/2026-06-15-batch/13_apusys_target_settings5_descriptor_plane_fuzz_dispatch_kernel.txt
+```
+
+Runtime classes:
+
+| Class | Cases | Result | Primitive interpretation |
+|---|---|---|---|
+| Baseline default tail | `baseline_default_tail` | `run_async=0`, `wait=0` in 33 ms; settings `0x5 -> 0x7`; output fill; plane payload unchanged | Stable completed trigger remains intact |
+| Descriptor plane redirect | `plane_valid_tail`, `plane_count0/2/ff`, `plane_size0/1`, `tail_bytes_ff`, `tail_word_mismatch`, `data_desc_size0_nonnull`, `data_desc_size18_*`, `data_desc_size80_tail_bytes` | `run_async=0`, `wait=-EIO` after roughly 9.1 s; request status `0x2`; plane payload first dword changes `0x504c4e30 -> 0x504c4e31`; output remains at initialized header values | Confirms a firmware-visible write target controlled by native descriptor plane fields, but the write is confined to the imported IOVA and currently ends as timeout/EIO |
+| IOVA boundary targets | `plane_tail_exact` (`mva_off=0x3f80,size=0x80`), `plane_tail_overflow` (`0x3ff0,0x20`), `plane_one_past` (`0x4000,0x4`) | `run_async=0`, `wait=0` in 1-13 ms; no output fill and no plane-payload mutation | Boundary-shaped descriptors are accepted/suppressed by the tested path rather than giving an immediate out-of-bounds write primitive |
+
+Kernel log for the dispatch run shows repeated VPU `D2D_EXT` timeouts and
+`mdw_wait_cmd` failures for the EIO class, plus contained VPU IOMMU read faults
+at `fault_iova=0x3504c4000`. There was no panic, Oops, BUG, KASAN report, or
+device crash. This makes descriptor-plane fuzz a useful firmware-control lead,
+but not yet a kernel/user boundary bridge.
+
+Next useful narrowing, if this track is reopened, is not broader field fuzzing.
+Focus on whether the single observed plane-window write can be combined with
+exact IOVA reuse or a descriptor sequence that completes normally after writing
+to a replacement import. Without replacement reuse or kernel copyback, this is
+still an imported-buffer-only effect.
 
 ## Firmware image acquisition status
 
