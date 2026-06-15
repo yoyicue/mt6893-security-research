@@ -129,11 +129,72 @@ Gap-control follow-up:
 64K p12/r12 first:  exact_target=1/480,  first_exact_hist=[7:1]
 ```
 
+Pair-selection follow-up:
+
+```text
+--apusys-iova-gap-pair-selection-profiler
+4K p16/r16 first:   exact_target=2/1024, first_exact_hist=[7:1,15:1]
+4K p16/r16 lowest:  exact_target=0/864
+4K p16/r16 highest: exact_target=0/560
+4K p16/r16 upper:   adjacent_found=0/120
+4K p16/r16 longest: exact_target=1/416, first_exact_hist=[4:1]
+```
+
+Pool/replacement pressure follow-up:
+
+```text
+--apusys-iova-gap-pressure-profiler
+4K p8/r24 first:    exact_target=0/264
+4K p10/r22 first:   exact_target=0/308
+4K p12/r20 first:   exact_target=0/160
+4K p14/r18 first:   exact_target=1/378, first_exact_hist=[6:1]
+4K p16/r16 first:   exact_target=0/256
+4K p20/r12 first:   exact_target=1/444, first_exact_hist=[11:1]
+64K p12/r12 first:  exact_target=3/936, first_exact_hist=[5:1,7:1,10:1]
+64K p16/r8 first:   exact_target=4/640, first_exact_hist=[0:1,1:1,4:1,7:1]
+```
+
+Replacement-source follow-up:
+
+```text
+--apusys-iova-gap-source-profiler
+4K p16/r16 precreated: exact_target=0/144
+4K p16/r16 fresh:      exact_target=0/240
+4K p16/r15 guard:      exact_target=0/225
+64K p16/r8 precreated: exact_target=1/608, first_exact_hist=[6:1]
+64K p16/r8 fresh:      exact_target=0/544
+64K p16/r8 guard:      exact_target=1/480, first_exact_hist=[5:1]
+```
+
+Free-neighborhood follow-up:
+
+```text
+--apusys-iova-gap-free-neighborhood-profiler
+64K p16/r8 target, lower:              exact_target=1/584
+64K p16/r8 target, lower, lower-2:     exact_target=1/112, first_exact_hist=[3:1]
+64K p16/r8 upper, target, lower:       exact_target=0/24
+64K p16/r8 target, unrelated, lower:   exact_target=1/400, first_exact_hist=[6:1]
+64K p16/r8 target, lower, guard import: exact_target=0/344
+```
+
 First exact replacement indexes observed so far:
 
 ```text
-4, 7, 9, 10, 12, 16, 18
+0, 1, 3, 4, 5, 6, 7, 9, 10, 11, 12, 15, 16, 18
 ```
+
+Current allocator decision: `first` remains the baseline target-selection mode.
+`lowest`, `highest`, and `upper-neighbor-required` do not improve exact reuse in
+the current 4K `p16/r16` profile. `longest local run` produced one exact hit,
+but with low adjacent-pair yield, so it is not a new baseline. 4K pressure
+changes did not improve control. 64K pressure is the strongest current
+allocator-only signal, especially `p16/r8`, but exact-hit indexes are still
+broad and below the firmware re-entry threshold. Fresh replacement allocation
+and guard-before-replacement import do not improve the 4K or 64K profiles in
+the current run. The only free-neighborhood shape worth carrying forward is
+64K `target, lower, lower-2`; it has the highest current usable-pair score
+(`1/14 = 7.14%`) but too little adjacent yield and too little hit count to
+justify firmware re-entry.
 
 Firmware-coupled status:
 
@@ -301,10 +362,10 @@ Keep `target_then_lower` as the primary free order.
 | Target mode | Status | Next action |
 |---|---|---|
 | first adjacent pair | Best current mode | Keep as baseline |
-| lowest adjacent target | Not measured | Implement and compare |
-| highest adjacent target | `0/576` in one run | De-prioritize unless other variables change |
-| pair with upper neighbor also present | Not measured | Add scanner for upper neighbor |
-| longest contiguous run around target | Not measured | Add scanner for local run length |
+| lowest adjacent target | Measured negative: `0/864` | Discard for current 4K `p16/r16` profile |
+| highest adjacent target | Measured negative twice: `0/576`, `0/560` | De-prioritize unless other variables change |
+| pair with upper neighbor also present | No usable pairs in first pass: `adjacent_found=0/120` | Revisit only with different pool pressure |
+| longest contiguous run around target | One exact hit: `1/416`, but low adjacent yield | Do not promote to baseline yet |
 
 ### 2. Pool And Replacement Pressure
 
@@ -313,14 +374,14 @@ current scratch descriptor capacity unless the probe is extended.
 
 | Size | Pool | Replacements | Reason |
 |---:|---:|---:|---|
-| 4K | 8 | 24 | More replacement walk depth |
-| 4K | 10 | 22 | Between current `p12/r20` and deeper replacement pressure |
-| 4K | 12 | 20 | Current best raw exact total |
-| 4K | 14 | 18 | Balance pair formation and replacement depth |
-| 4K | 16 | 16 | Current stable baseline |
-| 4K | 20 | 12 | Current lower-rate comparison |
-| 64K | 12 | 12 | Current 64K baseline |
-| 64K | 16 | 8 | Compare to earlier 64K shape |
+| 4K | 8 | 24 | Measured negative: `0/264` |
+| 4K | 10 | 22 | Measured negative: `0/308` |
+| 4K | 12 | 20 | Measured negative in pressure run: `0/160` |
+| 4K | 14 | 18 | One hit, low yield: `1/378` |
+| 4K | 16 | 16 | Measured negative in pressure run: `0/256` |
+| 4K | 20 | 12 | One hit, below baseline: `1/444` |
+| 64K | 12 | 12 | Keep as 64K baseline: `3/936` |
+| 64K | 16 | 8 | Best current pressure score: `4/640` |
 
 The first pass should target at least 100 usable adjacent pairs per case when
 the device remains stable.
@@ -329,24 +390,27 @@ the device remains stable.
 
 | Source | Question |
 |---|---|
-| pre-created replacements | Current baseline; removes Java allocation overhead from post-free window |
-| fresh replacements after free | Tests whether HardwareBuffer allocation itself changes IOVA reuse |
-| mixed guard plus replacement imports | Tests whether unrelated same-size imports steer the replacement index |
+| pre-created replacements | Current baseline; strongest 64K signal came from pressure run, not source run |
+| fresh replacements after free | Measured negative: 4K `0/240`, 64K `0/544` |
+| mixed guard plus replacement imports | Measured negative for improvement: 4K `0/225`, 64K `1/480` |
 
-Fresh replacement tests should be allocator-only first. Do not combine them with
-firmware until exact-hit concentration improves.
+Source variants do not justify firmware re-entry. Keep pre-created replacements
+as the baseline unless a later free-neighborhood shape changes the allocator
+profile.
 
 ### 4. Free Neighborhood
 
 | Free shape | Purpose |
 |---|---|
-| target, lower | Baseline positive |
-| target, lower, lower-2 | Tests contiguous lower run behavior |
-| upper, target, lower | Tests whether an upper hole disturbs target reuse |
-| target, unrelated same-size, lower | Tests list insertion ordering |
-| target, lower, import one guard, import replacements | Tests index steering |
+| target, lower | Baseline positive; latest 64K repeat `1/584` |
+| target, lower, lower-2 | Best new candidate: `1/112`, usable-pair score `1/14` |
+| upper, target, lower | Measured negative and often unavailable: `0/24` |
+| target, unrelated same-size, lower | Measured below candidate: `1/400` |
+| target, lower, import one guard, import replacements | Measured negative: `0/344` |
 
 The success condition remains exact target reuse, not lower-neighbor reuse.
+`target, lower, lower-2` should be the next allocator-only focus if the run
+continues, but it is not firmware-ready yet.
 
 ## Firmware Re-entry Criteria
 
@@ -380,6 +444,12 @@ wait result is 0, or replacement shows completion-like bytes before timeout
 `exact_target=1` plus `wait=-EIO` and unchanged replacement bytes is an
 allocator hit, not a firmware primitive.
 
+Current gate result: do not re-enter firmware yet. The best allocator-only
+candidate is 64K `target, lower, lower-2` at `1/14` usable-pair hit rate, but
+it has only one exact hit and low adjacent-pair yield. The best broader 64K
+pressure case is `p16/r8` at `4/80`, still below 10% and with a broad
+`first_exact_hist=[0:1,1:1,4:1,7:1]`.
+
 ## Stop Conditions
 
 Stop treating exact reuse as the primary opportunity if:
@@ -405,6 +475,14 @@ instrumentation or alternate ioctl side-effect paths such as `dev_ctrl` /
   `poc/ApusysIoctlProbe.java --apusys-iova-gap-profiler`
 - Target/lower control follow-up:
   `poc/ApusysIoctlProbe.java --apusys-iova-gap-control-profiler`
+- Target/lower pair-selection follow-up:
+  `poc/ApusysIoctlProbe.java --apusys-iova-gap-pair-selection-profiler`
+- Target/lower pressure follow-up:
+  `poc/ApusysIoctlProbe.java --apusys-iova-gap-pressure-profiler`
+- Target/lower replacement-source follow-up:
+  `poc/ApusysIoctlProbe.java --apusys-iova-gap-source-profiler`
+- Target/lower free-neighborhood follow-up:
+  `poc/ApusysIoctlProbe.java --apusys-iova-gap-free-neighborhood-profiler`
 - Firmware-coupled gap reuse:
   `poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-mem-free-race-completed-gap-reuse-iova`
 
@@ -416,6 +494,17 @@ instrumentation or alternate ioctl side-effect paths such as `dev_ctrl` /
 - `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler_kernel_relevant.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler_kernel_relevant.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_pair_selection_profiler.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_pair_selection_profiler_kernel_relevant.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_pressure_profiler.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_pressure_profiler_kernel_relevant.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_source_profiler.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_source_profiler_kernel_relevant.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_free_neighborhood_profiler.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_free_neighborhood_profiler_kernel_relevant.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_allocator_setup_query.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_allocator_setup_query_kernel_relevant.txt`
+- `poc-run-results/2026-06-15-batch/13_apusys_allocator_results.tsv`
 - `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_kernel_relevant.txt`
 - `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup.txt`

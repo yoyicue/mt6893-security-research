@@ -422,6 +422,10 @@ public final class ApusysIoctlProbe {
         boolean apusysIovaReuseProfiler = false;
         boolean apusysIovaGapProfiler = false;
         boolean apusysIovaGapControlProfiler = false;
+        boolean apusysIovaGapPairSelectionProfiler = false;
+        boolean apusysIovaGapPressureProfiler = false;
+        boolean apusysIovaGapSourceProfiler = false;
+        boolean apusysIovaGapFreeNeighborhoodProfiler = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlotControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix = false;
@@ -657,6 +661,14 @@ public final class ApusysIoctlProbe {
                 apusysIovaGapProfiler = true;
             } else if ("--apusys-iova-gap-control-profiler".equals(arg)) {
                 apusysIovaGapControlProfiler = true;
+            } else if ("--apusys-iova-gap-pair-selection-profiler".equals(arg)) {
+                apusysIovaGapPairSelectionProfiler = true;
+            } else if ("--apusys-iova-gap-pressure-profiler".equals(arg)) {
+                apusysIovaGapPressureProfiler = true;
+            } else if ("--apusys-iova-gap-source-profiler".equals(arg)) {
+                apusysIovaGapSourceProfiler = true;
+            } else if ("--apusys-iova-gap-free-neighborhood-profiler".equals(arg)) {
+                apusysIovaGapFreeNeighborhoodProfiler = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot".equals(arg)) {
                 runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot-control".equals(arg)) {
@@ -801,6 +813,10 @@ public final class ApusysIoctlProbe {
                 || apusysIovaReuseProfiler
                 || apusysIovaGapProfiler
                 || apusysIovaGapControlProfiler
+                || apusysIovaGapPairSelectionProfiler
+                || apusysIovaGapPressureProfiler
+                || apusysIovaGapSourceProfiler
+                || apusysIovaGapFreeNeighborhoodProfiler
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrixControl
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescOperandOffsetMatrix
@@ -1402,6 +1418,22 @@ public final class ApusysIoctlProbe {
 
             if (apusysIovaGapControlProfiler) {
                 runApusysIovaGapControlProfiler();
+            }
+
+            if (apusysIovaGapPairSelectionProfiler) {
+                runApusysIovaGapPairSelectionProfiler();
+            }
+
+            if (apusysIovaGapPressureProfiler) {
+                runApusysIovaGapPressureProfiler();
+            }
+
+            if (apusysIovaGapSourceProfiler) {
+                runApusysIovaGapSourceProfiler();
+            }
+
+            if (apusysIovaGapFreeNeighborhoodProfiler) {
+                runApusysIovaGapFreeNeighborhoodProfiler();
             }
 
             if (runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot) {
@@ -4798,6 +4830,126 @@ public final class ApusysIoctlProbe {
             0x10000, 12, 12, 40, "first");
     }
 
+    private static void runApusysIovaGapPairSelectionProfiler()
+            throws Exception {
+        System.out.println("\n[*] === APUSYS IOVA gap pair-selection"
+            + " profiler ===");
+        System.out.println("[*] Mode: allocator-only target selection sweep."
+            + " All cases keep the same 4K pool/replacement pressure and"
+            + " change only how the target/lower adjacent pair is selected.");
+        loadRuntimeLibraries();
+
+        runApusysIovaGapControlProfilerCase(
+            "gap_pair_4k_p16_r16_i120_first",
+            0x4000, 16, 16, 120, "first");
+        runApusysIovaGapControlProfilerCase(
+            "gap_pair_4k_p16_r16_i120_lowest",
+            0x4000, 16, 16, 120, "lowest");
+        runApusysIovaGapControlProfilerCase(
+            "gap_pair_4k_p16_r16_i120_highest",
+            0x4000, 16, 16, 120, "highest");
+        runApusysIovaGapControlProfilerCase(
+            "gap_pair_4k_p16_r16_i120_upper",
+            0x4000, 16, 16, 120, "upper");
+        runApusysIovaGapControlProfilerCase(
+            "gap_pair_4k_p16_r16_i120_longest",
+            0x4000, 16, 16, 120, "longest");
+    }
+
+    private static void runApusysIovaGapPressureProfiler()
+            throws Exception {
+        System.out.println("\n[*] === APUSYS IOVA gap pressure profiler ===");
+        System.out.println("[*] Mode: allocator-only pool/replacement pressure"
+            + " sweep. All cases use target_mode=first and change only"
+            + " import size plus pool/replacement counts.");
+        loadRuntimeLibraries();
+
+        runApusysIovaGapControlProfilerCase(
+            "gap_pressure_4k_p8_r24_i120_first",
+            0x4000, 8, 24, 120, "first");
+        runApusysIovaGapControlProfilerCase(
+            "gap_pressure_4k_p10_r22_i120_first",
+            0x4000, 10, 22, 120, "first");
+        runApusysIovaGapControlProfilerCase(
+            "gap_pressure_4k_p12_r20_i120_first",
+            0x4000, 12, 20, 120, "first");
+        runApusysIovaGapControlProfilerCase(
+            "gap_pressure_4k_p14_r18_i120_first",
+            0x4000, 14, 18, 120, "first");
+        runApusysIovaGapControlProfilerCase(
+            "gap_pressure_4k_p16_r16_i120_first",
+            0x4000, 16, 16, 120, "first");
+        runApusysIovaGapControlProfilerCase(
+            "gap_pressure_4k_p20_r12_i120_first",
+            0x4000, 20, 12, 120, "first");
+        runApusysIovaGapControlProfilerCase(
+            "gap_pressure_64k_p12_r12_i80_first",
+            0x10000, 12, 12, 80, "first");
+        runApusysIovaGapControlProfilerCase(
+            "gap_pressure_64k_p16_r8_i80_first",
+            0x10000, 16, 8, 80, "first");
+    }
+
+    private static void runApusysIovaGapSourceProfiler()
+            throws Exception {
+        System.out.println("\n[*] === APUSYS IOVA gap replacement-source"
+            + " profiler ===");
+        System.out.println("[*] Mode: allocator-only replacement source sweep."
+            + " Cases compare pre-created replacements, fresh replacements"
+            + " allocated after free, and one guard import before replacements.");
+        loadRuntimeLibraries();
+
+        runApusysIovaGapControlProfilerCase(
+            "gap_source_4k_p16_r16_i80_precreated",
+            0x4000, 16, 16, 80, "first", "precreated");
+        runApusysIovaGapControlProfilerCase(
+            "gap_source_4k_p16_r16_i80_fresh",
+            0x4000, 16, 16, 80, "first", "fresh");
+        runApusysIovaGapControlProfilerCase(
+            "gap_source_4k_p16_r15_i80_guard",
+            0x4000, 16, 15, 80, "first", "guard");
+        runApusysIovaGapControlProfilerCase(
+            "gap_source_64k_p16_r8_i80_precreated",
+            0x10000, 16, 8, 80, "first", "precreated");
+        runApusysIovaGapControlProfilerCase(
+            "gap_source_64k_p16_r8_i80_fresh",
+            0x10000, 16, 8, 80, "first", "fresh");
+        runApusysIovaGapControlProfilerCase(
+            "gap_source_64k_p16_r8_i80_guard",
+            0x10000, 16, 8, 80, "first", "guard");
+    }
+
+    private static void runApusysIovaGapFreeNeighborhoodProfiler()
+            throws Exception {
+        System.out.println("\n[*] === APUSYS IOVA gap free-neighborhood"
+            + " profiler ===");
+        System.out.println("[*] Mode: allocator-only free-neighborhood sweep."
+            + " Cases use the strongest current 64K p16/r8 pressure profile"
+            + " and change only the local free shape.");
+        loadRuntimeLibraries();
+
+        runApusysIovaGapControlProfilerCase(
+            "gap_free_64k_p16_r8_i80_target_lower",
+            0x10000, 16, 8, 80, "first", "precreated",
+            "target_lower");
+        runApusysIovaGapControlProfilerCase(
+            "gap_free_64k_p16_r8_i80_target_lower_lower2",
+            0x10000, 16, 8, 80, "first", "precreated",
+            "target_lower_lower2");
+        runApusysIovaGapControlProfilerCase(
+            "gap_free_64k_p16_r8_i80_upper_target_lower",
+            0x10000, 16, 8, 80, "first", "precreated",
+            "upper_target_lower");
+        runApusysIovaGapControlProfilerCase(
+            "gap_free_64k_p16_r8_i80_target_unrelated_lower",
+            0x10000, 16, 8, 80, "first", "precreated",
+            "target_unrelated_lower");
+        runApusysIovaGapControlProfilerCase(
+            "gap_free_64k_p16_r8_i80_target_lower_guard",
+            0x10000, 16, 8, 80, "first", "guard",
+            "target_lower");
+    }
+
     private static void runApusysIovaGapControlProfilerCase(
             String label,
             int importSize,
@@ -4806,11 +4958,43 @@ public final class ApusysIoctlProbe {
             int iterations,
             String targetMode)
             throws Exception {
+        runApusysIovaGapControlProfilerCase(label, importSize, poolCount,
+            replacementCount, iterations, targetMode, "precreated");
+    }
+
+    private static void runApusysIovaGapControlProfilerCase(
+            String label,
+            int importSize,
+            int poolCount,
+            int replacementCount,
+            int iterations,
+            String targetMode,
+            String replacementSource)
+            throws Exception {
+        runApusysIovaGapControlProfilerCase(label, importSize, poolCount,
+            replacementCount, iterations, targetMode, replacementSource,
+            "target_lower");
+    }
+
+    private static void runApusysIovaGapControlProfilerCase(
+            String label,
+            int importSize,
+            int poolCount,
+            int replacementCount,
+            int iterations,
+            String targetMode,
+            String replacementSource,
+            String freeShape)
+            throws Exception {
         if (poolCount < 2 || replacementCount < 1 || iterations < 1) {
             return;
         }
-        if (poolCount + replacementCount > MAX_REUSE_PROFILE_IMPORTS) {
-            replacementCount = MAX_REUSE_PROFILE_IMPORTS - poolCount;
+        boolean guardSource = "guard".equals(replacementSource);
+        int descriptorSlotsNeeded = poolCount + replacementCount
+            + (guardSource ? 1 : 0);
+        if (descriptorSlotsNeeded > MAX_REUSE_PROFILE_IMPORTS) {
+            replacementCount = MAX_REUSE_PROFILE_IMPORTS - poolCount
+                - (guardSource ? 1 : 0);
         }
         if (replacementCount < 1) {
             return;
@@ -4823,6 +5007,8 @@ public final class ApusysIoctlProbe {
             + " iterations=" + iterations
             + " free_order=target_then_lower"
             + " target_mode=" + targetMode
+            + " replacement_source=" + replacementSource
+            + " free_shape=" + freeShape
             + " ===");
 
         int apusysFd = -1;
@@ -4845,13 +5031,17 @@ public final class ApusysIoctlProbe {
             for (int iter = 0; iter < iterations; iter++) {
                 ReplacementImport[] pool = null;
                 ReplacementImport[] replacements = null;
+                ReplacementImport guard = null;
+                boolean guardImported = false;
                 boolean[] poolImported = new boolean[poolCount];
                 try {
                     pool = createProfilerHardwareBufferPool(poolCount,
                         importSize, label + "_pool_" + iter);
-                    replacements = createProfilerHardwareBufferPool(
-                        replacementCount, importSize,
-                        label + "_repl_" + iter);
+                    if (!"fresh".equals(replacementSource)) {
+                        replacements = createProfilerHardwareBufferPool(
+                            replacementCount, importSize,
+                            label + "_repl_" + iter);
+                    }
 
                     int poolFailures = 0;
                     for (int pi = 0; pi < poolCount; pi++) {
@@ -4885,26 +5075,111 @@ public final class ApusysIoctlProbe {
                         continue;
                     }
 
+                    int extraIndex = -1;
+                    String extraRole = "-";
+                    if ("target_lower_lower2".equals(freeShape)) {
+                        extraIndex = findExactLowerNeighbor(pool, lowerIndex,
+                            importSize);
+                        extraRole = "lower2";
+                    } else if ("upper_target_lower".equals(freeShape)) {
+                        extraIndex = findExactUpperNeighbor(pool, targetIndex,
+                            importSize);
+                        extraRole = "upper";
+                    } else if ("target_unrelated_lower".equals(freeShape)) {
+                        extraIndex = findUnrelatedImportedNeighbor(pool,
+                            targetIndex, lowerIndex, importSize);
+                        extraRole = "unrelated";
+                    }
+                    if (!"target_lower".equals(freeShape)
+                            && extraIndex < 0) {
+                        noAdjacent++;
+                        System.out.println("[*] iova_gap_control_iter "
+                            + label
+                            + " iter=" + iter
+                            + " free_shape_unavailable=" + freeShape
+                            + " target_idx=" + targetIndex
+                            + " lower_idx=" + lowerIndex
+                            + " pool_import_fail=" + poolFailures
+                            + " pool_iovas=" + profilerIovaList(pool));
+                        continue;
+                    }
+
                     adjacentFound++;
                     int targetIova = pool[targetIndex].iovaLow;
                     int lowerIova = pool[lowerIndex].iovaLow;
+                    int extraIova = extraIndex >= 0
+                        ? pool[extraIndex].iovaLow : 0;
                     long targetMemDesc = DrmTrigger.sScratchBuf
                         + OFF_MEM_REUSE_BASE
                         + (targetIndex * OFF_MEM_REUSE_STRIDE);
                     long lowerMemDesc = DrmTrigger.sScratchBuf
                         + OFF_MEM_REUSE_BASE
                         + (lowerIndex * OFF_MEM_REUSE_STRIDE);
-                    long targetFreeRet = freeProfilerMem(apusysFd,
+                    long extraMemDesc = extraIndex >= 0
+                        ? DrmTrigger.sScratchBuf + OFF_MEM_REUSE_BASE
+                        + (extraIndex * OFF_MEM_REUSE_STRIDE) : 0;
+                    long targetFreeRet = 0;
+                    long lowerFreeRet = 0;
+                    long extraFreeRet = 0;
+                    if ("upper_target_lower".equals(freeShape)) {
+                        extraFreeRet = freeProfilerMem(apusysFd,
+                            pool[extraIndex], extraMemDesc,
+                            "gap_ctl_" + extraRole + "_" + label, false);
+                        if (extraFreeRet >= 0) {
+                            poolImported[extraIndex] = false;
+                        }
+                    }
+                    targetFreeRet = freeProfilerMem(apusysFd,
                         pool[targetIndex], targetMemDesc,
                         "gap_ctl_target_" + label, false);
                     if (targetFreeRet >= 0) {
                         poolImported[targetIndex] = false;
                     }
-                    long lowerFreeRet = freeProfilerMem(apusysFd,
+                    if ("target_unrelated_lower".equals(freeShape)) {
+                        extraFreeRet = freeProfilerMem(apusysFd,
+                            pool[extraIndex], extraMemDesc,
+                            "gap_ctl_" + extraRole + "_" + label, false);
+                        if (extraFreeRet >= 0) {
+                            poolImported[extraIndex] = false;
+                        }
+                    }
+                    lowerFreeRet = freeProfilerMem(apusysFd,
                         pool[lowerIndex], lowerMemDesc,
                         "gap_ctl_lower_" + label, false);
                     if (lowerFreeRet >= 0) {
                         poolImported[lowerIndex] = false;
+                    }
+                    if ("target_lower_lower2".equals(freeShape)) {
+                        extraFreeRet = freeProfilerMem(apusysFd,
+                            pool[extraIndex], extraMemDesc,
+                            "gap_ctl_" + extraRole + "_" + label, false);
+                        if (extraFreeRet >= 0) {
+                            poolImported[extraIndex] = false;
+                        }
+                    }
+
+                    if ("fresh".equals(replacementSource)) {
+                        replacements = createProfilerHardwareBufferPool(
+                            replacementCount, importSize,
+                            label + "_fresh_repl_" + iter);
+                    }
+                    int guardIova = 0;
+                    long guardRet = 0;
+                    if (guardSource) {
+                        guard = createProfilerHardwareBuffer(-1, importSize,
+                            REUSE_MARKER_BASE + 0x100,
+                            label + "_guard_" + iter);
+                        long guardMemDesc = DrmTrigger.sScratchBuf
+                            + OFF_MEM_REUSE_BASE
+                            + ((poolCount + replacementCount)
+                            * OFF_MEM_REUSE_STRIDE);
+                        guardRet = importProfilerMem(apusysFd, guard,
+                            guardMemDesc, importSize,
+                            "gap_ctl_guard_" + label, false);
+                        if (guardRet >= 0) {
+                            guardImported = true;
+                            guardIova = guard.iovaLow;
+                        }
                     }
 
                     int exactTargetThis = 0;
@@ -4974,10 +5249,16 @@ public final class ApusysIoctlProbe {
                         + " target=0x" + Integer.toHexString(targetIova)
                         + " lower_idx=" + lowerIndex
                         + " lower=0x" + Integer.toHexString(lowerIova)
+                        + " extra_role=" + extraRole
+                        + " extra_idx=" + extraIndex
+                        + " extra_iova=0x" + Integer.toHexString(extraIova)
                         + " target_free=" + retText(targetFreeRet)
                         + " lower_free=" + retText(lowerFreeRet)
+                        + " extra_free=" + retText(extraFreeRet)
                         + " first_repl=0x"
                         + Integer.toHexString(firstReplacementIova)
+                        + " guard_ret=" + retText(guardRet)
+                        + " guard_iova=0x" + Integer.toHexString(guardIova)
                         + " exact_target=" + exactTargetThis + "/"
                         + replacementCount
                         + " exact_indices="
@@ -5003,6 +5284,17 @@ public final class ApusysIoctlProbe {
                         }
                         closeProfilerBufferPool(replacements);
                     }
+                    if (guard != null) {
+                        if (guardImported) {
+                            long guardMemDesc = DrmTrigger.sScratchBuf
+                                + OFF_MEM_REUSE_BASE
+                                + ((poolCount + replacementCount)
+                                * OFF_MEM_REUSE_STRIDE);
+                            freeProfilerMem(apusysFd, guard, guardMemDesc,
+                                "gap_ctl_guard_" + label, false);
+                        }
+                        guard.closeQuietly();
+                    }
                     if (pool != null) {
                         for (int pi = 0; pi < poolCount; pi++) {
                             if (poolImported[pi]) {
@@ -5026,6 +5318,7 @@ public final class ApusysIoctlProbe {
                 + " replacements=" + replacementCount
                 + " iterations=" + iterations
                 + " target_mode=" + targetMode
+                + " replacement_source=" + replacementSource
                 + " adjacent_found=" + adjacentFound + "/" + iterations
                 + " no_adjacent=" + noAdjacent
                 + " exact_target_total=" + exactTargetTotal + "/"
@@ -5898,6 +6191,7 @@ public final class ApusysIoctlProbe {
                                              String targetMode) {
         int bestIndex = -1;
         long bestIova = 0;
+        int bestRunLength = -1;
         for (int i = 0; pool != null && i < pool.length; i++) {
             if (pool[i] == null || !pool[i].imported) {
                 continue;
@@ -5906,6 +6200,10 @@ public final class ApusysIoctlProbe {
                 continue;
             }
             long candidate = pool[i].iovaLow & 0xffffffffL;
+            if ("upper".equals(targetMode)
+                    && !hasExactIovaNeighbor(pool, i, importSize)) {
+                continue;
+            }
             if ("highest".equals(targetMode)) {
                 if (bestIndex < 0 || candidate > bestIova) {
                     bestIndex = i;
@@ -5916,6 +6214,17 @@ public final class ApusysIoctlProbe {
                     bestIndex = i;
                     bestIova = candidate;
                 }
+            } else if ("longest".equals(targetMode)) {
+                int runLength = contiguousIovaRunLength(pool, i, importSize);
+                if (bestIndex < 0 || runLength > bestRunLength
+                        || (runLength == bestRunLength
+                        && candidate < bestIova)) {
+                    bestIndex = i;
+                    bestIova = candidate;
+                    bestRunLength = runLength;
+                }
+            } else if ("upper".equals(targetMode)) {
+                return i;
             } else {
                 return i;
             }
@@ -5941,6 +6250,109 @@ public final class ApusysIoctlProbe {
             }
         }
         return -1;
+    }
+
+    private static int findExactUpperNeighbor(ReplacementImport[] pool,
+                                              int targetIndex,
+                                              int importSize) {
+        if (pool == null || targetIndex < 0 || targetIndex >= pool.length
+                || pool[targetIndex] == null || !pool[targetIndex].imported) {
+            return -1;
+        }
+        long target = pool[targetIndex].iovaLow & 0xffffffffL;
+        for (int i = 0; i < pool.length; i++) {
+            if (i == targetIndex || pool[i] == null || !pool[i].imported) {
+                continue;
+            }
+            long candidate = pool[i].iovaLow & 0xffffffffL;
+            if (candidate - target == (importSize & 0xffffffffL)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static int findUnrelatedImportedNeighbor(ReplacementImport[] pool,
+                                                     int targetIndex,
+                                                     int lowerIndex,
+                                                     int importSize) {
+        if (pool == null) {
+            return -1;
+        }
+        long target = pool[targetIndex].iovaLow & 0xffffffffL;
+        long lower = pool[lowerIndex].iovaLow & 0xffffffffL;
+        long step = importSize & 0xffffffffL;
+        for (int i = 0; i < pool.length; i++) {
+            if (i == targetIndex || i == lowerIndex || pool[i] == null
+                    || !pool[i].imported) {
+                continue;
+            }
+            long candidate = pool[i].iovaLow & 0xffffffffL;
+            if (absLong(candidate - target) == step
+                    || absLong(candidate - lower) == step) {
+                continue;
+            }
+            return i;
+        }
+        return -1;
+    }
+
+    private static boolean hasExactIovaNeighbor(ReplacementImport[] pool,
+                                                int targetIndex,
+                                                int signedImportSize) {
+        if (pool == null || targetIndex < 0 || targetIndex >= pool.length
+                || pool[targetIndex] == null || !pool[targetIndex].imported) {
+            return false;
+        }
+        long target = pool[targetIndex].iovaLow & 0xffffffffL;
+        long want = target + signedImportSize;
+        for (int i = 0; i < pool.length; i++) {
+            if (i == targetIndex || pool[i] == null || !pool[i].imported) {
+                continue;
+            }
+            long candidate = pool[i].iovaLow & 0xffffffffL;
+            if (candidate == want) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static int contiguousIovaRunLength(ReplacementImport[] pool,
+                                               int targetIndex,
+                                               int importSize) {
+        if (pool == null || targetIndex < 0 || targetIndex >= pool.length
+                || pool[targetIndex] == null || !pool[targetIndex].imported) {
+            return 0;
+        }
+        int runLength = 1;
+        long target = pool[targetIndex].iovaLow & 0xffffffffL;
+        long step = importSize & 0xffffffffL;
+        long probe = target - step;
+        while (containsImportedIova(pool, probe)) {
+            runLength++;
+            probe -= step;
+        }
+        probe = target + step;
+        while (containsImportedIova(pool, probe)) {
+            runLength++;
+            probe += step;
+        }
+        return runLength;
+    }
+
+    private static boolean containsImportedIova(ReplacementImport[] pool,
+                                                long wantIova) {
+        for (int i = 0; pool != null && i < pool.length; i++) {
+            if (pool[i] == null || !pool[i].imported) {
+                continue;
+            }
+            long candidate = pool[i].iovaLow & 0xffffffffL;
+            if (candidate == wantIova) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void appendIndex(StringBuilder sb, int index) {
