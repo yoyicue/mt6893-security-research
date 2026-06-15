@@ -256,10 +256,13 @@ Recovered pointer/name tables:
   `XFL_RSQRT_QUANT`.
 - Security-relevant strings include `process_command`, `execute_op`,
   `kernelProcess`, `dma_barrier`, `Invalid input/output buffer size`,
-  `Data buffer does not fit in DRAM`, `iDMA schedule error`, `iDMA wait error`,
-  `sDesc > eDesc`, and `eDesc >= TM_DMA_DESC_IDX_MAX`.
-- `.text` aligned 32-bit references into `.rodata` strings now recover `141`
-  references, `44` of them matching Invalid/Error/buffer/DMA-related tokens.
+  `Data buffer does not fit in DRAM`, `add idma request fail in %s\n`,
+  `ERROR CALLBACK: iDMA in Error`,
+  `INTERRUPT CALLBACK : processing iDMA interrupt`, `iDMA schedule error`,
+  `iDMA wait error`, `sDesc > eDesc`, and `eDesc >= TM_DMA_DESC_IDX_MAX`.
+- `.text` aligned 32-bit references into `.rodata` strings now recover `180`
+  references after accepting newline-bearing log strings, `45` of them
+  matching Invalid/Error/buffer/DMA-related tokens.
 - `ProcessTileWise.c` rodata refs resolve to owners `0x700c13b0`,
   `0x7011be20`, and `0x70262690`.
 - `Invalid allocation alignment` rodata refs resolve to owners `0x70076d50`
@@ -268,8 +271,21 @@ Recovered pointer/name tables:
   `0x70009bc0`, `0x70052650`, `0x70055990`, `0x7008fe80`, `0x700d4130`,
   `0x70106c70`, `0x7011be20`, `0x7015d680`, `0x7015ffd0`, `0x701cf890`,
   `0x7023eb10`, and `0x70249e10`.
-- The `iDMA schedule error` / `iDMA wait error` strings are present, but this
-  aligned-reference scan still does not resolve them to a reliable code owner.
+- Critical-string direct-reference scanning now checks both aligned 32-bit
+  `.text` words and all-byte `.text` windows for suffix pointers into the
+  target strings. It finds **zero** direct refs for the add-idma-request-fail
+  log string, `ERROR CALLBACK: iDMA in Error`,
+  `INTERRUPT CALLBACK : processing iDMA interrupt`, `iDMA error`,
+  `iDMA schedule error`, `iDMA wait error`,
+  `../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c`, `sDesc > eDesc`,
+  `eDesc >= TM_DMA_DESC_IDX_MAX`, `_DMA_STALL`, and `No error`. This makes the
+  current iDMA owner gap reproducible: the strings are present in `.rodata`,
+  but not reachable through the direct literal-pointer method.
+- `Data buffer does not fit in DRAM` has no aligned refs but has six all-byte
+  suffix-pointer samples at owners `0x700c13b0`, `0x700cc080`, `0x700cda20`,
+  `0x7016bc40`, `0x70262690`, and `0x70262a00`. Because these are unaligned
+  byte-window hits, treat them as disassembly leads rather than proven literal
+  references.
 
 Manual entry-window observation, using radare2 only as an adjunct because this
 core has unresolved TIE/FLIX opcodes: the `0x70006794` property range starts
@@ -278,6 +294,23 @@ with `entry a1, 0x20`, then a standard-instruction island copies six dwords from
 `a2+0x4c`, and `a2+0x50` into `a10+0x28`, `a10+0x1c`, and `a10+0x20`.
 Treat this as a preload-context packing clue, not as a complete entry
 prototype, until the custom instruction semantics are resolved.
+
+IDA Pro MCP state after reloading the same ELF as **ELF for Xtensa** (not raw
+`Binary File`): processor `XTENSA`, 32-bit, sections mapped at the ELF VAs
+above, saved IDB `/private/tmp/apunn_core0_full.elf.i64`. Running
+`tools/ida_apply_apunn_xt_prop.py` against
+`/tmp/apunn_core0_full_analysis_refs.json` creates/names `.xt.prop`-bounded
+entry candidates up to the safe `next_entry_delta <= 0x2000` threshold. Current
+IDA count is `663` functions, including:
+
+| Address | IDA name | Note |
+|---:|---|---|
+| `0x70006794` | `apunn_elf_entry_INFO16_70006794` | kernel `INFO16` / ELF entry, `.xt.prop` size `0xac` |
+| `0x70006590` | `apunn_early_helper_70006590` | loads `*(a2+0x30)+0x18` into `a10`, calls `0x70007440`, returns 0 |
+| `0x70007440` | `apunn_early_dynamic_dispatch_70007440` | starts `entry a1, 0x60`, reads `ccount`, calls function pointer from `a12+0` when nonzero |
+| `0x70015e98` | `apunn_flk_pointer_table_owner_70015e98` | owner for the three 12-entry FLK pointer runs |
+| `0x70081d50` | `apunn_ann_pointer_table_owner_70081d50` | owner for the 31-entry ANN pointer run |
+| `0x700301d8` | `apunn_dispatcher_like_locateBuffer_700301d8` | `locateBuffer`-related dispatcher candidate |
 
 #### Path 2: Live memory dump (needs kernel read)
 
@@ -375,6 +408,35 @@ layout are the authority for instruction boundaries. In particular,
 marks it as a `0xac`-byte instruction range even if the decompiler stops at
 `flix()`.
 
+Recommended IDA Pro load:
+
+1. Open `/tmp/apunn_core0_full.elf` as **ELF for Xtensa**. Do not use raw
+   `Binary File` unless the ELF loader fails.
+2. Verify `ida_ida.inf_get_procname()` returns `XTENSA`; `0x70006794` should
+   decode as `entry sp, 0x20`.
+3. Generate the reproducible metadata:
+
+```sh
+13-apusys-ioctl-surface/tools/analyze_apunn_elf.py \
+  /tmp/apunn_core0_full.elf \
+  --json /tmp/apunn_core0_full_analysis_refs.json \
+  --markdown /tmp/apunn_core0_full_analysis_refs.md
+```
+
+4. In IDA, run:
+
+```python
+exec(open(
+  "13-apusys-ioctl-surface/tools/ida_apply_apunn_xt_prop.py"
+).read())
+```
+
+The script creates/names only `.xt.prop`-backed `entry` candidates with a
+bounded `next_entry_delta <= 0x2000` by default, defines the pointer runs, names
+critical strings, and annotates the known APUNN entry/dispatch addresses. This
+keeps the IDB useful without forcing every TIE/FLIX-heavy `.xt.prop` range into
+IDA code items.
+
 ### Step 2: Map the MMIO dispatch interface
 
 The kernel writes these MMIO registers before signaling the DSP:
@@ -407,10 +469,12 @@ Current partial answers from the ELF pass:
 - Q1 is still unresolved statically. The ELF contains `dma_barrier`,
   `iDMA schedule error`, `iDMA wait error`, and
   `../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c`, so the right DMA subsystem is
-  present, but Ghidra does not yet produce a reliable schedule/wait loop
-  decompilation on the TIE/FLIX-heavy ranges. Runtime remains the strongest
-  evidence: the tested completed shape finishes before the Java-layer
-  `mem_free` round trip can replace the IOVA.
+  present. However, the critical-string direct-reference scan finds no aligned
+  or all-byte `.text` pointer to the iDMA/dmaif/descriptor assertion strings,
+  and Ghidra does not yet produce a reliable schedule/wait loop decompilation
+  on the TIE/FLIX-heavy ranges. Runtime remains the strongest evidence: the
+  tested completed shape finishes before the Java-layer `mem_free` round trip
+  can replace the IOVA.
 - Q2 has a real firmware-side op vocabulary now. The 63-entry
   `.dram_op.data` ANN table is distinct from the wrapper/runtime
   `10001..10009` query/status opcodes already tested, so more work is needed to
@@ -498,7 +562,8 @@ slow-opcode shape.
 | Tool | Path | Status |
 |---|---|---|
 | VPU image parser | `13-apusys-ioctl-surface/tools/parse_vpu_image.py` | Parses preload metadata, carves raw segments, and reports embedded ELF offsets; use `--head-offset 0x200 --headers 1` for V260523 `cam_vpu2.img` |
-| APUNN ELF analyzer | `13-apusys-ioctl-surface/tools/analyze_apunn_elf.py` | Emits section map, `.xt.prop` instruction ranges, `.xt.prop`-backed function-entry candidates, key address owners, `.text`→`.rodata` suffix refs, pointer runs, ANN op name table, interesting strings, JSON, and Markdown |
+| APUNN ELF analyzer | `13-apusys-ioctl-surface/tools/analyze_apunn_elf.py` | Emits section map, `.xt.prop` instruction ranges, `.xt.prop`-backed function-entry candidates, key address owners, `.text`→`.rodata` suffix refs, DMA/descriptor critical-string direct-ref status, pointer runs, ANN op name table, interesting strings, JSON, and Markdown |
+| IDA `.xt.prop` applier | `13-apusys-ioctl-surface/tools/ida_apply_apunn_xt_prop.py` | Applies analyzer JSON to an IDA Xtensa ELF IDB: bounded function creation, key names/comments, pointer-run dwords/xrefs, and critical-string annotations |
 | Ghidra export script | `13-apusys-ioctl-surface/tools/GhidraApunnExport.java` | Headless adjunct for function/string/decompiler snapshots from `/tmp/apunn_core0_full.elf`; decompiler output is advisory only |
 | Allocator gap profiler | `13-apusys-ioctl-surface/poc/ApusysIoctlProbe.java` | Active; 8+ probe modes |
 | Firmware-coupled gap reuse | `--run-cmd-vpu-xrp-mem-free-race-completed-gap-reuse-iova` | Ready to re-run with new shapes |

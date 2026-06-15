@@ -143,6 +143,43 @@ class RodataReference:
     owner_delta: int | None
 
 
+@dataclass
+class CriticalStringHit:
+    ref_addr: int
+    value: int
+    string_offset: int
+    owner_entry: int | None
+    owner_delta: int | None
+
+
+@dataclass
+class CriticalStringScan:
+    pattern: str
+    string_addr: int | None
+    string_value: str | None
+    aligned_hit_count: int
+    byte_hit_count: int
+    aligned_hits: list[CriticalStringHit]
+    byte_hits: list[CriticalStringHit]
+
+
+CRITICAL_STRING_PATTERNS = (
+    "add idma request fail in %s",
+    "ERROR CALLBACK: iDMA in Error",
+    "INTERRUPT CALLBACK : processing iDMA interrupt",
+    "iDMA error",
+    "iDMA schedule error",
+    "iDMA wait error",
+    "../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c",
+    "sDesc > eDesc",
+    "eDesc >= TM_DMA_DESC_IDX_MAX",
+    "_DMA_STALL",
+    "No error",
+    "Data buffer does not start in DRAM",
+    "Data buffer does not fit in DRAM",
+)
+
+
 def parse_int(text: str) -> int:
     return int(text, 0)
 
@@ -165,6 +202,20 @@ def read_cstr(blob: bytes, offset: int) -> str:
     if end < 0:
         end = len(blob)
     return blob[offset:end].decode("ascii", "replace")
+
+
+def is_string_byte(byte: int) -> bool:
+    return byte in (0x09, 0x0A, 0x0D) or 0x20 <= byte < 0x7F
+
+
+def display_text(value: str) -> str:
+    return (
+        value.replace("\\", "\\\\")
+        .replace("\r", "\\r")
+        .replace("\n", "\\n")
+        .replace("\t", "\\t")
+        .replace("|", "\\|")
+    )
 
 
 def parse_elf_header(data: bytes) -> ElfHeader:
@@ -240,9 +291,9 @@ def find_strings(data: bytes, section: Section, min_len: int) -> list[StringEntr
     out: list[StringEntry] = []
     pos = 0
     while pos < len(blob):
-        if 0x20 <= blob[pos] < 0x7F:
+        if is_string_byte(blob[pos]):
             end = pos
-            while end < len(blob) and 0x20 <= blob[end] < 0x7F:
+            while end < len(blob) and is_string_byte(blob[end]):
                 end += 1
             if end - pos >= min_len and end < len(blob) and blob[end] == 0:
                 out.append(
@@ -366,7 +417,7 @@ def cstring_at_va(
     if end < 0:
         return None
     raw = data[offset:end]
-    if not raw or any(byte < 0x20 or byte >= 0x7F for byte in raw):
+    if not raw or any(not is_string_byte(byte) for byte in raw):
         return None
     return raw.decode("ascii", "replace")
 
@@ -465,6 +516,7 @@ def interesting_strings(strings: list[StringEntry]) -> list[StringEntry]:
         "d2d",
         "kernelProcess",
         "dma",
+        "idma",
         "DMA",
         "Desc",
         "buffer",
@@ -477,7 +529,7 @@ def interesting_strings(strings: list[StringEntry]) -> list[StringEntry]:
 KEY_ADDRESS_LABELS = (
     ("elf_entry_INFO16", 0x70006794),
     ("early_helper", 0x70006590),
-    ("early_callee", 0x70007440),
+    ("early_dynamic_dispatch", 0x70007440),
     ("flk_pointer_target_cluster", 0x70017D40),
     ("flk_pointer_table_owner", 0x70015E98),
     ("dispatcher_like_locateBuffer", 0x700301D8),
@@ -572,6 +624,84 @@ def is_interesting_rodata_ref(ref: RodataReference) -> bool:
         "operations/",
     )
     return any(token in ref.string_value for token in tokens)
+
+
+def find_critical_string_refs(
+    data: bytes,
+    sections: list[Section],
+    strings: list[StringEntry],
+    function_candidates: list[FunctionCandidate],
+    sample_limit: int = 16,
+) -> list[CriticalStringScan]:
+    text = section_by_name(sections, ".text")
+    if text is None:
+        return []
+
+    scans: list[CriticalStringScan] = []
+    for pattern in CRITICAL_STRING_PATTERNS:
+        matches = [entry for entry in strings if pattern in entry.value]
+        if not matches:
+            scans.append(
+                CriticalStringScan(
+                    pattern=pattern,
+                    string_addr=None,
+                    string_value=None,
+                    aligned_hit_count=0,
+                    byte_hit_count=0,
+                    aligned_hits=[],
+                    byte_hits=[],
+                )
+            )
+            continue
+        for entry in matches:
+            scans.append(
+                CriticalStringScan(
+                    pattern=pattern,
+                    string_addr=entry.addr,
+                    string_value=entry.value,
+                    aligned_hit_count=0,
+                    byte_hit_count=0,
+                    aligned_hits=[],
+                    byte_hits=[],
+                )
+            )
+
+    suffix_targets: dict[int, list[tuple[int, int]]] = {}
+    for index, scan in enumerate(scans):
+        if scan.string_addr is None or scan.string_value is None:
+            continue
+        for string_offset in range(len(scan.string_value)):
+            suffix_targets.setdefault(scan.string_addr + string_offset, []).append(
+                (index, string_offset)
+            )
+
+    blob = section_bytes(data, text)
+    for off in range(0, len(blob) - 3):
+        value = struct.unpack_from("<I", blob, off)[0]
+        targets = suffix_targets.get(value)
+        if not targets:
+            continue
+        ref_addr = text.addr + off
+        owner_entry, owner_delta = owner_for_addr(function_candidates, ref_addr)
+        aligned = off % 4 == 0
+        for index, string_offset in targets:
+            scan = scans[index]
+            hit = CriticalStringHit(
+                ref_addr=ref_addr,
+                value=value,
+                string_offset=string_offset,
+                owner_entry=owner_entry,
+                owner_delta=owner_delta,
+            )
+            scan.byte_hit_count += 1
+            if len(scan.byte_hits) < sample_limit:
+                scan.byte_hits.append(hit)
+            if aligned:
+                scan.aligned_hit_count += 1
+                if len(scan.aligned_hits) < sample_limit:
+                    scan.aligned_hits.append(hit)
+
+    return scans
 
 
 def prop_near(props: list[XtProp], addr: int, window: int = 0x20) -> list[XtProp]:
@@ -703,7 +833,34 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
         lines.append(
             f"| `{hx(ref['ref_addr'])}` | `{hx(ref['value'])}` | "
             f"`{hx(ref.get('owner_entry'))}` | "
-            f"`{hx(ref['string_addr'])}{suffix}` `{ref['string_value']}` |"
+            f"`{hx(ref['string_addr'])}{suffix}` `{display_text(str(ref['string_value']))}` |"
+        )
+    lines.append("")
+    lines.append("## Critical String Direct References")
+    lines.append("")
+    lines.append(
+        "- all-byte refs include unaligned matches and are false-positive prone; "
+        "absence is useful, presence needs disassembly validation."
+    )
+    lines.append("")
+    lines.append("| pattern | string | aligned refs | all-byte refs | sample refs |")
+    lines.append("|---|---:|---:|---:|---|")
+    critical_refs = payload["critical_string_refs"]
+    assert isinstance(critical_refs, list)
+    for item in critical_refs:
+        assert isinstance(item, dict)
+        hits = item["aligned_hits"] if item["aligned_hits"] else item["byte_hits"]
+        assert isinstance(hits, list)
+        samples: list[str] = []
+        for hit in hits[:4]:
+            assert isinstance(hit, dict)
+            owner = hx(hit.get("owner_entry"))
+            suffix = "" if int(hit["string_offset"]) == 0 else f"+0x{int(hit['string_offset']):x}"
+            samples.append(f"{hx(hit['ref_addr'])}->{owner}{suffix}")
+        lines.append(
+            f"| `{display_text(str(item['pattern']))}` | `{hx(item.get('string_addr'))}` | "
+            f"{item['aligned_hit_count']} | {item['byte_hit_count']} | "
+            f"{', '.join(samples)} |"
         )
     lines.append("")
     lines.append("## Pointer Runs")
@@ -720,7 +877,7 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
                 f"| `{hx(entry['addr'])}` | `{hx(entry['value'])}` | "
                 f"`{entry['target_section']}` | `{hx(entry.get('owner_entry'))}` | "
                 f"`{entry.get('prop_flags') or ''}` | "
-                f"{entry.get('target_string') or ''} |"
+                f"{display_text(str(entry.get('target_string') or ''))} |"
             )
         lines.append("")
     lines.append("## ANN Op Name Table")
@@ -731,14 +888,14 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
         assert isinstance(entry, dict)
         lines.append(
             f"| {entry['index']} | `{hx(entry['entry_addr'])}` | "
-            f"`{entry['name']}` | `{hx(entry['string_addr'])}` |"
+            f"`{display_text(str(entry['name']))}` | `{hx(entry['string_addr'])}` |"
         )
     lines.append("")
     lines.append("## Interesting Strings")
     lines.append("")
     for entry in payload["interesting_strings"]:
         assert isinstance(entry, dict)
-        lines.append(f"- `{hx(entry['addr'])}` `{entry['value']}`")
+        lines.append(f"- `{hx(entry['addr'])}` `{display_text(str(entry['value']))}`")
     lines.append("")
     path.write_text("\n".join(lines) + "\n")
 
@@ -773,6 +930,9 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
         min_run=min_run,
     )
     rodata_refs = find_rodata_refs(data, sections, strings, function_candidates)
+    critical_string_refs = find_critical_string_refs(
+        data, sections, strings, function_candidates
+    )
 
     entry_props = []
     for prop in prop_near(props, eh.entry):
@@ -801,6 +961,7 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
         "interesting_rodata_refs": to_jsonable(
             [ref for ref in rodata_refs if is_interesting_rodata_ref(ref)]
         ),
+        "critical_string_refs": to_jsonable(critical_string_refs),
         "pointer_runs": to_jsonable(pointer_runs),
         "ann_op_name_table": op_name_table(
             data, sections, section_by_name(sections, ".dram_op.data"), strings_by_addr
@@ -843,6 +1004,13 @@ def print_summary(payload: dict[str, object]) -> None:
         f"{payload['rodata_ref_count']} "
         f"interesting={len(payload['interesting_rodata_refs'])}"
     )
+    for item in payload["critical_string_refs"]:
+        assert isinstance(item, dict)
+        print(
+            "  critical "
+            f"{item['pattern']} addr={hx(item.get('string_addr'))} "
+            f"aligned={item['aligned_hit_count']} byte={item['byte_hit_count']}"
+        )
     print(f"pointer_runs={len(payload['pointer_runs'])}")
     for run in payload["pointer_runs"]:
         assert isinstance(run, dict)

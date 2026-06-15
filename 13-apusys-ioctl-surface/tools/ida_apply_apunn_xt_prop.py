@@ -1,0 +1,283 @@
+#!/usr/bin/env python3
+"""Apply APUNN .xt.prop-derived analysis facts to an IDA database.
+
+Run after importing /tmp/apunn_core0_full.elf as an ELF for Xtensa.
+
+Usage from IDA:
+  File -> Script file -> ida_apply_apunn_xt_prop.py
+
+Usage from command line/headless IDA:
+  ida64 -A -S"ida_apply_apunn_xt_prop.py /tmp/apunn_core0_full_analysis_refs.json" \
+    /tmp/apunn_core0_full.elf
+
+The JSON is produced by analyze_apunn_elf.py. This script intentionally applies
+only high-confidence facts: .xt.prop-backed entry candidates, known key owners,
+pointer tables, strings, and critical-string direct-ref scan status. It does not
+force every .xt.prop instruction range into code because this APUNN core uses
+Xtensa TIE/FLIX encodings that IDA may not decode cleanly.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+import sys
+from pathlib import Path
+
+import ida_auto
+import ida_bytes
+import ida_funcs
+import ida_name
+import ida_segment
+import ida_xref
+import idc
+
+
+DEFAULT_JSON = Path("/tmp/apunn_core0_full_analysis_refs.json")
+MAX_BOUNDED_FUNCTION_DELTA = 0x2000
+
+
+def get_json_path() -> Path:
+    candidates: list[str] = []
+    candidates.extend(str(arg) for arg in getattr(idc, "ARGV", []) if arg)
+    candidates.extend(sys.argv[1:])
+    for candidate in candidates:
+        if candidate.endswith(".json"):
+            return Path(candidate)
+    return DEFAULT_JSON
+
+
+def has_segment(ea: int) -> bool:
+    return ida_segment.getseg(ea) is not None
+
+
+def safe_name(text: str, fallback: str) -> str:
+    cleaned = re.sub(r"[^0-9A-Za-z_]+", "_", text).strip("_")
+    if not cleaned:
+        cleaned = fallback
+    if cleaned[0].isdigit():
+        cleaned = "_" + cleaned
+    return cleaned[:180]
+
+
+def append_comment(ea: int, text: str, repeatable: bool = False) -> bool:
+    if not has_segment(ea):
+        return False
+    old = idc.get_cmt(ea, repeatable) or ""
+    if text in old:
+        return False
+    new = text if not old else old + "\n" + text
+    return bool(idc.set_cmt(ea, new, repeatable))
+
+
+def try_set_name(ea: int, name: str) -> bool:
+    if not has_segment(ea):
+        return False
+    return bool(idc.set_name(ea, name, ida_name.SN_CHECK))
+
+
+def try_create_insn(ea: int) -> bool:
+    if not has_segment(ea):
+        return False
+    try:
+        return bool(idc.create_insn(ea))
+    except Exception:
+        return False
+
+
+def try_create_string(ea: int) -> bool:
+    if not has_segment(ea):
+        return False
+    try:
+        return bool(idc.create_strlit(ea, idc.BADADDR))
+    except Exception:
+        return False
+
+
+def function_end_for_candidate(fn: dict[str, object]) -> int | None:
+    delta = fn.get("next_entry_delta")
+    if delta is None:
+        return None
+    delta = int(delta)
+    if delta <= 0 or delta > MAX_BOUNDED_FUNCTION_DELTA:
+        return None
+    return int(fn["addr"]) + delta
+
+
+def apply_function_candidates(payload: dict[str, object]) -> tuple[int, int, int, int]:
+    created = 0
+    bounded = 0
+    named = 0
+    inside_existing = 0
+    for fn in payload.get("function_candidates", []):
+        ea = int(fn["addr"])
+        if not has_segment(ea):
+            continue
+        try_create_insn(ea)
+        existing_start = idc.get_func_attr(ea, idc.FUNCATTR_START)
+        if existing_start == idc.BADADDR:
+            end = function_end_for_candidate(fn)
+            if end is not None and idc.add_func(ea, end):
+                created += 1
+                bounded += 1
+            elif idc.add_func(ea):
+                created += 1
+        elif existing_start != ea:
+            inside_existing += 1
+        if try_set_name(ea, "apunn_fn_%08x" % ea):
+            named += 1
+        append_comment(
+            ea,
+            "APUNN .xt.prop-backed entry candidate; prop_size=0x%x flags=%s next_entry_delta=%s"
+            % (
+                int(fn["prop_size"]),
+                fn.get("prop_flags") or "",
+                "None"
+                if fn.get("next_entry_delta") is None
+                else "0x%x" % int(fn["next_entry_delta"]),
+            ),
+        )
+    return created, bounded, named, inside_existing
+
+
+def apply_key_addresses(payload: dict[str, object]) -> int:
+    count = 0
+    for item in payload.get("key_addresses", []):
+        ea = int(item["addr"])
+        label = safe_name(str(item["label"]), "key")
+        if try_set_name(ea, "apunn_%s_%08x" % (label, ea)):
+            count += 1
+        append_comment(
+            ea,
+            "APUNN key address %s; section=%s owner=%s+%s prop=%s:%s"
+            % (
+                item.get("label"),
+                item.get("section"),
+                fmt_hex(item.get("owner_entry")),
+                fmt_hex(item.get("owner_delta")),
+                item.get("prop_flags"),
+                fmt_hex(item.get("prop_size")),
+            ),
+        )
+    return count
+
+
+def apply_pointer_runs(payload: dict[str, object]) -> tuple[int, int]:
+    data_items = 0
+    refs = 0
+    for index, run in enumerate(payload.get("pointer_runs", [])):
+        start = int(run["start"])
+        try_set_name(start, "apunn_ptr_run_%08x" % start)
+        append_comment(start, "APUNN pointer run %d; count=%d" % (index, int(run["count"])))
+        for entry in run.get("entries", []):
+            ea = int(entry["addr"])
+            target = int(entry["value"]) & ~1
+            if not has_segment(ea):
+                continue
+            if idc.create_dword(ea):
+                data_items += 1
+            try:
+                idc.op_plain_offset(ea, 0, 0)
+            except Exception:
+                try:
+                    idc.op_offset(ea, 0, 0)
+                except Exception:
+                    pass
+            if has_segment(target) and ida_xref.add_dref(ea, target, ida_xref.dr_O):
+                refs += 1
+            append_comment(
+                ea,
+                "APUNN pointer-table slot; target=%s owner=%s prop=%s"
+                % (
+                    fmt_hex(entry.get("value")),
+                    fmt_hex(entry.get("owner_entry")),
+                    entry.get("prop_flags"),
+                ),
+            )
+    return data_items, refs
+
+
+def apply_strings(payload: dict[str, object]) -> int:
+    count = 0
+    for entry in payload.get("interesting_strings", []):
+        ea = int(entry["addr"])
+        value = str(entry["value"])
+        if try_create_string(ea):
+            count += 1
+        name = "apunn_str_%s_%08x" % (safe_name(value[:48], "str"), ea)
+        try_set_name(ea, name)
+    for scan in payload.get("critical_string_refs", []):
+        ea = scan.get("string_addr")
+        if ea is None:
+            continue
+        ea = int(ea)
+        value = scan.get("string_value") or scan.get("pattern")
+        if try_create_string(ea):
+            count += 1
+        try_set_name(ea, "apunn_critical_%s_%08x" % (safe_name(str(scan["pattern"]), "crit"), ea))
+        append_comment(
+            ea,
+            "APUNN critical string; aligned_refs=%d all_byte_refs=%d"
+            % (int(scan["aligned_hit_count"]), int(scan["byte_hit_count"])),
+        )
+        for hit in scan.get("aligned_hits", []):
+            ref = int(hit["ref_addr"])
+            target = int(hit["value"])
+            if has_segment(ref):
+                ida_xref.add_dref(ref, target, ida_xref.dr_O)
+                append_comment(
+                    ref,
+                    "APUNN aligned critical-string ref to %s+0x%x"
+                    % (scan["pattern"], int(hit["string_offset"])),
+                )
+        for hit in scan.get("byte_hits", [])[:8]:
+            ref = int(hit["ref_addr"])
+            if has_segment(ref):
+                append_comment(
+                    ref,
+                    "APUNN all-byte critical-string sample to %s+0x%x; validate disassembly"
+                    % (scan["pattern"], int(hit["string_offset"])),
+                )
+    return count
+
+
+def fmt_hex(value: object) -> str:
+    if value is None:
+        return "None"
+    return "0x%x" % int(value)
+
+
+def main() -> None:
+    json_path = get_json_path()
+    if not json_path.exists():
+        raise RuntimeError(
+            "missing %s; run analyze_apunn_elf.py --json first" % json_path
+        )
+    payload = json.loads(json_path.read_text())
+    print("[APUNN] applying analysis from %s" % json_path)
+
+    ida_auto.auto_wait()
+    fn_created, fn_bounded, fn_named, inside_existing = apply_function_candidates(payload)
+    key_named = apply_key_addresses(payload)
+    data_items, data_refs = apply_pointer_runs(payload)
+    strings = apply_strings(payload)
+    ida_auto.auto_wait()
+
+    print(
+        "[APUNN] functions_created=%d bounded_functions=%d function_names=%d inside_existing=%d "
+        "key_names=%d pointer_dwords=%d pointer_refs=%d strings=%d"
+        % (
+            fn_created,
+            fn_bounded,
+            fn_named,
+            inside_existing,
+            key_named,
+            data_items,
+            data_refs,
+            strings,
+        )
+    )
+
+
+if __name__ == "__main__":
+    main()

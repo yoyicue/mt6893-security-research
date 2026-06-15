@@ -174,11 +174,29 @@ Static firmware impact so far:
 - `.xt.prop`-constrained `entry` prologue scanning recovers `1019` firmware
   entry candidates. The FLK pointer runs resolve to owner `0x70015e98`; the
   31-entry ANN branch-table run at `0x70000b80` resolves to owner `0x70081d50`.
+- The same ELF loaded as IDA Pro **ELF for Xtensa** now has processor
+  `XTENSA`, saved IDB `/private/tmp/apunn_core0_full.elf.i64`, and `663`
+  functions after applying `tools/ida_apply_apunn_xt_prop.py` to the
+  `.xt.prop`/JSON metadata.
 - `.text`→`.rodata` suffix-reference scanning resolves several tile/arena
-  error paths to owner candidates, including `ProcessTileWise.c` owners
+  error paths to owner candidates (`180` refs total, `45` interesting after
+  accepting newline-bearing log strings), including `ProcessTileWise.c` owners
   `0x700c13b0`, `0x7011be20`, `0x70262690` and `Invalid allocation alignment`
-  owners `0x70076d50`, `0x70131c80`; no reliable iDMA schedule/wait owner is
-  recovered yet.
+  owners `0x70076d50`, `0x70131c80`.
+- A focused critical-string direct-reference scan finds no aligned or all-byte
+  `.text` pointer to `add idma request fail in %s\n`,
+  `ERROR CALLBACK: iDMA in Error`,
+  `INTERRUPT CALLBACK : processing iDMA interrupt`, `iDMA error`,
+  `iDMA schedule error`, `iDMA wait error`,
+  `../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c`, `sDesc > eDesc`,
+  `eDesc >= TM_DMA_DESC_IDX_MAX`, `_DMA_STALL`, or `No error`. So the iDMA
+  schedule/wait strings are present, but no reliable owner is recovered through
+  the direct literal-pointer method.
+- Early entry analysis now identifies `0x70006590` as a small helper that loads
+  `*(a2+0x30)+0x18` into `a10`, calls `0x70007440`, and returns 0.
+  `0x70007440` starts with `entry a1, 0x60`, reads `ccount`, and calls a
+  function pointer from `a12+0` when nonzero; unresolved TIE/FLIX instructions
+  still prevent a complete prototype.
 - `.dram_op.data` contains a 63-entry ANN op-name table, and strings confirm
   the relevant APUNN paths: `process_command`, `execute_op`, `dma_barrier`,
   buffer validation, and iDMA schedule/wait errors.
