@@ -29,6 +29,22 @@ The research objective is not a kernel read/write primitive. The objective is
 to decide whether exact target IOVA reuse can be made frequent enough and
 slot-stable enough to justify more firmware writeback timing work.
 
+Current new target:
+
+```text
+64K p16/r8, target_mode=first, replacement_source=precreated
+free target, then lower, then lower-2
+collect at least 100 usable lower-2 pairs
+promote only if exact_target_iterations/adjacent_found >= 10%
+or first_exact_hist collapses into a narrow replacement-index window
+```
+
+This replaces broad spray expansion as the next step. The current broader best
+case is 64K `p16/r8` with `exact_target_iterations=4/80 = 5%` and dispersed
+first-hit indexes `[0,1,4,7]`; the current strongest shaped candidate is
+`target, lower, lower-2` at `1/14`, but it has only one exact hit and needs a
+focused sample before any firmware-coupled retry.
+
 The primary score is:
 
 ```text
@@ -195,6 +211,73 @@ the current run. The only free-neighborhood shape worth carrying forward is
 64K `target, lower, lower-2`; it has the highest current usable-pair score
 (`1/14 = 7.14%`) but too little adjacent yield and too little hit count to
 justify firmware re-entry.
+
+## Best-Practice Refresh
+
+Current external model, checked against primary sources on 2026-06-15:
+
+- Treat allocator-path identification as the first task. Android's DMA-BUF heap
+  transition documentation notes that ION and DMA-BUF heaps can keep
+  heap-specific allocators and DMA-BUF ops, and this device's APUSYS path still
+  goes through `mdw_mem_ion_*` wrappers. Do not assume generic Linux page
+  allocator behavior just because the userland source is `HardwareBuffer`.
+  Source: <https://source.android.com/docs/core/architecture/kernel/dma-buf-heaps>
+- Model exact reuse as an IOVA allocator/cache problem, not as a larger spray
+  problem. Linux `drivers/iommu/iova.c` has a fast path (`alloc_iova_fast`) with
+  reusable cached IOVA ranges before falling back to the tree allocator. That
+  makes size class, free order, CPU/context locality, and cache state more
+  important than raw replacement count. Source:
+  <https://github.com/torvalds/linux/blob/master/drivers/iommu/iova.c>
+- Keep hole-shaping policy-specific. The Linux generic allocator documents
+  first-fit, best-fit, fixed-offset, and alignment-aware policies; APUSYS/ION may
+  not use genalloc directly, but the policy lesson applies: exact reuse improves
+  by making a particular hole the allocator's easiest legal answer, not by
+  adding unrelated allocations. Source:
+  <https://docs.kernel.org/core-api/genalloc.html>
+- Preserve map/unmap ordering evidence. The DMA API's IOVA path keeps explicit
+  IOVA state through unmap; for this project, every exact-reuse claim must still
+  log APUSYS `mem_free`, IOVA unmap, replacement import, and kernel fault
+  filters. Source: <https://docs.kernel.org/core-api/dma-api.html>
+
+Local best practice from the current APUSYS runs:
+
+- Use 64K as the next primary size. It matches the strongest broader case:
+  `p16/r8 exact_target_iterations=4/80 = 5%` with hits at replacement indexes
+  `[0,1,4,7]`. Keep 4K only as a comparison line.
+- Keep replacements pre-created and same-size. Fresh replacement allocation and
+  guard-before-replacement did not improve exact reuse in the current runs.
+- Keep the Java probe's allocation/free/import sequence in one stable process
+  and one tight loop. If a native helper is later added, pinning to a stable CPU
+  is worth testing because IOVA caches can be per-CPU/per-domain, but that should
+  be a separate variable.
+- Prefer targeted hole shaping over wider pressure. The best next shape is
+  `target, lower, lower-2`, using the first adjacent target pair in a 64K
+  `p16/r8` pool. It currently has the best usable-pair hit rate (`1/14`), but
+  the sample is too small.
+- Do not re-enter firmware on a single exact hit. The next allocator-only run
+  should collect at least 100 usable `lower-2` pairs, then decide from
+  `exact_target_iterations / adjacent_found` and `first_exact_hist`.
+- Treat index spread as a real blocker. `[0,1,4,7]` means the replacement set is
+  attacker-owned but not slot-predictable. Promote a shape only if the hit rate
+  improves or the histogram collapses.
+
+Current next-run recipe:
+
+```text
+size=0x10000
+pool=16
+replacements=8
+target_mode=first
+replacement_source=precreated
+free_shape=target_lower_lower2
+run_until=at least 100 usable lower-2 pairs, or host timeout
+firmware_reentry_gate=exact_target_iterations/adjacent_found >= 10%
+```
+
+If `target, lower, lower-2` cannot reach enough usable pairs in a reasonable
+loop, add a focused profiler that records why each iteration was unusable:
+missing lower neighbor, missing lower-2 neighbor, pool import failure,
+replacement import failure, or non-exact closest delta.
 
 Firmware-coupled status:
 
@@ -369,8 +452,10 @@ Keep `target_then_lower` as the primary free order.
 
 ### 2. Pool And Replacement Pressure
 
-Prioritize 4K first. Keep total pool plus replacement count at or below the
-current scratch descriptor capacity unless the probe is extended.
+Prioritize 64K first for the next exact-amplification pass. 4K remains useful as
+a comparison baseline, but the current 64K signal is stronger. Keep total pool
+plus replacement count at or below the current scratch descriptor capacity
+unless the probe is extended.
 
 | Size | Pool | Replacements | Reason |
 |---:|---:|---:|---|
@@ -381,10 +466,11 @@ current scratch descriptor capacity unless the probe is extended.
 | 4K | 16 | 16 | Measured negative in pressure run: `0/256` |
 | 4K | 20 | 12 | One hit, below baseline: `1/444` |
 | 64K | 12 | 12 | Keep as 64K baseline: `3/936` |
-| 64K | 16 | 8 | Best current pressure score: `4/640` |
+| 64K | 16 | 8 | Best current broader pressure score: `4/640`, iteration score `4/80 = 5%`, histogram `[0:1,1:1,4:1,7:1]` |
 
-The first pass should target at least 100 usable adjacent pairs per case when
-the device remains stable.
+The next focused pass should target at least 100 usable `target, lower, lower-2`
+pairs when the device remains stable. If the focused shape cannot produce usable
+pairs, record the miss reason instead of widening pressure blindly.
 
 ### 3. Replacement Source
 
@@ -403,7 +489,7 @@ profile.
 | Free shape | Purpose |
 |---|---|
 | target, lower | Baseline positive; latest 64K repeat `1/584` |
-| target, lower, lower-2 | Best new candidate: `1/112`, usable-pair score `1/14` |
+| target, lower, lower-2 | Best new candidate: `1/112`, usable-pair score `1/14`; next focused run should collect at least 100 usable pairs |
 | upper, target, lower | Measured negative and often unavailable: `0/24` |
 | target, unrelated same-size, lower | Measured below candidate: `1/400` |
 | target, lower, import one guard, import replacements | Measured negative: `0/344` |
@@ -418,6 +504,8 @@ Do not spend more cycles on APUNN writeback until allocator-only runs meet at
 least one condition:
 
 - `exact_target_iterations / adjacent_found >= 10%` in a repeated 4K case,
+- `exact_target_iterations / adjacent_found >= 10%` in the focused 64K
+  `p16/r8 target, lower, lower-2` case,
 - first exact hits cluster into a narrow index window across repeated runs,
 - one case produces multiple exact hits per iteration often enough to treat the
   replacement set as reliable,
