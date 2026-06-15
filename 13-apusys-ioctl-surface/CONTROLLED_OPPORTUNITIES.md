@@ -38,12 +38,19 @@ can produce exact target reuse:
 64K target_then_lower gap: exact_target=1/96
 ```
 
-The firmware-coupled version of that 4K shape also produced one exact target
-reuse in 464 replacement imports. The replacement stayed marker/zero and did
-not receive APUNN completion bytes; that exact-hit iteration ended as
-`wait=-EIO`. This keeps the APUSYS surface below "proven cross-buffer write",
-but it raises the allocator side from "not observed" to "conditionally
-reachable".
+The follow-up gap-control profiler repeated the result with denser 4K cases:
+`p16/r16` produced `exact_target=3/1248`, `p12/r20` produced
+`exact_target=4/1180`, and the first exact-hit indexes were spread across
+`4,7,9,10,12,16,18`. Selecting the highest adjacent target produced no exact
+target reuse in that run. This makes exact reuse repeatable, but not yet
+replacement-index stable.
+
+The firmware-coupled version of the 4K shape produced exact target reuse in two
+runs, but neither produced APUNN completion bytes in the replacement. The
+latest follow-up had `p16/r16 exact_target=1/208` with `completion_like=0` and
+`wait=-EIO`; the `p12/r20` firmware shape had `exact_target=0/340`. This keeps
+the APUSYS surface below "proven cross-buffer write", but it raises the
+allocator side from "not observed" to "repeatable with target/lower shaping".
 
 The latest follow-up runs also tested the two natural window-amplification
 ideas. Two queued commands sharing the same IOVA did not produce exact
@@ -71,8 +78,8 @@ Current practical ranking:
 | Command-buffer copyback | Kernel/provider updates copied back to user command buffer after provider return | Full `0xb70` diff shows scalar tail state only | No kernel pointer or imported IOVA leak shown |
 | In-flight `mem_free` | Same fd can `mem_free(shared_iova)` after async submit while command is outstanding | Timeout shape returns controlled `wait=-EIO`; completed shape still returns `wait=0` | Real lifetime gap, not yet won as UAF/write |
 | Replacement import pressure | After `mem_free`, import same-size replacement HardwareBuffers and dump them after completion | Firmware race: `exact_reuse=0/12`; standalone profiler: `exact_reuse=0/2720`; no stale APUNN write in replacement buffers | Immediate same-size reuse is negative; superseded by target/lower gap shaping |
-| Target/lower gap reuse | Import a pool, find target plus exact lower neighbor, free `target` then lower, then import replacements | 4K gap profiler: `exact_target=2/448`; 64K: `exact_target=1/96`; opposite free order stayed zero | Exact IOVA reuse is conditionally reachable |
-| Firmware gap reuse | Same target/lower gap, but target is the live APUNN settings/output IOVA after `run_cmd_async` | 4K firmware gap: `exact_target=1/464`, `completion_like_hits=0`, exact-hit wait `-EIO`; no IOMMU/devapc/Oops | Allocator half works; firmware write timing not won |
+| Target/lower gap reuse | Import a pool, find target plus exact lower neighbor, free `target` then lower, then import replacements | Initial 4K/64K exact reuse plus control follow-up: 4K `p16/r16 exact=3/1248`, 4K `p12/r20 exact=4/1180`; hit indexes spread across several replacement slots | Exact IOVA reuse is repeatable but not index-stable |
+| Firmware gap reuse | Same target/lower gap, but target is the live APUNN settings/output IOVA after `run_cmd_async` | Follow-up: 4K `p16/r16 exact=1/208`, `completion_like=0`, exact-hit wait `-EIO`; 4K `p12/r20 exact=0/340`; no IOMMU/devapc/Oops | Allocator half works; firmware write timing not won |
 | Two-command shared IOVA | Submit two commands referencing one imported IOVA, free it, import replacements, then wait both commands | `completed/completed`, `completed/timeout`, and `timeout/completed` all submitted; replacement exact reuse `0/12`; completed command still writes original shared buffer; timeout command returns `-EIO` | Window amplification tested, no primitive signal |
 | Completed latency variants | Change output size/opcode while keeping completed settings5/no-settings shape | `ANN_VERSION` output `0x40/0x100/0x400/0x1000`, `LOCAL_MEM_INFO`, and `GET_DETAILED_OP_INFO` all complete with wait time `1..14 ms` | No slower completed writeback window found |
 | fd close teardown | Close APUSYS fd after async submit and leave residual command cleanup to `mdw_usr_destroy` | Residual teardown reachable; no crash/oops/KASAN | Lower confidence than explicit `mem_free` |
@@ -222,7 +229,51 @@ Interpretation: exact target IOVA reuse is possible, but only with the
 target-then-lower free order in this run. This reopens the firmware-coupled
 cross-buffer-write hypothesis.
 
-### 2b. Firmware-coupled target/lower gap reuse
+### 2b. Target/lower gap control follow-up
+
+Purpose: measure whether the exact reuse can be made slot-predictable by
+changing pool pressure, replacement pressure, and target selection.
+
+Implemented and run as:
+
+```
+poc/ApusysIoctlProbe.java --apusys-iova-gap-control-profiler
+```
+
+Result:
+
+```
+result=poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler.txt
+kernel=poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler_kernel_relevant.txt
+
+4K p16/r16 first:
+  adjacent_found=78/80, exact_target=3/1248
+  first_exact_hist=[7:1,9:1,12:1]
+
+4K p12/r20 first:
+  adjacent_found=59/80, exact_target=4/1180
+  first_exact_hist=[4:1,16:1,18:1]
+
+4K p20/r12 first:
+  adjacent_found=66/80, exact_target=1/792
+  first_exact_hist=[10:1]
+
+4K p16/r16 highest:
+  adjacent_found=36/60, exact_target=0/576
+
+64K p12/r12 first:
+  adjacent_found=40/40, exact_target=1/480
+  first_exact_hist=[7:1]
+```
+
+Kernel log: no `devapc`, IOMMU fault, panic/Oops, `BUG`, or `KASAN`.
+
+Interpretation: `target_then_lower` exact reuse is repeatable, but the hit slot
+is not stable. Replacement indexes `4`, `7`, `9`, `10`, `12`, `16`, and `18`
+all appeared as first exact hits across the control run. The attacker can own
+the replacement buffers, but this is not yet a selected-slot primitive.
+
+### 2c. Firmware-coupled target/lower gap reuse
 
 Purpose: combine the exact-reuse allocator shape with the live APUNN completion
 writeback path.
@@ -269,6 +320,34 @@ Interpretation: the allocator half of the primitive is now real, but the
 firmware writeback half is not won. In the exact-hit case, replacement import
 appears to happen before firmware consumes a valid APUNN settings buffer, so the
 command times out instead of writing completion bytes into the replacement.
+
+Follow-up with exact-index histograms:
+
+```
+result=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup.txt
+kernel=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup_kernel_relevant.txt
+
+4K p16/r16:
+  pair_found=13/30
+  exact_target=1/208
+  first_exact_hist=[9:1]
+  completion_like_hits=0
+  wait_ok=12
+  wait_eio=1
+
+4K p12/r20:
+  pair_found=17/40
+  exact_target=0/340
+  completion_like_hits=0
+  wait_ok=13
+  wait_eio=4
+```
+
+The exact p16/r16 hit was again marker/zero before and after wait, with
+`completion_like=0` and `wait=-EIO`. The p12/r20 allocator shape did not carry
+over to a firmware exact hit in this run. Kernel log contains timeout-class VPU
+messages for failed waits, but no `devapc`, IOMMU fault, panic/Oops, `BUG`, or
+`KASAN`.
 
 ### 3. Slower completed writeback shape
 
@@ -464,10 +543,18 @@ Stop spending time on these unless new evidence changes the decision:
   `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler.txt`
 - IOVA gap profiler kernel log:
   `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler_kernel_relevant.txt`
+- IOVA gap control profiler:
+  `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler.txt`
+- IOVA gap control profiler kernel log:
+  `poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler_kernel_relevant.txt`
 - Firmware-coupled gap reuse:
   `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova.txt`
 - Firmware-coupled gap reuse kernel log:
   `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_kernel_relevant.txt`
+- Firmware-coupled gap reuse follow-up:
+  `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup.txt`
+- Firmware-coupled gap reuse follow-up kernel log:
+  `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup_kernel_relevant.txt`
 - Dev-ctrl race:
   `poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_dev_ctrl_race_iova.txt`
 - Dev-ctrl race kernel log:

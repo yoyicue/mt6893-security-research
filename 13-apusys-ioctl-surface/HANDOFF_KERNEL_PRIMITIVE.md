@@ -605,6 +605,26 @@ conditionally reachable on this build. The highest-risk APUSYS shape is no
 longer "can exact reuse happen"; it is whether firmware completion can be made
 to write after that exact replacement import.
 
+The gap-control follow-up makes the allocator status more precise:
+
+```
+poc/ApusysIoctlProbe.java --apusys-iova-gap-control-profiler
+
+result=poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler.txt
+kernel=poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler_kernel_relevant.txt
+
+4K p16/r16 first:  adjacent_found=78/80, exact_target=3/1248
+4K p12/r20 first:  adjacent_found=59/80, exact_target=4/1180
+4K p20/r12 first:  adjacent_found=66/80, exact_target=1/792
+4K p16/r16 highest: adjacent_found=36/60, exact_target=0/576
+64K p12/r12 first: adjacent_found=40/40, exact_target=1/480
+```
+
+First exact-hit replacement indexes were spread across `4`, `7`, `9`, `10`,
+`12`, `16`, and `18`; the highest-target selection did not hit. This means the
+target/lower shape is repeatable, but not slot-stable. The attacker can own the
+replacement set, but cannot yet select one reliable replacement index.
+
 The firmware-coupled gap-reuse probe is implemented as:
 
 ```
@@ -638,6 +658,26 @@ Current interpretation: the allocator half of the cross-buffer-write primitive
 is demonstrated, but the firmware writeback half is not. Exact reuse by itself
 turns the command into timeout/EIO when firmware has not already consumed the
 valid settings buffer; it does not yet produce a replacement-buffer write.
+
+The firmware follow-up with exact-index histograms kept that conclusion:
+
+```
+result=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup.txt
+kernel=poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup_kernel_relevant.txt
+
+4K p16/r16:
+  pair_found=13/30, exact_target=1/208, first_exact_hist=[9:1]
+  completion_like_hits=0, wait_ok=12, wait_eio=1
+
+4K p12/r20:
+  pair_found=17/40, exact_target=0/340
+  completion_like_hits=0, wait_ok=13, wait_eio=4
+```
+
+The exact p16/r16 hit stayed marker/zero before and after wait and ended in
+`wait=-EIO`. The p12/r20 allocator shape did not carry over to a firmware exact
+hit in this run. Kernel logs showed timeout-class VPU lines for failed waits,
+but no `devapc`, IOMMU fault, panic/Oops, `BUG`, or `KASAN`.
 
 Two-command shared-IOVA pressure is also implemented and currently negative:
 

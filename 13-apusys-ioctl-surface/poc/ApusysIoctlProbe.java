@@ -421,6 +421,7 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpCompletedLatencyMatrixIova = false;
         boolean apusysIovaReuseProfiler = false;
         boolean apusysIovaGapProfiler = false;
+        boolean apusysIovaGapControlProfiler = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlotControl = false;
         boolean runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix = false;
@@ -654,6 +655,8 @@ public final class ApusysIoctlProbe {
                 apusysIovaReuseProfiler = true;
             } else if ("--apusys-iova-gap-profiler".equals(arg)) {
                 apusysIovaGapProfiler = true;
+            } else if ("--apusys-iova-gap-control-profiler".equals(arg)) {
+                apusysIovaGapControlProfiler = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot".equals(arg)) {
                 runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot = true;
             } else if ("--run-cmd-vpu-xrp-internal-ann-version-iova-libvpu-desc-send-flags-wrapper-data-preload-slot-control".equals(arg)) {
@@ -797,6 +800,7 @@ public final class ApusysIoctlProbe {
                 || runCmdVpuXrpCompletedLatencyMatrixIova
                 || apusysIovaReuseProfiler
                 || apusysIovaGapProfiler
+                || apusysIovaGapControlProfiler
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrix
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescFlagsMatrixControl
                 || runCmdVpuXrpInternalAnnVersionIovaLibvpuDescOperandOffsetMatrix
@@ -1394,6 +1398,10 @@ public final class ApusysIoctlProbe {
 
             if (apusysIovaGapProfiler) {
                 runApusysIovaGapProfiler();
+            }
+
+            if (apusysIovaGapControlProfiler) {
+                runApusysIovaGapControlProfiler();
             }
 
             if (runCmdVpuXrpInternalAnnVersionIovaLibvpuDescSendFlagsWrapperDataPreloadSlot) {
@@ -4238,6 +4246,7 @@ public final class ApusysIoctlProbe {
         loadRuntimeLibraries();
 
         runRunCmdVpuXrpMemFreeRaceCompletedGapReuseCase(0x4000, 16, 16, 30);
+        runRunCmdVpuXrpMemFreeRaceCompletedGapReuseCase(0x4000, 12, 20, 40);
     }
 
     private static void runRunCmdVpuXrpMemFreeRaceCompletedGapReuseCase(
@@ -4252,6 +4261,8 @@ public final class ApusysIoctlProbe {
         int waitOk = 0;
         int waitEio = 0;
         int importFailTotal = 0;
+        int[] exactIndexHistogram = new int[replacementCount];
+        int[] firstExactIndexHistogram = new int[replacementCount];
 
         for (int iter = 0; iter < iterations; iter++) {
             int raceFd = -1;
@@ -4337,6 +4348,8 @@ public final class ApusysIoctlProbe {
                 int exactTargetThis = 0;
                 int completionLikeThis = 0;
                 int importFailThis = 0;
+                int firstExactIndex = -1;
+                StringBuilder exactIndices = new StringBuilder();
                 boolean[] exactReplacement = new boolean[replacementCount];
                 for (int ri = 0; ri < replacementCount; ri++) {
                     long memDesc = DrmTrigger.sScratchBuf
@@ -4351,6 +4364,12 @@ public final class ApusysIoctlProbe {
                     if (replacements[ri].iovaLow == targetIova) {
                         exactReplacement[ri] = true;
                         exactTargetThis++;
+                        exactIndexHistogram[ri]++;
+                        if (firstExactIndex < 0) {
+                            firstExactIndex = ri;
+                            firstExactIndexHistogram[ri]++;
+                        }
+                        appendIndex(exactIndices, ri);
                         dumpReplacementImport("gap_fw_exact_before_wait",
                             replacements[ri], targetIova, XRP_OP_ANN_VERSION);
                     }
@@ -4366,6 +4385,8 @@ public final class ApusysIoctlProbe {
                     + " lower_free=" + retText(lowerFreeRet)
                     + " exact_target=" + exactTargetThis + "/"
                     + replacementCount
+                    + " exact_indices=" + indexListText(exactIndices)
+                    + " first_exact_idx=" + firstExactIndex
                     + " import_fail=" + importFailThis);
 
                 Thread.sleep(1000);
@@ -4456,7 +4477,10 @@ public final class ApusysIoctlProbe {
             + " completion_like_hits=" + completionLikeHits
             + " wait_ok=" + waitOk
             + " wait_eio=" + waitEio
-            + " import_fail_total=" + importFailTotal);
+            + " import_fail_total=" + importFailTotal
+            + " first_exact_hist="
+            + nonZeroHistogram(firstExactIndexHistogram)
+            + " exact_hist=" + nonZeroHistogram(exactIndexHistogram));
     }
 
     private static void runRunCmdVpuXrpDevCtrlRaceHardwareBufferProbe()
@@ -4747,6 +4771,284 @@ public final class ApusysIoctlProbe {
             0x10000, 12, 8, 12, true);
         runApusysIovaGapProfilerCase("gap_64k_p12_r8_i12_target_then_lower",
             0x10000, 12, 8, 12, false);
+    }
+
+    private static void runApusysIovaGapControlProfiler() throws Exception {
+        System.out.println("\n[*] === APUSYS IOVA gap control profiler ===");
+        System.out.println("[*] Mode: allocator-only follow-up for the"
+            + " target_then_lower shape. This records exact-hit replacement"
+            + " indexes and compares pool/replacement pressure so exact reuse"
+            + " can be treated as a controllability question.");
+        loadRuntimeLibraries();
+
+        runApusysIovaGapControlProfilerCase(
+            "gap_ctl_4k_p16_r16_i80_first",
+            0x4000, 16, 16, 80, "first");
+        runApusysIovaGapControlProfilerCase(
+            "gap_ctl_4k_p12_r20_i80_first",
+            0x4000, 12, 20, 80, "first");
+        runApusysIovaGapControlProfilerCase(
+            "gap_ctl_4k_p20_r12_i80_first",
+            0x4000, 20, 12, 80, "first");
+        runApusysIovaGapControlProfilerCase(
+            "gap_ctl_4k_p16_r16_i60_highest",
+            0x4000, 16, 16, 60, "highest");
+        runApusysIovaGapControlProfilerCase(
+            "gap_ctl_64k_p12_r12_i40_first",
+            0x10000, 12, 12, 40, "first");
+    }
+
+    private static void runApusysIovaGapControlProfilerCase(
+            String label,
+            int importSize,
+            int poolCount,
+            int replacementCount,
+            int iterations,
+            String targetMode)
+            throws Exception {
+        if (poolCount < 2 || replacementCount < 1 || iterations < 1) {
+            return;
+        }
+        if (poolCount + replacementCount > MAX_REUSE_PROFILE_IMPORTS) {
+            replacementCount = MAX_REUSE_PROFILE_IMPORTS - poolCount;
+        }
+        if (replacementCount < 1) {
+            return;
+        }
+
+        System.out.println("\n[*] === iova-gap-control case " + label
+            + " size=0x" + Integer.toHexString(importSize)
+            + " pool=" + poolCount
+            + " replacements=" + replacementCount
+            + " iterations=" + iterations
+            + " free_order=target_then_lower"
+            + " target_mode=" + targetMode
+            + " ===");
+
+        int apusysFd = -1;
+        int adjacentFound = 0;
+        int noAdjacent = 0;
+        int exactTargetTotal = 0;
+        int exactTargetIterations = 0;
+        int lowerHitTotal = 0;
+        int importFailTotal = 0;
+        int poolImportFailTotal = 0;
+        int[] exactIndexHistogram = new int[replacementCount];
+        int[] firstExactIndexHistogram = new int[replacementCount];
+        int[] lowerIndexHistogram = new int[replacementCount];
+        long closestAbsDelta = Long.MAX_VALUE;
+        long closestSignedDelta = 0;
+        int closestIteration = -1;
+        int closestIndex = -1;
+        try {
+            apusysFd = DrmTrigger.openDev(APUSYS_DEV);
+            for (int iter = 0; iter < iterations; iter++) {
+                ReplacementImport[] pool = null;
+                ReplacementImport[] replacements = null;
+                boolean[] poolImported = new boolean[poolCount];
+                try {
+                    pool = createProfilerHardwareBufferPool(poolCount,
+                        importSize, label + "_pool_" + iter);
+                    replacements = createProfilerHardwareBufferPool(
+                        replacementCount, importSize,
+                        label + "_repl_" + iter);
+
+                    int poolFailures = 0;
+                    for (int pi = 0; pi < poolCount; pi++) {
+                        long memDesc = DrmTrigger.sScratchBuf
+                            + OFF_MEM_REUSE_BASE
+                            + (pi * OFF_MEM_REUSE_STRIDE);
+                        long ret = importProfilerMem(apusysFd, pool[pi],
+                            memDesc, importSize, "gap_ctl_pool_" + label
+                            + "_" + pi, false);
+                        if (ret >= 0) {
+                            poolImported[pi] = true;
+                        } else {
+                            poolFailures++;
+                        }
+                    }
+                    poolImportFailTotal += poolFailures;
+
+                    int targetIndex = findGapProfilerTarget(pool, importSize,
+                        targetMode);
+                    int lowerIndex = targetIndex >= 0
+                        ? findExactLowerNeighbor(pool, targetIndex, importSize)
+                        : -1;
+                    if (targetIndex < 0 || lowerIndex < 0) {
+                        noAdjacent++;
+                        System.out.println("[*] iova_gap_control_iter "
+                            + label
+                            + " iter=" + iter
+                            + " adjacent_pair=none"
+                            + " pool_import_fail=" + poolFailures
+                            + " pool_iovas=" + profilerIovaList(pool));
+                        continue;
+                    }
+
+                    adjacentFound++;
+                    int targetIova = pool[targetIndex].iovaLow;
+                    int lowerIova = pool[lowerIndex].iovaLow;
+                    long targetMemDesc = DrmTrigger.sScratchBuf
+                        + OFF_MEM_REUSE_BASE
+                        + (targetIndex * OFF_MEM_REUSE_STRIDE);
+                    long lowerMemDesc = DrmTrigger.sScratchBuf
+                        + OFF_MEM_REUSE_BASE
+                        + (lowerIndex * OFF_MEM_REUSE_STRIDE);
+                    long targetFreeRet = freeProfilerMem(apusysFd,
+                        pool[targetIndex], targetMemDesc,
+                        "gap_ctl_target_" + label, false);
+                    if (targetFreeRet >= 0) {
+                        poolImported[targetIndex] = false;
+                    }
+                    long lowerFreeRet = freeProfilerMem(apusysFd,
+                        pool[lowerIndex], lowerMemDesc,
+                        "gap_ctl_lower_" + label, false);
+                    if (lowerFreeRet >= 0) {
+                        poolImported[lowerIndex] = false;
+                    }
+
+                    int exactTargetThis = 0;
+                    int lowerHitThis = 0;
+                    int failThis = 0;
+                    int firstExactIndex = -1;
+                    long closestThisAbs = Long.MAX_VALUE;
+                    long closestThisSigned = 0;
+                    int closestThisIndex = -1;
+                    int firstReplacementIova = 0;
+                    StringBuilder exactIndices = new StringBuilder();
+                    StringBuilder lowerIndices = new StringBuilder();
+                    for (int ri = 0; ri < replacementCount; ri++) {
+                        long memDesc = DrmTrigger.sScratchBuf
+                            + OFF_MEM_REUSE_BASE
+                            + ((poolCount + ri) * OFF_MEM_REUSE_STRIDE);
+                        long ret = importProfilerMem(apusysFd,
+                            replacements[ri], memDesc, importSize,
+                            "gap_ctl_repl_" + label + "_" + ri, false);
+                        if (ret < 0) {
+                            failThis++;
+                            continue;
+                        }
+                        if (ri == 0) {
+                            firstReplacementIova = replacements[ri].iovaLow;
+                        }
+                        if (replacements[ri].iovaLow == targetIova) {
+                            exactTargetThis++;
+                            exactIndexHistogram[ri]++;
+                            if (firstExactIndex < 0) {
+                                firstExactIndex = ri;
+                                firstExactIndexHistogram[ri]++;
+                            }
+                            appendIndex(exactIndices, ri);
+                        }
+                        if (replacements[ri].iovaLow == lowerIova) {
+                            lowerHitThis++;
+                            lowerIndexHistogram[ri]++;
+                            appendIndex(lowerIndices, ri);
+                        }
+                        long delta = unsignedDelta(replacements[ri].iovaLow,
+                            targetIova);
+                        long absDelta = absLong(delta);
+                        if (absDelta < closestThisAbs) {
+                            closestThisAbs = absDelta;
+                            closestThisSigned = delta;
+                            closestThisIndex = ri;
+                        }
+                    }
+
+                    exactTargetTotal += exactTargetThis;
+                    lowerHitTotal += lowerHitThis;
+                    importFailTotal += failThis;
+                    if (exactTargetThis > 0) {
+                        exactTargetIterations++;
+                    }
+                    if (closestThisAbs < closestAbsDelta) {
+                        closestAbsDelta = closestThisAbs;
+                        closestSignedDelta = closestThisSigned;
+                        closestIteration = iter;
+                        closestIndex = closestThisIndex;
+                    }
+
+                    System.out.println("[*] iova_gap_control_iter " + label
+                        + " iter=" + iter
+                        + " target_idx=" + targetIndex
+                        + " target=0x" + Integer.toHexString(targetIova)
+                        + " lower_idx=" + lowerIndex
+                        + " lower=0x" + Integer.toHexString(lowerIova)
+                        + " target_free=" + retText(targetFreeRet)
+                        + " lower_free=" + retText(lowerFreeRet)
+                        + " first_repl=0x"
+                        + Integer.toHexString(firstReplacementIova)
+                        + " exact_target=" + exactTargetThis + "/"
+                        + replacementCount
+                        + " exact_indices="
+                        + indexListText(exactIndices)
+                        + " first_exact_idx=" + firstExactIndex
+                        + " lower_hit=" + lowerHitThis + "/"
+                        + replacementCount
+                        + " lower_indices="
+                        + indexListText(lowerIndices)
+                        + " closest_idx=" + closestThisIndex
+                        + " closest_delta_to_target="
+                        + signedHexDelta(closestThisSigned)
+                        + " import_fail=" + failThis);
+                } finally {
+                    if (replacements != null) {
+                        for (int ri = 0; ri < replacementCount; ri++) {
+                            long memDesc = DrmTrigger.sScratchBuf
+                                + OFF_MEM_REUSE_BASE
+                                + ((poolCount + ri) * OFF_MEM_REUSE_STRIDE);
+                            freeProfilerMem(apusysFd, replacements[ri],
+                                memDesc, "gap_ctl_repl_" + label + "_" + ri,
+                                false);
+                        }
+                        closeProfilerBufferPool(replacements);
+                    }
+                    if (pool != null) {
+                        for (int pi = 0; pi < poolCount; pi++) {
+                            if (poolImported[pi]) {
+                                long memDesc = DrmTrigger.sScratchBuf
+                                    + OFF_MEM_REUSE_BASE
+                                    + (pi * OFF_MEM_REUSE_STRIDE);
+                                freeProfilerMem(apusysFd, pool[pi], memDesc,
+                                    "gap_ctl_pool_" + label + "_" + pi,
+                                    false);
+                            }
+                        }
+                        closeProfilerBufferPool(pool);
+                    }
+                }
+            }
+
+            int totalReplacementImports = adjacentFound * replacementCount;
+            System.out.println("[+] iova_gap_control_summary " + label
+                + " size=0x" + Integer.toHexString(importSize)
+                + " pool=" + poolCount
+                + " replacements=" + replacementCount
+                + " iterations=" + iterations
+                + " target_mode=" + targetMode
+                + " adjacent_found=" + adjacentFound + "/" + iterations
+                + " no_adjacent=" + noAdjacent
+                + " exact_target_total=" + exactTargetTotal + "/"
+                + totalReplacementImports
+                + " exact_target_iterations=" + exactTargetIterations
+                + "/" + adjacentFound
+                + " lower_hit_total=" + lowerHitTotal + "/"
+                + totalReplacementImports
+                + " import_fail_total=" + importFailTotal
+                + " pool_import_fail_total=" + poolImportFailTotal
+                + " first_exact_hist="
+                + nonZeroHistogram(firstExactIndexHistogram)
+                + " exact_hist=" + nonZeroHistogram(exactIndexHistogram)
+                + " lower_hist=" + nonZeroHistogram(lowerIndexHistogram)
+                + " closest_iter=" + closestIteration
+                + " closest_idx=" + closestIndex
+                + " closest_delta_to_target="
+                + signedHexDelta(closestSignedDelta));
+        } finally {
+            if (apusysFd >= 0) {
+                DrmTrigger.closeFd(apusysFd);
+            }
+        }
     }
 
     private static void runApusysIovaGapProfilerCase(String label,
@@ -5588,15 +5890,37 @@ public final class ApusysIoctlProbe {
 
     private static int findGapProfilerTarget(ReplacementImport[] pool,
                                              int importSize) {
+        return findGapProfilerTarget(pool, importSize, "first");
+    }
+
+    private static int findGapProfilerTarget(ReplacementImport[] pool,
+                                             int importSize,
+                                             String targetMode) {
+        int bestIndex = -1;
+        long bestIova = 0;
         for (int i = 0; pool != null && i < pool.length; i++) {
             if (pool[i] == null || !pool[i].imported) {
                 continue;
             }
-            if (findExactLowerNeighbor(pool, i, importSize) >= 0) {
+            if (findExactLowerNeighbor(pool, i, importSize) < 0) {
+                continue;
+            }
+            long candidate = pool[i].iovaLow & 0xffffffffL;
+            if ("highest".equals(targetMode)) {
+                if (bestIndex < 0 || candidate > bestIova) {
+                    bestIndex = i;
+                    bestIova = candidate;
+                }
+            } else if ("lowest".equals(targetMode)) {
+                if (bestIndex < 0 || candidate < bestIova) {
+                    bestIndex = i;
+                    bestIova = candidate;
+                }
+            } else {
                 return i;
             }
         }
-        return -1;
+        return bestIndex;
     }
 
     private static int findExactLowerNeighbor(ReplacementImport[] pool,
@@ -5617,6 +5941,43 @@ public final class ApusysIoctlProbe {
             }
         }
         return -1;
+    }
+
+    private static void appendIndex(StringBuilder sb, int index) {
+        if (sb.length() > 0) {
+            sb.append(",");
+        }
+        sb.append(index);
+    }
+
+    private static String indexListText(StringBuilder sb) {
+        if (sb == null || sb.length() == 0) {
+            return "[-]";
+        }
+        return "[" + sb.toString() + "]";
+    }
+
+    private static String nonZeroHistogram(int[] histogram) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("[");
+        boolean wrote = false;
+        for (int i = 0; histogram != null && i < histogram.length; i++) {
+            if (histogram[i] == 0) {
+                continue;
+            }
+            if (wrote) {
+                sb.append(",");
+            }
+            sb.append(i);
+            sb.append(":");
+            sb.append(histogram[i]);
+            wrote = true;
+        }
+        if (!wrote) {
+            sb.append("-");
+        }
+        sb.append("]");
+        return sb.toString();
     }
 
     private static String profilerIovaList(ReplacementImport[] pool) {
