@@ -724,3 +724,18 @@ Stop spending time on these unless new evidence changes the decision:
   `../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completed_latency_matrix_iova.txt`
 - Completed latency matrix kernel log:
   `../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completed_latency_matrix_iova_kernel_relevant.txt`
+
+**Delay-matrix run completed 2026-06-15**:
+
+```
+delay=7000ms: exact_iter=0/15(0%)  import_fail=0   pln_hits=0 wait_eio=15
+delay=8500ms: exact_iter=4/15(27%) import_fail=41  pln_hits=0 wait_eio=15
+delay=5000ms: exact_iter=4/15(27%) import_fail=78  pln_hits=0 wait_ok=1 wait_eio=13
+```
+
+Finding: delay=7000ms evicts the IOVA fast-path cache (0/15 exact reuse).
+5s/8.5s delays get 27% exact reuse but still pln_hits=0: IOMMU teardown
+happens before firmware write in all tested delays. PLN1 write requires
+sub-millisecond IOVA remap precision around the write event — not achievable
+from Java. Cross-buffer write is not demonstrated. Remaining path requires
+kernel-side timing instrumentation or a different firmware write mechanism.
