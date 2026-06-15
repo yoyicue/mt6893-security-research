@@ -635,7 +635,9 @@ first dword changes from marker to `0x504c4e31` (PLN0→PLN1 redirect byte).
 - Suggested mode name:
   `--run-cmd-vpu-xrp-plane-redirect-gap-reuse-iova`
 
-**Status**: not yet implemented.
+**Status**: implemented (commit `a9d7c5a`). Cases: 64K p16/r8 (30 iter) +
+64K p12/r8 (20 iter). Summary line: `[+] gap_plane_redirect_summary`.
+Success oracle: `getU32LE(replacement, 0x700) == 0x504c4e31` (PLN1 marker).
 
 ## Current stop conditions
 

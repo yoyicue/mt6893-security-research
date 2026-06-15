@@ -694,8 +694,10 @@ instrumentation or alternate ioctl side-effect paths such as `dev_ctrl` /
   `poc/ApusysIoctlProbe.java --apusys-iova-gap-lower2-focus-profiler`
 - Burn-before-record sweep:
   `poc/ApusysIoctlProbe.java --apusys-iova-gap-burn-sweep-profiler`
-- Firmware-coupled gap reuse:
+- Firmware-coupled gap reuse (completed path, demoted — synchronous sub-ms):
   `poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-mem-free-race-completed-gap-reuse-iova`
+- **Plane-redirect + gap reuse (new, highest-priority, commit a9d7c5a)**:
+  `poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-plane-redirect-gap-reuse-iova`
 
 ## Evidence Files
 
