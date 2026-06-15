@@ -146,6 +146,7 @@ acquisition is no longer the blocker.
 | Core-0 main PROG | raw offset `0x3b4`, load base `0x70000000`, `INFO16` target `0x70006794` |
 | Embedded ELF | main PROG `+0x234`, partition file offset `0x5e8`, ELF entry `0x70006794`, `e_shoff=0x32cc18` |
 | Full core-0 ELF | `/tmp/apunn_core0_full.elf`, SHA-256 `69658bfe18e8084e44da165ebc326c01ce9a2e672a059ae5a706ce5e397c3c88` |
+| Persisted analysis artifacts | `13-apusys-ioctl-surface/firmware/apunn/` contains the ELF, IDA `.i64`, analyzer JSON, and analyzer Markdown |
 
 Reproduce the extraction:
 
@@ -175,8 +176,9 @@ Static firmware impact so far:
   entry candidates. The FLK pointer runs resolve to owner `0x70015e98`; the
   31-entry ANN branch-table run at `0x70000b80` resolves to owner `0x70081d50`.
 - The same ELF loaded as IDA Pro **ELF for Xtensa** now has processor
-  `XTENSA`, saved IDB `/private/tmp/apunn_core0_full.elf.i64`, and `663`
-  functions after applying `tools/ida_apply_apunn_xt_prop.py` to the
+  `XTENSA`, saved IDB
+  `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf.i64`, and
+  `663` functions after applying `tools/ida_apply_apunn_xt_prop.py` to the
   `.xt.prop`/JSON metadata.
 - `.text`→`.rodata` suffix-reference scanning resolves several tile/arena
   error paths to owner candidates (`180` refs total, `45` interesting after

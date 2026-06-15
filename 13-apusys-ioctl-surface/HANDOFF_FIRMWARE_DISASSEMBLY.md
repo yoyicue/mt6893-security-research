@@ -188,6 +188,17 @@ file /tmp/apunn_core0_full.elf
 A live physical reserved-memory dump is still useful to verify the exact
 LK-merged layout, but it is no longer a blocker for core-0 static analysis.
 
+The current ELF, IDA IDB, and analyzer outputs are persisted under
+`13-apusys-ioctl-surface/firmware/apunn/`:
+
+| Artifact | Path | SHA-256 |
+|---|---|---|
+| Core-0 full ELF | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf` | `69658bfe18e8084e44da165ebc326c01ce9a2e672a059ae5a706ce5e397c3c88` |
+| IDA Pro Xtensa IDB | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf.i64` | `4da91a806b7adf894f027adddec0bb60ed5b107409b4f4c8b86e4049fd247e09` |
+| IDA sidecars | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf.{id0,id1,id2,nam,til}` | see `firmware/apunn/README.md` |
+| Analyzer JSON | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full_analysis_refs.json` | `a53bd6519ccd675e7887bf064a2ced935656c64aab16a2b54a36261a7d1a13a5` |
+| Analyzer Markdown | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full_analysis_refs.md` | `8adf839c190449351f962c413a3ee3111259279810f056e058ddbc924d28c956` |
+
 Current core-0 ELF facts from
 `13-apusys-ioctl-surface/tools/analyze_apunn_elf.py`:
 
@@ -297,7 +308,8 @@ prototype, until the custom instruction semantics are resolved.
 
 IDA Pro MCP state after reloading the same ELF as **ELF for Xtensa** (not raw
 `Binary File`): processor `XTENSA`, 32-bit, sections mapped at the ELF VAs
-above, saved IDB `/private/tmp/apunn_core0_full.elf.i64`. Running
+above, saved IDB
+`13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf.i64`. Running
 `tools/ida_apply_apunn_xt_prop.py` against
 `/tmp/apunn_core0_full_analysis_refs.json` creates/names `.xt.prop`-bounded
 entry candidates up to the safe `next_entry_delta <= 0x2000` threshold. Current
