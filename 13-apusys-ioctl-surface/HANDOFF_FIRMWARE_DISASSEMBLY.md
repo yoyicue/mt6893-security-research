@@ -392,11 +392,14 @@ fields within the 0x40 record window (`+0x02..+0x3d` samples), while the
 `0x7003c102..0x7003c1ac` loop-target body exposes only six boundary-visible
 core stores to the stack (`a1+0x250..0x2bc`) plus FLIX128/64 bundles. The
 companion LOOP scan found no byte-aligned hardware LOOP to `0x7003c102`, no
-exact standard branch back-edge, and no boundary-visible `a2 += 0x40`. Count is
-therefore closed at the ABI/kernel source (`INFO12` / `buffer_count`), and
-stride is closed by the kernel-copied `INFO13` `struct vpu_buffer[]` layout with
-0x40 records; naming the firmware-local count register remains FLIX/TIE slot
-decoder work. `0x7003d423` inside
+exact standard branch back-edge, and no boundary-visible `a2 += 0x40`. For the
+current primitive model, this closes INFO12/INFO13 at the ABI plus record-layout
+level: count is `INFO12` / `buffer_count`, provider-gated below `0x21`, and
+stride is the kernel-copied `INFO13` `struct vpu_buffer[]` layout with 0x40
+records. Naming a firmware-local bundle-interior count register remains
+FLIX/TIE slot-decoder work, not a blocker for the descriptor-count proposition.
+`tools/apunn_loop_scan.py` remains useful as a byte-aligned LOOP negative-control
+and regression check; it is not a FLIX slot decoder. `0x7003d423` inside
 `0x7003ce3c/a2` is downgraded but no longer opaque: the corrected sweep shows
 the target itself is also a core24 item, while the surrounding block remains
 short branch targets, unreachable gaps, and `insn|data` mixed runs, making it
@@ -653,7 +656,9 @@ kernel interface is:
 - Native firmware code has verified 0x40-record-shaped validation/consumption
   islands. The `0x7003c102` loop body does not itself expose descriptor loads;
   it exposes stack stores plus FLIX bundles. Count is sourced from INFO12 at the
-  kernel/provider boundary, and stride is the 0x40 INFO13 descriptor layout.
+  ABI/kernel/provider boundary, and stride is the 0x40 INFO13 descriptor layout.
+  FLIX/TIE slot semantics may still name a local count register, but that is
+  separate from the exposed descriptor-count primitive.
 
 Remaining descriptor questions are size/plane validation quality and DMA owner
 timing, not whether the current interface exposes an unchecked descriptor-count

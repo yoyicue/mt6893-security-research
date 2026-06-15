@@ -361,21 +361,21 @@ These clusters are produced by a lightweight standard Xtensa 24-bit load/store d
 
 ### Focused Loop Investigations
 
-`0x7003c102` remains the strongest record-shaped loop-target lead. After FLIX correction, the target body exposes stack-spill core ops and FLIX bundles; the ABI count is INFO12/buffer_count, while the record stride is the 0x40 INFO13 descriptor layout. Naming the firmware-local count register still requires FLIX/TIE slot semantics. `0x7003d423` is kept as a downgraded local-control-flow lead.
+`0x7003c102` remains the strongest record-shaped loop-target lead. After FLIX correction, the target body exposes stack-spill core ops and FLIX bundles; the INFO12 count is closed at the ABI/kernel/provider boundary, while the INFO13 stride is closed by the 0x40 descriptor layout plus `0x7003b468/a2` field coverage. Naming a firmware-local bundle-interior count register still requires FLIX/TIE slot semantics. `0x7003d423` is kept as a downgraded local-control-flow lead.
 
 #### `flix_assisted_INFO13_record_lead` `0x7003b468` target `0x7003c102`
 
 - priority: `independent_flix_branch`
-- assessment: Clean 0xaa-byte loop_target property run inside the strongest 0x40-record-shaped field cluster. FLIX-correct boundaries show the owner reads descriptor-shaped a2 fields within 0x02..0x3d; the 0x7003c102 loop body itself contains stack spills plus FLIX bundles, so the firmware-local count update is in FLIX/TIE slot semantics rather than a boundary-visible core LOOP.
+- assessment: Clean 0xaa-byte loop_target property run inside the strongest 0x40-record-shaped field cluster. FLIX-correct boundaries show the owner reads descriptor-shaped a2 fields within 0x02..0x3d; the 0x7003c102 loop body itself contains stack spills plus FLIX bundles. The length-only FLIX overlay therefore closes the record-layout evidence but cannot name a bundle-interior count register.
 - target prop: `insn|loop_target|no_reorder:0xaa`
 - FLIX framing motif `FLIX128 framing tail 06 04 02` hits: 0x7003b481, 0x7003b4c5, 0x7003b4d5, 0x7003b4e5, 0x7003b502, 0x7003b512, 0x7003b522, 0x7003b532, 0x7003b54b, 0x7003b55b, 0x7003b56b, 0x7003b57b, 0x7003b599, 0x7003b5a9, 0x7003b5b9, 0x7003b5c9
 - FLIX framing motif deltas: 0x44, 0x10, 0x10, 0x1d, 0x10, 0x10, 0x10, 0x19, 0x10, 0x10, 0x10, 0x1e, 0x10, 0x10, 0x10, 0x13
 - standard loop opcode hits to target: none
 - owner boundary counts: core24=253, dens16=20, flix64=57, flix128=136, truncated=0
 - loop body: `0x7003c102`..`0x7003c1ac`; core24=6, dens16=0, flix64=1, flix128=9, truncated=0
-- count status: firmware-local count register is not boundary-visible after FLIX correction: there is no byte-aligned LOOP/LOOPNEZ/LOOPGTZ to 0x7003c102, and the loop_target body core ops are stack spills. The ABI count source is INFO12/buffer_count; naming the internal loop register requires a FLIX/TIE slot decoder.
-- stride status: record stride is closed at the data-layout level: boundary-visible a2 descriptor loads cover offsets 0x2, 0x3, 0xa, 0xb, 0xe, 0xf, 0x12, 0x15, 0x29, 0x2c, 0x2d, 0x30, 0x31, 0x34, 0x35, 0x38, 0x39, 0x3c, 0x3d within a 0x40-byte record, and the kernel/provider copies INFO13 as struct vpu_buffer[INFO12] with 0x40 stride. No boundary-visible a2 += 0x40 instruction appears in this owner.
-- next action: Treat stride as closed by the 0x40 descriptor layout and boundary-visible a2 field coverage; decode the FLIX/TIE slot only if firmware-local count-register naming is required.
+- count status: INFO12 count is closed at the ABI/kernel/provider boundary: firmware receives buffer_count, and the provider gates it below 0x21. After FLIX correction there is no byte-aligned LOOP/LOOPNEZ/LOOPGTZ to 0x7003c102; the loop_target body exposes stack-spill core ops plus FLIX bundles. A firmware-local count register name would require FLIX/TIE slot semantics, but the primitive model no longer depends on that name.
+- stride status: INFO13 stride is closed at the record-layout level: boundary-visible a2 descriptor loads cover offsets 0x2, 0x3, 0xa, 0xb, 0xe, 0xf, 0x12, 0x15, 0x29, 0x2c, 0x2d, 0x30, 0x31, 0x34, 0x35, 0x38, 0x39, 0x3c, 0x3d within a 0x40-byte record, and the kernel/provider copies INFO13 as struct vpu_buffer[INFO12] with 0x40 stride. The length-only FLIX overlay does not expose a boundary-visible a2 += 0x40 instruction in this owner.
+- next action: Keep INFO12/INFO13 closed at the ABI plus record-layout level. Decode FLIX/TIE slots only if firmware-local count-register naming becomes necessary.
 
 | visible a2 field access | op | offset |
 |---:|---|---:|

@@ -249,11 +249,15 @@ Static firmware impact so far:
   exposes stack stores plus FLIX bundles. The companion scan found no
   byte-aligned hardware LOOP to `0x7003c102`, no exact standard branch
   back-edge, and no boundary-visible `a2 += 0x40`. Count is closed at
-  `INFO12=buffer_count`; stride is closed by the kernel-copied `INFO13`
-  `struct vpu_buffer[]` layout with 0x40 records. Naming the firmware-local
-  count register remains FLIX/TIE slot-decoder work. `0x7003d423` remains
-  downgraded: corrected boundaries show it is also a core24 item, but its
-  neighborhood still mixes short branch targets, unreachable gaps, and
+  `INFO12=buffer_count`, provider-gated below `0x21`; stride is closed by the
+  kernel-copied `INFO13` `struct vpu_buffer[]` layout with 0x40 records. Naming
+  a firmware-local bundle-interior count register remains FLIX/TIE slot-decoder
+  work, but that does not reopen the exposed INFO12/INFO13 primitive model.
+  `tools/apunn_loop_scan.py` remains useful as a byte-aligned LOOP
+  negative-control and regression check, not as a FLIX slot decoder.
+  `0x7003d423` remains downgraded: corrected boundaries show it is also a
+  core24 item, but its neighborhood still mixes short branch targets,
+  unreachable gaps, and
   `insn|data` runs.
 - `.dram_op.data` contains a 63-entry ANN op-name table, and strings confirm
   the relevant APUNN paths: `process_command`, `execute_op`, `dma_barrier`,

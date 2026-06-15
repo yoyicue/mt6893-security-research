@@ -46,6 +46,9 @@ OBSOLETE_COMMENT_MARKERS = (
     "not the primary INFO13 array walk",
     "standard-ISA scans do not expose a byte-aligned LOOP",
     "because the owner is FLIX/TIE-heavy",
+    "firmware-local count register is not boundary-visible after FLIX correction",
+    "record stride is closed at the data-layout level",
+    "count update is in FLIX/TIE slot semantics rather than a boundary-visible core LOOP",
 )
 
 

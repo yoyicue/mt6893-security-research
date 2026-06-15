@@ -1995,16 +1995,17 @@ def build_focused_loop_investigations(
                 "0x40-record-shaped field cluster. FLIX-correct boundaries show "
                 "the owner reads descriptor-shaped a2 fields within 0x02..0x3d; "
                 "the 0x7003c102 loop body itself contains stack spills plus FLIX "
-                "bundles, so the firmware-local count update is in FLIX/TIE "
-                "slot semantics rather than a boundary-visible core LOOP."
+                "bundles. The length-only FLIX overlay therefore closes the "
+                "record-layout evidence but cannot name a bundle-interior count "
+                "register."
             ),
             "range_start": 0x7003B468,
             "range_end": 0x7003C1C0,
             "base": 2,
             "next_action": (
-                "Treat stride as closed by the 0x40 descriptor layout and "
-                "boundary-visible a2 field coverage; decode the FLIX/TIE slot "
-                "only if firmware-local count-register naming is required."
+                "Keep INFO12/INFO13 closed at the ABI plus record-layout level. "
+                "Decode FLIX/TIE slots only if firmware-local count-register "
+                "naming becomes necessary."
             ),
         },
         {
@@ -2054,19 +2055,22 @@ def build_focused_loop_investigations(
         )
         if target == 0x7003C102:
             count_status = (
-                "firmware-local count register is not boundary-visible after "
-                "FLIX correction: there is no byte-aligned LOOP/LOOPNEZ/LOOPGTZ "
-                "to 0x7003c102, and the loop_target body core ops are stack "
-                "spills. The ABI count source is INFO12/buffer_count; naming the "
-                "internal loop register requires a FLIX/TIE slot decoder."
+                "INFO12 count is closed at the ABI/kernel/provider boundary: "
+                "firmware receives buffer_count, and the provider gates it below "
+                "0x21. After FLIX correction there is no byte-aligned "
+                "LOOP/LOOPNEZ/LOOPGTZ to 0x7003c102; the loop_target body exposes "
+                "stack-spill core ops plus FLIX bundles. A firmware-local count "
+                "register name would require FLIX/TIE slot semantics, but the "
+                "primitive model no longer depends on that name."
             )
             stride_status = (
-                "record stride is closed at the data-layout level: boundary-visible "
-                "a2 descriptor loads cover offsets "
+                "INFO13 stride is closed at the record-layout level: "
+                "boundary-visible a2 descriptor loads cover offsets "
                 f"{', '.join(hx(value) or '' for value in visible_field_offsets)} "
                 "within a 0x40-byte record, and the kernel/provider copies "
-                "INFO13 as struct vpu_buffer[INFO12] with 0x40 stride. No "
-                "boundary-visible a2 += 0x40 instruction appears in this owner."
+                "INFO13 as struct vpu_buffer[INFO12] with 0x40 stride. The "
+                "length-only FLIX overlay does not expose a boundary-visible "
+                "a2 += 0x40 instruction in this owner."
             )
         else:
             count_status = (
@@ -2525,10 +2529,11 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
     lines.append(
         "`0x7003c102` remains the strongest record-shaped loop-target lead. "
         "After FLIX correction, the target body exposes stack-spill core ops and "
-        "FLIX bundles; the ABI count is INFO12/buffer_count, while the record "
-        "stride is the 0x40 INFO13 descriptor layout. Naming the firmware-local "
-        "count register still requires FLIX/TIE slot semantics. `0x7003d423` is "
-        "kept as a downgraded local-control-flow lead."
+        "FLIX bundles; the INFO12 count is closed at the ABI/kernel/provider "
+        "boundary, while the INFO13 stride is closed by the 0x40 descriptor "
+        "layout plus `0x7003b468/a2` field coverage. Naming a firmware-local "
+        "bundle-interior count register still requires FLIX/TIE slot semantics. "
+        "`0x7003d423` is kept as a downgraded local-control-flow lead."
     )
     lines.append("")
     for item in payload["focused_loop_investigations"]:
