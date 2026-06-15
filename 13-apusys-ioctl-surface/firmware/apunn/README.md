@@ -9,11 +9,6 @@ artifacts outside `/tmp`.
 |---|---|
 | `apunn_core0_full.elf` | Full embedded Xtensa ELF carved from `cam_vpu2.img` at partition offset `0x5e8` |
 | `apunn_core0_full.elf.i64` | IDA Pro database file loaded as ELF for Xtensa, with `.xt.prop` metadata applied and saved |
-| `apunn_core0_full.elf.id0` | IDA database sidecar |
-| `apunn_core0_full.elf.id1` | IDA database sidecar |
-| `apunn_core0_full.elf.id2` | IDA database sidecar |
-| `apunn_core0_full.elf.nam` | IDA database sidecar |
-| `apunn_core0_full.elf.til` | IDA database sidecar |
 | `apunn_core0_full_analysis_refs.json` | Analyzer JSON used by `tools/ida_apply_apunn_xt_prop.py`; regenerated as analysis annotations evolve |
 | `apunn_core0_full_analysis_refs.md` | Human-readable analyzer summary; regenerated as analysis annotations evolve |
 
@@ -57,16 +52,17 @@ Apply the saved metadata in IDA:
 exec(open("13-apusys-ioctl-surface/tools/ida_apply_apunn_xt_prop.py").read())
 ```
 
-The persisted IDA database set (`.i64`, `.id0`, `.id1`, `.id2`, `.nam`, `.til`)
-has the current `.xt.prop`-assisted state saved: bounded function creation, key
-names/comments, pointer-run dwords/xrefs, critical-string annotations, and
-verified standard-island comments plus manually repaired early function
-boundaries around `0x70006590`, `0x70006794`, and `0x70007440`.
+The persisted `.i64` database has the current `.xt.prop`-assisted state saved:
+bounded function creation, key names/comments, pointer-run dwords/xrefs,
+critical-string annotations, and verified standard-island comments plus manually
+repaired early function boundaries around `0x70006590`, `0x70006794`, and
+`0x70007440`. IDA may create local `.id0`, `.id1`, `.id2`, `.nam`, or `.til`
+sidecars beside the `.i64`; those are optional local artifacts.
 
-The current MCP-connected IDB path is:
+Repository-relative IDB path:
 
 ```text
-/Users/biu/mt6893/13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf.i64
+13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf.i64
 ```
 
 IDA still reports the original `input_path` as `/private/tmp/apunn_core0_full.elf`

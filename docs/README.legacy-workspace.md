@@ -2,6 +2,9 @@
 
 **Status: CLOSED (2026-04-18)**
 
+This is the historical workspace overview retained after the repository was
+reorganized. For the current root index, use [../README.md](../README.md).
+
 ## Summary
 
 ARM64 kernel 4.19.191 privilege escalation research targeting 学而思 xpad2 pro (MT6893).
@@ -27,8 +30,9 @@ ARM64 kernel 4.19.191 privilege escalation research targeting 学而思 xpad2 pr
 ## Directory Layout
 
 ```
-mtk/
-├── README.md                        # This file
+mt6893/
+├── README.md                        # Current root index
+├── docs/README.legacy-workspace.md  # This historical overview
 ├── 00-cve-2023-4622-arm64/             # Main exploit research workspace
 │   ├── PLAN.md                      #   Master plan with all phase details
 │   ├── HARDCODED_OFFSETS_ANALYSIS.md #   Kernel offset risk analysis
@@ -42,7 +46,7 @@ mtk/
 │   ├── reverse/                     #   vmlinux rebuild + IDA analysis
 │   └── forensics/                   #   Device crash evidence
 ├── exploit-gatebench/               # Exploit effectiveness benchmarking framework
-└── scripts/                         # Utility scripts (audit, cleanup)
+└── scripts/                         # Repository maintenance scripts
 ```
 
 ## Key Documents
