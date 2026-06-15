@@ -37,6 +37,69 @@ when the replacement page is mapped. Without the firmware binary we cannot:
 - find firmware-internal bugs (buffer overflow, unchecked offset, type
   confusion) that are invisible from the kernel-handoff model
 
+## Current kernel/source/live-device alignment
+
+The active IDA kernel image is the latest local OTA kernel image for V260523.
+`vpu_init_bin` was checked in the kernel IDB at `0xffffffc0095b0d84` and matches
+the reference MTK source in `/tmp/generic_kernel_mediatek_alps`:
+`drivers/misc/mediatek/apusys/vpu/4.0/vpu_main.c`. The loader reads
+`bin-phy-addr`, `bin-size`, `img-head`, and `pre-bin` from the
+`mediatek,vpu_core0` DT node, then maps an external VPU binary blob into the
+kernel. The firmware body is not embedded in `vmlinux`.
+
+The live MT6893 target was probed from `uid=1000(system)` /
+`u:r:system_app:s0`. That context can read the DT metadata but still cannot
+read the block partitions or proc/debug VPU nodes.
+
+| DT property | Value |
+|---|---|
+| reserved-memory `mblock-18-vpu_binary/reg` | base `0xbe510000`, size `0x018f0000` |
+| `vpu_core0@19030000/bin-phy-addr` | `0xbe510000` |
+| `vpu_core0@19030000/bin-size` | `0x018f0000` |
+| `vpu_core0@19030000/img-head` | `0x00cb1000` |
+| `vpu_core0@19030000/pre-bin` | `0x00cbf000` |
+
+So the current device's merged VPU binary, if dumped from live physical memory,
+should cover physical range `0xbe510000..0xcee00000`, with the image-header
+chain at file offset `0xcb1000`.
+
+`vpu_execute_d2d_handoff` in the kernel IDB at `0xffffffc0087a5b74` also
+matches the reference source in
+`drivers/misc/mediatek/apusys/vpu/p1/vpu_hw.c:vpu_execute_d2d()`: when the
+request has `ALG_PRELOAD`, the driver issues `VPU_CMD_DO_D2D_EXT` (`0x24`),
+writes the selected preload entry to `XTENSA_INFO16`, writes IRAM MVA to
+`XTENSA_INFO19`, then passes `buffer_count`, the copied `struct vpu_buffer[]`
+IOVA, and the optional settings tuple through `XTENSA_INFO12..15`.
+
+## Current OTA artifacts
+
+The full V260523 OTA is available on the local Synology share and has already
+been used to extract the VPU partitions:
+
+| Artifact | Path | Size / hash |
+|---|---|---|
+| Full OTA | `/private/tmp/nas_sync_powerctrl_23770/ota_V260523/V260523_FULL.zip` | SHA-256 `d2d1427d3ca0012cf36ece263f8ca450a572b81cf8a0e52e0af5ac195937f432` |
+| `cam_vpu1` | `/tmp/ota_V260523_cam_vpu/cam_vpu1.img` | `0x3fa000`; SHA-256 `27d3a41b261211b127e51469d7f936ec8e8e3d000172661ff9ce3ef95bae2990` |
+| `cam_vpu2` | `/tmp/ota_V260523_cam_vpu/cam_vpu2.img` | `0xa05000`; SHA-256 `e7a4dd68b953ee3704bf573caa422cac85424c63307851cda85bdc364dbe06a2` |
+| `cam_vpu3` | `/tmp/ota_V260523_cam_vpu/cam_vpu3.img` | `0x2000`; SHA-256 `ef5f85aac5d2aeca12601547b1805f9a2b014f196fb9580cc0d5ba7b239a95a5` |
+
+Extraction command:
+
+```sh
+mkdir -p /tmp/ota_V260523_cam_vpu
+payload-dumper-go -p cam_vpu1,cam_vpu2,cam_vpu3 \
+  -o /tmp/ota_V260523_cam_vpu \
+  /private/tmp/nas_sync_powerctrl_23770/ota_V260523/V260523_FULL.zip
+```
+
+This follows the standard Android A/B OTA `payload.bin` path: the vendor OTA app
+feeds `payload_offset`, `payload_size`, and hash metadata to
+`UpdateEngine.applyPayload()`. Public Android references:
+`https://source.android.com/docs/core/ota/ab` and
+`https://android.googlesource.com/platform/frameworks/base/+/master/core/java/android/os/UpdateEngine.java`.
+The local OTA logs also contain auth tokens and device identifiers; do not copy
+raw logs into git.
+
 ## What to acquire
 
 ### Target: `apu_lib_apunn` Xtensa binary
@@ -51,44 +114,63 @@ packed in the VPU binary image.
 |---|---|---|
 | Algorithm key | `apu_lib_apunn` | kernel `vpu_alg_get` lookup string |
 | Execution path | Preload / `D2D_EXT` (MMIO cmd `0x24`) | IDA `vpu_execute` at `0xffffffc0087a7974`: Normal miss → bit 2 → Preload retry |
-| ISA | Xtensa (Cadence HiFi-class DSP) | MTK APU/VPU documentation; `XrpIntrinsicExecutor::PrepareXtensaCommandBuffer` in `libneuron_platform.so` |
-| MMIO dispatch registers | `INFO16 = pre->a.mva + pre->a.entry_off` (PROG entry), `INFO19 = pre->a.iram_mva` (IRAM) | IDA D2D_EXT selector at `0xffffffc0087a1f40` |
+| ISA | Xtensa flat binary, not ELF; strings show `Xtensa Compiler Version 12.0.10` | V260523 `cam_vpu2.img` strings |
+| MMIO dispatch registers | `INFO16 = pre->a.mva + pre->a.entry_off` (firmware-facing preload target), `INFO19 = pre->a.iram_mva` (IRAM) | IDA D2D_EXT selector at `0xffffffc0087a1f40` |
 | Image packing | `struct vpu_image_header` → `struct vpu_pre_info` array; each entry has `off`, `pAddr`, `mem_sz`, `file_sz` | kernel `vpu_hw.h` layout; `tools/parse_vpu_image.py` implements the parser |
 | Segments | PROG (code+data, `pAddr ≠ 0xFFFFFFFF`) and IRAM (`pAddr == 0xFFFFFFFF`) | parser logic and kernel init path |
-| Entry offset | `pAddr - (start_addr & 0xffff0000)` for PROG segments | `tools/parse_vpu_image.py` line 226 |
+| Entry offset | `pAddr - (start_addr & 0xffff0000)` for PROG segments; for V260523 APUNN this is `0x6794` on the three main PROG windows | parser output; MTK `vpu_hw.c:vpu_init_dev_algo_preload_entry()` |
 | Kernel loader | `vpu_init_bin` at `0xffffffc0095b0d84` — reads DT props `bin-phy-addr`, `bin-size`, `img-head`, `pre-bin` | IDA string xrefs |
+| Live target VPU blob | PA `0xbe510000`, size `0x018f0000`, header offset `0xcb1000`, preload offset `0xcbf000` | `uid=1000(system)` DT probe |
 
 ### Acquisition paths (ranked)
 
-#### Path 1: Partition dump (needs elevated read)
+#### Path 1: Local full OTA (current best path)
 
-The device exposes VPU partitions:
+The Synology V260523 full OTA already contains the raw `cam_vpu*` partition
+images. `apu_lib_apunn` is in `cam_vpu2.img`; `cam_vpu1.img` contains other VPU
+libraries and `cam_vpu3.img` has no preload entries.
 
-```
-/dev/block/by-name/cam_vpu1_a
-/dev/block/by-name/cam_vpu2_a
-/dev/block/by-name/cam_vpu3_a
-```
-
-Current `uid=1000` shell cannot read these. Options:
-
-- **adb root** on a userdebug/eng build of the same firmware
-- **TWRP / custom recovery** — dd the partitions
-- **MTK SP Flash Tool** — read back the `cam_vpu*` partitions from the ROM
-- **OTA / factory image** — some MTK vendors ship the `cam_vpu*` images in
-  scatter-file based ROMs; extract from the update package
-
-Once the partition images are obtained:
+Parse `cam_vpu2.img` with the raw-partition header at `0x200`:
 
 ```sh
 python3 13-apusys-ioctl-surface/tools/parse_vpu_image.py \
-  cam_vpu1_a.bin cam_vpu2_a.bin cam_vpu3_a.bin \
-  --auto --algo apu_lib_apunn --json apunn_preload.json \
-  --carve-dir apunn_carve
+  /tmp/ota_V260523_cam_vpu/cam_vpu2.img \
+  --head-offset 0x200 --headers 1 --algo apu_lib_apunn \
+  --json /tmp/ota_V260523_cam_vpu/cam_vpu2_apunn_preload.json \
+  --carve-dir /tmp/ota_V260523_cam_vpu/apunn_carve --list-all
 ```
 
-This produces `apunn_carve/apu_lib_apunn_prog.bin` and optionally
-`apunn_carve/apu_lib_apunn_iram.bin`.
+Current parse result:
+
+| Core mask | Segment | Raw offset | File size | Load base / target |
+|---|---|---:|---:|---|
+| `0x61` | main PROG | `0x3b4` | `0x26aaf0` | base `0x70000000`, target `0x70006794` |
+| `0x61` | IRAM | `0x32cdf8` | `0x2000` | dynamic `INFO19` |
+| `0x61` | aux PROG | `0x26aea4` | `0x1884` | `0x7ff04000` |
+| `0x61` | aux PROG | `0x26c728` | `0x218` | `0x7ff3b000` |
+| `0x62` | main PROG | `0x32d1e0` | `0x26aaf0` | base `0x74000000`, target `0x74006794` |
+| `0x62` | IRAM | `0x659c24` | `0x2000` | dynamic `INFO19` |
+| `0x62` | aux PROG | `0x597cd0` | `0x1884` | `0x7ff04000` |
+| `0x62` | aux PROG | `0x599554` | `0x218` | `0x7ff3b000` |
+| `0x64` | main PROG | `0x65a00c` | `0x26aaf0` | base `0x78000000`, target `0x78006794` |
+| `0x64` | IRAM | `0x986a50` | `0x2000` | dynamic `INFO19` |
+| `0x64` | aux PROG | `0x8c4afc` | `0x1884` | `0x7ff04000` |
+| `0x64` | aux PROG | `0x8c6380` | `0x218` | `0x7ff3b000` |
+
+Main flat-window hashes:
+
+| Core mask | Carved file | SHA-256 |
+|---|---|---|
+| `0x61` | `/tmp/ota_V260523_cam_vpu/apunn_carve/apu_lib_apunn_h0_pre0_prog_off3b4.bin` | `531198afb182e868919163fdf701591dcd212e52dc7cfb71fd512d7faa4c63db` |
+| `0x62` | `/tmp/ota_V260523_cam_vpu/apunn_carve/apu_lib_apunn_h0_pre4_prog_off32d1e0.bin` | `a9d09d45af5cc67c88c7908b9e5f85c0b2a8d1a6dd0ee781a0851cd1b5ee46e7` |
+| `0x64` | `/tmp/ota_V260523_cam_vpu/apunn_carve/apu_lib_apunn_h0_pre8_prog_off65a00c.bin` | `1220a7648829ec4bf5a390c777fe0e47f57b9e8ea119d8f032b03a28bd2c98ee` |
+
+The carved outputs are raw flat windows; `file(1)` reports `data`, and no local
+`readelf`/`llvm-readelf` binary recognizes them because there is no ELF header.
+Use the metadata above for base addresses and treat the `INFO16` value as the
+firmware-facing preload target until disassembly proves whether it is a direct
+code entry, a dispatcher table, or an algorithm descriptor. A live physical
+reserved-memory dump is still useful to verify the exact LK-merged layout.
 
 #### Path 2: Live memory dump (needs kernel read)
 
@@ -102,6 +184,33 @@ If a kernel read primitive is obtained from another surface (e.g. display DRM
 CVEs), the reserved-memory region can be read directly. The DT `bin-phy-addr`
 and `bin-size` properties give the physical address and size; apply the same
 parser to the dump.
+
+For the current target:
+
+```sh
+# Dump this physical range with a real kernel/physical-memory read primitive.
+# uid=1000 can read these DT values but cannot read the bytes directly.
+phys_start=0xbe510000
+phys_size=0x018f0000
+phys_end=0xcee00000
+
+python3 13-apusys-ioctl-surface/tools/parse_vpu_image.py \
+  vpu_binary_be510000_018f0000.bin \
+  --head-offset 0xcb1000 --algo apu_lib_apunn \
+  --json apunn_preload.json --carve-dir apunn_carve
+```
+
+Current `uid=1000(system)` checks that still fail without a stronger primitive:
+
+```sh
+dd if=/dev/block/by-name/cam_vpu1_a of=/dev/null bs=4096 count=1
+cat /proc/vpu/vpu_memory
+cat /proc/vpu/vpu0/mesg
+cat /proc/iomem
+cat /proc/kallsyms
+```
+
+All return `Permission denied` in `u:r:system_app:s0`.
 
 #### Path 3: Vendor library extraction (partial)
 
@@ -118,14 +227,35 @@ used for `APUNN_SETTINGS_ABI.md` wrapper analysis.
 
 ### Step 1: Carve and load
 
-Use `parse_vpu_image.py` to extract `apu_lib_apunn` PROG and IRAM segments.
+Use `parse_vpu_image.py` to extract the `apu_lib_apunn` PROG and IRAM flat
+windows from `cam_vpu2.img`.
 
 Load into Ghidra or IDA with an Xtensa processor module:
 - Ghidra: built-in Xtensa support (Language: `Xtensa:LE:32:default`)
 - IDA: requires a third-party Xtensa processor module
 
-Set the base address to the preload `start_addr & 0xffff0000` value from the
-parser JSON output. The entry point is `start_addr & 0xffff0000 + entry_off`.
+Recommended first load:
+
+| Core mask | File | Load base | Mapped size | `INFO16` target |
+|---|---|---:|---:|---:|
+| `0x61` | `/tmp/ota_V260523_cam_vpu/apunn_carve/apu_lib_apunn_h0_pre0_prog_off3b4.bin` | `0x70000000` | `0x270000` | `0x70006794` |
+
+Then add the `0x61` IRAM and aux PROG windows as separate raw memory blocks:
+
+| Segment | File | Suggested base |
+|---|---|---:|
+| IRAM | `/tmp/ota_V260523_cam_vpu/apunn_carve/apu_lib_apunn_h0_pre1_iram_off32cdf8.bin` | annotate as dynamic `INFO19` data |
+| aux PROG | `/tmp/ota_V260523_cam_vpu/apunn_carve/apu_lib_apunn_h0_pre2_prog_off26aea4.bin` | `0x7ff04000` |
+| aux PROG | `/tmp/ota_V260523_cam_vpu/apunn_carve/apu_lib_apunn_h0_pre3_prog_off26c728.bin` | `0x7ff3b000` |
+
+Do not expect an ELF header or symbol table. Start with strings and tables:
+`execute_op`, `flk_*`, `XTENSA_ANN_VERSION`, `../algo/apu_lib_apunn/src/main_proc.c`,
+`../algo/apu_lib_apunn/src/d2d_flo.c`,
+`../vp6-ann/xrp-dsp/xrp_dsp.c`, and
+`../vp6-ann/libcommon/src/idma_mvpu6/dmaif.c`. The `INFO16` target at
+`0x70006794` currently lands in a literal/string-heavy area of the raw window,
+so annotate it as the kernel-provided preload target first and let code xrefs
+prove the real dispatcher/handler entry.
 
 ### Step 2: Map the MMIO dispatch interface
 
@@ -226,7 +356,7 @@ slow-opcode shape.
 
 | Tool | Path | Status |
 |---|---|---|
-| VPU image parser | `13-apusys-ioctl-surface/tools/parse_vpu_image.py` | Ready; tested on synthetic headers |
+| VPU image parser | `13-apusys-ioctl-surface/tools/parse_vpu_image.py` | Ready for metadata and raw flat-window carve; use `--head-offset 0x200 --headers 1` for V260523 `cam_vpu2.img` |
 | Allocator gap profiler | `13-apusys-ioctl-surface/poc/ApusysIoctlProbe.java` | Active; 8+ probe modes |
 | Firmware-coupled gap reuse | `--run-cmd-vpu-xrp-mem-free-race-completed-gap-reuse-iova` | Ready to re-run with new shapes |
 | Wrapper static analysis | `13-apusys-ioctl-surface/APUNN_SETTINGS_ABI.md` | Complete for current scope |
@@ -237,8 +367,8 @@ slow-opcode shape.
 
 The firmware disassembly task is complete when:
 
-1. `apu_lib_apunn` PROG segment is loaded in a disassembler with correct base
-   address and entry point
+1. `apu_lib_apunn` PROG flat window is loaded in a disassembler with correct
+   base address, mapped size, and `INFO16` preload target annotation
 2. The `D2D_EXT` command handler is identified (reads `INFO01 == 0x24`)
 3. Q1 (DMA timing) has a concrete answer: single burst, or sequenced with
    measured/estimated inter-store gap
