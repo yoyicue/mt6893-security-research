@@ -76,12 +76,12 @@ IOVA, and the optional settings tuple through `XTENSA_INFO12..15`.
 The full V260523 OTA is available on the local Synology share and has already
 been used to extract the VPU partitions:
 
-| Artifact | Path | Size / hash |
+| Artifact | Path | Size |
 |---|---|---|
-| Full OTA | `/private/tmp/nas_sync_powerctrl_23770/ota_V260523/V260523_FULL.zip` | SHA-256 `d2d1427d3ca0012cf36ece263f8ca450a572b81cf8a0e52e0af5ac195937f432` |
-| `cam_vpu1` | `/tmp/ota_V260523_cam_vpu/cam_vpu1.img` | `0x3fa000`; SHA-256 `27d3a41b261211b127e51469d7f936ec8e8e3d000172661ff9ce3ef95bae2990` |
-| `cam_vpu2` | `/tmp/ota_V260523_cam_vpu/cam_vpu2.img` | `0xa05000`; SHA-256 `e7a4dd68b953ee3704bf573caa422cac85424c63307851cda85bdc364dbe06a2` |
-| `cam_vpu3` | `/tmp/ota_V260523_cam_vpu/cam_vpu3.img` | `0x2000`; SHA-256 `ef5f85aac5d2aeca12601547b1805f9a2b014f196fb9580cc0d5ba7b239a95a5` |
+| Full OTA | `/private/tmp/nas_sync_powerctrl_23770/ota_V260523/V260523_FULL.zip` | local Synology copy |
+| `cam_vpu1` | `/tmp/ota_V260523_cam_vpu/cam_vpu1.img` | `0x3fa000` |
+| `cam_vpu2` | `/tmp/ota_V260523_cam_vpu/cam_vpu2.img` | `0xa05000` |
+| `cam_vpu3` | `/tmp/ota_V260523_cam_vpu/cam_vpu3.img` | `0x2000` |
 
 Extraction command:
 
@@ -93,7 +93,7 @@ payload-dumper-go -p cam_vpu1,cam_vpu2,cam_vpu3 \
 ```
 
 This follows the standard Android A/B OTA `payload.bin` path: the vendor OTA app
-feeds `payload_offset`, `payload_size`, and hash metadata to
+feeds `payload_offset` and `payload_size` metadata to
 `UpdateEngine.applyPayload()`. Public Android references:
 `https://source.android.com/docs/core/ota/ab` and
 `https://android.googlesource.com/platform/frameworks/base/+/master/core/java/android/os/UpdateEngine.java`.
@@ -157,13 +157,13 @@ Current parse result:
 | `0x64` | aux PROG | `0x8c4afc` | `0x1884` | `0x7ff04000` | n/a |
 | `0x64` | aux PROG | `0x8c6380` | `0x218` | `0x7ff3b000` | n/a |
 
-Main flat-window hashes:
+Main flat-window carves:
 
-| Core mask | Carved file | SHA-256 |
-|---|---|---|
-| `0x61` | `/tmp/ota_V260523_cam_vpu/apunn_carve/apu_lib_apunn_h0_pre0_prog_off3b4.bin` | `531198afb182e868919163fdf701591dcd212e52dc7cfb71fd512d7faa4c63db` |
-| `0x62` | `/tmp/ota_V260523_cam_vpu/apunn_carve/apu_lib_apunn_h0_pre4_prog_off32d1e0.bin` | `a9d09d45af5cc67c88c7908b9e5f85c0b2a8d1a6dd0ee781a0851cd1b5ee46e7` |
-| `0x64` | `/tmp/ota_V260523_cam_vpu/apunn_carve/apu_lib_apunn_h0_pre8_prog_off65a00c.bin` | `1220a7648829ec4bf5a390c777fe0e47f57b9e8ea119d8f032b03a28bd2c98ee` |
+| Core mask | Carved file |
+|---|---|
+| `0x61` | `/tmp/ota_V260523_cam_vpu/apunn_carve/apu_lib_apunn_h0_pre0_prog_off3b4.bin` |
+| `0x62` | `/tmp/ota_V260523_cam_vpu/apunn_carve/apu_lib_apunn_h0_pre4_prog_off32d1e0.bin` |
+| `0x64` | `/tmp/ota_V260523_cam_vpu/apunn_carve/apu_lib_apunn_h0_pre8_prog_off65a00c.bin` |
 
 The main PROG carves are wrapper-prefixed flat windows. The actual APUNN code
 container starts at the embedded ELF header (`raw_off + 0x234`). Do not truncate
@@ -183,8 +183,6 @@ file /tmp/apunn_core0_full.elf
 # ELF 32-bit LSB executable, Tensilica Xtensa, statically linked, stripped
 ```
 
-`/tmp/apunn_core0_full.elf` SHA-256:
-`69658bfe18e8084e44da165ebc326c01ce9a2e672a059ae5a706ce5e397c3c88`.
 A live physical reserved-memory dump is still useful to verify the exact
 LK-merged layout, but it is no longer a blocker for core-0 static analysis.
 
@@ -193,8 +191,8 @@ The current ELF, IDA IDB, and analyzer outputs are persisted under
 
 | Artifact | Path | Notes |
 |---|---|---|
-| Core-0 full ELF | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf` | SHA-256 `69658bfe18e8084e44da165ebc326c01ce9a2e672a059ae5a706ce5e397c3c88` |
-| IDA Pro Xtensa IDB | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf.i64` | mutable analysis database; do not maintain a pinned hash |
+| Core-0 full ELF | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf` | persistent analysis baseline |
+| IDA Pro Xtensa IDB | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf.i64` | mutable analysis database |
 | IDA sidecars | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf.{id0,id1,id2,nam,til}` | mutable analysis database sidecars |
 | Analyzer JSON | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full_analysis_refs.json` | mutable generated analysis input for IDA apply script |
 | Analyzer Markdown | `13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full_analysis_refs.md` | mutable generated analysis summary |

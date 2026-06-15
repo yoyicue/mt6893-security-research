@@ -1387,9 +1387,7 @@ code/input buffer and one output buffer, finalizes the command, and dumps the
 not call `XRP_RunCommand()`.
 
 Static analysis of the device library
-`/system/lib64/libneuron_platform.vpu.so`
-(`sha256=3e2f37bab5a6dc30973f42ca72f73b3d02798bff61f9763521b34d25e6aae0f3`)
-adds these wrapper constraints:
+`/system/lib64/libneuron_platform.vpu.so` adds these wrapper constraints:
 
 | Wrapper item | Evidence |
 |---|---|

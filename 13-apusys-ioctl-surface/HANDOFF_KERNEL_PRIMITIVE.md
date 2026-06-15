@@ -145,7 +145,7 @@ acquisition is no longer the blocker.
 | APUNN preload header | raw partition header at `0x200`, one header |
 | Core-0 main PROG | raw offset `0x3b4`, load base `0x70000000`, `INFO16` target `0x70006794` |
 | Embedded ELF | main PROG `+0x234`, partition file offset `0x5e8`, ELF entry `0x70006794`, `e_shoff=0x32cc18` |
-| Full core-0 ELF | `/tmp/apunn_core0_full.elf`, SHA-256 `69658bfe18e8084e44da165ebc326c01ce9a2e672a059ae5a706ce5e397c3c88` |
+| Full core-0 ELF | `/tmp/apunn_core0_full.elf` |
 | Persisted analysis artifacts | `13-apusys-ioctl-surface/firmware/apunn/` contains the ELF, IDA `.i64`, analyzer JSON, and analyzer Markdown |
 
 Reproduce the extraction:

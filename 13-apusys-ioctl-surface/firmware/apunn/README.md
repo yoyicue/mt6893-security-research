@@ -7,15 +7,15 @@ artifacts outside `/tmp`.
 
 | File | Notes |
 |---|---|
-| `apunn_core0_full.elf` | Full embedded Xtensa ELF carved from `cam_vpu2.img` at partition offset `0x5e8`; SHA-256 `69658bfe18e8084e44da165ebc326c01ce9a2e672a059ae5a706ce5e397c3c88` |
+| `apunn_core0_full.elf` | Full embedded Xtensa ELF carved from `cam_vpu2.img` at partition offset `0x5e8` |
 | `apunn_core0_full.elf.i64` | IDA Pro database file loaded as ELF for Xtensa, with `.xt.prop` metadata applied and saved |
 | `apunn_core0_full.elf.id0` | IDA database sidecar |
 | `apunn_core0_full.elf.id1` | IDA database sidecar |
 | `apunn_core0_full.elf.id2` | IDA database sidecar |
 | `apunn_core0_full.elf.nam` | IDA database sidecar |
 | `apunn_core0_full.elf.til` | IDA database sidecar |
-| `apunn_core0_full_analysis_refs.json` | Analyzer JSON used by `tools/ida_apply_apunn_xt_prop.py`; intentionally no pinned hash because this changes with analysis annotations |
-| `apunn_core0_full_analysis_refs.md` | Human-readable analyzer summary; intentionally no pinned hash because this changes with analysis annotations |
+| `apunn_core0_full_analysis_refs.json` | Analyzer JSON used by `tools/ida_apply_apunn_xt_prop.py`; regenerated as analysis annotations evolve |
+| `apunn_core0_full_analysis_refs.md` | Human-readable analyzer summary; regenerated as analysis annotations evolve |
 
 ## Source
 
