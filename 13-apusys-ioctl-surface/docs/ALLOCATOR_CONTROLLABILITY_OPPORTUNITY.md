@@ -125,19 +125,19 @@ Before starting a new allocator-control run:
    `2026-06-15-gap-control-pair-selection`.
 2. Confirm git state with `git status --short` and note the current commit.
 3. Read the in-scope files:
-   - `../13-apusys-ioctl-surface/README.md`
-   - `../13-apusys-ioctl-surface/HANDOFF_KERNEL_PRIMITIVE.md`
-   - `../13-apusys-ioctl-surface/CONTROLLED_OPPORTUNITIES.md`
-   - `../13-apusys-ioctl-surface/ALLOCATOR_CONTROLLABILITY_OPPORTUNITY.md`
-   - `../13-apusys-ioctl-surface/poc/ApusysIoctlProbe.java`
-   - `../13-apusys-ioctl-surface/poc/run_system_app_probe.py`
+   - `../README.md`
+   - `HANDOFF_KERNEL_PRIMITIVE.md`
+   - `CONTROLLED_OPPORTUNITIES.md`
+   - `ALLOCATOR_CONTROLLABILITY_OPPORTUNITY.md`
+   - `../poc/ApusysIoctlProbe.java`
+   - `../poc/run_system_app_probe.py`
 4. Confirm the device-side system app shell still works:
 
    ```sh
-   python3 13-apusys-ioctl-surface/poc/run_system_app_probe.py \
+   python3 ../poc/run_system_app_probe.py \
      -s 7FPE0824B0801372 --rebuild-if-needed \
      --mode=--query --timeout 60 \
-     --result-dir ../poc-run-results/2026-06-15-batch \
+     --result-dir ../../poc-run-results/2026-06-15-batch \
      --result-name 13_apusys_allocator_setup_query.txt \
      --kernel-result-name 13_apusys_allocator_setup_query_kernel_relevant.txt \
      --kernel-pattern 'apusys|mdw|devapc|iommu|Unable to handle kernel|BUG|KASAN'
@@ -150,7 +150,7 @@ Before starting a new allocator-control run:
    ```
 
    Recommended path:
-   `../poc-run-results/2026-06-15-batch/13_apusys_allocator_results.tsv`.
+   `../../poc-run-results/2026-06-15-batch/13_apusys_allocator_results.tsv`.
 
 ## Fixed Boundaries
 
@@ -364,8 +364,8 @@ run, the dominant miss reasons were `no_target_lower=3821` and
 Burn-sweep follow-up:
 
 ```text
-result=../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_burn_sweep_profiler.txt
-kernel=../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_burn_sweep_profiler_kernel_relevant.txt
+result=../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_burn_sweep_profiler.txt
+kernel=../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_burn_sweep_profiler_kernel_relevant.txt
 
 64K p16/r8 burn=0: exact_target=0/216, burn_exact=0/0
 64K p16/r8 burn=1: exact_target=0/200, burn_exact=0/25
@@ -385,8 +385,8 @@ or slot-stable shape.
 Taskset follow-up:
 
 ```text
-result=../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_burn_sweep_taskset10_profiler.txt
-kernel=../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_burn_sweep_taskset10_profiler_kernel_relevant.txt
+result=../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_burn_sweep_taskset10_profiler.txt
+kernel=../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_burn_sweep_taskset10_profiler_kernel_relevant.txt
 
 taskset 10, burn=0..7: exact_target=0 across all recorded replacements
 ```
@@ -440,9 +440,9 @@ Every allocator-control case must print one machine-greppable summary line:
 The wrapper should write:
 
 - full stdout:
-  `../poc-run-results/<batch>/<run_tag>.txt`
+  `../../poc-run-results/<batch>/<run_tag>.txt`
 - filtered kernel log:
-  `../poc-run-results/<batch>/<run_tag>_kernel_relevant.txt`
+  `../../poc-run-results/<batch>/<run_tag>_kernel_relevant.txt`
 
 The kernel filter must include:
 
@@ -699,32 +699,32 @@ instrumentation or alternate ioctl side-effect paths such as `dev_ctrl` /
 
 ## Evidence Files
 
-- `../poc-run-results/2026-06-15-batch/13_apusys_iova_reuse_profiler.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_iova_reuse_profiler_kernel_relevant.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler_kernel_relevant.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler_kernel_relevant.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_pair_selection_profiler.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_pair_selection_profiler_kernel_relevant.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_pressure_profiler.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_pressure_profiler_kernel_relevant.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_source_profiler.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_source_profiler_kernel_relevant.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_free_neighborhood_profiler.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_free_neighborhood_profiler_kernel_relevant.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_lower2_focus_profiler.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_lower2_focus_profiler_kernel_relevant.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_lower2_focus_until100_profiler.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_lower2_focus_until100_profiler_kernel_relevant.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_burn_sweep_profiler.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_burn_sweep_profiler_kernel_relevant.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_burn_sweep_taskset10_profiler.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_burn_sweep_taskset10_profiler_kernel_relevant.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_allocator_setup_query.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_allocator_setup_query_kernel_relevant.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_allocator_results.tsv`
-- `../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_kernel_relevant.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup_kernel_relevant.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_iova_reuse_profiler.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_iova_reuse_profiler_kernel_relevant.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler_kernel_relevant.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler_kernel_relevant.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_pair_selection_profiler.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_pair_selection_profiler_kernel_relevant.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_pressure_profiler.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_pressure_profiler_kernel_relevant.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_source_profiler.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_source_profiler_kernel_relevant.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_free_neighborhood_profiler.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_free_neighborhood_profiler_kernel_relevant.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_lower2_focus_profiler.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_lower2_focus_profiler_kernel_relevant.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_lower2_focus_until100_profiler.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_lower2_focus_until100_profiler_kernel_relevant.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_burn_sweep_profiler.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_burn_sweep_profiler_kernel_relevant.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_burn_sweep_taskset10_profiler.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_burn_sweep_taskset10_profiler_kernel_relevant.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_allocator_setup_query.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_allocator_setup_query_kernel_relevant.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_allocator_results.tsv`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_kernel_relevant.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup_kernel_relevant.txt`

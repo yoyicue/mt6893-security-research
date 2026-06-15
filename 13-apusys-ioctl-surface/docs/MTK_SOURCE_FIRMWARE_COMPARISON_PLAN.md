@@ -3,7 +3,7 @@
 Date: 2026-06-15
 
 Execution artifact:
-`../13-apusys-ioctl-surface/MTK_SOURCE_FIRMWARE_COMPARISON_MATRIX.md`
+`MTK_SOURCE_FIRMWARE_COMPARISON_MATRIX.md`
 
 The first concrete pass has been executed there: source contracts for
 INFO12/13, INFO14/15, INFO16/19, and completion/wait were extracted and mapped
@@ -15,7 +15,7 @@ The current APUNN firmware disassembly stage is closed at the reproducible
 foundation level:
 
 - the current OTA `apunn_core0_full.elf` is stored under
-  `../13-apusys-ioctl-surface/firmware/apunn/`
+  `../firmware/apunn/`
 - the IDA Xtensa ELF database is saved beside the ELF
 - `analyze_apunn_elf.py` regenerates JSON/Markdown refs from the ELF and
   `.xt.prop`

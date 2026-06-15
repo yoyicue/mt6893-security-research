@@ -13,10 +13,10 @@ requires runtime evidence.
 | Input | Path |
 |---|---|
 | MTK reference source root | `/private/tmp/generic_kernel_mediatek_alps` |
-| Current APUNN ELF refs | `../13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full_analysis_refs.json` |
-| Firmware handoff | `../13-apusys-ioctl-surface/HANDOFF_FIRMWARE_DISASSEMBLY.md` |
-| Kernel primitive handoff | `../13-apusys-ioctl-surface/HANDOFF_KERNEL_PRIMITIVE.md` |
-| Settings/runtime ABI notes | `../13-apusys-ioctl-surface/APUNN_SETTINGS_ABI.md` |
+| Current APUNN ELF refs | `../firmware/apunn/apunn_core0_full_analysis_refs.json` |
+| Firmware handoff | `HANDOFF_FIRMWARE_DISASSEMBLY.md` |
+| Kernel primitive handoff | `HANDOFF_KERNEL_PRIMITIVE.md` |
+| Settings/runtime ABI notes | `APUNN_SETTINGS_ABI.md` |
 
 ## Source Contract Facts
 

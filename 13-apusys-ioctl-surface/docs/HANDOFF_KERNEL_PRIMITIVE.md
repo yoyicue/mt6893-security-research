@@ -194,10 +194,10 @@ five emitted `settings5/no-settings` native descriptors.
 Observed from `system_app` on 2026-06-15:
 
 ```
-control=../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_descriptor_plane_fuzz_control.txt
-control_kernel=../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_descriptor_plane_fuzz_control_kernel.txt
-dispatch=../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_descriptor_plane_fuzz_dispatch.txt
-dispatch_kernel=../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_descriptor_plane_fuzz_dispatch_kernel.txt
+control=../../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_descriptor_plane_fuzz_control.txt
+control_kernel=../../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_descriptor_plane_fuzz_control_kernel.txt
+dispatch=../../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_descriptor_plane_fuzz_dispatch.txt
+dispatch_kernel=../../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_descriptor_plane_fuzz_dispatch_kernel.txt
 ```
 
 Runtime classes:
@@ -233,7 +233,7 @@ acquisition is no longer the blocker.
 | Core-0 main PROG | raw offset `0x3b4`, load base `0x70000000`, `INFO16` target `0x70006794` |
 | Embedded ELF | main PROG `+0x234`, partition file offset `0x5e8`, ELF entry `0x70006794`, `e_shoff=0x32cc18` |
 | Full core-0 ELF | `/tmp/apunn_core0_full.elf` |
-| Persisted analysis artifacts | `../13-apusys-ioctl-surface/firmware/apunn/` contains the ELF, IDA `.i64`, analyzer JSON, and analyzer Markdown |
+| Persisted analysis artifacts | `../firmware/apunn/` contains the ELF, IDA `.i64`, analyzer JSON, and analyzer Markdown |
 
 Reproduce the extraction:
 
@@ -242,7 +242,7 @@ payload-dumper-go -p cam_vpu1,cam_vpu2,cam_vpu3 \
   -o /tmp/ota_V260523_cam_vpu \
   /private/tmp/nas_sync_powerctrl_23770/ota_V260523/V260523_FULL.zip
 
-13-apusys-ioctl-surface/tools/parse_vpu_image.py \
+../tools/parse_vpu_image.py \
   /tmp/ota_V260523_cam_vpu/cam_vpu2.img \
   --head-offset 0x200 --headers 1 --algo apu_lib_apunn \
   --json /tmp/ota_V260523_cam_vpu/cam_vpu2_apunn_preload.json \
@@ -264,7 +264,7 @@ Static firmware impact so far:
   31-entry ANN branch-table run at `0x70000b80` resolves to owner `0x70081d50`.
 - The same ELF loaded as IDA Pro **ELF for Xtensa** now has processor
   `XTENSA`, saved IDB
-  `../13-apusys-ioctl-surface/firmware/apunn/apunn_core0_full.elf.i64`, and
+  `../firmware/apunn/apunn_core0_full.elf.i64`, and
   `663` functions after applying `tools/ida_apply_apunn_xt_prop.py` to the
   `.xt.prop`/JSON metadata.
 - `.text`→`.rodata` suffix-reference scanning resolves several tile/arena
@@ -399,10 +399,10 @@ returns. The command buffer is user-mapped through the dmabuf fd passed in
 
 Result files:
 
-- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_cmd_copyback_diff.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_cmd_copyback_diff_kernel.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_cmd_copyback_diff_control.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_cmd_copyback_diff_control_kernel.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_cmd_copyback_diff.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_cmd_copyback_diff_kernel.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_cmd_copyback_diff_control.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_target_settings5_no_settings_cmd_copyback_diff_control_kernel.txt`
 
 Next copyback work should target timeout/abort paths, because normal completed
 provider return currently copies back only scalar state.
@@ -517,10 +517,10 @@ copyback primitive on this build.
 
 Result files:
 
-- `../poc-run-results/2026-06-15-batch/13_apusys_xrp_close_race.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_xrp_close_race_kernel.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_xrp_close_race_delay_matrix.txt`
-- `../poc-run-results/2026-06-15-batch/13_apusys_xrp_close_race_delay_matrix_kernel_relevant.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_xrp_close_race.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_xrp_close_race_kernel.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_xrp_close_race_delay_matrix.txt`
+- `../../poc-run-results/2026-06-15-batch/13_apusys_xrp_close_race_delay_matrix_kernel_relevant.txt`
 
 ### IDA reference
 
@@ -578,8 +578,8 @@ alive for the timeout window, then calls `wait_cmd`.
 Observed from `system_app` on 2026-06-15:
 
 ```
-result=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_iova.txt
-kernel=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_iova_kernel_relevant.txt
+result=../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_iova.txt
+kernel=../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_iova_kernel_relevant.txt
 
 free_after=0ms:   run_async=0, mem_free=0, request result_status=0x2, wait=-EIO
 free_after=10ms:  run_async=0, mem_free=0, request result_status=0x2, wait=-EIO
@@ -669,8 +669,8 @@ What to look for in the result:
 Observed from `system_app` on 2026-06-15:
 
 ```
-result=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_iova.txt
-kernel=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_iova_kernel_relevant.txt
+result=../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_iova.txt
+kernel=../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_iova_kernel_relevant.txt
 
 free_after=0ms:  run_async=0, mem_free=0, settings=0x7, wait=0
 free_after=1ms:  run_async=0, mem_free=0, settings=0x7, wait=0
@@ -736,8 +736,8 @@ dump original buffer, replacement buffers, then wait_cmd
 Observed from `system_app` on 2026-06-15:
 
 ```
-result=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_reuse_iova.txt
-kernel=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_reuse_iova_kernel_relevant.txt
+result=../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_reuse_iova.txt
+kernel=../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_reuse_iova_kernel_relevant.txt
 
 free_after=0ms:
   original_iova=0xfd2c1000
@@ -772,7 +772,7 @@ Follow-up no-firmware allocator profiling is also negative for exact reuse:
 and 64K imports. The allocator often returns nearby IOVAs for 4K/64K
 (`closest_delta=-0x4000` / `-0x10000`), but not the exact freed IOVA required
 for the current cross-buffer write hypothesis. Full result:
-`../poc-run-results/2026-06-15-batch/13_apusys_iova_reuse_profiler.txt`.
+`../../poc-run-results/2026-06-15-batch/13_apusys_iova_reuse_profiler.txt`.
 
 Targeted gap profiling changes the allocator side of that conclusion. The
 nearby `-size` behavior can be turned into exact target reuse if the pool
@@ -782,8 +782,8 @@ freed before the lower neighbor:
 ```
 poc/ApusysIoctlProbe.java --apusys-iova-gap-profiler
 
-result=../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler.txt
-kernel=../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler_kernel_relevant.txt
+result=../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler.txt
+kernel=../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_profiler_kernel_relevant.txt
 
 4K lower_then_target:  adjacent_found=30/30, exact_target=0/480
 4K target_then_lower:  adjacent_found=28/30, exact_target=2/448
@@ -802,8 +802,8 @@ The gap-control follow-up makes the allocator status more precise:
 ```
 poc/ApusysIoctlProbe.java --apusys-iova-gap-control-profiler
 
-result=../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler.txt
-kernel=../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler_kernel_relevant.txt
+result=../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler.txt
+kernel=../../poc-run-results/2026-06-15-batch/13_apusys_iova_gap_control_profiler_kernel_relevant.txt
 
 4K p16/r16 first:  adjacent_found=78/80, exact_target=3/1248
 4K p12/r20 first:  adjacent_found=59/80, exact_target=4/1180
@@ -822,8 +822,8 @@ The firmware-coupled gap-reuse probe is implemented as:
 ```
 poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-mem-free-race-completed-gap-reuse-iova
 
-result=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova.txt
-kernel=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_kernel_relevant.txt
+result=../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova.txt
+kernel=../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_kernel_relevant.txt
 
 pair_found=29/30
 run_ok=29
@@ -858,13 +858,13 @@ is demonstrated, but the firmware writeback half is not. Exact reuse by itself
 turns the command into timeout/EIO when firmware has not already consumed the
 valid settings buffer; it does not yet produce a replacement-buffer write.
 The allocator-control follow-up target is tracked in
-`../13-apusys-ioctl-surface/ALLOCATOR_CONTROLLABILITY_OPPORTUNITY.md`.
+`ALLOCATOR_CONTROLLABILITY_OPPORTUNITY.md`.
 
 The firmware follow-up with exact-index histograms kept that conclusion:
 
 ```
-result=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup.txt
-kernel=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup_kernel_relevant.txt
+result=../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup.txt
+kernel=../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_followup_kernel_relevant.txt
 
 4K p16/r16:
   pair_found=13/30, exact_target=1/208, first_exact_hist=[9:1]
@@ -883,8 +883,8 @@ but no `devapc`, IOMMU fault, panic/Oops, `BUG`, or `KASAN`.
 The timing-variant run adds the larger output window and micro-delay cases:
 
 ```
-result=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_timing.txt
-kernel=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_timing_kernel_relevant.txt
+result=../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_timing.txt
+kernel=../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_mem_free_race_completed_gap_reuse_iova_timing_kernel_relevant.txt
 
 4K p16/r16, output_size=0x40, free_delay_us=0:
   pair_found=6/30, exact_target=0/96, completion_like_hits=0, wait_ok=6, wait_eio=0
@@ -909,8 +909,8 @@ Two-command shared-IOVA pressure is also implemented and currently negative:
 ```
 poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-two-command-shared-iova
 
-result=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_two_command_shared_iova.txt
-kernel=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_two_command_shared_iova_kernel_relevant.txt
+result=../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_two_command_shared_iova.txt
+kernel=../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_two_command_shared_iova_kernel_relevant.txt
 
 completed_completed: replacement exact_reuse=0/4, wait cmd1=0, wait cmd2=0
 completed_timeout:   replacement exact_reuse=0/4, wait cmd1=0, wait cmd2=-EIO
@@ -934,8 +934,8 @@ Completed-window stretching is also negative in the current Java setup:
 ```
 poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-completed-latency-matrix-iova
 
-result=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completed_latency_matrix_iova.txt
-kernel=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completed_latency_matrix_iova_kernel_relevant.txt
+result=../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completed_latency_matrix_iova.txt
+kernel=../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completed_latency_matrix_iova_kernel_relevant.txt
 
 ann_output40:              run_async=0 in 1 ms, wait=0 in 14 ms
 ann_output100:             run_async=0 in 1 ms, wait=0 in 1 ms
@@ -955,8 +955,8 @@ sequencing:
 ```
 poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-completion-poll-iova
 
-result=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completion_poll_iova.txt
-kernel=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completion_poll_iova_kernel_relevant.txt
+result=../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completion_poll_iova.txt
+kernel=../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_completion_poll_iova_kernel_relevant.txt
 
 ann_output40:   run_async=0 in 1 ms, poll 10 ms, changed_fields=0, wait=0 in 1 ms
 ann_output1000: run_async=0 in 2 ms, poll 10 ms, changed_fields=0, wait=0 in 1 ms
@@ -999,8 +999,8 @@ poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-dev-ctrl-race-iova
 Observed from `system_app` on 2026-06-15:
 
 ```
-result=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_dev_ctrl_race_iova.txt
-kernel=../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_dev_ctrl_race_iova_kernel_relevant.txt
+result=../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_dev_ctrl_race_iova.txt
+kernel=../../poc-run-results/2026-06-15-batch/13_apusys_run_cmd_vpu_xrp_dev_ctrl_race_iova_kernel_relevant.txt
 
 completed settings5/no-settings, dev_ctrl_after=0/1/10/50ms:
   run_async=0, dev_ctrl=0, settings=0x7, wait=0
@@ -1021,8 +1021,8 @@ Follow-up matrix implemented and run:
 ```
 poc/ApusysIoctlProbe.java --run-cmd-vpu-xrp-dev-ctrl-matrix-iova
 
-result=../poc-run-results/2026-06-15-batch/13_apusys_xrp_dev_ctrl_control_matrix.txt
-kernel=../poc-run-results/2026-06-15-batch/13_apusys_xrp_dev_ctrl_control_matrix_kernel_relevant.txt
+result=../../poc-run-results/2026-06-15-batch/13_apusys_xrp_dev_ctrl_control_matrix.txt
+kernel=../../poc-run-results/2026-06-15-batch/13_apusys_xrp_dev_ctrl_control_matrix_kernel_relevant.txt
 
 controls: 0/1/2/3/0xff
 completed delays: 0/1/10 ms
