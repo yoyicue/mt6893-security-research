@@ -2,6 +2,26 @@
 
 Date: 2026-06-15
 
+## Basic disassembly stage status
+
+The current OTA APUNN ELF now has a reproducible foundation layer for IDA,
+machine-readable refs, and this handoff. This stage is sufficient for the
+kernel-primitive decision loop and for later deeper reverse engineering:
+
+- the persistent ELF/IDB artifacts under
+  `13-apusys-ioctl-surface/firmware/apunn/` are the current OTA
+  `apunn_core0_full.elf` and saved IDA database
+- `analyze_apunn_elf.py` regenerates the JSON/Markdown refs from the ELF and
+  `.xt.prop` without relying on decompiler output
+- `ida_apply_apunn_xt_prop.py` consumes those refs and annotates the active IDA
+  Xtensa ELF IDB
+- FLIX instruction width is now validated globally from `.xt.prop`: `0xe` is a
+  16-byte FLIX128 bundle, `0xf` is an 8-byte FLIX64 bundle, and that rule tiles
+  all `54,282` instruction-property runs exactly
+- current Q1/Q2/Q3/Q4 evidence is captured below; full FLIX slot semantics,
+  full decompilation, and the final `10001..10009` indexed-dispatch map are
+  follow-up work rather than prerequisites for this foundation handoff
+
 ## Why this is the blocker
 
 The APUSYS kernel primitive investigation has reached a point where every
@@ -549,9 +569,10 @@ exec(open(
 The script creates/names only `.xt.prop`-backed `entry` candidates with a
 bounded `next_entry_delta <= 0x2000` by default, defines the pointer runs, names
 critical strings, annotates selected `L32R` literal refs and loop-target
-candidates, and annotates the known APUNN entry/dispatch addresses. This keeps
-the IDB useful without forcing every TIE/FLIX-heavy `.xt.prop` range into IDA
-code items.
+candidates, annotates the known APUNN entry/dispatch addresses, and adds the
+global FLIX length-rule validation to the `.text` start. This keeps the IDB
+useful without forcing every TIE/FLIX-heavy `.xt.prop` range into IDA code
+items.
 
 ### Step 2: Map the MMIO dispatch interface
 
@@ -743,9 +764,9 @@ slow-opcode shape.
 | Tool | Path | Status |
 |---|---|---|
 | VPU image parser | `13-apusys-ioctl-surface/tools/parse_vpu_image.py` | Parses preload metadata, carves raw segments, and reports embedded ELF offsets; use `--head-offset 0x200 --headers 1` for V260523 `cam_vpu2.img` |
-| APUNN ELF analyzer | `13-apusys-ioctl-surface/tools/analyze_apunn_elf.py` | Emits section map, `.xtensa.info`, `.xt.prop` property runs, `.xt.prop`-backed function-entry candidates, key address owners, byte-verified standard Xtensa islands, FLIX-correct boundary sweeps, `.text`→`.rodata` suffix refs, PC-relative `L32R` literal refs, focused loop investigations, L32R string-owner clusters, output-validation owner investigations, DMA/descriptor critical-string status, pointer runs plus reachability, ANN op name table, interesting strings, JSON, and Markdown |
+| APUNN ELF analyzer | `13-apusys-ioctl-surface/tools/analyze_apunn_elf.py` | Emits section map, `.xtensa.info`, `.xt.prop` property runs, `.xt.prop`-backed function-entry candidates, key address owners, global FLIX length-rule validation, byte-verified standard Xtensa islands, FLIX-correct boundary sweeps, `.text`→`.rodata` suffix refs, PC-relative `L32R` literal refs, focused loop investigations, L32R string-owner clusters, output-validation owner investigations, DMA/descriptor critical-string status, pointer runs plus reachability, ANN op name table, interesting strings, JSON, and Markdown |
 | Byte-aligned hardware-loop scanner | `13-apusys-ioctl-surface/tools/apunn_loop_scan.py` | Regression/negative-control scanner for `LOOP/LOOPNEZ/LOOPGTZ`; confirms no byte-aligned LOOP to `0x7003c102` and the downgraded `0x7003d3ea -> 0x7003d423` positive control |
-| IDA `.xt.prop` applier | `13-apusys-ioctl-surface/tools/ida_apply_apunn_xt_prop.py` | Applies analyzer JSON to an IDA Xtensa ELF IDB: bounded function creation, key names/comments, pointer-run dwords/xrefs plus reachability comments, critical-string annotations, selected `L32R` refs, loop-target candidates, focused loop notes, FLIX-correct sweep comments, L32R string-owner clusters, output-validation comments, and byte-verified standard-island comments |
+| IDA `.xt.prop` applier | `13-apusys-ioctl-surface/tools/ida_apply_apunn_xt_prop.py` | Applies analyzer JSON to an IDA Xtensa ELF IDB: bounded function creation, key names/comments, pointer-run dwords/xrefs plus reachability comments, critical-string annotations, selected `L32R` refs, loop-target candidates, focused loop notes, global FLIX length-rule and FLIX-correct sweep comments, L32R string-owner clusters, output-validation comments, and byte-verified standard-island comments |
 | Ghidra export script | `13-apusys-ioctl-surface/tools/GhidraApunnExport.java` | Headless adjunct for function/string/decompiler snapshots from `/tmp/apunn_core0_full.elf`; decompiler output is advisory only |
 | Allocator gap profiler | `13-apusys-ioctl-surface/poc/ApusysIoctlProbe.java` | Active; 8+ probe modes |
 | Firmware-coupled gap reuse | `--run-cmd-vpu-xrp-mem-free-race-completed-gap-reuse-iova` | Ready to re-run with new shapes |

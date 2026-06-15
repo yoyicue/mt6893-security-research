@@ -1973,6 +1973,219 @@
       "size": 172
     }
   ],
+  "flix_length_rule_validation": {
+    "assessment": "The adopted FLIX length rule tiles every .xt.prop INSN run exactly. This turns the 0xe and 0xf op0 nibbles into 128-bit and 64-bit bundle widths instead of stock Xtensa 2-byte density items.",
+    "candidate_results": [
+      {
+        "e_len": 16,
+        "f_len": 8,
+        "failed_samples": [],
+        "match_percent": 100.0,
+        "matched_runs": 54282,
+        "name": "adopted_e16_f8",
+        "total_runs": 54282
+      },
+      {
+        "e_len": 16,
+        "f_len": 16,
+        "failed_samples": [
+          {
+            "fail_addr": 1879074675,
+            "first_byte": 47,
+            "prop_addr": 1879074675,
+            "prop_size": 8
+          },
+          {
+            "fail_addr": 1879075397,
+            "first_byte": 47,
+            "prop_addr": 1879075379,
+            "prop_size": 26
+          },
+          {
+            "fail_addr": 1879075530,
+            "first_byte": 255,
+            "prop_addr": 1879075448,
+            "prop_size": 86
+          },
+          {
+            "fail_addr": 1879075829,
+            "first_byte": 111,
+            "prop_addr": 1879075696,
+            "prop_size": 141
+          },
+          {
+            "fail_addr": 1879075978,
+            "first_byte": 79,
+            "prop_addr": 1879075924,
+            "prop_size": 62
+          },
+          {
+            "fail_addr": 1879076440,
+            "first_byte": 4,
+            "prop_addr": 1879076368,
+            "prop_size": 74
+          },
+          {
+            "fail_addr": 1879076632,
+            "first_byte": 175,
+            "prop_addr": 1879076632,
+            "prop_size": 8
+          },
+          {
+            "fail_addr": 1879076861,
+            "first_byte": 175,
+            "prop_addr": 1879076640,
+            "prop_size": 229
+          }
+        ],
+        "match_percent": 75.38963192218415,
+        "matched_runs": 40923,
+        "name": "e16_f16",
+        "total_runs": 54282
+      },
+      {
+        "e_len": 8,
+        "f_len": 8,
+        "failed_samples": [
+          {
+            "fail_addr": 1879074309,
+            "first_byte": 255,
+            "prop_addr": 1879074288,
+            "prop_size": 24
+          },
+          {
+            "fail_addr": 1879074353,
+            "first_byte": 255,
+            "prop_addr": 1879074332,
+            "prop_size": 24
+          },
+          {
+            "fail_addr": 1879074413,
+            "first_byte": 255,
+            "prop_addr": 1879074392,
+            "prop_size": 24
+          },
+          {
+            "fail_addr": 1879074473,
+            "first_byte": 255,
+            "prop_addr": 1879074452,
+            "prop_size": 24
+          },
+          {
+            "fail_addr": 1879074562,
+            "first_byte": 255,
+            "prop_addr": 1879074541,
+            "prop_size": 24
+          },
+          {
+            "fail_addr": 1879074625,
+            "first_byte": 255,
+            "prop_addr": 1879074604,
+            "prop_size": 24
+          },
+          {
+            "fail_addr": 1879075427,
+            "first_byte": 4,
+            "prop_addr": 1879075405,
+            "prop_size": 24
+          },
+          {
+            "fail_addr": 1879075529,
+            "first_byte": 190,
+            "prop_addr": 1879075448,
+            "prop_size": 86
+          }
+        ],
+        "match_percent": 61.45130982646181,
+        "matched_runs": 33357,
+        "name": "e8_f8",
+        "total_runs": 54282
+      },
+      {
+        "e_len": 8,
+        "f_len": 16,
+        "failed_samples": [
+          {
+            "fail_addr": 1879074309,
+            "first_byte": 255,
+            "prop_addr": 1879074288,
+            "prop_size": 24
+          },
+          {
+            "fail_addr": 1879074353,
+            "first_byte": 255,
+            "prop_addr": 1879074332,
+            "prop_size": 24
+          },
+          {
+            "fail_addr": 1879074413,
+            "first_byte": 255,
+            "prop_addr": 1879074392,
+            "prop_size": 24
+          },
+          {
+            "fail_addr": 1879074473,
+            "first_byte": 255,
+            "prop_addr": 1879074452,
+            "prop_size": 24
+          },
+          {
+            "fail_addr": 1879074562,
+            "first_byte": 255,
+            "prop_addr": 1879074541,
+            "prop_size": 24
+          },
+          {
+            "fail_addr": 1879074625,
+            "first_byte": 255,
+            "prop_addr": 1879074604,
+            "prop_size": 24
+          },
+          {
+            "fail_addr": 1879074675,
+            "first_byte": 47,
+            "prop_addr": 1879074675,
+            "prop_size": 8
+          },
+          {
+            "fail_addr": 1879075397,
+            "first_byte": 47,
+            "prop_addr": 1879075379,
+            "prop_size": 26
+          }
+        ],
+        "match_percent": 44.25960723628459,
+        "matched_runs": 24025,
+        "name": "e8_f16",
+        "total_runs": 54282
+      }
+    ],
+    "first_nibble_counts": {
+      "0x0": 27671,
+      "0x1": 0,
+      "0x2": 31811,
+      "0x3": 0,
+      "0x4": 18906,
+      "0x5": 2470,
+      "0x6": 9857,
+      "0x7": 3466,
+      "0x8": 5799,
+      "0x9": 3273,
+      "0xa": 2475,
+      "0xb": 1571,
+      "0xc": 6577,
+      "0xd": 7322,
+      "0xe": 102277,
+      "0xf": 64945
+    },
+    "match_percent": 100.0,
+    "matched_insn_runs": 54282,
+    "min_e_run_size": 16,
+    "min_f_run_size": 8,
+    "next_action": "Use this rule as the authoritative boundary layer for FLIX-heavy owners; slot mnemonics still require MVPU6F TIE/FLIX configuration or dynamic correlation.",
+    "rule": "op0<=0x7:3, op0<=0xd:2, op0==0xf:8, op0==0xe:16",
+    "total_insn_runs": 54282
+  },
   "flix_sweeps": [
     {
       "bad_framing_count": 0,

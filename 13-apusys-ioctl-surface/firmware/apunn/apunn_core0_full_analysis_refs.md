@@ -42,6 +42,41 @@
 - `branch_target`: 14383
 - `unreachable`: 8838
 
+## FLIX Length Rule Validation
+
+- rule: `op0<=0x7:3, op0<=0xd:2, op0==0xf:8, op0==0xe:16`
+- adopted match: 54282/54282 (100.00%)
+- min `0xe` run size: `0x10`
+- min `0xf` run size: `0x8`
+- assessment: The adopted FLIX length rule tiles every .xt.prop INSN run exactly. This turns the 0xe and 0xf op0 nibbles into 128-bit and 64-bit bundle widths instead of stock Xtensa 2-byte density items.
+- next action: Use this rule as the authoritative boundary layer for FLIX-heavy owners; slot mnemonics still require MVPU6F TIE/FLIX configuration or dynamic correlation.
+
+| candidate | 0xe len | 0xf len | matched runs | match | first failures |
+|---|---:|---:|---:|---:|---|
+| `adopted_e16_f8` | 16 | 8 | 54282/54282 | 100.00% | none |
+| `e16_f16` | 16 | 16 | 40923/54282 | 75.39% | 0x70006773+0x8 fail=0x70006773 b0=0x2f; 0x70006a33+0x1a fail=0x70006a45 b0=0x2f; 0x70006a78+0x56 fail=0x70006aca b0=0xff |
+| `e8_f8` | 8 | 8 | 33357/54282 | 61.45% | 0x700065f0+0x18 fail=0x70006605 b0=0xff; 0x7000661c+0x18 fail=0x70006631 b0=0xff; 0x70006658+0x18 fail=0x7000666d b0=0xff |
+| `e8_f16` | 8 | 16 | 24025/54282 | 44.26% | 0x700065f0+0x18 fail=0x70006605 b0=0xff; 0x7000661c+0x18 fail=0x70006631 b0=0xff; 0x70006658+0x18 fail=0x7000666d b0=0xff |
+
+| op0 nibble | decoded items |
+|---:|---:|
+| `0x0` | 27671 |
+| `0x1` | 0 |
+| `0x2` | 31811 |
+| `0x3` | 0 |
+| `0x4` | 18906 |
+| `0x5` | 2470 |
+| `0x6` | 9857 |
+| `0x7` | 3466 |
+| `0x8` | 5799 |
+| `0x9` | 3273 |
+| `0xa` | 2475 |
+| `0xb` | 1571 |
+| `0xc` | 6577 |
+| `0xd` | 7322 |
+| `0xe` | 102277 |
+| `0xf` | 64945 |
+
 ## Entry Property Neighborhood
 
 | addr | size | flags |

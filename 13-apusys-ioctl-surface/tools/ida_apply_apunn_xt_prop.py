@@ -561,6 +561,32 @@ def apply_flix_sweeps(payload: dict[str, object]) -> int:
     return comments
 
 
+def apply_flix_length_rule_validation(payload: dict[str, object]) -> int:
+    item = payload.get("flix_length_rule_validation")
+    if not isinstance(item, dict):
+        return 0
+    text_start = None
+    for section in payload.get("sections", []):
+        if isinstance(section, dict) and section.get("name") == ".text":
+            text_start = int(section["addr"])
+            break
+    if text_start is None:
+        return 0
+    return int(
+        append_comment(
+            text_start,
+            "APUNN FLIX length rule validation; rule=%s matched=%s/%s %.2f%%; "
+            "0xe=16B 0xf=8B, stock Xtensa 2-byte sizing derails FLIX blocks"
+            % (
+                item.get("rule"),
+                item.get("matched_insn_runs"),
+                item.get("total_insn_runs"),
+                float(item.get("match_percent", 0.0)),
+            ),
+        )
+    )
+
+
 def apply_critical_owner_clusters(payload: dict[str, object]) -> int:
     comments = 0
     for item in payload.get("critical_l32r_owner_clusters", [])[:8]:
@@ -724,6 +750,7 @@ def main() -> None:
     loop_comments = apply_loop_targets(payload)
     focused_loop_comments = apply_focused_loop_investigations(payload)
     flix_sweep_comments = apply_flix_sweeps(payload)
+    flix_rule_comments = apply_flix_length_rule_validation(payload)
     cluster_comments = apply_critical_owner_clusters(payload)
     dma_owner_comments = apply_dma_owner_investigations(payload)
     output_validation_comments = apply_output_validation_investigations(payload)
@@ -734,7 +761,7 @@ def main() -> None:
         "[APUNN] functions_created=%d bounded_functions=%d function_names=%d inside_existing=%d "
         "key_names=%d pointer_dwords=%d pointer_refs=%d strings=%d island_comments=%d "
         "l32r_comments=%d l32r_refs=%d loop_comments=%d focused_loop_comments=%d "
-        "flix_sweep_comments=%d cluster_comments=%d dma_owner_comments=%d "
+        "flix_sweep_comments=%d flix_rule_comments=%d cluster_comments=%d dma_owner_comments=%d "
         "output_validation_comments=%d pointer_run_comments=%d ann_op_table_comments=%d"
         % (
             fn_created,
@@ -751,6 +778,7 @@ def main() -> None:
             loop_comments,
             focused_loop_comments,
             flix_sweep_comments,
+            flix_rule_comments,
             cluster_comments,
             dma_owner_comments,
             output_validation_comments,

@@ -384,6 +384,20 @@ class FlixSweep:
     next_action: str
 
 
+@dataclass
+class FlixLengthRuleValidation:
+    rule: str
+    total_insn_runs: int
+    matched_insn_runs: int
+    match_percent: float
+    first_nibble_counts: dict[str, int]
+    min_e_run_size: int | None
+    min_f_run_size: int | None
+    candidate_results: list[dict[str, object]]
+    assessment: str
+    next_action: str
+
+
 CRITICAL_STRING_PATTERNS = (
     "add idma request fail in %s",
     "ERROR CALLBACK: iDMA in Error",
@@ -742,6 +756,130 @@ def flix_kind(first_byte: int) -> str:
     if op0 == 0x0F:
         return "flix64"
     return "flix128"
+
+
+def candidate_flix_insn_len(first_byte: int, e_len: int, f_len: int) -> int:
+    op0 = first_byte & 0x0F
+    if op0 <= 0x07:
+        return 3
+    if op0 <= 0x0D:
+        return 2
+    if op0 == 0x0F:
+        return f_len
+    return e_len
+
+
+def tiles_prop_run(
+    data: bytes,
+    sections: list[Section],
+    prop: XtProp,
+    e_len: int,
+    f_len: int,
+) -> tuple[bool, int | None]:
+    addr = prop.addr
+    end = prop.addr + prop.size
+    while addr < end:
+        head = va_bytes(data, sections, addr, 1)
+        if not head:
+            return False, addr
+        length = candidate_flix_insn_len(head[0], e_len, f_len)
+        if addr + length > end:
+            return False, addr
+        addr += length
+    return addr == end, None if addr == end else addr
+
+
+def build_flix_length_rule_validation(
+    data: bytes,
+    sections: list[Section],
+    props: list[XtProp],
+) -> FlixLengthRuleValidation:
+    insn_props = [
+        prop
+        for prop in props
+        if prop.flags & XT_PROP_INSN and section_for_va(sections, prop.addr) is not None
+    ]
+    candidates = [
+        (16, 8, "adopted_e16_f8"),
+        (16, 16, "e16_f16"),
+        (8, 8, "e8_f8"),
+        (8, 16, "e8_f16"),
+    ]
+    candidate_results: list[dict[str, object]] = []
+    for e_len, f_len, name in candidates:
+        matched = 0
+        failed_samples: list[dict[str, object]] = []
+        for prop in insn_props:
+            ok, fail_addr = tiles_prop_run(data, sections, prop, e_len, f_len)
+            if ok:
+                matched += 1
+            elif len(failed_samples) < 8:
+                failed_samples.append(
+                    {
+                        "prop_addr": prop.addr,
+                        "prop_size": prop.size,
+                        "fail_addr": fail_addr,
+                        "first_byte": (
+                            None
+                            if fail_addr is None
+                            else (va_bytes(data, sections, fail_addr, 1) or b"\x00")[0]
+                        ),
+                    }
+                )
+        candidate_results.append(
+            {
+                "name": name,
+                "e_len": e_len,
+                "f_len": f_len,
+                "matched_runs": matched,
+                "total_runs": len(insn_props),
+                "match_percent": (matched * 100.0 / len(insn_props)) if insn_props else 0.0,
+                "failed_samples": failed_samples,
+            }
+        )
+    first_nibble_counts = {f"0x{value:x}": 0 for value in range(16)}
+    min_e_run_size: int | None = None
+    min_f_run_size: int | None = None
+    for prop in insn_props:
+        head = va_bytes(data, sections, prop.addr, 1)
+        if not head:
+            continue
+        nibble = head[0] & 0x0F
+        if nibble == 0x0E:
+            min_e_run_size = prop.size if min_e_run_size is None else min(min_e_run_size, prop.size)
+        elif nibble == 0x0F:
+            min_f_run_size = prop.size if min_f_run_size is None else min(min_f_run_size, prop.size)
+        addr = prop.addr
+        end = prop.addr + prop.size
+        while addr < end:
+            byte = va_bytes(data, sections, addr, 1)
+            if not byte:
+                break
+            first_nibble_counts[f"0x{byte[0] & 0x0F:x}"] += 1
+            addr += flix_insn_len(byte[0])
+    adopted = next(item for item in candidate_results if item["name"] == "adopted_e16_f8")
+    total_runs = int(adopted["total_runs"])
+    matched_runs = int(adopted["matched_runs"])
+    return FlixLengthRuleValidation(
+        rule="op0<=0x7:3, op0<=0xd:2, op0==0xf:8, op0==0xe:16",
+        total_insn_runs=total_runs,
+        matched_insn_runs=matched_runs,
+        match_percent=(matched_runs * 100.0 / total_runs) if total_runs else 0.0,
+        first_nibble_counts=first_nibble_counts,
+        min_e_run_size=min_e_run_size,
+        min_f_run_size=min_f_run_size,
+        candidate_results=candidate_results,
+        assessment=(
+            "The adopted FLIX length rule tiles every .xt.prop INSN run exactly. "
+            "This turns the 0xe and 0xf op0 nibbles into 128-bit and 64-bit "
+            "bundle widths instead of stock Xtensa 2-byte density items."
+        ),
+        next_action=(
+            "Use this rule as the authoritative boundary layer for FLIX-heavy "
+            "owners; slot mnemonics still require MVPU6F TIE/FLIX configuration "
+            "or dynamic correlation."
+        ),
+    )
 
 
 def flix64_framing_warnings(value: int) -> list[str]:
@@ -2920,6 +3058,51 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
     for name, count in payload["property_counts"].items():
         lines.append(f"- `{name}`: {count}")
     lines.append("")
+    flix_rule = payload.get("flix_length_rule_validation")
+    if isinstance(flix_rule, dict):
+        lines.append("## FLIX Length Rule Validation")
+        lines.append("")
+        lines.append(f"- rule: `{display_text(str(flix_rule['rule']))}`")
+        lines.append(
+            f"- adopted match: {flix_rule['matched_insn_runs']}/"
+            f"{flix_rule['total_insn_runs']} "
+            f"({float(flix_rule['match_percent']):.2f}%)"
+        )
+        lines.append(f"- min `0xe` run size: `{hx(flix_rule.get('min_e_run_size'))}`")
+        lines.append(f"- min `0xf` run size: `{hx(flix_rule.get('min_f_run_size'))}`")
+        lines.append(f"- assessment: {display_text(str(flix_rule['assessment']))}")
+        lines.append(f"- next action: {display_text(str(flix_rule['next_action']))}")
+        lines.append("")
+        lines.append("| candidate | 0xe len | 0xf len | matched runs | match | first failures |")
+        lines.append("|---|---:|---:|---:|---:|---|")
+        candidate_results = flix_rule["candidate_results"]
+        assert isinstance(candidate_results, list)
+        for item in candidate_results:
+            assert isinstance(item, dict)
+            failures: list[str] = []
+            failed_samples = item.get("failed_samples", [])
+            assert isinstance(failed_samples, list)
+            for sample in failed_samples[:3]:
+                assert isinstance(sample, dict)
+                failures.append(
+                    f"{hx(sample.get('prop_addr'))}+{hx(sample.get('prop_size'))} "
+                    f"fail={hx(sample.get('fail_addr'))} b0={hx(sample.get('first_byte'))}"
+                )
+            lines.append(
+                f"| `{item['name']}` | {item['e_len']} | {item['f_len']} | "
+                f"{item['matched_runs']}/{item['total_runs']} | "
+                f"{float(item['match_percent']):.2f}% | "
+                f"{display_text('; '.join(failures) if failures else 'none')} |"
+            )
+        lines.append("")
+        nibble_counts = flix_rule.get("first_nibble_counts", {})
+        if isinstance(nibble_counts, dict):
+            lines.append("| op0 nibble | decoded items |")
+            lines.append("|---:|---:|")
+            for index in range(16):
+                key = f"0x{index:x}"
+                lines.append(f"| `{key}` | {nibble_counts.get(key, 0)} |")
+            lines.append("")
     lines.append("## Entry Property Neighborhood")
     lines.append("")
     lines.append("| addr | size | flags |")
@@ -3663,6 +3846,7 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
     standard_field_access_clusters = find_standard_field_access_clusters(
         data, sections, props, function_candidates
     )
+    flix_length_rule_validation = build_flix_length_rule_validation(data, sections, props)
     l32r_ref_count, interesting_l32r_refs, l32r_refs_for_scans = find_l32r_references(
         data, sections, strings, props, function_candidates, xtensa_info
     )
@@ -3714,6 +3898,7 @@ def build_payload(path: Path, min_string: int, min_run: int) -> dict[str, object
         ),
         "standard_islands": to_jsonable(standard_islands),
         "standard_field_access_clusters": to_jsonable(standard_field_access_clusters),
+        "flix_length_rule_validation": to_jsonable(flix_length_rule_validation),
         "rodata_ref_count": len(rodata_refs),
         "rodata_refs": to_jsonable(rodata_refs),
         "interesting_rodata_refs": to_jsonable(
@@ -3772,6 +3957,23 @@ def print_summary(payload: dict[str, object]) -> None:
             f"size={hx(section['size'])} flags={hx(section['flags'])}"
         )
     print("property_counts", payload["property_counts"])
+    flix_rule = payload.get("flix_length_rule_validation")
+    if isinstance(flix_rule, dict):
+        print(
+            "flix_length_rule "
+            f"matched={flix_rule['matched_insn_runs']}/"
+            f"{flix_rule['total_insn_runs']} "
+            f"percent={float(flix_rule['match_percent']):.2f} "
+            f"rule={flix_rule['rule']}"
+        )
+        for item in flix_rule["candidate_results"]:
+            assert isinstance(item, dict)
+            print(
+                "  flix_candidate "
+                f"{item['name']} e_len={item['e_len']} f_len={item['f_len']} "
+                f"matched={item['matched_runs']}/{item['total_runs']} "
+                f"percent={float(item['match_percent']):.2f}"
+            )
     print(f"function_candidates={payload['function_candidate_count']}")
     for item in payload["key_addresses"]:
         assert isinstance(item, dict)
