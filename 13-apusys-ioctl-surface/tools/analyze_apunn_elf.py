@@ -2936,6 +2936,66 @@ def simplified_sweep_item(insn: FlixSweepInstruction) -> dict[str, object]:
     return item
 
 
+def local_slot_ref_context(
+    data: bytes,
+    sections: list[Section],
+    props: list[XtProp],
+    function_candidates: list[FunctionCandidate],
+    ref_addr: int,
+) -> dict[str, object]:
+    prop = best_prop_for_addr(props, ref_addr)
+    if prop is None:
+        return {
+            "prop_addr": None,
+            "prop_size": None,
+            "prop_flags": None,
+            "context_start": None,
+            "context_end": None,
+            "context_counts": {},
+            "context_bad_framing_count": None,
+            "context_items": [],
+            "ref_item_found": False,
+        }
+
+    sweep = flix_sweep_range(
+        data=data,
+        sections=sections,
+        props=props,
+        function_candidates=function_candidates,
+        label="dispatcher_slot_ref_%08x" % ref_addr,
+        start=prop.addr,
+        end=prop.addr + prop.size,
+        description=(
+            "Local .xt.prop run containing a direct L32R reference to a "
+            "code-pointer slot."
+        ),
+        next_action=(
+            "Use this context to distinguish direct literal-slot loads from "
+            "table-base/indexed dispatch evidence."
+        ),
+    )
+    context_items: list[dict[str, object]] = []
+    ref_item_found = False
+    for insn in sweep.instructions:
+        item = simplified_sweep_item(insn)
+        is_ref_item = insn.addr == ref_addr
+        if is_ref_item:
+            ref_item_found = True
+        item["is_ref_item"] = is_ref_item
+        context_items.append(item)
+    return {
+        "prop_addr": prop.addr,
+        "prop_size": prop.size,
+        "prop_flags": flags_text(prop.flags),
+        "context_start": sweep.start,
+        "context_end": sweep.end,
+        "context_counts": sweep.counts,
+        "context_bad_framing_count": sweep.bad_framing_count,
+        "context_items": context_items,
+        "ref_item_found": ref_item_found,
+    }
+
+
 def build_dispatcher_parser_investigation(
     data: bytes,
     sections: list[Section],
@@ -3003,17 +3063,50 @@ def build_dispatcher_parser_investigation(
         for hit in run.l32r_ref_hits:
             if hit.get("owner_entry") != owner:
                 continue
+            ref_addr = int(hit["ref_addr"])
+            context = local_slot_ref_context(
+                data=data,
+                sections=sections,
+                props=props,
+                function_candidates=function_candidates,
+                ref_addr=ref_addr,
+            )
+            indexed_evidence = (
+                "found"
+                if run.table_base_value_ref_count or hit.get("value_hit")
+                else "not_found"
+            )
             slot_refs.append(
                 {
                     "run_start": run.start,
                     "run_count": run.count,
-                    "ref_addr": hit.get("ref_addr"),
+                    "ref_addr": ref_addr,
                     "owner_delta": hit.get("owner_delta"),
+                    "target_reg": hit.get("target_reg"),
                     "literal_addr": hit.get("literal_addr"),
                     "literal_value": hit.get("literal_value"),
                     "literal_delta": hit.get("literal_delta"),
                     "literal_slot_aligned": hit.get("literal_slot_aligned"),
+                    "value_hit": hit.get("value_hit"),
+                    "table_base_value_ref_count": run.table_base_value_ref_count,
                     "target_owner_counts": run.target_owner_counts,
+                    "prop_addr": context["prop_addr"],
+                    "prop_size": context["prop_size"],
+                    "prop_flags": context["prop_flags"],
+                    "context_start": context["context_start"],
+                    "context_end": context["context_end"],
+                    "context_counts": context["context_counts"],
+                    "context_bad_framing_count": context["context_bad_framing_count"],
+                    "context_items": context["context_items"],
+                    "ref_item_found": context["ref_item_found"],
+                    "local_classification": "direct_l32r_literal_slot_load",
+                    "indexed_dispatch_evidence": indexed_evidence,
+                    "local_assessment": (
+                        "The ref site is a direct L32R load from one aligned "
+                        "literal slot in the code-pointer run. The current "
+                        "static scan has no table-base value reference or "
+                        "local indexed-dispatch proof for this site."
+                    ),
                     "q2_status": run.q2_status,
                 }
             )
@@ -3039,9 +3132,8 @@ def build_dispatcher_parser_investigation(
             "value or wrapper 10001..10009 index mapping is proven yet."
         ),
         next_action=(
-            "Validate the 0x700304f8 slot-ref sites locally or with runtime traces "
-            "to determine whether these direct slot loads are bounds, cases, or "
-            "opcode-indexed table accesses."
+            "Use runtime traces or deeper FLIX/TIE slot semantics to connect "
+            "specific wrapper opcodes 10001..10009 to these parser paths."
         ),
     )
 
@@ -3946,8 +4038,11 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
                 f"{display_text(str(item['note']))} |"
             )
         lines.append("")
-        lines.append("| pointer run | ref | literal slot | target value | target owners | status |")
-        lines.append("|---:|---:|---:|---:|---|---|")
+        lines.append(
+            "| pointer run | ref | reg | prop | literal slot | target value | "
+            "target owners | local classification | indexed evidence | status |"
+        )
+        lines.append("|---:|---:|---:|---|---:|---:|---|---|---|---|")
         slot_refs = dispatcher_parser["pointer_run_slot_refs"]
         assert isinstance(slot_refs, list)
         for item in slot_refs:
@@ -3961,8 +4056,13 @@ def emit_markdown(payload: dict[str, object], path: Path) -> None:
             lines.append(
                 f"| `{hx(item['run_start'])}` count {item['run_count']} | "
                 f"`{hx(item['ref_addr'])}`+`{hx(item.get('owner_delta'))}` | "
+                f"`a{item.get('target_reg')}` | "
+                f"`{item.get('prop_flags') or ''}:{hx(item.get('prop_size'))}` | "
                 f"`{hx(item.get('literal_addr'))}` | `{hx(item.get('literal_value'))}` | "
-                f"{', '.join(owner_text)} | {display_text(str(item['q2_status']))} |"
+                f"{', '.join(owner_text)} | "
+                f"{display_text(str(item.get('local_classification', '')))} | "
+                f"{display_text(str(item.get('indexed_dispatch_evidence', '')))} | "
+                f"{display_text(str(item['q2_status']))} |"
             )
         lines.append("")
     ann_table = payload.get("ann_op_table_investigation")
