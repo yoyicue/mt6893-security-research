@@ -57,6 +57,18 @@ Priority 2 → **CVE-2024-20032 aee permission bypass CONFIRMED** (2026-06-16):
 Priority 3 → CVE-2024-20037 remaining tasks (cmdq buffer overflow possibility).
 Mali candidates are all confirmed dead; APUSYS plane-redirect is suspended.
 
+Priority 4 → **CVE-2024-20075 eemgpu OOB write — BLOCKED (requires uid=0)**:
+  - 所有已知触发路径均需 root:
+    * /proc/eemg/* 写：DAC root-only（stat() 本身也被阻）
+    * sysfs bind/unbind：--w------- root:root
+    * setSysInfo→eemg：同事静态分析排除（libpowerhal 无 eemg sink）
+    * dconfig path：/proc/device-tree/chosen/dconfig 在此设备不存在
+    * vendor.img 中无任何程序从 userspace 写 /proc/eemg
+  - 已证实 OOB 触发形式（需 root）：
+    echo "9999 0" > /proc/eemg/EEMG_DET_GPU/eemg_setmargin
+  - 降为 P5 — 先获取 root 再回来
+  Directory: 22-cve-2024-20075-eemgpu/BLOCKED.md
+
 ---
 
 ## Current Position

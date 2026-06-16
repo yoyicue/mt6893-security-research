@@ -23,6 +23,8 @@ GED_BRIDGE_JAVA = ROOT / "18-cve-2024-20118-mms" / "poc" / "GedBridgeProbe.java"
 AEE_SOCKET_JAVA  = ROOT / "20-cve-2024-20032-aee" / "poc" / "AeeSocketProbe.java"
 AEE_SESSION_JAVA = ROOT / "20-cve-2024-20032-aee" / "poc" / "AeeSessionProbe.java"
 DRM_TRIGGER_JAVA = ROOT / "07-cve-2023-32836-display-overflow" / "poc" / "DrmTrigger.java"
+EEMG_PROC_JAVA   = ROOT / "22-cve-2024-20075-eemgpu" / "poc" / "EemgpuProcProbe.java"
+EEMG_WRITE_JAVA  = ROOT / "22-cve-2024-20075-eemgpu" / "poc" / "EemgpuWriteProbe.java"
 REBUILD_BIND_SHELL = (
     ROOT / "06-cve-2024-31317-zygote-injection" / "poc" / "exploit.py"
 )
@@ -30,6 +32,7 @@ DEFAULT_REMOTE_DEX = "/data/data/com.android.settings/cache/apusys_ioctl_probe.d
 DEFAULT_XRP_REMOTE_DEX = "/data/data/com.android.settings/cache/xrp_wrapper_inspect.dex"
 DEFAULT_GED_REMOTE_DEX = "/data/data/com.android.settings/cache/ged_bridge_probe.dex"
 DEFAULT_AEE_REMOTE_DEX = "/data/data/com.android.settings/cache/aee_socket_probe.dex"
+DEFAULT_EEMG_REMOTE_DEX = "/data/data/com.android.settings/cache/eemg_probe.dex"
 DEFAULT_RESULT_DIR = ROOT / "poc-run-results" / "2026-06-14-batch"
 
 
@@ -94,6 +97,10 @@ def probe_sources(probe):
     if probe == "aslr-extract":
         return "AslrExtract", [DRM_TRIGGER_JAVA, AEE_SESSION_JAVA,
                                ROOT / "20-cve-2024-20032-aee" / "poc" / "AslrExtract.java"]
+    if probe == "eemg-proc":
+        return "EemgpuProcProbe", [EEMG_PROC_JAVA]
+    if probe == "eemg-write":
+        return "EemgpuWriteProbe", [EEMG_WRITE_JAVA]
     raise RuntimeError(f"unknown probe: {probe}")
 
 
@@ -129,12 +136,15 @@ def build_dex(android_jar, build_dir, dex_dir, probe):
     return dex, hashlib.md5(data).hexdigest(), hashlib.sha256(data).hexdigest()
 
 
+SAFE_BUILD_PREFIXES = ("apusys", "eemg", "aee", "ged", "xrp", "drm", "perf")
+
 def clean_dir(path):
     path = path.resolve()
     if not path.exists():
         return
-    if "apusys" not in path.name:
-        raise RuntimeError(f"refusing to remove non-APUSYS build directory: {path}")
+    name = path.name.lower()
+    if not any(name.startswith(p) or p in name for p in SAFE_BUILD_PREFIXES):
+        raise RuntimeError(f"refusing to remove unrecognized build directory: {path}")
     shutil.rmtree(path)
 
 
@@ -314,7 +324,8 @@ def main():
     parser.add_argument("--android-jar")
     parser.add_argument("--probe",
                         choices=("apusys", "xrp-wrapper", "ged-bridge",
-                                 "aee-socket", "aee-session"),
+                                 "aee-socket", "aee-session", "aslr-extract",
+                                 "eemg-proc", "eemg-write"),
                         default="apusys")
     parser.add_argument("--mode", default="--run-cmd-vpu-guard")
     parser.add_argument("--remote-dex", default=DEFAULT_REMOTE_DEX)
@@ -339,6 +350,8 @@ def main():
         args.remote_dex = DEFAULT_GED_REMOTE_DEX
     if args.probe == "aee-socket" and args.remote_dex == DEFAULT_REMOTE_DEX:
         args.remote_dex = DEFAULT_AEE_REMOTE_DEX
+    if args.probe in ("eemg-proc", "eemg-write") and args.remote_dex == DEFAULT_REMOTE_DEX:
+        args.remote_dex = DEFAULT_EEMG_REMOTE_DEX
 
     android_jar = find_android_jar(args.android_jar)
     build_dir = Path(args.build_dir)
