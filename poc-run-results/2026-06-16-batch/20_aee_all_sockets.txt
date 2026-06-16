@@ -1,0 +1,71 @@
+command=CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex app_process64 /system/bin AeeSessionProbe --all
+probe=aee-session
+dex_md5=61393975478c0a3b088c43fa18fd1f78
+dex_sha256=312adad179943ca42c67f1df12719386c9b4dc1b8e56b0984cd283f2852146d5
+remote_dex=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex
+shell_port=127.0.0.1:48888
+exit_status=0
+
+uid=1000(system) gid=1000(system) groups=1000(system),3003(inet) context=u:r:system_app:s0
+u:r:system_app:s0
+61393975478c0a3b088c43fa18fd1f78  /data/data/com.android.settings/cache/apusys_ioctl_probe.dex
+[AeeSessionProbe] CVE-2024-20032 session driver
+[AeeSessionProbe] uid=1000 pid=22942 target_pid=22942 class=13 ind=12 flags=0x0 payload=false
+[+] Scratch buffer at 0x738adbb000
+[*] Trying anonymous PROT_RWX mmap...
+[+] Anonymous RWX page at 0x738adba000
+[+] Wrote syscall stub: JNI@+0x00 (36B), call stub JNI@+0x80 (40B); entry_point left untouched
+[*] ArtMethod for nativeSyscall at 0x737e5e8a20
+    access_flags = 0x10000108 [NATIVE]
+    data (JNI ptr) = 0x70d981a2c0
+    entry_point    = 0x103800087607c368
+[*] Patching data_ (JNI) → 0x738adba000
+    data_       = 0x738adba000 ✓
+    entry_point = 0x103800087607c368 (unchanged)
+[+] ArtMethod patched
+[+] Syscall infrastructure ready
+
+
+=== trying @android:aee_aed ===
+[session] @android:aee_aed connected peer_uid=0
+[session] IND ind=12 class=13 pid=22942 flags=0x0 payload=0
+[session] IND bytes: 02 00 00 00 0c 00 00 00 9e 59 00 00 0d 00 00 00 00 00 00 00 00 00 00 00
+[session] read timeout after 0 reqs
+[session] no REQs on @android:aee_aed (daemon may need crash state)
+
+=== trying @android:aee_aed32 ===
+[session] @android:aee_aed32 connected peer_uid=0
+[session] IND ind=12 class=13 pid=22942 flags=0x0 payload=0
+[session] IND bytes: 02 00 00 00 0c 00 00 00 9e 59 00 00 0d 00 00 00 00 00 00 00 00 00 00 00
+[session] read timeout after 0 reqs
+[session] no REQs on @android:aee_aed32 (daemon may need crash state)
+
+=== trying @com.mtk.aee.aed ===
+[session] @com.mtk.aee.aed connected peer_uid=0
+[session] IND ind=12 class=13 pid=22942 flags=0x0 payload=0
+[session] IND bytes: 02 00 00 00 0c 00 00 00 9e 59 00 00 0d 00 00 00 00 00 00 00 00 00 00 00
+[session] REQ#0 type=2 cmd=16(IND_LOG_CLOSE) seq=0 payload=0
+[session] no REQs on @com.mtk.aee.aed (daemon may need crash state)
+
+=== trying @com.mtk.aee.aed_64 ===
+[session] @com.mtk.aee.aed_64 connected peer_uid=0
+[session] IND ind=12 class=13 pid=22942 flags=0x0 payload=0
+[session] IND bytes: 02 00 00 00 0c 00 00 00 9e 59 00 00 0d 00 00 00 00 00 00 00 00 00 00 00
+[session] REQ#0 type=2 cmd=16(IND_LOG_CLOSE) seq=0 payload=0
+[session] no REQs on @com.mtk.aee.aed_64 (daemon may need crash state)
+
+=== trying @aee:rttd ===
+[session] @aee:rttd connected peer_uid=0
+[session] IND ind=12 class=13 pid=22942 flags=0x0 payload=0
+[session] IND bytes: 02 00 00 00 0c 00 00 00 9e 59 00 00 0d 00 00 00 00 00 00 00 00 00 00 00
+[session] read timeout after 0 reqs
+[session] no REQs on @aee:rttd (daemon may need crash state)
+
+=== trying @aee:rttd_64 ===
+[session] @aee:rttd_64 connected peer_uid=0
+[session] IND ind=12 class=13 pid=22942 flags=0x0 payload=0
+[session] IND bytes: 02 00 00 00 0c 00 00 00 9e 59 00 00 0d 00 00 00 00 00 00 00 00 00 00 00
+[session] read timeout after 0 reqs
+[session] no REQs on @aee:rttd_64 (daemon may need crash state)
+%n[phase-check] /data/vendor/aee_exp/
+[aee_exp] empty

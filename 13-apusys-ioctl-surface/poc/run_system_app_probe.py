@@ -20,7 +20,8 @@ XRP_WRAPPER_JAVA = (
     ROOT / "13-apusys-ioctl-surface" / "poc" / "XrpWrapperInspect.java"
 )
 GED_BRIDGE_JAVA = ROOT / "18-cve-2024-20118-mms" / "poc" / "GedBridgeProbe.java"
-AEE_SOCKET_JAVA = ROOT / "20-cve-2024-20032-aee" / "poc" / "AeeSocketProbe.java"
+AEE_SOCKET_JAVA  = ROOT / "20-cve-2024-20032-aee" / "poc" / "AeeSocketProbe.java"
+AEE_SESSION_JAVA = ROOT / "20-cve-2024-20032-aee" / "poc" / "AeeSessionProbe.java"
 DRM_TRIGGER_JAVA = ROOT / "07-cve-2023-32836-display-overflow" / "poc" / "DrmTrigger.java"
 REBUILD_BIND_SHELL = (
     ROOT / "06-cve-2024-31317-zygote-injection" / "poc" / "exploit.py"
@@ -88,6 +89,8 @@ def probe_sources(probe):
         return "GedBridgeProbe", [DRM_TRIGGER_JAVA, GED_BRIDGE_JAVA]
     if probe == "aee-socket":
         return "AeeSocketProbe", [DRM_TRIGGER_JAVA, AEE_SOCKET_JAVA]
+    if probe == "aee-session":
+        return "AeeSessionProbe", [DRM_TRIGGER_JAVA, AEE_SESSION_JAVA]
     raise RuntimeError(f"unknown probe: {probe}")
 
 
@@ -307,7 +310,8 @@ def main():
                         help="pass --skip-clean to rebuild_bind_shell.py")
     parser.add_argument("--android-jar")
     parser.add_argument("--probe",
-                        choices=("apusys", "xrp-wrapper", "ged-bridge", "aee-socket"),
+                        choices=("apusys", "xrp-wrapper", "ged-bridge",
+                                 "aee-socket", "aee-session"),
                         default="apusys")
     parser.add_argument("--mode", default="--run-cmd-vpu-guard")
     parser.add_argument("--remote-dex", default=DEFAULT_REMOTE_DEX)

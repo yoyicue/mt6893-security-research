@@ -1,0 +1,3 @@
+pattern=aee|aed|dumpstate
+source=adb logcat -b kernel or dmesg fallback
+
