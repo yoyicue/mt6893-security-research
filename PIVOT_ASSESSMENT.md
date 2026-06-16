@@ -50,10 +50,14 @@ at `ged_kpi_record_POSSIBLE_CVE_2024_20016_DoS` (0x860dc68) is re-attributed.
 - GED `/proc/ged` confirms CVE-2024-20016 access (DoS) but not EoP primitive
 - No ALPS patch ID published ("External report source") — source mapping unclear
 Priority 2 → **CVE-2024-20032 aee permission bypass CONFIRMED** (2026-06-16):
-  system_app connects to @android:aee_aed (root, uid=0) — 6/12 sockets accessible
-  IDA: aed_ioctl_handler_NO_UID_CHECK at 0xffffffc0087b1868 — no UID check
-  Exploit path: send AE_REQ_COREDUMP via socket → read /data/vendor/aee_exp → KASLR
-  Next: reverse libaedv.so AE_REQ_* wire protocol, send valid request
+  KE-first KASLR defeat is confirmed. `system_app` or equivalent display ioctl
+  reachability triggers `MTK_SET_PQPARAM.u4PartialY=0xffffffff`, producing a
+  KE at `DpEngine_COLORonConfig+0x360/0xcf4`; `platform_app` then reads
+  `/data/vendor/aee_exp/db.fatal.*.KE`, decrypts the DB, and extracts the true
+  kernel text slide.
+  Current sample: `selected_runtime_base=0xffffff9cfde00000`,
+  `selected_static_to_runtime_delta=-0x230a180000`, phase4 bridge emits
+  `-D -b 0xffffff9cfde00000`.
 Priority 3 → CVE-2024-20037 remaining tasks (cmdq buffer overflow possibility).
 Mali candidates are all confirmed dead; APUSYS plane-redirect is suspended.
 
@@ -74,7 +78,10 @@ Priority 4 → **CVE-2024-20075 eemgpu OOB write — BLOCKED (requires uid=0)**:
 ## Current Position
 
 - uid=1000 system_app bind shell (CVE-2024-31317) ✅
+- platform_app bind shell (CVE-2024-31317 variant) reads `/data/vendor/aee_exp` ✅
 - ART ArtMethod syscall primitive (arbitrary ioctl from pure Java) ✅
+- **KASLR CONFIRMED ✅** — `MTK_SET_PQPARAM.u4PartialY=0xffffffff` KE + `platform_app` read of `/data/vendor/aee_exp/db.fatal.*.KE.dbg`. `selected_runtime_base=0xffffff9cfde00000`, delta=`-0x230a180000`. See `20-cve-2024-20032-aee/pulled/platform_app_test/KASLR_SUMMARY.txt`.
+- **Missing**: kernel write primitive (APUSYS IOVA reuse or mms write-what-where)
 - Accessible devices: `/dev/binder`, `/dev/hwbinder`, `/dev/mali0`, `/dev/dri/card0`, `/dev/apusys`, `/dev/aw_smartpa`
 - Visible but direct-open denied from `system_app`: `/dev/ion`, `/dev/ashmem`
 - SPL: 2023-06-05
@@ -89,22 +96,28 @@ Priority 4 → **CVE-2024-20075 eemgpu OOB write — BLOCKED (requires uid=0)**:
 | CVE-2022-36449 Mali refcount | user mmap holds page ref, free doesn't release |
 | Mali WRITE_VALUE → kernel write | bounded to GPU SAME_VA userspace regions |
 | **CVE-2022-22706 Mali write-readonly** | **PATCHED** — IDA confirms `TST #6` (CPU_WR\|GPU_WR) at both GUP call sites; earlier `#0xA` search was wrong bit namespace (UAPI vs internal) |
-| DRM display OOB (SET_PQPARAM) | bug confirmed, but sink is HW register only + readback blocked by power gating |
+| DRM display OOB (SET_PQPARAM) | not a kernel write primitive; now useful as confirmed KE trigger for AEE KASLR |
 | DRM READ_REG info leak | MMSYS power domain gated, all regs read 0 |
 | CVE-2023-4622 AF_UNIX | SOCK_DEAD ordering constraint |
 
 ## Current ioctl risk ranking
 
-This ranking assumes the current post-CVE-2024-31317 position: `uid=1000(system)` / `system_app`, working arbitrary `ioctl` from the Java/ART syscall primitive, and SPL `2023-06-05`.
+2026-06-16 correction: the earlier `/dev/mali0` CVE-2023-33200 ranking is
+superseded by `12-cve-2023-33200-mali-race-uaf/`. That analysis found the
+CVE-2022-46395 `kbase_vmap_prot()` type gate: non-NATIVE allocations are
+rejected before vmap, so imported USER_BUF soft-event racing is patched/dead
+on this target.
+
+This ranking assumes the current post-CVE-2024-31317 position: `uid=1000(system)` / `system_app` + `platform_app`, working arbitrary `ioctl` from the Java/ART syscall primitive, and SPL `2023-06-05`. KASLR is confirmed — the remaining gap is a kernel write primitive.
 
 | Rank | Surface | Current risk | Why |
 |---:|---|---|---|
-| 1 | `/dev/mali0` CVE-2023-33200 | **Highest confirmed** | Required ioctls are reachable, the path is not JIT-based, and IDA confirms the soft-event `vmap` vs sticky-resource USER_BUF unmap race shape. |
-| 2 | `/dev/apusys` | **Medium-high research priority** | Confirmed open proprietary MTK ioctl surface; provider opcode-0 dispatch is live for MDLA, normal VPU, EDMA, and MDLA RT. HardwareBuffer under `app_process64` supplies a dmabuf fd that both APUSYS memory-create variants import successfully; normal VPU `ucmd` reaches the userspace-compatible `0x8001 + key` lookup path, and `run_cmd_async` reaches parser, queue, scheduler, and normal VPU provider request-size guard paths. |
+| 1 | `/dev/apusys` | **Medium-high research priority** | Confirmed open proprietary MTK ioctl surface; exact IOVA reuse and descriptor-plane redirect are the remaining live primitive leads, but existing matrices have not produced Oops/BUG/KASAN/panic. |
+| 2 | AEE KE dump collection | **KASLR CONFIRMED ✅** | `MTK_SET_PQPARAM.u4PartialY=0xffffffff` + `platform_app` read of `/data/vendor/aee_exp`. `selected_runtime_base=0xffffff9cfde00000`, delta=`-0x230a180000`. KASLR is solved; no further work needed on this track. |
 | 3 | `/dev/ion` MTK heap/ioctl family | **Medium-low for direct system_app node access** | DAC bits look permissive, but dedicated old-ION probing confirms direct `/dev/ion` open returns `EACCES` from `system_app`. |
-| 4 | Display DRM `SET_PQPARAM` / adjacent PQ-AAL-SLD paths | **Medium** | `/dev/dri/card0` and many MTK private ioctls are reachable. The strongest current bug shape is display-state/MMIO-oriented, with no confirmed kernel-memory write primitive. |
+| 4 | Display DRM `SET_PQPARAM` / adjacent PQ-AAL-SLD paths | **KASLR trigger only** | `u4PartialY=0xffffffff` is a reliable kernel panic trigger used for KASLR. Sink is display MMIO — not a kernel write primitive. Remaining PQ/SLD adjacent paths have lower exploitation ceiling. |
 | 5 | Display DRM register and GEM paths | **Low** | `WRITE_REG`/`READ_REG` have visible validation, and CVE-2023-32836 `CREATE_DUMB` reaches the MTK 64-bit size path rather than the vulnerable generic 32-bit multiply path. |
-| 6 | Patched/dead Mali candidates | **Low / removed** | CVE-2022-22706 is patched in the binary; CVE-2022-38181/CVE-2023-4211 JIT paths are blocked by `no_user_free_count`; CVE-2022-36449 was retracted for this target. |
+| 6 | Patched/dead Mali candidates | **Low / removed** | CVE-2022-22706 is patched; CVE-2022-38181/CVE-2023-4211 JIT paths are blocked by `no_user_free_count`; CVE-2022-36449 was retracted; CVE-2023-33200 is blocked by `kbase_vmap_prot()` NATIVE-only type gate. |
 
 ## Remaining Candidates — Ranked by Likelihood of Kernel Write
 
@@ -112,7 +125,15 @@ This ranking assumes the current post-CVE-2024-31317 position: `uid=1000(system)
 
 #### A. `/dev/mali0` — Non-JIT Mali CVE paths
 
-**CVE-2023-33200** (SPL fix: 2023-10, unpatched by SPL) is now the top confirmed ioctl candidate.
+**Superseded 2026-06-16:** CVE-2023-33200 is patched/dead on this target. See
+`12-cve-2023-33200-mali-race-uaf/IDA_HANDOFF.md` and
+`12-cve-2023-33200-mali-race-uaf/RISK_ASSESSMENT.md`.
+
+The older notes below are retained for historical context, but should not be
+used as the current priority call.
+
+**CVE-2023-33200** (SPL fix: 2023-10, unpatched by SPL) was previously treated
+as the top confirmed ioctl candidate.
 
 IDA confirms the race shape:
 
@@ -196,11 +217,15 @@ The IDA-based risk ranking from the handoff identified SET_SLD_PARAM (0x57) and 
 
 **~~Priority 1: CVE-2022-22706~~ — ELIMINATED** (patched, `TST #6` confirmed in binary)
 
-**Priority 1 (revised): CVE-2023-33200 (Mali imported-user-buffer race)**
-- Confirmed unpatched (SPL 2023-06-05 << fix SPL 2023-10-05 / 2024-03-05)
-- `/dev/mali0` fully reachable + kbase context init works
-- IDA confirms the race shape and confirms it avoids the JIT + `no_user_free_count` blocker
-- Remaining work is exploitability engineering analysis, not initial reachability/patch-state triage
+**Priority 1 (current): compose confirmed AEE KASLR with the write/UAF branch**
+- KE-first AEE KASLR defeat is confirmed through
+  `/data/vendor/aee_exp/db.fatal.02.KE/db.fatal.02.KE.dbg`.
+- `KASLR_SUMMARY.txt` selects `selected_runtime_base=0xffffff9cfde00000` and
+  `selected_static_to_runtime_delta=-0x230a180000`.
+- `tools/kaslr_summary_addr.py --phase4` emits
+  `phase4_direct_write_args=-D -b 0xffffff9cfde00000`.
+- Next work is no longer finding text KASLR; it is consuming the confirmed
+  current-boot base in the live write/UAF path.
 
 **Priority 2: `/dev/apusys` memory import / ucmd mapping**
 - `/dev/apusys` opens from `system_app`
@@ -209,11 +234,13 @@ The IDA-based risk ranking from the handoff identified SET_SLD_PARAM (0x57) and 
 - Direct DRM PRIME, direct ION, direct ashmem, and tested dma-heap paths are blocked or unavailable
 - Normal VPU opcode-7 `ucmd` reaches the userspace-compatible `0x8001 + key` lookup path and returns `ENOENT` for empty and `Normal` keys; current static analysis interprets this as a Normal/Preload lookup miss through the resolved `vpu_alg_get` callback
 - `mdw_usr_run_cmd_async` command ops are resolved: user `+0x0c` must be zero, `mdw_cmd_create_cmd` maps the fd-backed command buffer, `mdw_cmd_parse_cmd` validates it, and a zero-header HardwareBuffer command buffer returns `EINVAL` before queue insertion
+- Current APUSYS work should focus on exact IOVA reuse plus descriptor-plane redirect, not broad parser fuzzing.
 
 **Priority 3: ION CVEs via non-direct paths**
 - Direct `/dev/ion` open is `EACCES` from `system_app`
 - Direct node access remains blocked; framework-created dmabufs are the practical path from `system_app`
 - CVE-2023-20768 remains interesting for broader device contexts, not for direct node access here
+- The AEE-leaked ION object pointer is useful object-placement material, but not currently tied to a live Mali CVE-2023-33200 path.
 
 **Priority 4: Display DRM remaining OOB cluster**
 - SET_PQPARAM u4PartialY confirmed triggerable but limited exploitation ceiling
@@ -222,4 +249,10 @@ The IDA-based risk ranking from the handoff identified SET_SLD_PARAM (0x57) and 
 
 ## Decision
 
-Next target remains **CVE-2023-33200** for Mali-specific work. For APUSYS, the immediate branch is now recovering actual Normal/Preload VPU algorithm keys and valid APUSYS command-buffer layout after the HardwareBuffer-backed `0x8001 + key` and `run_cmd_async` parser gates. Direct `/dev/ion` and `/dev/ashmem` reachability have now been checked and are blocked from `system_app`; tested `/dev/dma_heap/*` nodes are absent.
+Next target is **composition**, not KASLR discovery: use the confirmed AEE
+KE-first `KASLR_SUMMARY.txt` output as the current-boot kernel base source for
+the write/UAF branch. APUSYS exact-reuse / descriptor-plane redirect remains the
+current live primitive branch. CVE-2023-33200 is closed on this target by the
+`kbase_vmap_prot()` NATIVE-only type gate. Direct `/dev/ion` and `/dev/ashmem`
+reachability have been checked and are blocked from `system_app`; tested
+`/dev/dma_heap/*` nodes are absent.

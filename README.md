@@ -4,7 +4,7 @@ Security research findings from a privilege escalation study on a MediaTek MT689
 
 The target device (kernel 4.19.191, Mali Valhall r32p1, SPL 2023-06-05, SELinux enforcing) resisted the tested kernel and Mali escalation paths from `uid=2000`. These writeups document the specific technical reasons why those paths fail, plus later framework-level triage where applicable.
 
-Current experiment closure status is summarized in [docs/EXPERIMENT_CLOSURE.md](docs/EXPERIMENT_CLOSURE.md). Historical CVE-2023-4622 ARM64 work lives in [00-cve-2023-4622-arm64/](00-cve-2023-4622-arm64/); the numbered `01-*` through `17-*` directories are the current topic-oriented writeups and PoCs.
+Current experiment closure status is summarized in [docs/EXPERIMENT_CLOSURE.md](docs/EXPERIMENT_CLOSURE.md). Historical CVE-2023-4622 ARM64 work lives in [00-cve-2023-4622-arm64/](00-cve-2023-4622-arm64/); the numbered `01-*` through `22-*` directories are the topic-oriented writeups and PoCs. **KASLR is confirmed** (via `MTK_SET_PQPARAM` KE + `platform_app` AEE DB read); the remaining gap is a kernel write primitive (APUSYS IOVA reuse or mms write-what-where).
 
 ## Device
 
@@ -37,8 +37,13 @@ Current experiment closure status is summarized in [docs/EXPERIMENT_CLOSURE.md](
 | [13](13-apusys-ioctl-surface/) | APUSYS ioctl surface | `/dev/apusys` opens from `system_app`; provider opcode-0 dispatch is live, HardwareBuffer under `app_process64` supplies an importable dmabuf, normal VPU `ucmd` reaches `0x8001 + key`, `apu_lib_apunn` returns success, and full-size normal VPU dispatch now reaches APUNN settings/output completion in the wrapper-shaped `settings5/no-settings` request. Leak behavior and timeout lifetime misuse are not yet proven. |
 | [14](14-cve-2023-32834-secmem/) | CVE-2023-32834 secmem | Tracked as a service-mediated secure-memory candidate; direct device-node access is not the current path. |
 | [15](15-cve-2023-32835-keyinstall/) | CVE-2023-32835 keyinstall | Target image lacks the named keyinstall HAL; current keymaster path does not expose the expected GZ/UREE bridge. |
-| [16](16-cve-2024-20037-pq/) | CVE-2024-20037 PQ/CMDQ/MMP | PQ HAL/service surface is mapped; current work prioritizes native handler attribution over broad ioctl fuzzing. |
+| [16](16-cve-2024-20037-pq/) | CVE-2024-20037 PQ/CMDQ/MMP | IDA confirmed all write paths are cmdq display MMIO (not kernel memory). Downgraded: not a kernel write primitive. `MTK_SET_PQPARAM.u4PartialY=0xffffffff` is useful as a KE trigger for KASLR only. |
 | [17](17-cve-2024-20005-da/) | CVE-2024-20005 DA/AEE/LK | Tracked as an update/boot-flow entry-discovery candidate until runtime reachability is proven. |
+| [18](18-cve-2024-20118-mms/) | CVE-2024-20118/119 mms write-what-where | Two write-what-where primitives in the `mms` multimedia scheduler (NOT GED — attribution corrected). Path: `system_app` → SurfaceFlinger binder → `/dev/mtk-mdp`. Direct node access blocked; entry via SurfaceFlinger API is the open research question. GED CVE-2024-20016 is DoS-only (ring wrap confirmed). |
+| [19](19-cve-2023-32849-cmdq/) | CVE-2023-32849 CMDQ type confusion | CMDQ OOB write via type confusion. Stub — entry point and device-node access from `system_app` not yet confirmed. |
+| [20](20-cve-2024-20032-aee/) | CVE-2024-20032 AEE permission bypass + **KASLR ✅** | Permission bypass confirmed: `system_app` connects to root-running `@android:aee_aed` (uid=0). Wire protocol reversed (24-byte AE_IND/REQ/RSP). ANR leak and AEE session drive confirmed. **KASLR confirmed** via `MTK_SET_PQPARAM` KE + `platform_app` read of `/data/vendor/aee_exp/db.fatal.*.KE.dbg`. AEE DB decryption tool included. |
+| [21](21-cve-2024-20109-ccu/) | CVE-2024-20109–20115 CCU OOB writes | Six OOB write CVEs in camera ISP coprocessor (`ccu`). Stub — reachability via camera HAL path not yet confirmed. |
+| [22](22-cve-2024-20075-eemgpu/) | CVE-2024-20075 eemgpu OOB write — **BLOCKED** | All trigger paths (`/proc/eemg/*`, sysfs bind/unbind, vendor path scan) require uid=0. Cannot reach from `system_app`. Blocked until root is obtained. |
 
 ## Building the PoCs
 
@@ -60,10 +65,18 @@ The 01-05 kernel/Mali PoCs are diagnostic/verification tools. Later directories 
 mt6893/
 ├── README.md
 ├── 00-cve-2023-4622-arm64/          # Original phase-based exploit workspace
-├── 01-cve-2023-4622-sock-dead/      # Topic writeups and PoCs
-├── 02-mali-no-user-free-count/
+├── 01-cve-2023-4622-sock-dead/      # Dead-end writeups (01-05)
 ├── ...
-├── 17-cve-2024-20005-da/
+├── 06-cve-2024-31317-zygote-injection/  # Current foothold (system_app + platform_app shells)
+├── 07-cve-2023-32836-display-overflow/  # Kernel IDB (vmlinux.bin.i64) + KASLR KE trigger
+├── ...
+├── 13-apusys-ioctl-surface/         # Active: VPU dispatch, IOVA reuse (write primitive track)
+├── ...
+├── 18-cve-2024-20118-mms/           # Active: mms write-what-where (via SurfaceFlinger)
+├── 19-cve-2023-32849-cmdq/          # Stub: CMDQ type confusion OOB write
+├── 20-cve-2024-20032-aee/           # DONE: AEE permission bypass + KASLR confirmed
+├── 21-cve-2024-20109-ccu/           # Stub: CCU OOB writes ×6
+├── 22-cve-2024-20075-eemgpu/        # Blocked: requires uid=0
 ├── common/                          # Shared NDK Makefile and minimal Mali UAPI
 ├── docs/                            # Cross-topic assessments and closure notes
 ├── exploit-gatebench/               # Experiment scoring/orchestration lab
