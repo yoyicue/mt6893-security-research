@@ -91,6 +91,9 @@ def probe_sources(probe):
         return "AeeSocketProbe", [DRM_TRIGGER_JAVA, AEE_SOCKET_JAVA]
     if probe == "aee-session":
         return "AeeSessionProbe", [DRM_TRIGGER_JAVA, AEE_SESSION_JAVA]
+    if probe == "aslr-extract":
+        return "AslrExtract", [DRM_TRIGGER_JAVA, AEE_SESSION_JAVA,
+                               ROOT / "20-cve-2024-20032-aee" / "poc" / "AslrExtract.java"]
     raise RuntimeError(f"unknown probe: {probe}")
 
 
