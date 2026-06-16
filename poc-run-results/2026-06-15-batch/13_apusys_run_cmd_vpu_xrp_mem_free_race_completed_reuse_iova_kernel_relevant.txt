@@ -1,4 +1,0 @@
-pattern=mdw_usr_mem_free|mdw_mem_ion_unmap_iova|ion_free|request (D2D_EXT) timeout|mdw_usr_destroy residual cmd|devapc|iommu|Unable to handle kernel|BUG|KASAN|mdw_sched_trace|mdw_wait_cmd|vpu
-source=adb logcat -b kernel or dmesg fallback
-
-06-15 07:25:44.643   378   378 I (3)[378:apusys_vpu0]vpu_dev_boot_sequence: vpu0: ALTRESETVEC: 0x7da00000

@@ -1,4 +1,0 @@
-mode=apuware handle=1 finalize_count=1 sync=0 finalize_index_mode=slot dlopen=now create_apusys_session=0 dlopen_timeout_sec=8
-dlopen begin xrp path=/system/system_ext/lib64/libapuwarexrp_v2.mtk.so timeout_sec=8
-dlopen timeout
-STATUS:124

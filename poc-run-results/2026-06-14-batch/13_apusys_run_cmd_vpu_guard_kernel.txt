@@ -1,7 +1,0 @@
-pattern=apusys|vpu|mdw|vpu_req_check
-source=adb logcat -b kernel or dmesg fallback
-
-06-14 15:44:29.372 19250 19250 I         : (7)[19250:main][apusys][error] mdw_usr_run_cmd_async don't support offset(1)
-06-14 15:44:29.450   378   378 I (0)[378:apusys_vpu0]vpu_req_check: invalid size of vpu request
-06-14 15:44:29.450   378   378 I         : (0)[378:apusys_vpu0][apusys][error] mdw_sched_trace fail : pid(19250/19250) cmd(0x0/0xffffff801e28d000-#0/1) dev(3/vpu-#0) mp(0x0/0/1/0x0) sched(0/0/0/0/0/0) mem(0/0/0x0/0x0) boost(0) time(0/14) ret(-22)
-06-14 15:44:29.450 19250 19250 I         : (7)[19250:main][apusys][warn] mdw_usr_destroy residual cmd(0xffffff801e28d000)

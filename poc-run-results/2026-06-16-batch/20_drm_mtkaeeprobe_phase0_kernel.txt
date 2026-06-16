@@ -1,4 +1,0 @@
-pattern=aee|AEE|cmdq|CMDQ|MDP|drm|DRM|Call trace|PC is at|LR is at|Kernel Offset|BUG|Oops|panic
-source=adb logcat -b kernel or dmesg fallback
-
-06-16 16:59:30.513  5544  5544 I         : (6)[5544:kworker/6:2][pmic_debug] Raw=693, T=34113

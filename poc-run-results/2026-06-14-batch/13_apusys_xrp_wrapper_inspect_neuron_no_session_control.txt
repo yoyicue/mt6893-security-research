@@ -1,5 +1,0 @@
-mode=neuron handle=1 finalize_count=1 sync=0 finalize_index_mode=buffer_info dlopen=now create_apusys_session=0
-dlopen path=/system/lib64/libneuron_platform.vpu.so
-XRP_Create status=4 device=0xb4000074446380d0
-XRP_Create did not initialize the wrapper; skip follow-up calls.
-STATUS:1

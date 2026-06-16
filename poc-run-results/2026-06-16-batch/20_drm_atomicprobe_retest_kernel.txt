@@ -1,3 +1,0 @@
-pattern=aee|AEE|cmdq|CMDQ|MDP|drm|DRM|atomic|EACCES|Call trace|PC is at|LR is at|Kernel Offset|BUG|Oops|panic
-source=adb logcat -b kernel or dmesg fallback
-

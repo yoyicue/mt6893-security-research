@@ -1,2 +1,0 @@
-pattern=apusys|vpu|mdw|xrp|neuron|binder|hidl|timeout|oops|panic
-source=adb logcat -b kernel or dmesg fallback

@@ -1,2 +1,0 @@
-pattern=mdw_usr_mem_free|mdw_mem_ion_unmap_iova|ion_free|devapc|iommu|Unable to handle kernel|BUG|KASAN|mdw_usr_destroy residual cmd|vpu
-source=adb logcat -b kernel or dmesg fallback

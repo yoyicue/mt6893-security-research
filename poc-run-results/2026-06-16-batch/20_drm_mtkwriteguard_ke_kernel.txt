@@ -1,6 +1,0 @@
-pattern=aee|aed|cmdq|drm|disp|mdp|mtk|oops|panic|BUG|Unable to handle|Internal error|Call trace|PC is at|LR is at
-source=adb logcat -b kernel or dmesg fallback
-
-06-16 15:37:03.209  1354  1354 I (2)[1354:hif_thread][wlan][1345]mtk_cfg80211_vendor_llstats_get_info: (REQ ERROR) EMI mapping not done
-06-16 15:37:03.393 13336 13336 W         : (3)[13336:kworker/3:0][mtkts_bts_get_hw_temp] T_AP, 31810
-06-16 15:37:04.318   344   344 I         : (1)[344:disp_echk]tct_cust_hx83121a_esd_func check TE pin OK, esd_state:1

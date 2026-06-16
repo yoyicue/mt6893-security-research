@@ -1,7 +1,0 @@
-pattern=mdw_usr_mem_free|mdw_mem_ion_unmap_iova|ion_free|request (D2D_EXT) timeout|mdw_usr_destroy residual cmd|devapc|iommu|Unable to handle kernel|BUG|KASAN|mdw_sched_trace|mdw_wait_cmd|vpu
-source=adb logcat -b kernel or dmesg fallback
-
-06-15 07:14:23.954   378   378 I (2)[378:apusys_vpu0]vpu 19030000.vpu_core0: vpu_map_sg_to_iova: sg_dma_address: size: 500000, mapped iova: 0x37de00000 (static alloc)
-06-15 07:14:23.956   378   378 I (2)[378:apusys_vpu0]vpu_dev_boot_sequence: vpu0: ALTRESETVEC: 0x7da00000
-06-15 07:14:24.729 16830 16830 I         : (4)[16830:kworker/4:2][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24143f3, req_sta =  0x17c00000 0x180000 0x50000017 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf84a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
-06-15 07:14:24.986 18161 18161 I         : (4)[18161:kworker/4:0][pmic_debug] Raw=690, T=35898

@@ -1,9 +1,0 @@
-[*] CVE-2022-38181 vulnerability check (JIT DONT_NEED)
-[*] uid=2000
-
-[*] Mali version: 11.31
-[*] JIT alloc result: 0x7fff000000
-
-[*] KEY TEST: MEM_FLAGS_CHANGE(DONT_NEED) on JIT region
-[-] DONT_NEED on JIT: Invalid argument (errno=22)
-[-] PATCHED — no_user_free_count blocks DONT_NEED on JIT

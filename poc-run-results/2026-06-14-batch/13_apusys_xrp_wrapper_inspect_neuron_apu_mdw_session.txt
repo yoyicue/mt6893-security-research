@@ -1,9 +1,0 @@
-mode=neuron handle=1 finalize_count=1 sync=0 finalize_index_mode=buffer_info dlopen=now create_apusys_session=1
-dlopen path=/system/lib64/libneuron_platform.vpu.so
-dlopen apusys failed path=/vendor/lib64/libapu_mdw.so error=dlopen failed: library "/vendor/lib64/libapu_mdw.so" not found
-dlopen apusys failed path=/system/vendor/lib64/libapu_mdw.so error=dlopen failed: library "/system/vendor/lib64/libapu_mdw.so" not found
-dlopen apusys path=/system/lib64/libapu_mdw.so
-apusysSession_createInstance session=0x0
-XRP_Create status=4 device=0xb400007348fa28d0
-XRP_Create did not initialize the wrapper; skip follow-up calls.
-STATUS:1

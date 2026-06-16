@@ -1,6 +1,0 @@
-[*] CVE-2023-4622 ARM64 Race Trigger + EPIPE Stats
-[*] timeout=3s  CPUs: sendpage=4 gc/spray=5
-[*] epoll flood: 196608 waitqueue entries
-[*] racing...
-[*] done: 114 iterations, ok=3 (2.6%) epipe=111 (97.4%) other=0
-[*] SOCK_DEAD constraint: INCONCLUSIVE (ok > 0)

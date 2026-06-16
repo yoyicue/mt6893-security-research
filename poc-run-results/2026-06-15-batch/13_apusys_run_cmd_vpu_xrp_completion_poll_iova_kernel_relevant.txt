@@ -1,7 +1,0 @@
-pattern=apusys|vpu|mdw|xrp|iova|fault|devapc|kasan|panic|oops
-source=adb logcat -b kernel or dmesg fallback
-
-06-15 14:47:39.842 14676 14676 I         : (4)[14676:main][apusys][warn] mdw_ioctl not support fw load
-06-15 14:47:39.842 14676 14676 I         : (4)[14676:main][apusys][warn] mdw_ioctl not suppot fw unload
-06-15 14:47:39.842 14676 14676 I         : (4)[14676:main][apusys][error] mdw_usr_run_cmd_async don't support offset(1)
-06-15 14:47:42.175  3578  3578 I (2)[3578:default][wlan][wlan][3578]statsParsePktInfo: (TX INFO) <TX><IPv6> ICMPV6 packet

@@ -1,4 +1,0 @@
-pattern=aee|dumpstate
-source=adb logcat -b kernel or dmesg fallback
-
-06-16 09:54:53.558 28366 28366 I         : (2)[28366:aee_dumpstate][pidmap] dump mode: raw

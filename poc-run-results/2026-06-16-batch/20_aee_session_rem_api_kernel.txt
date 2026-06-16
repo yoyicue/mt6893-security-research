@@ -1,3 +1,0 @@
-pattern=aee|aed
-source=adb logcat -b kernel or dmesg fallback
-

@@ -1,9 +1,0 @@
-pattern=mdw_usr_mem_free|mdw_mem_ion_unmap_iova|ion_free|devapc|iommu|Unable to handle kernel|BUG|KASAN|APUSYS|apusys
-source=adb logcat -b kernel or dmesg fallback
-
-06-15 09:05:47.429 28515 28515 I         : (4)[28515:main][apusys][warn] mdw_ioctl not support fw load
-06-15 09:05:47.429 28515 28515 I         : (4)[28515:main][apusys][warn] mdw_ioctl not suppot fw unload
-06-15 09:05:47.429 28515 28515 I         : (4)[28515:main][apusys][error] mdw_usr_run_cmd_async don't support offset(1)
-06-15 09:05:51.449 24325 24325 I         : (4)[24325:kworker/4:2][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24543f3, req_sta =  0x17c00000 0x2c00 0x50000017 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf84a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
-06-15 09:05:56.569 24325 24325 I         : (4)[24325:kworker/4:2][name:spm&][SPM] MCUSYSOFF wake up by  R12_AFE_IRQ_MCU_B, timer_out = 235, r13 = 0x84000c80, debug_flag = 0xf8040000 0x40000002, r12 = 0x100000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24343f3, req_sta =  0x17c00000 0x182c00 0x50000011 0x1f0fff 0xf, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0xf84a55, wake_misc = 0x1f90000, pcm_flag = 0xc30502 0x0 0xc30102 0xc30102, req = 0x9b,  clk_settle = 0x60fe,
-06-15 09:06:01.946 28185 28185 I         : (4)[28185:kworker/4:0][pmic_debug] Raw=685, T=38872

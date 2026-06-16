@@ -1,3 +1,0 @@
-pattern=perf|kaslr|denied
-source=adb logcat -b kernel or dmesg fallback
-

@@ -1,3 +1,0 @@
-pattern=aee|aed|NULL|panic
-source=adb logcat -b kernel or dmesg fallback
-

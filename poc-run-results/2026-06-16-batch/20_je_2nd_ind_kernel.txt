@@ -1,8 +1,0 @@
-pattern=aee|dumpstate
-source=adb logcat -b kernel or dmesg fallback
-
-06-16 10:02:45.011 28991 28991 I (0)[28991:aee_aed64]binder: 523:28991 BC_FREE_BUFFER u00000073a3096000 no match
-06-16 10:02:45.011 28991 28991 I (0)[28991:aee_aed64]binder: tried to use weak ref as strong ref
-06-16 10:02:45.011 28991 28991 I (0)[28991:aee_aed64]binder: 523:28991 Release 1 refcount change on invalid ref 1 ret -22
-06-16 10:02:58.841 29112 29112 I (1)[29112:aee_dumpstate]ufsdbg: cmd history off
-06-16 10:02:58.861 29112 29112 I (1)[29112:aee_dumpstate]ufsdbg: cmd history on

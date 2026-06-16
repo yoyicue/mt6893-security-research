@@ -1,6 +1,0 @@
-pattern=aee|dumpstate
-source=adb logcat -b kernel or dmesg fallback
-
-06-16 09:53:01.744 27358 27358 I (2)[27358:aee_dumpstate]ufsdbg: cmd history off
-06-16 09:53:01.779 27358 27358 I (1)[27358:aee_dumpstate]ufsdbg: cmd history on
-06-16 09:53:12.717 27358 27358 I         : (1)[27358:aee_dumpstate][pidmap] dump mode: raw

@@ -1,5 +1,0 @@
-pattern=aee|dumpstate
-source=adb logcat -b kernel or dmesg fallback
-
-06-16 09:50:21.096 26091 26091 I (1)[26091:aee_dumpstate]ufsdbg: cmd history on
-06-16 09:50:28.332 26091 26091 E (0)[26091:aee_dumpstate]audit: rate limit exceeded

@@ -1,4 +1,0 @@
-pattern=request (D2D_EXT) timeout|mdw_sched_trace|mdw_wait_cmd|devapc|iommu|Unable to handle kernel|BUG|KASAN|vpu
-source=adb logcat -b kernel or dmesg fallback
-
-06-15 07:56:49.626 20301 20301 I         : (4)[20301:kworker/4:1][pmic_debug] Raw=690, T=35898

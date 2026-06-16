@@ -1,2 +1,0 @@
-mode=apuware handle=1 finalize_count=1 sync=0 finalize_index_mode=buffer_info
-STATUS:124
