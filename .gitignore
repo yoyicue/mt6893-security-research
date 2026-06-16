@@ -6,6 +6,16 @@ __pycache__/
 *.class
 *.dex
 
+# Local runtime captures and raw device pull artifacts
+poc-run-results/
+20-cve-2024-20032-aee/pulled/**/*.dbg
+20-cve-2024-20032-aee/pulled/**/*.dbg.zip
+20-cve-2024-20032-aee/pulled/**/*.unpack.log
+20-cve-2024-20032-aee/pulled/**/BUILD_INFO
+20-cve-2024-20032-aee/pulled/**/ZZ_INTERNAL
+20-cve-2024-20032-aee/pulled/**/unpacked/
+20-cve-2024-20032-aee/pulled/vendor_candidates/
+
 # Local archive of the nested repository metadata from the directory merge.
 .archive/mt6893-security-research.git/
 
