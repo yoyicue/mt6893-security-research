@@ -1,0 +1,120 @@
+focus_kind,priority,addr_start,addr_end,kernel_bucket,component_id,table,index,relation,reason
+dispatch_target,P0_exact_dispatch_start,0x70081ee7,0x70081ee7,D_ann_generated_stub_family,comp_038,D,0,exact_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P0_exact_dispatch_start,0x70081f5e,0x70081f5e,D_ann_generated_stub_family,comp_040,D,30,exact_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P0_exact_dispatch_start,0x70081fd3,0x70081fd3,D_ann_generated_stub_family,comp_041,D,29,exact_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P0_exact_dispatch_start,0x70082048,0x70082048,D_ann_generated_stub_family,comp_042,D,27,exact_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P0_exact_dispatch_start,0x700820be,0x700820be,D_ann_generated_stub_family,comp_044,D,26,exact_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P0_exact_dispatch_start,0x70082133,0x70082133,D_ann_generated_stub_family,comp_046,D,25,exact_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P0_exact_dispatch_start,0x700821a8,0x700821a8,D_ann_generated_stub_family,comp_047,D,24,exact_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P0_exact_dispatch_start,0x7008221e,0x7008221e,D_ann_generated_stub_family,comp_048,D,23,exact_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P0_exact_dispatch_start,0x70082293,0x70082293,D_ann_generated_stub_family,comp_050,D,20,exact_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x700169a4,0x700169a4,C_flk_control_anchor,comp_000,C,1,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017cc8,0x70017cc8,C_flk_landing_series,comp_008,C,0,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017cd3,0x70017cd3,C_flk_landing_series,comp_008,C,11,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017cde,0x70017cde,C_flk_landing_series,comp_009,C,10,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017ce9,0x70017ce9,C_flk_landing_series,comp_009,C,9,successor_node,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017cf4,0x70017cf4,C_flk_landing_series,comp_035,C,8,successor_node,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017cff,0x70017cff,C_flk_landing_series,comp_010,C,7,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017d0a,0x70017d0a,C_flk_landing_series,comp_010,C,6,successor_node,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017d15,0x70017d15,C_flk_landing_series,comp_036,C,5,successor_node,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017d20,0x70017d20,C_flk_landing_series,comp_036,C,4,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017d2b,0x70017d2b,C_flk_landing_series,comp_036,C,3,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017d36,0x70017d36,AC_flk_landing_series,comp_011,C,2,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017d41,0x70017d41,AC_flk_landing_series,comp_011,A,0,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017d4c,0x70017d4c,AC_flk_landing_series,comp_011,A,11,successor_node,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017d57,0x70017d57,A_flk_landing_series,comp_012,A,10,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017d62,0x70017d62,A_flk_landing_series,comp_012,A,9,successor_node,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017d6d,0x70017d6d,A_flk_landing_series,comp_012,A,8,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017d78,0x70017d78,A_flk_landing_series,comp_012,A,7,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017d83,0x70017d83,AB_flk_landing_series,comp_013,A,6,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017d8e,0x70017d8e,AB_flk_landing_series,comp_013,A,5,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017d99,0x70017d99,AB_flk_landing_series,comp_013,A,4,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017da4,0x70017da4,AB_flk_landing_series,comp_013,A,3,successor_node,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017daf,0x70017daf,AB_flk_landing_series,comp_013,A,2,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017dba,0x70017dba,AB_flk_landing_series,comp_013,A,1,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017dc5,0x70017dc5,AB_flk_landing_series,comp_013,B,0,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017dd0,0x70017dd0,AB_flk_landing_series,comp_013,B,11,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017ddb,0x70017ddb,B_flk_landing_series,comp_014,B,10,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017de6,0x70017de6,B_flk_landing_series,comp_014,B,9,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017df1,0x70017df1,B_flk_landing_series,comp_014,B,8,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017dfc,0x70017dfc,B_flk_landing_series,comp_014,B,7,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017e07,0x70017e07,B_flk_landing_series,comp_014,B,6,successor_node,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017e12,0x70017e12,B_flk_landing_series,comp_015,B,5,successor_node,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017e1d,0x70017e1d,B_flk_landing_series,comp_016,B,4,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017e28,0x70017e28,B_flk_landing_series,comp_016,B,3,successor_node,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017e33,0x70017e33,B_flk_landing_series,comp_006,B,2,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70017e3e,0x70017e3e,B_flk_landing_series,comp_006,B,1,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70081ec5,0x70081ec5,D_ann_generated_stub_family,comp_037,D,21,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70081ec5,0x70081ec5,D_ann_generated_stub_family,comp_037,D,22,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70081ec5,0x70081ec5,D_ann_generated_stub_family,comp_037,D,28,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70082308,0x70082308,D_ann_generated_stub_family,comp_051,D,19,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70082704,0x70082704,D_ann_generated_stub_family,comp_037,D,10,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x7008276c,0x7008276c,D_ann_generated_stub_family,comp_039,D,9,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x700827d4,0x700827d4,D_ann_generated_stub_family,comp_041,D,8,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x7008283c,0x7008283c,D_ann_generated_stub_family,comp_042,D,7,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x700828a4,0x700828a4,D_ann_generated_stub_family,comp_042,D,6,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x7008290c,0x7008290c,D_ann_generated_stub_family,comp_044,D,5,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70082974,0x70082974,D_ann_generated_stub_family,comp_046,D,4,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x700829dc,0x700829dc,D_ann_generated_stub_family,comp_047,D,3,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70082a44,0x70082a44,D_ann_generated_stub_family,comp_047,D,2,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P1_close_dispatch_landing,0x70082aac,0x70082aac,D_ann_generated_stub_family,comp_049,D,1,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+component_extent,P1_component_extent,0x700169ac,0x70017a84,C_flk_control_anchor,comp_000,,,nearest_block_start:1,bounded FLIX region slice for external decoder review
+component_extent,P1_component_extent,0x70017460,0x70017e49,B_flk_landing_series,comp_006,,,nearest_block_start:2,bounded FLIX region slice for external decoder review
+component_extent,P1_component_extent,0x700174bc,0x70017cd1,C_flk_landing_series,comp_008,,,nearest_block_start:2,bounded FLIX region slice for external decoder review
+component_extent,P1_component_extent,0x700174cc,0x70017ce9,C_flk_landing_series,comp_009,,,successor_node:1 nearest_block_start:1,bounded FLIX region slice for external decoder review
+component_extent,P1_component_extent,0x700174e0,0x70017d0a,C_flk_landing_series,comp_010,,,successor_node:1 nearest_block_start:1,bounded FLIX region slice for external decoder review
+component_extent,P1_component_extent,0x70017510,0x70017d4c,AC_flk_landing_series,comp_011,,,nearest_block_start:2 successor_node:1,bounded FLIX region slice for external decoder review
+component_extent,P1_component_extent,0x70017540,0x70017d62,A_flk_landing_series,comp_012,,,nearest_block_start:3 successor_node:1,bounded FLIX region slice for external decoder review
+component_extent,P1_component_extent,0x7001756c,0x70017da4,AB_flk_landing_series,comp_013,,,nearest_block_start:7 successor_node:1,bounded FLIX region slice for external decoder review
+component_extent,P1_component_extent,0x7001759c,0x70017e07,B_flk_landing_series,comp_014,,,nearest_block_start:4 successor_node:1,bounded FLIX region slice for external decoder review
+component_extent,P1_component_extent,0x700175f8,0x70017e12,B_flk_landing_series,comp_015,,,successor_node:1,bounded FLIX region slice for external decoder review
+component_extent,P1_component_extent,0x70017608,0x70017e28,B_flk_landing_series,comp_016,,,successor_node:1 nearest_block_start:1,bounded FLIX region slice for external decoder review
+component_extent,P1_component_extent,0x70017cf0,0x70017cf4,C_flk_landing_series,comp_035,,,successor_node:1,bounded FLIX region slice for external decoder review
+component_extent,P1_component_extent,0x70017d10,0x70017d15,C_flk_landing_series,comp_036,,,nearest_block_start:2 successor_node:1,bounded FLIX region slice for external decoder review
+component_extent,P1_component_extent,0x70081ec7,0x700826ee,D_ann_generated_stub_family,comp_037,,,nearest_block_start:8,bounded FLIX region slice for external decoder review
+component_extent,P1_component_extent,0x70081ee7,0x70082756,D_ann_generated_stub_family,comp_038,,,exact_block_start:1,bounded FLIX region slice for external decoder review
+component_extent,P1_component_extent,0x70081f46,0x70082766,D_ann_generated_stub_family,comp_039,,,nearest_block_start:1,bounded FLIX region slice for external decoder review
+component_extent,P1_component_extent,0x70081f5e,0x700827be,D_ann_generated_stub_family,comp_040,,,exact_block_start:1,bounded FLIX region slice for external decoder review
+component_extent,P1_component_extent,0x70081fbd,0x70082826,D_ann_generated_stub_family,comp_041,,,nearest_block_start:1 exact_block_start:1,bounded FLIX region slice for external decoder review
+component_extent,P1_component_extent,0x70082032,0x7008288e,D_ann_generated_stub_family,comp_042,,,nearest_block_start:2 exact_block_start:1,bounded FLIX region slice for external decoder review
+component_extent,P1_component_extent,0x700820be,0x70082906,D_ann_generated_stub_family,comp_044,,,nearest_block_start:1 exact_block_start:1,bounded FLIX region slice for external decoder review
+component_extent,P1_component_extent,0x70082133,0x700829c6,D_ann_generated_stub_family,comp_046,,,nearest_block_start:1 exact_block_start:1,bounded FLIX region slice for external decoder review
+component_extent,P1_component_extent,0x700821a8,0x70082a2e,D_ann_generated_stub_family,comp_047,,,nearest_block_start:2 exact_block_start:1,bounded FLIX region slice for external decoder review
+component_extent,P1_component_extent,0x7008221e,0x70082a96,D_ann_generated_stub_family,comp_048,,,exact_block_start:1,bounded FLIX region slice for external decoder review
+component_extent,P1_component_extent,0x7008227d,0x70082aa6,D_ann_generated_stub_family,comp_049,,,nearest_block_start:1,bounded FLIX region slice for external decoder review
+component_extent,P1_component_extent,0x70082293,0x70082afe,D_ann_generated_stub_family,comp_050,,,exact_block_start:1,bounded FLIX region slice for external decoder review
+component_extent,P1_component_extent,0x700822f2,0x70082b20,D_ann_generated_stub_family,comp_051,,,nearest_block_start:5,bounded FLIX region slice for external decoder review
+dispatch_target,P2_far_dispatch_context_only,0x7008237f,0x7008237f,D_ann_generated_stub_family,comp_051,D,18,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P2_far_dispatch_context_only,0x700823f4,0x700823f4,D_ann_generated_stub_family,comp_051,D,17,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P2_far_dispatch_context_only,0x7008246b,0x7008246b,D_ann_generated_stub_family,comp_051,D,16,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P2_far_dispatch_context_only,0x700824e2,0x700824e2,D_ann_generated_stub_family,comp_051,D,15,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P2_far_dispatch_context_only,0x70082557,0x70082557,D_ann_generated_stub_family,comp_037,D,14,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P2_far_dispatch_context_only,0x700825cc,0x700825cc,D_ann_generated_stub_family,comp_037,D,13,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P2_far_dispatch_context_only,0x70082634,0x70082634,D_ann_generated_stub_family,comp_037,D,12,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+dispatch_target,P2_far_dispatch_context_only,0x7008269c,0x7008269c,D_ann_generated_stub_family,comp_037,D,11,nearest_block_start,feed decoder only at proven/close anchors; keep far anchors weak
+component_extent,P2_inferred_component_extent,0x70016bb0,0x70017c30,flk_body_component,comp_001,,,,bounded FLIX region slice for external decoder review
+component_extent,P2_inferred_component_extent,0x70016e2d,0x70017eab,flk_body_component,comp_002,,,,bounded FLIX region slice for external decoder review
+component_extent,P2_inferred_component_extent,0x70016f0e,0x70017f65,flk_body_component,comp_003,,,,bounded FLIX region slice for external decoder review
+component_extent,P2_inferred_component_extent,0x70017274,0x70017b73,flk_body_component,comp_004,,,,bounded FLIX region slice for external decoder review
+component_extent,P2_inferred_component_extent,0x70017410,0x70017c70,flk_body_component,comp_005,,,,bounded FLIX region slice for external decoder review
+component_extent,P2_inferred_component_extent,0x70017480,0x70017cbd,flk_body_component,comp_007,,,,bounded FLIX region slice for external decoder review
+component_extent,P2_inferred_component_extent,0x70017638,0x70017e7c,flk_body_component,comp_017,,,,bounded FLIX region slice for external decoder review
+component_extent,P2_inferred_component_extent,0x70017698,0x70017eda,flk_body_component,comp_018,,,,bounded FLIX region slice for external decoder review
+component_extent,P2_inferred_component_extent,0x700176c8,0x70017f05,flk_body_component,comp_019,,,,bounded FLIX region slice for external decoder review
+component_extent,P2_inferred_component_extent,0x700176e0,0x70017f35,flk_body_component,comp_020,,,,bounded FLIX region slice for external decoder review
+component_extent,P2_inferred_component_extent,0x70017748,0x7001801a,flk_body_component,comp_021,,,,bounded FLIX region slice for external decoder review
+component_extent,P2_inferred_component_extent,0x70017760,0x70017f94,flk_body_component,comp_022,,,,bounded FLIX region slice for external decoder review
+component_extent,P2_inferred_component_extent,0x70017798,0x70017fc0,flk_body_component,comp_023,,,,bounded FLIX region slice for external decoder review
+component_extent,P2_inferred_component_extent,0x700177b8,0x700177c1,flk_body_component,comp_024,,,,bounded FLIX region slice for external decoder review
+component_extent,P2_inferred_component_extent,0x70017808,0x70017817,flk_body_component,comp_025,,,,bounded FLIX region slice for external decoder review
+component_extent,P2_inferred_component_extent,0x70017818,0x70018049,flk_body_component,comp_026,,,,bounded FLIX region slice for external decoder review
+component_extent,P2_inferred_component_extent,0x70017838,0x70017856,flk_body_component,comp_027,,,,bounded FLIX region slice for external decoder review
+component_extent,P2_inferred_component_extent,0x70017858,0x700180a4,flk_body_component,comp_028,,,,bounded FLIX region slice for external decoder review
+component_extent,P2_inferred_component_extent,0x70017878,0x700180d0,flk_body_component,comp_029,,,,bounded FLIX region slice for external decoder review
+component_extent,P2_inferred_component_extent,0x700178ac,0x70018128,flk_body_component,comp_030,,,,bounded FLIX region slice for external decoder review
+component_extent,P2_inferred_component_extent,0x70017904,0x70017913,flk_body_component,comp_031,,,,bounded FLIX region slice for external decoder review
+component_extent,P2_inferred_component_extent,0x70017914,0x70018157,flk_body_component,comp_032,,,,bounded FLIX region slice for external decoder review
+component_extent,P2_inferred_component_extent,0x70017944,0x70018174,flk_body_component,comp_033,,,,bounded FLIX region slice for external decoder review
+component_extent,P2_inferred_component_extent,0x70017964,0x70017a01,flk_body_component,comp_034,,,,bounded FLIX region slice for external decoder review
+component_extent,P2_inferred_component_extent,0x700820a7,0x700828f6,ann_body_component,comp_043,,,,bounded FLIX region slice for external decoder review
+component_extent,P2_inferred_component_extent,0x7008211d,0x7008295e,ann_body_component,comp_045,,,,bounded FLIX region slice for external decoder review

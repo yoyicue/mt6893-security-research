@@ -1,0 +1,1289 @@
+kernel_bucket,sample_class,width,offset,sample_count,unique_values,entropy,fixed_byte,fixed_bits,variable_bits,dominant_ratio_bps,field_kind,value_counts
+AB_flk_landing_series,all,8,0,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:4 84:4
+AB_flk_landing_series,all,8,1,8,3,1.4056,0,0xfc,0x03,5000,low_nibble_variable,1a:4 19:3 18:1
+AB_flk_landing_series,all,8,2,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:8
+AB_flk_landing_series,all,8,3,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:4 84:4
+AB_flk_landing_series,all,8,4,8,7,2.7500,0,0x0f,0xf0,2500,high_nibble_variable,60:2 00:1 e0:1 40:1 a0:1 20:1 d0:1
+AB_flk_landing_series,all,8,5,8,8,3.0000,0,0x04,0xfb,1250,variable_byte,e7:1 fe:1 0d:1 25:1 35:1 4f:1 a6:1 b7:1
+AB_flk_landing_series,all,8,6,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:4 89:4
+AB_flk_landing_series,all,8,7,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:8
+AB_flk_landing_series,all,16,0,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:4 84:4
+AB_flk_landing_series,all,16,1,8,3,1.4056,0,0xfc,0x03,5000,low_nibble_variable,1a:4 19:3 18:1
+AB_flk_landing_series,all,16,2,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:8
+AB_flk_landing_series,all,16,3,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:4 84:4
+AB_flk_landing_series,all,16,4,8,7,2.7500,0,0x0f,0xf0,2500,high_nibble_variable,60:2 00:1 e0:1 40:1 a0:1 20:1 d0:1
+AB_flk_landing_series,all,16,5,8,8,3.0000,0,0x04,0xfb,1250,variable_byte,e7:1 fe:1 0d:1 25:1 35:1 4f:1 a6:1 b7:1
+AB_flk_landing_series,all,16,6,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:4 89:4
+AB_flk_landing_series,all,16,7,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:8
+AB_flk_landing_series,all,16,8,8,4,2.0000,0,0x3f,0xc0,2500,high_nibble_variable,86:2 46:2 06:2 c6:2
+AB_flk_landing_series,all,16,9,8,8,3.0000,0,0x00,0xff,1250,variable_byte,f9:1 fc:1 ff:1 01:1 04:1 07:1 f6:1 f4:1
+AB_flk_landing_series,all,16,10,8,2,0.9544,0,0xfe,0x01,6250,low_nibble_variable,fa:5 fb:3
+AB_flk_landing_series,all,16,11,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:4 f4:4
+AB_flk_landing_series,all,16,12,8,3,1.4056,0,0xfc,0x03,5000,low_nibble_variable,19:4 1a:3 18:1
+AB_flk_landing_series,all,16,13,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:8
+AB_flk_landing_series,all,16,14,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:4 f4:4
+AB_flk_landing_series,all,16,15,8,8,3.0000,0,0x0f,0xf0,1250,high_nibble_variable,20:1 00:1 e0:1 60:1 40:1 a0:1 d0:1 70:1
+AB_flk_landing_series,all,32,0,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:4 84:4
+AB_flk_landing_series,all,32,1,8,3,1.4056,0,0xfc,0x03,5000,low_nibble_variable,1a:4 19:3 18:1
+AB_flk_landing_series,all,32,2,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:8
+AB_flk_landing_series,all,32,3,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:4 84:4
+AB_flk_landing_series,all,32,4,8,7,2.7500,0,0x0f,0xf0,2500,high_nibble_variable,60:2 00:1 e0:1 40:1 a0:1 20:1 d0:1
+AB_flk_landing_series,all,32,5,8,8,3.0000,0,0x04,0xfb,1250,variable_byte,e7:1 fe:1 0d:1 25:1 35:1 4f:1 a6:1 b7:1
+AB_flk_landing_series,all,32,6,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:4 89:4
+AB_flk_landing_series,all,32,7,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:8
+AB_flk_landing_series,all,32,8,8,4,2.0000,0,0x3f,0xc0,2500,high_nibble_variable,86:2 46:2 06:2 c6:2
+AB_flk_landing_series,all,32,9,8,8,3.0000,0,0x00,0xff,1250,variable_byte,f9:1 fc:1 ff:1 01:1 04:1 07:1 f6:1 f4:1
+AB_flk_landing_series,all,32,10,8,2,0.9544,0,0xfe,0x01,6250,low_nibble_variable,fa:5 fb:3
+AB_flk_landing_series,all,32,11,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:4 f4:4
+AB_flk_landing_series,all,32,12,8,3,1.4056,0,0xfc,0x03,5000,low_nibble_variable,19:4 1a:3 18:1
+AB_flk_landing_series,all,32,13,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:8
+AB_flk_landing_series,all,32,14,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:4 f4:4
+AB_flk_landing_series,all,32,15,8,8,3.0000,0,0x0f,0xf0,1250,high_nibble_variable,20:1 00:1 e0:1 60:1 40:1 a0:1 d0:1 70:1
+AB_flk_landing_series,all,32,16,8,8,3.0000,0,0x04,0xfb,1250,variable_byte,a6:1 e7:1 fe:1 0d:1 25:1 35:1 b7:1 a5:1
+AB_flk_landing_series,all,32,17,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,89:4 f9:4
+AB_flk_landing_series,all,32,18,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:8
+AB_flk_landing_series,all,32,19,8,4,2.0000,0,0x3f,0xc0,2500,high_nibble_variable,c6:2 86:2 46:2 06:2
+AB_flk_landing_series,all,32,20,8,8,3.0000,0,0x00,0xff,1250,variable_byte,f6:1 f9:1 fc:1 ff:1 01:1 04:1 f4:1 f1:1
+AB_flk_landing_series,all,32,21,8,2,0.8113,0,0xfe,0x01,7500,low_nibble_variable,fa:6 fb:2
+AB_flk_landing_series,all,32,22,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:4 84:4
+AB_flk_landing_series,all,32,23,8,3,1.2988,0,0xfc,0x03,6250,low_nibble_variable,19:5 1a:2 18:1
+AB_flk_landing_series,all,32,24,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:8
+AB_flk_landing_series,all,32,25,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:4 84:4
+AB_flk_landing_series,all,32,26,8,8,3.0000,0,0x0f,0xf0,1250,high_nibble_variable,d0:1 20:1 00:1 e0:1 60:1 40:1 70:1 c0:1
+AB_flk_landing_series,all,32,27,8,8,3.0000,0,0x04,0xfb,1250,variable_byte,b7:1 a6:1 e7:1 fe:1 0d:1 25:1 a5:1 84:1
+AB_flk_landing_series,all,32,28,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:4 89:4
+AB_flk_landing_series,all,32,29,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:8
+AB_flk_landing_series,all,32,30,8,4,2.0000,0,0x3f,0xc0,2500,high_nibble_variable,06:2 c6:2 86:2 46:2
+AB_flk_landing_series,all,32,31,8,8,3.0000,0,0x00,0xff,1250,variable_byte,f4:1 f6:1 f9:1 fc:1 ff:1 01:1 f1:1 ee:1
+AB_flk_landing_series,close,8,0,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:4 84:4
+AB_flk_landing_series,close,8,1,8,3,1.4056,0,0xfc,0x03,5000,low_nibble_variable,1a:4 19:3 18:1
+AB_flk_landing_series,close,8,2,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:8
+AB_flk_landing_series,close,8,3,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:4 84:4
+AB_flk_landing_series,close,8,4,8,7,2.7500,0,0x0f,0xf0,2500,high_nibble_variable,60:2 00:1 e0:1 40:1 a0:1 20:1 d0:1
+AB_flk_landing_series,close,8,5,8,8,3.0000,0,0x04,0xfb,1250,variable_byte,e7:1 fe:1 0d:1 25:1 35:1 4f:1 a6:1 b7:1
+AB_flk_landing_series,close,8,6,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:4 89:4
+AB_flk_landing_series,close,8,7,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:8
+AB_flk_landing_series,close,16,0,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:4 84:4
+AB_flk_landing_series,close,16,1,8,3,1.4056,0,0xfc,0x03,5000,low_nibble_variable,1a:4 19:3 18:1
+AB_flk_landing_series,close,16,2,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:8
+AB_flk_landing_series,close,16,3,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:4 84:4
+AB_flk_landing_series,close,16,4,8,7,2.7500,0,0x0f,0xf0,2500,high_nibble_variable,60:2 00:1 e0:1 40:1 a0:1 20:1 d0:1
+AB_flk_landing_series,close,16,5,8,8,3.0000,0,0x04,0xfb,1250,variable_byte,e7:1 fe:1 0d:1 25:1 35:1 4f:1 a6:1 b7:1
+AB_flk_landing_series,close,16,6,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:4 89:4
+AB_flk_landing_series,close,16,7,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:8
+AB_flk_landing_series,close,16,8,8,4,2.0000,0,0x3f,0xc0,2500,high_nibble_variable,86:2 46:2 06:2 c6:2
+AB_flk_landing_series,close,16,9,8,8,3.0000,0,0x00,0xff,1250,variable_byte,f9:1 fc:1 ff:1 01:1 04:1 07:1 f6:1 f4:1
+AB_flk_landing_series,close,16,10,8,2,0.9544,0,0xfe,0x01,6250,low_nibble_variable,fa:5 fb:3
+AB_flk_landing_series,close,16,11,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:4 f4:4
+AB_flk_landing_series,close,16,12,8,3,1.4056,0,0xfc,0x03,5000,low_nibble_variable,19:4 1a:3 18:1
+AB_flk_landing_series,close,16,13,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:8
+AB_flk_landing_series,close,16,14,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:4 f4:4
+AB_flk_landing_series,close,16,15,8,8,3.0000,0,0x0f,0xf0,1250,high_nibble_variable,20:1 00:1 e0:1 60:1 40:1 a0:1 d0:1 70:1
+AB_flk_landing_series,close,32,0,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:4 84:4
+AB_flk_landing_series,close,32,1,8,3,1.4056,0,0xfc,0x03,5000,low_nibble_variable,1a:4 19:3 18:1
+AB_flk_landing_series,close,32,2,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:8
+AB_flk_landing_series,close,32,3,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:4 84:4
+AB_flk_landing_series,close,32,4,8,7,2.7500,0,0x0f,0xf0,2500,high_nibble_variable,60:2 00:1 e0:1 40:1 a0:1 20:1 d0:1
+AB_flk_landing_series,close,32,5,8,8,3.0000,0,0x04,0xfb,1250,variable_byte,e7:1 fe:1 0d:1 25:1 35:1 4f:1 a6:1 b7:1
+AB_flk_landing_series,close,32,6,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:4 89:4
+AB_flk_landing_series,close,32,7,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:8
+AB_flk_landing_series,close,32,8,8,4,2.0000,0,0x3f,0xc0,2500,high_nibble_variable,86:2 46:2 06:2 c6:2
+AB_flk_landing_series,close,32,9,8,8,3.0000,0,0x00,0xff,1250,variable_byte,f9:1 fc:1 ff:1 01:1 04:1 07:1 f6:1 f4:1
+AB_flk_landing_series,close,32,10,8,2,0.9544,0,0xfe,0x01,6250,low_nibble_variable,fa:5 fb:3
+AB_flk_landing_series,close,32,11,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:4 f4:4
+AB_flk_landing_series,close,32,12,8,3,1.4056,0,0xfc,0x03,5000,low_nibble_variable,19:4 1a:3 18:1
+AB_flk_landing_series,close,32,13,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:8
+AB_flk_landing_series,close,32,14,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:4 f4:4
+AB_flk_landing_series,close,32,15,8,8,3.0000,0,0x0f,0xf0,1250,high_nibble_variable,20:1 00:1 e0:1 60:1 40:1 a0:1 d0:1 70:1
+AB_flk_landing_series,close,32,16,8,8,3.0000,0,0x04,0xfb,1250,variable_byte,a6:1 e7:1 fe:1 0d:1 25:1 35:1 b7:1 a5:1
+AB_flk_landing_series,close,32,17,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,89:4 f9:4
+AB_flk_landing_series,close,32,18,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:8
+AB_flk_landing_series,close,32,19,8,4,2.0000,0,0x3f,0xc0,2500,high_nibble_variable,c6:2 86:2 46:2 06:2
+AB_flk_landing_series,close,32,20,8,8,3.0000,0,0x00,0xff,1250,variable_byte,f6:1 f9:1 fc:1 ff:1 01:1 04:1 f4:1 f1:1
+AB_flk_landing_series,close,32,21,8,2,0.8113,0,0xfe,0x01,7500,low_nibble_variable,fa:6 fb:2
+AB_flk_landing_series,close,32,22,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:4 84:4
+AB_flk_landing_series,close,32,23,8,3,1.2988,0,0xfc,0x03,6250,low_nibble_variable,19:5 1a:2 18:1
+AB_flk_landing_series,close,32,24,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:8
+AB_flk_landing_series,close,32,25,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:4 84:4
+AB_flk_landing_series,close,32,26,8,8,3.0000,0,0x0f,0xf0,1250,high_nibble_variable,d0:1 20:1 00:1 e0:1 60:1 40:1 70:1 c0:1
+AB_flk_landing_series,close,32,27,8,8,3.0000,0,0x04,0xfb,1250,variable_byte,b7:1 a6:1 e7:1 fe:1 0d:1 25:1 a5:1 84:1
+AB_flk_landing_series,close,32,28,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:4 89:4
+AB_flk_landing_series,close,32,29,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:8
+AB_flk_landing_series,close,32,30,8,4,2.0000,0,0x3f,0xc0,2500,high_nibble_variable,06:2 c6:2 86:2 46:2
+AB_flk_landing_series,close,32,31,8,8,3.0000,0,0x00,0xff,1250,variable_byte,f4:1 f6:1 f9:1 fc:1 ff:1 01:1 f1:1 ee:1
+AB_flk_landing_series,strong,8,0,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:4 84:4
+AB_flk_landing_series,strong,8,1,8,3,1.4056,0,0xfc,0x03,5000,low_nibble_variable,1a:4 19:3 18:1
+AB_flk_landing_series,strong,8,2,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:8
+AB_flk_landing_series,strong,8,3,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:4 84:4
+AB_flk_landing_series,strong,8,4,8,7,2.7500,0,0x0f,0xf0,2500,high_nibble_variable,60:2 00:1 e0:1 40:1 a0:1 20:1 d0:1
+AB_flk_landing_series,strong,8,5,8,8,3.0000,0,0x04,0xfb,1250,variable_byte,e7:1 fe:1 0d:1 25:1 35:1 4f:1 a6:1 b7:1
+AB_flk_landing_series,strong,8,6,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:4 89:4
+AB_flk_landing_series,strong,8,7,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:8
+AB_flk_landing_series,strong,16,0,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:4 84:4
+AB_flk_landing_series,strong,16,1,8,3,1.4056,0,0xfc,0x03,5000,low_nibble_variable,1a:4 19:3 18:1
+AB_flk_landing_series,strong,16,2,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:8
+AB_flk_landing_series,strong,16,3,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:4 84:4
+AB_flk_landing_series,strong,16,4,8,7,2.7500,0,0x0f,0xf0,2500,high_nibble_variable,60:2 00:1 e0:1 40:1 a0:1 20:1 d0:1
+AB_flk_landing_series,strong,16,5,8,8,3.0000,0,0x04,0xfb,1250,variable_byte,e7:1 fe:1 0d:1 25:1 35:1 4f:1 a6:1 b7:1
+AB_flk_landing_series,strong,16,6,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:4 89:4
+AB_flk_landing_series,strong,16,7,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:8
+AB_flk_landing_series,strong,16,8,8,4,2.0000,0,0x3f,0xc0,2500,high_nibble_variable,86:2 46:2 06:2 c6:2
+AB_flk_landing_series,strong,16,9,8,8,3.0000,0,0x00,0xff,1250,variable_byte,f9:1 fc:1 ff:1 01:1 04:1 07:1 f6:1 f4:1
+AB_flk_landing_series,strong,16,10,8,2,0.9544,0,0xfe,0x01,6250,low_nibble_variable,fa:5 fb:3
+AB_flk_landing_series,strong,16,11,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:4 f4:4
+AB_flk_landing_series,strong,16,12,8,3,1.4056,0,0xfc,0x03,5000,low_nibble_variable,19:4 1a:3 18:1
+AB_flk_landing_series,strong,16,13,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:8
+AB_flk_landing_series,strong,16,14,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:4 f4:4
+AB_flk_landing_series,strong,16,15,8,8,3.0000,0,0x0f,0xf0,1250,high_nibble_variable,20:1 00:1 e0:1 60:1 40:1 a0:1 d0:1 70:1
+AB_flk_landing_series,strong,32,0,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:4 84:4
+AB_flk_landing_series,strong,32,1,8,3,1.4056,0,0xfc,0x03,5000,low_nibble_variable,1a:4 19:3 18:1
+AB_flk_landing_series,strong,32,2,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:8
+AB_flk_landing_series,strong,32,3,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:4 84:4
+AB_flk_landing_series,strong,32,4,8,7,2.7500,0,0x0f,0xf0,2500,high_nibble_variable,60:2 00:1 e0:1 40:1 a0:1 20:1 d0:1
+AB_flk_landing_series,strong,32,5,8,8,3.0000,0,0x04,0xfb,1250,variable_byte,e7:1 fe:1 0d:1 25:1 35:1 4f:1 a6:1 b7:1
+AB_flk_landing_series,strong,32,6,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:4 89:4
+AB_flk_landing_series,strong,32,7,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:8
+AB_flk_landing_series,strong,32,8,8,4,2.0000,0,0x3f,0xc0,2500,high_nibble_variable,86:2 46:2 06:2 c6:2
+AB_flk_landing_series,strong,32,9,8,8,3.0000,0,0x00,0xff,1250,variable_byte,f9:1 fc:1 ff:1 01:1 04:1 07:1 f6:1 f4:1
+AB_flk_landing_series,strong,32,10,8,2,0.9544,0,0xfe,0x01,6250,low_nibble_variable,fa:5 fb:3
+AB_flk_landing_series,strong,32,11,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:4 f4:4
+AB_flk_landing_series,strong,32,12,8,3,1.4056,0,0xfc,0x03,5000,low_nibble_variable,19:4 1a:3 18:1
+AB_flk_landing_series,strong,32,13,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:8
+AB_flk_landing_series,strong,32,14,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:4 f4:4
+AB_flk_landing_series,strong,32,15,8,8,3.0000,0,0x0f,0xf0,1250,high_nibble_variable,20:1 00:1 e0:1 60:1 40:1 a0:1 d0:1 70:1
+AB_flk_landing_series,strong,32,16,8,8,3.0000,0,0x04,0xfb,1250,variable_byte,a6:1 e7:1 fe:1 0d:1 25:1 35:1 b7:1 a5:1
+AB_flk_landing_series,strong,32,17,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,89:4 f9:4
+AB_flk_landing_series,strong,32,18,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:8
+AB_flk_landing_series,strong,32,19,8,4,2.0000,0,0x3f,0xc0,2500,high_nibble_variable,c6:2 86:2 46:2 06:2
+AB_flk_landing_series,strong,32,20,8,8,3.0000,0,0x00,0xff,1250,variable_byte,f6:1 f9:1 fc:1 ff:1 01:1 04:1 f4:1 f1:1
+AB_flk_landing_series,strong,32,21,8,2,0.8113,0,0xfe,0x01,7500,low_nibble_variable,fa:6 fb:2
+AB_flk_landing_series,strong,32,22,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:4 84:4
+AB_flk_landing_series,strong,32,23,8,3,1.2988,0,0xfc,0x03,6250,low_nibble_variable,19:5 1a:2 18:1
+AB_flk_landing_series,strong,32,24,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:8
+AB_flk_landing_series,strong,32,25,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:4 84:4
+AB_flk_landing_series,strong,32,26,8,8,3.0000,0,0x0f,0xf0,1250,high_nibble_variable,d0:1 20:1 00:1 e0:1 60:1 40:1 70:1 c0:1
+AB_flk_landing_series,strong,32,27,8,8,3.0000,0,0x04,0xfb,1250,variable_byte,b7:1 a6:1 e7:1 fe:1 0d:1 25:1 a5:1 84:1
+AB_flk_landing_series,strong,32,28,8,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:4 89:4
+AB_flk_landing_series,strong,32,29,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:8
+AB_flk_landing_series,strong,32,30,8,4,2.0000,0,0x3f,0xc0,2500,high_nibble_variable,06:2 c6:2 86:2 46:2
+AB_flk_landing_series,strong,32,31,8,8,3.0000,0,0x00,0xff,1250,variable_byte,f4:1 f6:1 f9:1 fc:1 ff:1 01:1 f1:1 ee:1
+AC_flk_landing_series,all,8,0,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f4:2 84:1
+AC_flk_landing_series,all,8,1,3,3,1.5850,0,0xf0,0x0f,3333,low_nibble_variable,19:1 1a:1 17:1
+AC_flk_landing_series,all,8,2,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:3
+AC_flk_landing_series,all,8,3,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f4:2 84:1
+AC_flk_landing_series,all,8,4,3,3,1.5850,0,0x2f,0xd0,3333,high_nibble_variable,80:1 00:1 50:1
+AC_flk_landing_series,all,8,5,3,3,1.5850,0,0x83,0x7c,3333,variable_byte,d8:1 b4:1 a4:1
+AC_flk_landing_series,all,8,6,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f9:2 89:1
+AC_flk_landing_series,all,8,7,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:3
+AC_flk_landing_series,all,16,0,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f4:2 84:1
+AC_flk_landing_series,all,16,1,3,3,1.5850,0,0xf0,0x0f,3333,low_nibble_variable,19:1 1a:1 17:1
+AC_flk_landing_series,all,16,2,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:3
+AC_flk_landing_series,all,16,3,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f4:2 84:1
+AC_flk_landing_series,all,16,4,3,3,1.5850,0,0x2f,0xd0,3333,high_nibble_variable,80:1 00:1 50:1
+AC_flk_landing_series,all,16,5,3,3,1.5850,0,0x83,0x7c,3333,variable_byte,d8:1 b4:1 a4:1
+AC_flk_landing_series,all,16,6,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f9:2 89:1
+AC_flk_landing_series,all,16,7,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:3
+AC_flk_landing_series,all,16,8,3,3,1.5850,0,0x3f,0xc0,3333,high_nibble_variable,c6:1 06:1 86:1
+AC_flk_landing_series,all,16,9,3,3,1.5850,0,0xf0,0x0f,3333,low_nibble_variable,17:1 15:1 1a:1
+AC_flk_landing_series,all,16,10,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:3
+AC_flk_landing_series,all,16,11,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,84:2 f4:1
+AC_flk_landing_series,all,16,12,3,2,0.9183,0,0xfc,0x03,6666,low_nibble_variable,1a:2 19:1
+AC_flk_landing_series,all,16,13,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:3
+AC_flk_landing_series,all,16,14,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,84:2 f4:1
+AC_flk_landing_series,all,16,15,3,3,1.5850,0,0x5f,0xa0,3333,high_nibble_variable,00:1 a0:1 80:1
+AC_flk_landing_series,all,32,0,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f4:2 84:1
+AC_flk_landing_series,all,32,1,3,3,1.5850,0,0xf0,0x0f,3333,low_nibble_variable,19:1 1a:1 17:1
+AC_flk_landing_series,all,32,2,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:3
+AC_flk_landing_series,all,32,3,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f4:2 84:1
+AC_flk_landing_series,all,32,4,3,3,1.5850,0,0x2f,0xd0,3333,high_nibble_variable,80:1 00:1 50:1
+AC_flk_landing_series,all,32,5,3,3,1.5850,0,0x83,0x7c,3333,variable_byte,d8:1 b4:1 a4:1
+AC_flk_landing_series,all,32,6,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f9:2 89:1
+AC_flk_landing_series,all,32,7,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:3
+AC_flk_landing_series,all,32,8,3,3,1.5850,0,0x3f,0xc0,3333,high_nibble_variable,c6:1 06:1 86:1
+AC_flk_landing_series,all,32,9,3,3,1.5850,0,0xf0,0x0f,3333,low_nibble_variable,17:1 15:1 1a:1
+AC_flk_landing_series,all,32,10,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:3
+AC_flk_landing_series,all,32,11,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,84:2 f4:1
+AC_flk_landing_series,all,32,12,3,2,0.9183,0,0xfc,0x03,6666,low_nibble_variable,1a:2 19:1
+AC_flk_landing_series,all,32,13,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:3
+AC_flk_landing_series,all,32,14,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,84:2 f4:1
+AC_flk_landing_series,all,32,15,3,3,1.5850,0,0x5f,0xa0,3333,high_nibble_variable,00:1 a0:1 80:1
+AC_flk_landing_series,all,32,16,3,3,1.5850,0,0x80,0x7f,3333,variable_byte,b4:1 a3:1 d8:1
+AC_flk_landing_series,all,32,17,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,89:2 f9:1
+AC_flk_landing_series,all,32,18,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:3
+AC_flk_landing_series,all,32,19,3,3,1.5850,0,0x3f,0xc0,3333,high_nibble_variable,06:1 46:1 c6:1
+AC_flk_landing_series,all,32,20,3,3,1.5850,0,0xf8,0x07,3333,low_nibble_variable,15:1 12:1 17:1
+AC_flk_landing_series,all,32,21,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:3
+AC_flk_landing_series,all,32,22,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f4:2 84:1
+AC_flk_landing_series,all,32,23,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,1a:3
+AC_flk_landing_series,all,32,24,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:3
+AC_flk_landing_series,all,32,25,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f4:2 84:1
+AC_flk_landing_series,all,32,26,3,3,1.5850,0,0x1f,0xe0,3333,high_nibble_variable,a0:1 e0:1 00:1
+AC_flk_landing_series,all,32,27,3,3,1.5850,0,0xc0,0x3f,3333,variable_byte,a3:1 89:1 b4:1
+AC_flk_landing_series,all,32,28,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f9:2 89:1
+AC_flk_landing_series,all,32,29,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:3
+AC_flk_landing_series,all,32,30,3,3,1.5850,0,0x3f,0xc0,3333,high_nibble_variable,46:1 86:1 06:1
+AC_flk_landing_series,all,32,31,3,3,1.5850,0,0xe0,0x1f,3333,variable_byte,12:1 0f:1 15:1
+AC_flk_landing_series,close,8,0,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f4:2 84:1
+AC_flk_landing_series,close,8,1,3,3,1.5850,0,0xf0,0x0f,3333,low_nibble_variable,19:1 1a:1 17:1
+AC_flk_landing_series,close,8,2,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:3
+AC_flk_landing_series,close,8,3,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f4:2 84:1
+AC_flk_landing_series,close,8,4,3,3,1.5850,0,0x2f,0xd0,3333,high_nibble_variable,80:1 00:1 50:1
+AC_flk_landing_series,close,8,5,3,3,1.5850,0,0x83,0x7c,3333,variable_byte,d8:1 b4:1 a4:1
+AC_flk_landing_series,close,8,6,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f9:2 89:1
+AC_flk_landing_series,close,8,7,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:3
+AC_flk_landing_series,close,16,0,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f4:2 84:1
+AC_flk_landing_series,close,16,1,3,3,1.5850,0,0xf0,0x0f,3333,low_nibble_variable,19:1 1a:1 17:1
+AC_flk_landing_series,close,16,2,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:3
+AC_flk_landing_series,close,16,3,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f4:2 84:1
+AC_flk_landing_series,close,16,4,3,3,1.5850,0,0x2f,0xd0,3333,high_nibble_variable,80:1 00:1 50:1
+AC_flk_landing_series,close,16,5,3,3,1.5850,0,0x83,0x7c,3333,variable_byte,d8:1 b4:1 a4:1
+AC_flk_landing_series,close,16,6,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f9:2 89:1
+AC_flk_landing_series,close,16,7,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:3
+AC_flk_landing_series,close,16,8,3,3,1.5850,0,0x3f,0xc0,3333,high_nibble_variable,c6:1 06:1 86:1
+AC_flk_landing_series,close,16,9,3,3,1.5850,0,0xf0,0x0f,3333,low_nibble_variable,17:1 15:1 1a:1
+AC_flk_landing_series,close,16,10,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:3
+AC_flk_landing_series,close,16,11,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,84:2 f4:1
+AC_flk_landing_series,close,16,12,3,2,0.9183,0,0xfc,0x03,6666,low_nibble_variable,1a:2 19:1
+AC_flk_landing_series,close,16,13,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:3
+AC_flk_landing_series,close,16,14,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,84:2 f4:1
+AC_flk_landing_series,close,16,15,3,3,1.5850,0,0x5f,0xa0,3333,high_nibble_variable,00:1 a0:1 80:1
+AC_flk_landing_series,close,32,0,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f4:2 84:1
+AC_flk_landing_series,close,32,1,3,3,1.5850,0,0xf0,0x0f,3333,low_nibble_variable,19:1 1a:1 17:1
+AC_flk_landing_series,close,32,2,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:3
+AC_flk_landing_series,close,32,3,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f4:2 84:1
+AC_flk_landing_series,close,32,4,3,3,1.5850,0,0x2f,0xd0,3333,high_nibble_variable,80:1 00:1 50:1
+AC_flk_landing_series,close,32,5,3,3,1.5850,0,0x83,0x7c,3333,variable_byte,d8:1 b4:1 a4:1
+AC_flk_landing_series,close,32,6,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f9:2 89:1
+AC_flk_landing_series,close,32,7,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:3
+AC_flk_landing_series,close,32,8,3,3,1.5850,0,0x3f,0xc0,3333,high_nibble_variable,c6:1 06:1 86:1
+AC_flk_landing_series,close,32,9,3,3,1.5850,0,0xf0,0x0f,3333,low_nibble_variable,17:1 15:1 1a:1
+AC_flk_landing_series,close,32,10,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:3
+AC_flk_landing_series,close,32,11,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,84:2 f4:1
+AC_flk_landing_series,close,32,12,3,2,0.9183,0,0xfc,0x03,6666,low_nibble_variable,1a:2 19:1
+AC_flk_landing_series,close,32,13,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:3
+AC_flk_landing_series,close,32,14,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,84:2 f4:1
+AC_flk_landing_series,close,32,15,3,3,1.5850,0,0x5f,0xa0,3333,high_nibble_variable,00:1 a0:1 80:1
+AC_flk_landing_series,close,32,16,3,3,1.5850,0,0x80,0x7f,3333,variable_byte,b4:1 a3:1 d8:1
+AC_flk_landing_series,close,32,17,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,89:2 f9:1
+AC_flk_landing_series,close,32,18,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:3
+AC_flk_landing_series,close,32,19,3,3,1.5850,0,0x3f,0xc0,3333,high_nibble_variable,06:1 46:1 c6:1
+AC_flk_landing_series,close,32,20,3,3,1.5850,0,0xf8,0x07,3333,low_nibble_variable,15:1 12:1 17:1
+AC_flk_landing_series,close,32,21,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:3
+AC_flk_landing_series,close,32,22,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f4:2 84:1
+AC_flk_landing_series,close,32,23,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,1a:3
+AC_flk_landing_series,close,32,24,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:3
+AC_flk_landing_series,close,32,25,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f4:2 84:1
+AC_flk_landing_series,close,32,26,3,3,1.5850,0,0x1f,0xe0,3333,high_nibble_variable,a0:1 e0:1 00:1
+AC_flk_landing_series,close,32,27,3,3,1.5850,0,0xc0,0x3f,3333,variable_byte,a3:1 89:1 b4:1
+AC_flk_landing_series,close,32,28,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f9:2 89:1
+AC_flk_landing_series,close,32,29,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:3
+AC_flk_landing_series,close,32,30,3,3,1.5850,0,0x3f,0xc0,3333,high_nibble_variable,46:1 86:1 06:1
+AC_flk_landing_series,close,32,31,3,3,1.5850,0,0xe0,0x1f,3333,variable_byte,12:1 0f:1 15:1
+AC_flk_landing_series,strong,8,0,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f4:2 84:1
+AC_flk_landing_series,strong,8,1,3,3,1.5850,0,0xf0,0x0f,3333,low_nibble_variable,19:1 1a:1 17:1
+AC_flk_landing_series,strong,8,2,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:3
+AC_flk_landing_series,strong,8,3,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f4:2 84:1
+AC_flk_landing_series,strong,8,4,3,3,1.5850,0,0x2f,0xd0,3333,high_nibble_variable,80:1 00:1 50:1
+AC_flk_landing_series,strong,8,5,3,3,1.5850,0,0x83,0x7c,3333,variable_byte,d8:1 b4:1 a4:1
+AC_flk_landing_series,strong,8,6,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f9:2 89:1
+AC_flk_landing_series,strong,8,7,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:3
+AC_flk_landing_series,strong,16,0,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f4:2 84:1
+AC_flk_landing_series,strong,16,1,3,3,1.5850,0,0xf0,0x0f,3333,low_nibble_variable,19:1 1a:1 17:1
+AC_flk_landing_series,strong,16,2,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:3
+AC_flk_landing_series,strong,16,3,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f4:2 84:1
+AC_flk_landing_series,strong,16,4,3,3,1.5850,0,0x2f,0xd0,3333,high_nibble_variable,80:1 00:1 50:1
+AC_flk_landing_series,strong,16,5,3,3,1.5850,0,0x83,0x7c,3333,variable_byte,d8:1 b4:1 a4:1
+AC_flk_landing_series,strong,16,6,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f9:2 89:1
+AC_flk_landing_series,strong,16,7,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:3
+AC_flk_landing_series,strong,16,8,3,3,1.5850,0,0x3f,0xc0,3333,high_nibble_variable,c6:1 06:1 86:1
+AC_flk_landing_series,strong,16,9,3,3,1.5850,0,0xf0,0x0f,3333,low_nibble_variable,17:1 15:1 1a:1
+AC_flk_landing_series,strong,16,10,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:3
+AC_flk_landing_series,strong,16,11,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,84:2 f4:1
+AC_flk_landing_series,strong,16,12,3,2,0.9183,0,0xfc,0x03,6666,low_nibble_variable,1a:2 19:1
+AC_flk_landing_series,strong,16,13,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:3
+AC_flk_landing_series,strong,16,14,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,84:2 f4:1
+AC_flk_landing_series,strong,16,15,3,3,1.5850,0,0x5f,0xa0,3333,high_nibble_variable,00:1 a0:1 80:1
+AC_flk_landing_series,strong,32,0,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f4:2 84:1
+AC_flk_landing_series,strong,32,1,3,3,1.5850,0,0xf0,0x0f,3333,low_nibble_variable,19:1 1a:1 17:1
+AC_flk_landing_series,strong,32,2,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:3
+AC_flk_landing_series,strong,32,3,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f4:2 84:1
+AC_flk_landing_series,strong,32,4,3,3,1.5850,0,0x2f,0xd0,3333,high_nibble_variable,80:1 00:1 50:1
+AC_flk_landing_series,strong,32,5,3,3,1.5850,0,0x83,0x7c,3333,variable_byte,d8:1 b4:1 a4:1
+AC_flk_landing_series,strong,32,6,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f9:2 89:1
+AC_flk_landing_series,strong,32,7,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:3
+AC_flk_landing_series,strong,32,8,3,3,1.5850,0,0x3f,0xc0,3333,high_nibble_variable,c6:1 06:1 86:1
+AC_flk_landing_series,strong,32,9,3,3,1.5850,0,0xf0,0x0f,3333,low_nibble_variable,17:1 15:1 1a:1
+AC_flk_landing_series,strong,32,10,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:3
+AC_flk_landing_series,strong,32,11,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,84:2 f4:1
+AC_flk_landing_series,strong,32,12,3,2,0.9183,0,0xfc,0x03,6666,low_nibble_variable,1a:2 19:1
+AC_flk_landing_series,strong,32,13,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:3
+AC_flk_landing_series,strong,32,14,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,84:2 f4:1
+AC_flk_landing_series,strong,32,15,3,3,1.5850,0,0x5f,0xa0,3333,high_nibble_variable,00:1 a0:1 80:1
+AC_flk_landing_series,strong,32,16,3,3,1.5850,0,0x80,0x7f,3333,variable_byte,b4:1 a3:1 d8:1
+AC_flk_landing_series,strong,32,17,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,89:2 f9:1
+AC_flk_landing_series,strong,32,18,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:3
+AC_flk_landing_series,strong,32,19,3,3,1.5850,0,0x3f,0xc0,3333,high_nibble_variable,06:1 46:1 c6:1
+AC_flk_landing_series,strong,32,20,3,3,1.5850,0,0xf8,0x07,3333,low_nibble_variable,15:1 12:1 17:1
+AC_flk_landing_series,strong,32,21,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:3
+AC_flk_landing_series,strong,32,22,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f4:2 84:1
+AC_flk_landing_series,strong,32,23,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,1a:3
+AC_flk_landing_series,strong,32,24,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:3
+AC_flk_landing_series,strong,32,25,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f4:2 84:1
+AC_flk_landing_series,strong,32,26,3,3,1.5850,0,0x1f,0xe0,3333,high_nibble_variable,a0:1 e0:1 00:1
+AC_flk_landing_series,strong,32,27,3,3,1.5850,0,0xc0,0x3f,3333,variable_byte,a3:1 89:1 b4:1
+AC_flk_landing_series,strong,32,28,3,2,0.9183,0,0x8f,0x70,6666,high_nibble_variable,f9:2 89:1
+AC_flk_landing_series,strong,32,29,3,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:3
+AC_flk_landing_series,strong,32,30,3,3,1.5850,0,0x3f,0xc0,3333,high_nibble_variable,46:1 86:1 06:1
+AC_flk_landing_series,strong,32,31,3,3,1.5850,0,0xe0,0x1f,3333,variable_byte,12:1 0f:1 15:1
+A_flk_landing_series,all,8,0,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:2 84:2
+A_flk_landing_series,all,8,1,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,1a:4
+A_flk_landing_series,all,8,2,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:4
+A_flk_landing_series,all,8,3,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:2 84:2
+A_flk_landing_series,all,8,4,4,4,2.0000,0,0x9f,0x60,2500,high_nibble_variable,c0:1 80:1 e0:1 a0:1
+A_flk_landing_series,all,8,5,4,4,2.0000,0,0x01,0xfe,2500,variable_byte,5f:1 79:1 89:1 a3:1
+A_flk_landing_series,all,8,6,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:2 89:2
+A_flk_landing_series,all,8,7,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:4
+A_flk_landing_series,all,16,0,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:2 84:2
+A_flk_landing_series,all,16,1,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,1a:4
+A_flk_landing_series,all,16,2,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:4
+A_flk_landing_series,all,16,3,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:2 84:2
+A_flk_landing_series,all,16,4,4,4,2.0000,0,0x9f,0x60,2500,high_nibble_variable,c0:1 80:1 e0:1 a0:1
+A_flk_landing_series,all,16,5,4,4,2.0000,0,0x01,0xfe,2500,variable_byte,5f:1 79:1 89:1 a3:1
+A_flk_landing_series,all,16,6,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:2 89:2
+A_flk_landing_series,all,16,7,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:4
+A_flk_landing_series,all,16,8,4,4,2.0000,0,0x3f,0xc0,2500,high_nibble_variable,06:1 c6:1 86:1 46:1
+A_flk_landing_series,all,16,9,4,4,2.0000,0,0xe0,0x1f,2500,variable_byte,0a:1 0c:1 0f:1 12:1
+A_flk_landing_series,all,16,10,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:4
+A_flk_landing_series,all,16,11,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:2 f4:2
+A_flk_landing_series,all,16,12,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,1a:4
+A_flk_landing_series,all,16,13,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:4
+A_flk_landing_series,all,16,14,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:2 f4:2
+A_flk_landing_series,all,16,15,4,4,2.0000,0,0x1f,0xe0,2500,high_nibble_variable,60:1 c0:1 80:1 e0:1
+A_flk_landing_series,all,32,0,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:2 84:2
+A_flk_landing_series,all,32,1,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,1a:4
+A_flk_landing_series,all,32,2,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:4
+A_flk_landing_series,all,32,3,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:2 84:2
+A_flk_landing_series,all,32,4,4,4,2.0000,0,0x9f,0x60,2500,high_nibble_variable,c0:1 80:1 e0:1 a0:1
+A_flk_landing_series,all,32,5,4,4,2.0000,0,0x01,0xfe,2500,variable_byte,5f:1 79:1 89:1 a3:1
+A_flk_landing_series,all,32,6,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:2 89:2
+A_flk_landing_series,all,32,7,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:4
+A_flk_landing_series,all,32,8,4,4,2.0000,0,0x3f,0xc0,2500,high_nibble_variable,06:1 c6:1 86:1 46:1
+A_flk_landing_series,all,32,9,4,4,2.0000,0,0xe0,0x1f,2500,variable_byte,0a:1 0c:1 0f:1 12:1
+A_flk_landing_series,all,32,10,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:4
+A_flk_landing_series,all,32,11,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:2 f4:2
+A_flk_landing_series,all,32,12,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,1a:4
+A_flk_landing_series,all,32,13,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:4
+A_flk_landing_series,all,32,14,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:2 f4:2
+A_flk_landing_series,all,32,15,4,4,2.0000,0,0x1f,0xe0,2500,high_nibble_variable,60:1 c0:1 80:1 e0:1
+A_flk_landing_series,all,32,16,4,4,2.0000,0,0x09,0xf6,2500,variable_byte,4f:1 5f:1 79:1 89:1
+A_flk_landing_series,all,32,17,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,89:2 f9:2
+A_flk_landing_series,all,32,18,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:4
+A_flk_landing_series,all,32,19,4,4,2.0000,0,0x3f,0xc0,2500,high_nibble_variable,46:1 06:1 c6:1 86:1
+A_flk_landing_series,all,32,20,4,4,2.0000,0,0xf0,0x0f,2500,low_nibble_variable,07:1 0a:1 0c:1 0f:1
+A_flk_landing_series,all,32,21,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:4
+A_flk_landing_series,all,32,22,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:2 84:2
+A_flk_landing_series,all,32,23,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,1a:4
+A_flk_landing_series,all,32,24,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:4
+A_flk_landing_series,all,32,25,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:2 84:2
+A_flk_landing_series,all,32,26,4,4,2.0000,0,0x1f,0xe0,2500,high_nibble_variable,a0:1 60:1 c0:1 80:1
+A_flk_landing_series,all,32,27,4,4,2.0000,0,0x81,0x7e,2500,variable_byte,35:1 4f:1 5f:1 79:1
+A_flk_landing_series,all,32,28,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:2 89:2
+A_flk_landing_series,all,32,29,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:4
+A_flk_landing_series,all,32,30,4,4,2.0000,0,0x3f,0xc0,2500,high_nibble_variable,86:1 46:1 06:1 c6:1
+A_flk_landing_series,all,32,31,4,4,2.0000,0,0xf0,0x0f,2500,low_nibble_variable,04:1 07:1 0a:1 0c:1
+A_flk_landing_series,close,8,0,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:2 84:2
+A_flk_landing_series,close,8,1,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,1a:4
+A_flk_landing_series,close,8,2,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:4
+A_flk_landing_series,close,8,3,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:2 84:2
+A_flk_landing_series,close,8,4,4,4,2.0000,0,0x9f,0x60,2500,high_nibble_variable,c0:1 80:1 e0:1 a0:1
+A_flk_landing_series,close,8,5,4,4,2.0000,0,0x01,0xfe,2500,variable_byte,5f:1 79:1 89:1 a3:1
+A_flk_landing_series,close,8,6,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:2 89:2
+A_flk_landing_series,close,8,7,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:4
+A_flk_landing_series,close,16,0,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:2 84:2
+A_flk_landing_series,close,16,1,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,1a:4
+A_flk_landing_series,close,16,2,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:4
+A_flk_landing_series,close,16,3,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:2 84:2
+A_flk_landing_series,close,16,4,4,4,2.0000,0,0x9f,0x60,2500,high_nibble_variable,c0:1 80:1 e0:1 a0:1
+A_flk_landing_series,close,16,5,4,4,2.0000,0,0x01,0xfe,2500,variable_byte,5f:1 79:1 89:1 a3:1
+A_flk_landing_series,close,16,6,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:2 89:2
+A_flk_landing_series,close,16,7,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:4
+A_flk_landing_series,close,16,8,4,4,2.0000,0,0x3f,0xc0,2500,high_nibble_variable,06:1 c6:1 86:1 46:1
+A_flk_landing_series,close,16,9,4,4,2.0000,0,0xe0,0x1f,2500,variable_byte,0a:1 0c:1 0f:1 12:1
+A_flk_landing_series,close,16,10,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:4
+A_flk_landing_series,close,16,11,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:2 f4:2
+A_flk_landing_series,close,16,12,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,1a:4
+A_flk_landing_series,close,16,13,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:4
+A_flk_landing_series,close,16,14,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:2 f4:2
+A_flk_landing_series,close,16,15,4,4,2.0000,0,0x1f,0xe0,2500,high_nibble_variable,60:1 c0:1 80:1 e0:1
+A_flk_landing_series,close,32,0,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:2 84:2
+A_flk_landing_series,close,32,1,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,1a:4
+A_flk_landing_series,close,32,2,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:4
+A_flk_landing_series,close,32,3,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:2 84:2
+A_flk_landing_series,close,32,4,4,4,2.0000,0,0x9f,0x60,2500,high_nibble_variable,c0:1 80:1 e0:1 a0:1
+A_flk_landing_series,close,32,5,4,4,2.0000,0,0x01,0xfe,2500,variable_byte,5f:1 79:1 89:1 a3:1
+A_flk_landing_series,close,32,6,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:2 89:2
+A_flk_landing_series,close,32,7,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:4
+A_flk_landing_series,close,32,8,4,4,2.0000,0,0x3f,0xc0,2500,high_nibble_variable,06:1 c6:1 86:1 46:1
+A_flk_landing_series,close,32,9,4,4,2.0000,0,0xe0,0x1f,2500,variable_byte,0a:1 0c:1 0f:1 12:1
+A_flk_landing_series,close,32,10,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:4
+A_flk_landing_series,close,32,11,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:2 f4:2
+A_flk_landing_series,close,32,12,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,1a:4
+A_flk_landing_series,close,32,13,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:4
+A_flk_landing_series,close,32,14,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:2 f4:2
+A_flk_landing_series,close,32,15,4,4,2.0000,0,0x1f,0xe0,2500,high_nibble_variable,60:1 c0:1 80:1 e0:1
+A_flk_landing_series,close,32,16,4,4,2.0000,0,0x09,0xf6,2500,variable_byte,4f:1 5f:1 79:1 89:1
+A_flk_landing_series,close,32,17,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,89:2 f9:2
+A_flk_landing_series,close,32,18,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:4
+A_flk_landing_series,close,32,19,4,4,2.0000,0,0x3f,0xc0,2500,high_nibble_variable,46:1 06:1 c6:1 86:1
+A_flk_landing_series,close,32,20,4,4,2.0000,0,0xf0,0x0f,2500,low_nibble_variable,07:1 0a:1 0c:1 0f:1
+A_flk_landing_series,close,32,21,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:4
+A_flk_landing_series,close,32,22,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:2 84:2
+A_flk_landing_series,close,32,23,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,1a:4
+A_flk_landing_series,close,32,24,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:4
+A_flk_landing_series,close,32,25,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:2 84:2
+A_flk_landing_series,close,32,26,4,4,2.0000,0,0x1f,0xe0,2500,high_nibble_variable,a0:1 60:1 c0:1 80:1
+A_flk_landing_series,close,32,27,4,4,2.0000,0,0x81,0x7e,2500,variable_byte,35:1 4f:1 5f:1 79:1
+A_flk_landing_series,close,32,28,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:2 89:2
+A_flk_landing_series,close,32,29,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:4
+A_flk_landing_series,close,32,30,4,4,2.0000,0,0x3f,0xc0,2500,high_nibble_variable,86:1 46:1 06:1 c6:1
+A_flk_landing_series,close,32,31,4,4,2.0000,0,0xf0,0x0f,2500,low_nibble_variable,04:1 07:1 0a:1 0c:1
+A_flk_landing_series,strong,8,0,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:2 84:2
+A_flk_landing_series,strong,8,1,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,1a:4
+A_flk_landing_series,strong,8,2,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:4
+A_flk_landing_series,strong,8,3,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:2 84:2
+A_flk_landing_series,strong,8,4,4,4,2.0000,0,0x9f,0x60,2500,high_nibble_variable,c0:1 80:1 e0:1 a0:1
+A_flk_landing_series,strong,8,5,4,4,2.0000,0,0x01,0xfe,2500,variable_byte,5f:1 79:1 89:1 a3:1
+A_flk_landing_series,strong,8,6,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:2 89:2
+A_flk_landing_series,strong,8,7,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:4
+A_flk_landing_series,strong,16,0,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:2 84:2
+A_flk_landing_series,strong,16,1,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,1a:4
+A_flk_landing_series,strong,16,2,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:4
+A_flk_landing_series,strong,16,3,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:2 84:2
+A_flk_landing_series,strong,16,4,4,4,2.0000,0,0x9f,0x60,2500,high_nibble_variable,c0:1 80:1 e0:1 a0:1
+A_flk_landing_series,strong,16,5,4,4,2.0000,0,0x01,0xfe,2500,variable_byte,5f:1 79:1 89:1 a3:1
+A_flk_landing_series,strong,16,6,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:2 89:2
+A_flk_landing_series,strong,16,7,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:4
+A_flk_landing_series,strong,16,8,4,4,2.0000,0,0x3f,0xc0,2500,high_nibble_variable,06:1 c6:1 86:1 46:1
+A_flk_landing_series,strong,16,9,4,4,2.0000,0,0xe0,0x1f,2500,variable_byte,0a:1 0c:1 0f:1 12:1
+A_flk_landing_series,strong,16,10,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:4
+A_flk_landing_series,strong,16,11,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:2 f4:2
+A_flk_landing_series,strong,16,12,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,1a:4
+A_flk_landing_series,strong,16,13,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:4
+A_flk_landing_series,strong,16,14,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:2 f4:2
+A_flk_landing_series,strong,16,15,4,4,2.0000,0,0x1f,0xe0,2500,high_nibble_variable,60:1 c0:1 80:1 e0:1
+A_flk_landing_series,strong,32,0,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:2 84:2
+A_flk_landing_series,strong,32,1,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,1a:4
+A_flk_landing_series,strong,32,2,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:4
+A_flk_landing_series,strong,32,3,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:2 84:2
+A_flk_landing_series,strong,32,4,4,4,2.0000,0,0x9f,0x60,2500,high_nibble_variable,c0:1 80:1 e0:1 a0:1
+A_flk_landing_series,strong,32,5,4,4,2.0000,0,0x01,0xfe,2500,variable_byte,5f:1 79:1 89:1 a3:1
+A_flk_landing_series,strong,32,6,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:2 89:2
+A_flk_landing_series,strong,32,7,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:4
+A_flk_landing_series,strong,32,8,4,4,2.0000,0,0x3f,0xc0,2500,high_nibble_variable,06:1 c6:1 86:1 46:1
+A_flk_landing_series,strong,32,9,4,4,2.0000,0,0xe0,0x1f,2500,variable_byte,0a:1 0c:1 0f:1 12:1
+A_flk_landing_series,strong,32,10,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:4
+A_flk_landing_series,strong,32,11,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:2 f4:2
+A_flk_landing_series,strong,32,12,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,1a:4
+A_flk_landing_series,strong,32,13,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:4
+A_flk_landing_series,strong,32,14,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:2 f4:2
+A_flk_landing_series,strong,32,15,4,4,2.0000,0,0x1f,0xe0,2500,high_nibble_variable,60:1 c0:1 80:1 e0:1
+A_flk_landing_series,strong,32,16,4,4,2.0000,0,0x09,0xf6,2500,variable_byte,4f:1 5f:1 79:1 89:1
+A_flk_landing_series,strong,32,17,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,89:2 f9:2
+A_flk_landing_series,strong,32,18,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:4
+A_flk_landing_series,strong,32,19,4,4,2.0000,0,0x3f,0xc0,2500,high_nibble_variable,46:1 06:1 c6:1 86:1
+A_flk_landing_series,strong,32,20,4,4,2.0000,0,0xf0,0x0f,2500,low_nibble_variable,07:1 0a:1 0c:1 0f:1
+A_flk_landing_series,strong,32,21,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:4
+A_flk_landing_series,strong,32,22,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:2 84:2
+A_flk_landing_series,strong,32,23,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,1a:4
+A_flk_landing_series,strong,32,24,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:4
+A_flk_landing_series,strong,32,25,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:2 84:2
+A_flk_landing_series,strong,32,26,4,4,2.0000,0,0x1f,0xe0,2500,high_nibble_variable,a0:1 60:1 c0:1 80:1
+A_flk_landing_series,strong,32,27,4,4,2.0000,0,0x81,0x7e,2500,variable_byte,35:1 4f:1 5f:1 79:1
+A_flk_landing_series,strong,32,28,4,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:2 89:2
+A_flk_landing_series,strong,32,29,4,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:4
+A_flk_landing_series,strong,32,30,4,4,2.0000,0,0x3f,0xc0,2500,high_nibble_variable,86:1 46:1 06:1 c6:1
+A_flk_landing_series,strong,32,31,4,4,2.0000,0,0xf0,0x0f,2500,low_nibble_variable,04:1 07:1 0a:1 0c:1
+B_flk_landing_series,all,8,0,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+B_flk_landing_series,all,8,1,10,2,0.8813,0,0xfe,0x01,7000,low_nibble_variable,19:7 18:3
+B_flk_landing_series,all,8,2,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+B_flk_landing_series,all,8,3,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+B_flk_landing_series,all,8,4,10,10,3.3219,0,0x0f,0xf0,1000,high_nibble_variable,80:1 30:1 90:1 40:1 a0:1 50:1 b0:1 60:1
+B_flk_landing_series,all,8,5,10,10,3.3219,0,0x00,0xff,1000,variable_byte,b8:1 d9:1 eb:1 0c:1 1e:1 3f:1 51:1 72:1
+B_flk_landing_series,all,8,6,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:5 89:5
+B_flk_landing_series,all,8,7,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:10
+B_flk_landing_series,all,16,0,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+B_flk_landing_series,all,16,1,10,2,0.8813,0,0xfe,0x01,7000,low_nibble_variable,19:7 18:3
+B_flk_landing_series,all,16,2,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+B_flk_landing_series,all,16,3,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+B_flk_landing_series,all,16,4,10,10,3.3219,0,0x0f,0xf0,1000,high_nibble_variable,80:1 30:1 90:1 40:1 a0:1 50:1 b0:1 60:1
+B_flk_landing_series,all,16,5,10,10,3.3219,0,0x00,0xff,1000,variable_byte,b8:1 d9:1 eb:1 0c:1 1e:1 3f:1 51:1 72:1
+B_flk_landing_series,all,16,6,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:5 89:5
+B_flk_landing_series,all,16,7,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:10
+B_flk_landing_series,all,16,8,10,4,1.9710,0,0x3f,0xc0,3000,high_nibble_variable,86:3 46:3 06:2 c6:2
+B_flk_landing_series,all,16,9,10,10,3.3219,0,0xc0,0x3f,1000,variable_byte,d8:1 db:1 de:1 e0:1 e3:1 e6:1 e9:1 eb:1
+B_flk_landing_series,all,16,10,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fa:10
+B_flk_landing_series,all,16,11,10,3,1.3610,0,0x06,0xf9,5000,variable_byte,f4:5 84:4 2d:1
+B_flk_landing_series,all,16,12,10,3,1.2955,0,0xec,0x13,6000,variable_byte,19:6 18:3 0a:1
+B_flk_landing_series,all,16,13,10,2,0.4690,0,0x92,0x6d,9000,dominant_value_variable,70:9 1d:1
+B_flk_landing_series,all,16,14,10,3,1.3610,0,0x8b,0x74,5000,variable_byte,f4:5 84:4 f0:1
+B_flk_landing_series,all,16,15,10,10,3.3219,0,0x0b,0xf4,1000,variable_byte,a4:1 80:1 30:1 90:1 40:1 a0:1 50:1 b0:1
+B_flk_landing_series,all,32,0,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+B_flk_landing_series,all,32,1,10,2,0.8813,0,0xfe,0x01,7000,low_nibble_variable,19:7 18:3
+B_flk_landing_series,all,32,2,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+B_flk_landing_series,all,32,3,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+B_flk_landing_series,all,32,4,10,10,3.3219,0,0x0f,0xf0,1000,high_nibble_variable,80:1 30:1 90:1 40:1 a0:1 50:1 b0:1 60:1
+B_flk_landing_series,all,32,5,10,10,3.3219,0,0x00,0xff,1000,variable_byte,b8:1 d9:1 eb:1 0c:1 1e:1 3f:1 51:1 72:1
+B_flk_landing_series,all,32,6,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:5 89:5
+B_flk_landing_series,all,32,7,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:10
+B_flk_landing_series,all,32,8,10,4,1.9710,0,0x3f,0xc0,3000,high_nibble_variable,86:3 46:3 06:2 c6:2
+B_flk_landing_series,all,32,9,10,10,3.3219,0,0xc0,0x3f,1000,variable_byte,d8:1 db:1 de:1 e0:1 e3:1 e6:1 e9:1 eb:1
+B_flk_landing_series,all,32,10,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fa:10
+B_flk_landing_series,all,32,11,10,3,1.3610,0,0x06,0xf9,5000,variable_byte,f4:5 84:4 2d:1
+B_flk_landing_series,all,32,12,10,3,1.2955,0,0xec,0x13,6000,variable_byte,19:6 18:3 0a:1
+B_flk_landing_series,all,32,13,10,2,0.4690,0,0x92,0x6d,9000,dominant_value_variable,70:9 1d:1
+B_flk_landing_series,all,32,14,10,3,1.3610,0,0x8b,0x74,5000,variable_byte,f4:5 84:4 f0:1
+B_flk_landing_series,all,32,15,10,10,3.3219,0,0x0b,0xf4,1000,variable_byte,a4:1 80:1 30:1 90:1 40:1 a0:1 50:1 b0:1
+B_flk_landing_series,all,32,16,10,10,3.3219,0,0x00,0xff,1000,variable_byte,00:1 b8:1 d9:1 eb:1 0c:1 1e:1 3f:1 51:1
+B_flk_landing_series,all,32,17,10,3,1.3610,0,0x06,0xf9,5000,variable_byte,f9:5 89:4 70:1
+B_flk_landing_series,all,32,18,10,2,0.4690,0,0x1a,0xe5,9000,dominant_value_variable,01:9 e4:1
+B_flk_landing_series,all,32,19,10,5,2.2464,0,0x39,0xc6,3000,variable_byte,86:3 46:2 06:2 c6:2 00:1
+B_flk_landing_series,all,32,20,10,10,3.3219,0,0x40,0xbf,1000,variable_byte,70:1 d8:1 db:1 de:1 e0:1 e3:1 e6:1 e9:1
+B_flk_landing_series,all,32,21,10,2,0.4690,0,0xb1,0x4e,9000,dominant_value_variable,fa:9 b4:1
+B_flk_landing_series,all,32,22,10,4,1.7219,0,0x02,0xfd,4000,variable_byte,f4:4 84:4 00:1 2d:1
+B_flk_landing_series,all,32,23,10,4,1.6855,0,0x84,0x7b,5000,variable_byte,19:5 18:3 70:1 0a:1
+B_flk_landing_series,all,32,24,10,3,0.9219,0,0x02,0xfd,8000,dominant_value_variable,70:8 84:1 1d:1
+B_flk_landing_series,all,32,25,10,3,1.5219,0,0x8b,0x74,4000,variable_byte,f4:4 84:4 f0:2
+B_flk_landing_series,all,32,26,10,10,3.3219,0,0x00,0xff,1000,variable_byte,7f:1 a4:1 80:1 30:1 90:1 40:1 a0:1 50:1
+B_flk_landing_series,all,32,27,10,10,3.3219,0,0x00,0xff,1000,variable_byte,d4:1 00:1 b8:1 d9:1 eb:1 0c:1 1e:1 3f:1
+B_flk_landing_series,all,32,28,10,4,1.7219,0,0x06,0xf9,4000,variable_byte,f9:4 89:4 00:1 70:1
+B_flk_landing_series,all,32,29,10,3,0.9219,0,0x0a,0xf5,8000,dominant_value_variable,01:8 70:1 e4:1
+B_flk_landing_series,all,32,30,10,6,2.5219,0,0x29,0xd6,2000,variable_byte,86:2 46:2 06:2 c6:2 d4:1 00:1
+B_flk_landing_series,all,32,31,10,10,3.3219,0,0x40,0xbf,1000,variable_byte,fc:1 70:1 d8:1 db:1 de:1 e0:1 e3:1 e6:1
+B_flk_landing_series,close,8,0,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+B_flk_landing_series,close,8,1,10,2,0.8813,0,0xfe,0x01,7000,low_nibble_variable,19:7 18:3
+B_flk_landing_series,close,8,2,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+B_flk_landing_series,close,8,3,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+B_flk_landing_series,close,8,4,10,10,3.3219,0,0x0f,0xf0,1000,high_nibble_variable,80:1 30:1 90:1 40:1 a0:1 50:1 b0:1 60:1
+B_flk_landing_series,close,8,5,10,10,3.3219,0,0x00,0xff,1000,variable_byte,b8:1 d9:1 eb:1 0c:1 1e:1 3f:1 51:1 72:1
+B_flk_landing_series,close,8,6,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:5 89:5
+B_flk_landing_series,close,8,7,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:10
+B_flk_landing_series,close,16,0,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+B_flk_landing_series,close,16,1,10,2,0.8813,0,0xfe,0x01,7000,low_nibble_variable,19:7 18:3
+B_flk_landing_series,close,16,2,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+B_flk_landing_series,close,16,3,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+B_flk_landing_series,close,16,4,10,10,3.3219,0,0x0f,0xf0,1000,high_nibble_variable,80:1 30:1 90:1 40:1 a0:1 50:1 b0:1 60:1
+B_flk_landing_series,close,16,5,10,10,3.3219,0,0x00,0xff,1000,variable_byte,b8:1 d9:1 eb:1 0c:1 1e:1 3f:1 51:1 72:1
+B_flk_landing_series,close,16,6,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:5 89:5
+B_flk_landing_series,close,16,7,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:10
+B_flk_landing_series,close,16,8,10,4,1.9710,0,0x3f,0xc0,3000,high_nibble_variable,86:3 46:3 06:2 c6:2
+B_flk_landing_series,close,16,9,10,10,3.3219,0,0xc0,0x3f,1000,variable_byte,d8:1 db:1 de:1 e0:1 e3:1 e6:1 e9:1 eb:1
+B_flk_landing_series,close,16,10,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fa:10
+B_flk_landing_series,close,16,11,10,3,1.3610,0,0x06,0xf9,5000,variable_byte,f4:5 84:4 2d:1
+B_flk_landing_series,close,16,12,10,3,1.2955,0,0xec,0x13,6000,variable_byte,19:6 18:3 0a:1
+B_flk_landing_series,close,16,13,10,2,0.4690,0,0x92,0x6d,9000,dominant_value_variable,70:9 1d:1
+B_flk_landing_series,close,16,14,10,3,1.3610,0,0x8b,0x74,5000,variable_byte,f4:5 84:4 f0:1
+B_flk_landing_series,close,16,15,10,10,3.3219,0,0x0b,0xf4,1000,variable_byte,a4:1 80:1 30:1 90:1 40:1 a0:1 50:1 b0:1
+B_flk_landing_series,close,32,0,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+B_flk_landing_series,close,32,1,10,2,0.8813,0,0xfe,0x01,7000,low_nibble_variable,19:7 18:3
+B_flk_landing_series,close,32,2,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+B_flk_landing_series,close,32,3,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+B_flk_landing_series,close,32,4,10,10,3.3219,0,0x0f,0xf0,1000,high_nibble_variable,80:1 30:1 90:1 40:1 a0:1 50:1 b0:1 60:1
+B_flk_landing_series,close,32,5,10,10,3.3219,0,0x00,0xff,1000,variable_byte,b8:1 d9:1 eb:1 0c:1 1e:1 3f:1 51:1 72:1
+B_flk_landing_series,close,32,6,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:5 89:5
+B_flk_landing_series,close,32,7,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:10
+B_flk_landing_series,close,32,8,10,4,1.9710,0,0x3f,0xc0,3000,high_nibble_variable,86:3 46:3 06:2 c6:2
+B_flk_landing_series,close,32,9,10,10,3.3219,0,0xc0,0x3f,1000,variable_byte,d8:1 db:1 de:1 e0:1 e3:1 e6:1 e9:1 eb:1
+B_flk_landing_series,close,32,10,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fa:10
+B_flk_landing_series,close,32,11,10,3,1.3610,0,0x06,0xf9,5000,variable_byte,f4:5 84:4 2d:1
+B_flk_landing_series,close,32,12,10,3,1.2955,0,0xec,0x13,6000,variable_byte,19:6 18:3 0a:1
+B_flk_landing_series,close,32,13,10,2,0.4690,0,0x92,0x6d,9000,dominant_value_variable,70:9 1d:1
+B_flk_landing_series,close,32,14,10,3,1.3610,0,0x8b,0x74,5000,variable_byte,f4:5 84:4 f0:1
+B_flk_landing_series,close,32,15,10,10,3.3219,0,0x0b,0xf4,1000,variable_byte,a4:1 80:1 30:1 90:1 40:1 a0:1 50:1 b0:1
+B_flk_landing_series,close,32,16,10,10,3.3219,0,0x00,0xff,1000,variable_byte,00:1 b8:1 d9:1 eb:1 0c:1 1e:1 3f:1 51:1
+B_flk_landing_series,close,32,17,10,3,1.3610,0,0x06,0xf9,5000,variable_byte,f9:5 89:4 70:1
+B_flk_landing_series,close,32,18,10,2,0.4690,0,0x1a,0xe5,9000,dominant_value_variable,01:9 e4:1
+B_flk_landing_series,close,32,19,10,5,2.2464,0,0x39,0xc6,3000,variable_byte,86:3 46:2 06:2 c6:2 00:1
+B_flk_landing_series,close,32,20,10,10,3.3219,0,0x40,0xbf,1000,variable_byte,70:1 d8:1 db:1 de:1 e0:1 e3:1 e6:1 e9:1
+B_flk_landing_series,close,32,21,10,2,0.4690,0,0xb1,0x4e,9000,dominant_value_variable,fa:9 b4:1
+B_flk_landing_series,close,32,22,10,4,1.7219,0,0x02,0xfd,4000,variable_byte,f4:4 84:4 00:1 2d:1
+B_flk_landing_series,close,32,23,10,4,1.6855,0,0x84,0x7b,5000,variable_byte,19:5 18:3 70:1 0a:1
+B_flk_landing_series,close,32,24,10,3,0.9219,0,0x02,0xfd,8000,dominant_value_variable,70:8 84:1 1d:1
+B_flk_landing_series,close,32,25,10,3,1.5219,0,0x8b,0x74,4000,variable_byte,f4:4 84:4 f0:2
+B_flk_landing_series,close,32,26,10,10,3.3219,0,0x00,0xff,1000,variable_byte,7f:1 a4:1 80:1 30:1 90:1 40:1 a0:1 50:1
+B_flk_landing_series,close,32,27,10,10,3.3219,0,0x00,0xff,1000,variable_byte,d4:1 00:1 b8:1 d9:1 eb:1 0c:1 1e:1 3f:1
+B_flk_landing_series,close,32,28,10,4,1.7219,0,0x06,0xf9,4000,variable_byte,f9:4 89:4 00:1 70:1
+B_flk_landing_series,close,32,29,10,3,0.9219,0,0x0a,0xf5,8000,dominant_value_variable,01:8 70:1 e4:1
+B_flk_landing_series,close,32,30,10,6,2.5219,0,0x29,0xd6,2000,variable_byte,86:2 46:2 06:2 c6:2 d4:1 00:1
+B_flk_landing_series,close,32,31,10,10,3.3219,0,0x40,0xbf,1000,variable_byte,fc:1 70:1 d8:1 db:1 de:1 e0:1 e3:1 e6:1
+B_flk_landing_series,strong,8,0,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+B_flk_landing_series,strong,8,1,10,2,0.8813,0,0xfe,0x01,7000,low_nibble_variable,19:7 18:3
+B_flk_landing_series,strong,8,2,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+B_flk_landing_series,strong,8,3,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+B_flk_landing_series,strong,8,4,10,10,3.3219,0,0x0f,0xf0,1000,high_nibble_variable,80:1 30:1 90:1 40:1 a0:1 50:1 b0:1 60:1
+B_flk_landing_series,strong,8,5,10,10,3.3219,0,0x00,0xff,1000,variable_byte,b8:1 d9:1 eb:1 0c:1 1e:1 3f:1 51:1 72:1
+B_flk_landing_series,strong,8,6,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:5 89:5
+B_flk_landing_series,strong,8,7,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:10
+B_flk_landing_series,strong,16,0,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+B_flk_landing_series,strong,16,1,10,2,0.8813,0,0xfe,0x01,7000,low_nibble_variable,19:7 18:3
+B_flk_landing_series,strong,16,2,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+B_flk_landing_series,strong,16,3,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+B_flk_landing_series,strong,16,4,10,10,3.3219,0,0x0f,0xf0,1000,high_nibble_variable,80:1 30:1 90:1 40:1 a0:1 50:1 b0:1 60:1
+B_flk_landing_series,strong,16,5,10,10,3.3219,0,0x00,0xff,1000,variable_byte,b8:1 d9:1 eb:1 0c:1 1e:1 3f:1 51:1 72:1
+B_flk_landing_series,strong,16,6,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:5 89:5
+B_flk_landing_series,strong,16,7,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:10
+B_flk_landing_series,strong,16,8,10,4,1.9710,0,0x3f,0xc0,3000,high_nibble_variable,86:3 46:3 06:2 c6:2
+B_flk_landing_series,strong,16,9,10,10,3.3219,0,0xc0,0x3f,1000,variable_byte,d8:1 db:1 de:1 e0:1 e3:1 e6:1 e9:1 eb:1
+B_flk_landing_series,strong,16,10,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fa:10
+B_flk_landing_series,strong,16,11,10,3,1.3610,0,0x06,0xf9,5000,variable_byte,f4:5 84:4 2d:1
+B_flk_landing_series,strong,16,12,10,3,1.2955,0,0xec,0x13,6000,variable_byte,19:6 18:3 0a:1
+B_flk_landing_series,strong,16,13,10,2,0.4690,0,0x92,0x6d,9000,dominant_value_variable,70:9 1d:1
+B_flk_landing_series,strong,16,14,10,3,1.3610,0,0x8b,0x74,5000,variable_byte,f4:5 84:4 f0:1
+B_flk_landing_series,strong,16,15,10,10,3.3219,0,0x0b,0xf4,1000,variable_byte,a4:1 80:1 30:1 90:1 40:1 a0:1 50:1 b0:1
+B_flk_landing_series,strong,32,0,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+B_flk_landing_series,strong,32,1,10,2,0.8813,0,0xfe,0x01,7000,low_nibble_variable,19:7 18:3
+B_flk_landing_series,strong,32,2,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+B_flk_landing_series,strong,32,3,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+B_flk_landing_series,strong,32,4,10,10,3.3219,0,0x0f,0xf0,1000,high_nibble_variable,80:1 30:1 90:1 40:1 a0:1 50:1 b0:1 60:1
+B_flk_landing_series,strong,32,5,10,10,3.3219,0,0x00,0xff,1000,variable_byte,b8:1 d9:1 eb:1 0c:1 1e:1 3f:1 51:1 72:1
+B_flk_landing_series,strong,32,6,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:5 89:5
+B_flk_landing_series,strong,32,7,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:10
+B_flk_landing_series,strong,32,8,10,4,1.9710,0,0x3f,0xc0,3000,high_nibble_variable,86:3 46:3 06:2 c6:2
+B_flk_landing_series,strong,32,9,10,10,3.3219,0,0xc0,0x3f,1000,variable_byte,d8:1 db:1 de:1 e0:1 e3:1 e6:1 e9:1 eb:1
+B_flk_landing_series,strong,32,10,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fa:10
+B_flk_landing_series,strong,32,11,10,3,1.3610,0,0x06,0xf9,5000,variable_byte,f4:5 84:4 2d:1
+B_flk_landing_series,strong,32,12,10,3,1.2955,0,0xec,0x13,6000,variable_byte,19:6 18:3 0a:1
+B_flk_landing_series,strong,32,13,10,2,0.4690,0,0x92,0x6d,9000,dominant_value_variable,70:9 1d:1
+B_flk_landing_series,strong,32,14,10,3,1.3610,0,0x8b,0x74,5000,variable_byte,f4:5 84:4 f0:1
+B_flk_landing_series,strong,32,15,10,10,3.3219,0,0x0b,0xf4,1000,variable_byte,a4:1 80:1 30:1 90:1 40:1 a0:1 50:1 b0:1
+B_flk_landing_series,strong,32,16,10,10,3.3219,0,0x00,0xff,1000,variable_byte,00:1 b8:1 d9:1 eb:1 0c:1 1e:1 3f:1 51:1
+B_flk_landing_series,strong,32,17,10,3,1.3610,0,0x06,0xf9,5000,variable_byte,f9:5 89:4 70:1
+B_flk_landing_series,strong,32,18,10,2,0.4690,0,0x1a,0xe5,9000,dominant_value_variable,01:9 e4:1
+B_flk_landing_series,strong,32,19,10,5,2.2464,0,0x39,0xc6,3000,variable_byte,86:3 46:2 06:2 c6:2 00:1
+B_flk_landing_series,strong,32,20,10,10,3.3219,0,0x40,0xbf,1000,variable_byte,70:1 d8:1 db:1 de:1 e0:1 e3:1 e6:1 e9:1
+B_flk_landing_series,strong,32,21,10,2,0.4690,0,0xb1,0x4e,9000,dominant_value_variable,fa:9 b4:1
+B_flk_landing_series,strong,32,22,10,4,1.7219,0,0x02,0xfd,4000,variable_byte,f4:4 84:4 00:1 2d:1
+B_flk_landing_series,strong,32,23,10,4,1.6855,0,0x84,0x7b,5000,variable_byte,19:5 18:3 70:1 0a:1
+B_flk_landing_series,strong,32,24,10,3,0.9219,0,0x02,0xfd,8000,dominant_value_variable,70:8 84:1 1d:1
+B_flk_landing_series,strong,32,25,10,3,1.5219,0,0x8b,0x74,4000,variable_byte,f4:4 84:4 f0:2
+B_flk_landing_series,strong,32,26,10,10,3.3219,0,0x00,0xff,1000,variable_byte,7f:1 a4:1 80:1 30:1 90:1 40:1 a0:1 50:1
+B_flk_landing_series,strong,32,27,10,10,3.3219,0,0x00,0xff,1000,variable_byte,d4:1 00:1 b8:1 d9:1 eb:1 0c:1 1e:1 3f:1
+B_flk_landing_series,strong,32,28,10,4,1.7219,0,0x06,0xf9,4000,variable_byte,f9:4 89:4 00:1 70:1
+B_flk_landing_series,strong,32,29,10,3,0.9219,0,0x0a,0xf5,8000,dominant_value_variable,01:8 70:1 e4:1
+B_flk_landing_series,strong,32,30,10,6,2.5219,0,0x29,0xd6,2000,variable_byte,86:2 46:2 06:2 c6:2 d4:1 00:1
+B_flk_landing_series,strong,32,31,10,10,3.3219,0,0x40,0xbf,1000,variable_byte,fc:1 70:1 d8:1 db:1 de:1 e0:1 e3:1 e6:1
+C_flk_control_anchor,all,8,0,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f4:1
+C_flk_control_anchor,all,8,1,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,17:1
+C_flk_control_anchor,all,8,2,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:1
+C_flk_control_anchor,all,8,3,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f4:1
+C_flk_control_anchor,all,8,4,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,e0:1
+C_flk_control_anchor,all,8,5,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,all,8,6,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f9:1
+C_flk_control_anchor,all,8,7,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:1
+C_flk_control_anchor,all,16,0,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f4:1
+C_flk_control_anchor,all,16,1,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,17:1
+C_flk_control_anchor,all,16,2,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:1
+C_flk_control_anchor,all,16,3,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f4:1
+C_flk_control_anchor,all,16,4,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,e0:1
+C_flk_control_anchor,all,16,5,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,all,16,6,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f9:1
+C_flk_control_anchor,all,16,7,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:1
+C_flk_control_anchor,all,16,8,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,c0:1
+C_flk_control_anchor,all,16,9,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,all,16,10,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,all,16,11,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,60:1
+C_flk_control_anchor,all,16,12,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,55:1
+C_flk_control_anchor,all,16,13,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,all,16,14,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,30:1
+C_flk_control_anchor,all,16,15,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,bb:1
+C_flk_control_anchor,all,32,0,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f4:1
+C_flk_control_anchor,all,32,1,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,17:1
+C_flk_control_anchor,all,32,2,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:1
+C_flk_control_anchor,all,32,3,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f4:1
+C_flk_control_anchor,all,32,4,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,e0:1
+C_flk_control_anchor,all,32,5,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,all,32,6,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f9:1
+C_flk_control_anchor,all,32,7,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:1
+C_flk_control_anchor,all,32,8,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,c0:1
+C_flk_control_anchor,all,32,9,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,all,32,10,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,all,32,11,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,60:1
+C_flk_control_anchor,all,32,12,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,55:1
+C_flk_control_anchor,all,32,13,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,all,32,14,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,30:1
+C_flk_control_anchor,all,32,15,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,bb:1
+C_flk_control_anchor,all,32,16,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,all,32,17,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,40:1
+C_flk_control_anchor,all,32,18,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,3d:1
+C_flk_control_anchor,all,32,19,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,all,32,20,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:1
+C_flk_control_anchor,all,32,21,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,4d:1
+C_flk_control_anchor,all,32,22,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,all,32,23,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,b0:1
+C_flk_control_anchor,all,32,24,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,33:1
+C_flk_control_anchor,all,32,25,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,all,32,26,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,50:1
+C_flk_control_anchor,all,32,27,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,44:1
+C_flk_control_anchor,all,32,28,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,all,32,29,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,1e:1
+C_flk_control_anchor,all,32,30,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,8a:1
+C_flk_control_anchor,all,32,31,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,16:1
+C_flk_control_anchor,close,8,0,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f4:1
+C_flk_control_anchor,close,8,1,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,17:1
+C_flk_control_anchor,close,8,2,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:1
+C_flk_control_anchor,close,8,3,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f4:1
+C_flk_control_anchor,close,8,4,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,e0:1
+C_flk_control_anchor,close,8,5,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,close,8,6,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f9:1
+C_flk_control_anchor,close,8,7,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:1
+C_flk_control_anchor,close,16,0,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f4:1
+C_flk_control_anchor,close,16,1,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,17:1
+C_flk_control_anchor,close,16,2,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:1
+C_flk_control_anchor,close,16,3,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f4:1
+C_flk_control_anchor,close,16,4,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,e0:1
+C_flk_control_anchor,close,16,5,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,close,16,6,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f9:1
+C_flk_control_anchor,close,16,7,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:1
+C_flk_control_anchor,close,16,8,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,c0:1
+C_flk_control_anchor,close,16,9,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,close,16,10,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,close,16,11,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,60:1
+C_flk_control_anchor,close,16,12,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,55:1
+C_flk_control_anchor,close,16,13,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,close,16,14,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,30:1
+C_flk_control_anchor,close,16,15,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,bb:1
+C_flk_control_anchor,close,32,0,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f4:1
+C_flk_control_anchor,close,32,1,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,17:1
+C_flk_control_anchor,close,32,2,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:1
+C_flk_control_anchor,close,32,3,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f4:1
+C_flk_control_anchor,close,32,4,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,e0:1
+C_flk_control_anchor,close,32,5,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,close,32,6,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f9:1
+C_flk_control_anchor,close,32,7,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:1
+C_flk_control_anchor,close,32,8,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,c0:1
+C_flk_control_anchor,close,32,9,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,close,32,10,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,close,32,11,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,60:1
+C_flk_control_anchor,close,32,12,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,55:1
+C_flk_control_anchor,close,32,13,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,close,32,14,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,30:1
+C_flk_control_anchor,close,32,15,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,bb:1
+C_flk_control_anchor,close,32,16,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,close,32,17,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,40:1
+C_flk_control_anchor,close,32,18,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,3d:1
+C_flk_control_anchor,close,32,19,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,close,32,20,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:1
+C_flk_control_anchor,close,32,21,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,4d:1
+C_flk_control_anchor,close,32,22,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,close,32,23,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,b0:1
+C_flk_control_anchor,close,32,24,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,33:1
+C_flk_control_anchor,close,32,25,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,close,32,26,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,50:1
+C_flk_control_anchor,close,32,27,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,44:1
+C_flk_control_anchor,close,32,28,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,close,32,29,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,1e:1
+C_flk_control_anchor,close,32,30,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,8a:1
+C_flk_control_anchor,close,32,31,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,16:1
+C_flk_control_anchor,strong,8,0,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f4:1
+C_flk_control_anchor,strong,8,1,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,17:1
+C_flk_control_anchor,strong,8,2,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:1
+C_flk_control_anchor,strong,8,3,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f4:1
+C_flk_control_anchor,strong,8,4,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,e0:1
+C_flk_control_anchor,strong,8,5,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,strong,8,6,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f9:1
+C_flk_control_anchor,strong,8,7,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:1
+C_flk_control_anchor,strong,16,0,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f4:1
+C_flk_control_anchor,strong,16,1,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,17:1
+C_flk_control_anchor,strong,16,2,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:1
+C_flk_control_anchor,strong,16,3,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f4:1
+C_flk_control_anchor,strong,16,4,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,e0:1
+C_flk_control_anchor,strong,16,5,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,strong,16,6,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f9:1
+C_flk_control_anchor,strong,16,7,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:1
+C_flk_control_anchor,strong,16,8,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,c0:1
+C_flk_control_anchor,strong,16,9,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,strong,16,10,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,strong,16,11,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,60:1
+C_flk_control_anchor,strong,16,12,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,55:1
+C_flk_control_anchor,strong,16,13,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,strong,16,14,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,30:1
+C_flk_control_anchor,strong,16,15,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,bb:1
+C_flk_control_anchor,strong,32,0,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f4:1
+C_flk_control_anchor,strong,32,1,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,17:1
+C_flk_control_anchor,strong,32,2,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:1
+C_flk_control_anchor,strong,32,3,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f4:1
+C_flk_control_anchor,strong,32,4,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,e0:1
+C_flk_control_anchor,strong,32,5,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,strong,32,6,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f9:1
+C_flk_control_anchor,strong,32,7,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:1
+C_flk_control_anchor,strong,32,8,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,c0:1
+C_flk_control_anchor,strong,32,9,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,strong,32,10,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,strong,32,11,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,60:1
+C_flk_control_anchor,strong,32,12,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,55:1
+C_flk_control_anchor,strong,32,13,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,strong,32,14,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,30:1
+C_flk_control_anchor,strong,32,15,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,bb:1
+C_flk_control_anchor,strong,32,16,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,strong,32,17,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,40:1
+C_flk_control_anchor,strong,32,18,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,3d:1
+C_flk_control_anchor,strong,32,19,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,strong,32,20,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:1
+C_flk_control_anchor,strong,32,21,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,4d:1
+C_flk_control_anchor,strong,32,22,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,strong,32,23,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,b0:1
+C_flk_control_anchor,strong,32,24,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,33:1
+C_flk_control_anchor,strong,32,25,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,strong,32,26,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,50:1
+C_flk_control_anchor,strong,32,27,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,44:1
+C_flk_control_anchor,strong,32,28,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,82:1
+C_flk_control_anchor,strong,32,29,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,1e:1
+C_flk_control_anchor,strong,32,30,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,8a:1
+C_flk_control_anchor,strong,32,31,1,1,-0.0000,1,0xff,0x00,10000,fixed_byte,16:1
+C_flk_landing_series,all,8,0,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+C_flk_landing_series,all,8,1,10,2,0.9710,0,0xf0,0x0f,6000,low_nibble_variable,18:6 17:4
+C_flk_landing_series,all,8,2,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+C_flk_landing_series,all,8,3,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+C_flk_landing_series,all,8,4,10,7,2.7219,0,0x0f,0xf0,2000,high_nibble_variable,70:2 00:2 90:2 c0:1 e0:1 20:1 b0:1
+C_flk_landing_series,all,8,5,10,10,3.3219,0,0x00,0xff,1000,variable_byte,70:1 b6:1 d7:1 ea:1 0b:1 1d:1 3f:1 51:1
+C_flk_landing_series,all,8,6,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:5 89:5
+C_flk_landing_series,all,8,7,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:10
+C_flk_landing_series,all,16,0,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+C_flk_landing_series,all,16,1,10,2,0.9710,0,0xf0,0x0f,6000,low_nibble_variable,18:6 17:4
+C_flk_landing_series,all,16,2,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+C_flk_landing_series,all,16,3,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+C_flk_landing_series,all,16,4,10,7,2.7219,0,0x0f,0xf0,2000,high_nibble_variable,70:2 00:2 90:2 c0:1 e0:1 20:1 b0:1
+C_flk_landing_series,all,16,5,10,10,3.3219,0,0x00,0xff,1000,variable_byte,70:1 b6:1 d7:1 ea:1 0b:1 1d:1 3f:1 51:1
+C_flk_landing_series,all,16,6,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:5 89:5
+C_flk_landing_series,all,16,7,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:10
+C_flk_landing_series,all,16,8,10,4,1.9710,0,0x3f,0xc0,3000,high_nibble_variable,06:3 46:3 c6:2 86:2
+C_flk_landing_series,all,16,9,10,10,3.3219,0,0xc0,0x3f,1000,variable_byte,36:1 1d:1 20:1 22:1 25:1 28:1 2b:1 2d:1
+C_flk_landing_series,all,16,10,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:10
+C_flk_landing_series,all,16,11,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:5 f4:5
+C_flk_landing_series,all,16,12,10,2,0.9710,0,0xf0,0x0f,6000,low_nibble_variable,18:6 17:4
+C_flk_landing_series,all,16,13,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+C_flk_landing_series,all,16,14,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:5 f4:5
+C_flk_landing_series,all,16,15,10,7,2.7219,0,0x0f,0xf0,2000,high_nibble_variable,70:2 00:2 90:2 b0:1 50:1 e0:1 20:1
+C_flk_landing_series,all,32,0,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+C_flk_landing_series,all,32,1,10,2,0.9710,0,0xf0,0x0f,6000,low_nibble_variable,18:6 17:4
+C_flk_landing_series,all,32,2,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+C_flk_landing_series,all,32,3,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+C_flk_landing_series,all,32,4,10,7,2.7219,0,0x0f,0xf0,2000,high_nibble_variable,70:2 00:2 90:2 c0:1 e0:1 20:1 b0:1
+C_flk_landing_series,all,32,5,10,10,3.3219,0,0x00,0xff,1000,variable_byte,70:1 b6:1 d7:1 ea:1 0b:1 1d:1 3f:1 51:1
+C_flk_landing_series,all,32,6,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:5 89:5
+C_flk_landing_series,all,32,7,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:10
+C_flk_landing_series,all,32,8,10,4,1.9710,0,0x3f,0xc0,3000,high_nibble_variable,06:3 46:3 c6:2 86:2
+C_flk_landing_series,all,32,9,10,10,3.3219,0,0xc0,0x3f,1000,variable_byte,36:1 1d:1 20:1 22:1 25:1 28:1 2b:1 2d:1
+C_flk_landing_series,all,32,10,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:10
+C_flk_landing_series,all,32,11,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:5 f4:5
+C_flk_landing_series,all,32,12,10,2,0.9710,0,0xf0,0x0f,6000,low_nibble_variable,18:6 17:4
+C_flk_landing_series,all,32,13,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+C_flk_landing_series,all,32,14,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:5 f4:5
+C_flk_landing_series,all,32,15,10,7,2.7219,0,0x0f,0xf0,2000,high_nibble_variable,70:2 00:2 90:2 b0:1 50:1 e0:1 20:1
+C_flk_landing_series,all,32,16,10,10,3.3219,0,0x00,0xff,1000,variable_byte,84:1 a4:1 b6:1 d7:1 ea:1 0b:1 1d:1 3f:1
+C_flk_landing_series,all,32,17,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,89:5 f9:5
+C_flk_landing_series,all,32,18,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:10
+C_flk_landing_series,all,32,19,10,4,1.9710,0,0x3f,0xc0,3000,high_nibble_variable,46:3 86:3 06:2 c6:2
+C_flk_landing_series,all,32,20,10,10,3.3219,0,0xc0,0x3f,1000,variable_byte,33:1 1a:1 1d:1 20:1 22:1 25:1 28:1 2b:1
+C_flk_landing_series,all,32,21,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:10
+C_flk_landing_series,all,32,22,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+C_flk_landing_series,all,32,23,10,3,1.3610,0,0xf0,0x0f,5000,low_nibble_variable,18:5 17:4 19:1
+C_flk_landing_series,all,32,24,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+C_flk_landing_series,all,32,25,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+C_flk_landing_series,all,32,26,10,7,2.7219,0,0x0f,0xf0,2000,high_nibble_variable,90:2 70:2 00:2 80:1 50:1 e0:1 20:1
+C_flk_landing_series,all,32,27,10,10,3.3219,0,0x00,0xff,1000,variable_byte,72:1 d8:1 a4:1 b6:1 d7:1 ea:1 0b:1 1d:1
+C_flk_landing_series,all,32,28,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:5 89:5
+C_flk_landing_series,all,32,29,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:10
+C_flk_landing_series,all,32,30,10,4,1.9710,0,0x3f,0xc0,3000,high_nibble_variable,86:3 c6:3 46:2 06:2
+C_flk_landing_series,all,32,31,10,10,3.3219,0,0xc0,0x3f,1000,variable_byte,30:1 17:1 1a:1 1d:1 20:1 22:1 25:1 28:1
+C_flk_landing_series,close,8,0,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+C_flk_landing_series,close,8,1,10,2,0.9710,0,0xf0,0x0f,6000,low_nibble_variable,18:6 17:4
+C_flk_landing_series,close,8,2,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+C_flk_landing_series,close,8,3,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+C_flk_landing_series,close,8,4,10,7,2.7219,0,0x0f,0xf0,2000,high_nibble_variable,70:2 00:2 90:2 c0:1 e0:1 20:1 b0:1
+C_flk_landing_series,close,8,5,10,10,3.3219,0,0x00,0xff,1000,variable_byte,70:1 b6:1 d7:1 ea:1 0b:1 1d:1 3f:1 51:1
+C_flk_landing_series,close,8,6,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:5 89:5
+C_flk_landing_series,close,8,7,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:10
+C_flk_landing_series,close,16,0,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+C_flk_landing_series,close,16,1,10,2,0.9710,0,0xf0,0x0f,6000,low_nibble_variable,18:6 17:4
+C_flk_landing_series,close,16,2,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+C_flk_landing_series,close,16,3,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+C_flk_landing_series,close,16,4,10,7,2.7219,0,0x0f,0xf0,2000,high_nibble_variable,70:2 00:2 90:2 c0:1 e0:1 20:1 b0:1
+C_flk_landing_series,close,16,5,10,10,3.3219,0,0x00,0xff,1000,variable_byte,70:1 b6:1 d7:1 ea:1 0b:1 1d:1 3f:1 51:1
+C_flk_landing_series,close,16,6,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:5 89:5
+C_flk_landing_series,close,16,7,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:10
+C_flk_landing_series,close,16,8,10,4,1.9710,0,0x3f,0xc0,3000,high_nibble_variable,06:3 46:3 c6:2 86:2
+C_flk_landing_series,close,16,9,10,10,3.3219,0,0xc0,0x3f,1000,variable_byte,36:1 1d:1 20:1 22:1 25:1 28:1 2b:1 2d:1
+C_flk_landing_series,close,16,10,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:10
+C_flk_landing_series,close,16,11,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:5 f4:5
+C_flk_landing_series,close,16,12,10,2,0.9710,0,0xf0,0x0f,6000,low_nibble_variable,18:6 17:4
+C_flk_landing_series,close,16,13,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+C_flk_landing_series,close,16,14,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:5 f4:5
+C_flk_landing_series,close,16,15,10,7,2.7219,0,0x0f,0xf0,2000,high_nibble_variable,70:2 00:2 90:2 b0:1 50:1 e0:1 20:1
+C_flk_landing_series,close,32,0,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+C_flk_landing_series,close,32,1,10,2,0.9710,0,0xf0,0x0f,6000,low_nibble_variable,18:6 17:4
+C_flk_landing_series,close,32,2,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+C_flk_landing_series,close,32,3,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+C_flk_landing_series,close,32,4,10,7,2.7219,0,0x0f,0xf0,2000,high_nibble_variable,70:2 00:2 90:2 c0:1 e0:1 20:1 b0:1
+C_flk_landing_series,close,32,5,10,10,3.3219,0,0x00,0xff,1000,variable_byte,70:1 b6:1 d7:1 ea:1 0b:1 1d:1 3f:1 51:1
+C_flk_landing_series,close,32,6,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:5 89:5
+C_flk_landing_series,close,32,7,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:10
+C_flk_landing_series,close,32,8,10,4,1.9710,0,0x3f,0xc0,3000,high_nibble_variable,06:3 46:3 c6:2 86:2
+C_flk_landing_series,close,32,9,10,10,3.3219,0,0xc0,0x3f,1000,variable_byte,36:1 1d:1 20:1 22:1 25:1 28:1 2b:1 2d:1
+C_flk_landing_series,close,32,10,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:10
+C_flk_landing_series,close,32,11,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:5 f4:5
+C_flk_landing_series,close,32,12,10,2,0.9710,0,0xf0,0x0f,6000,low_nibble_variable,18:6 17:4
+C_flk_landing_series,close,32,13,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+C_flk_landing_series,close,32,14,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:5 f4:5
+C_flk_landing_series,close,32,15,10,7,2.7219,0,0x0f,0xf0,2000,high_nibble_variable,70:2 00:2 90:2 b0:1 50:1 e0:1 20:1
+C_flk_landing_series,close,32,16,10,10,3.3219,0,0x00,0xff,1000,variable_byte,84:1 a4:1 b6:1 d7:1 ea:1 0b:1 1d:1 3f:1
+C_flk_landing_series,close,32,17,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,89:5 f9:5
+C_flk_landing_series,close,32,18,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:10
+C_flk_landing_series,close,32,19,10,4,1.9710,0,0x3f,0xc0,3000,high_nibble_variable,46:3 86:3 06:2 c6:2
+C_flk_landing_series,close,32,20,10,10,3.3219,0,0xc0,0x3f,1000,variable_byte,33:1 1a:1 1d:1 20:1 22:1 25:1 28:1 2b:1
+C_flk_landing_series,close,32,21,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:10
+C_flk_landing_series,close,32,22,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+C_flk_landing_series,close,32,23,10,3,1.3610,0,0xf0,0x0f,5000,low_nibble_variable,18:5 17:4 19:1
+C_flk_landing_series,close,32,24,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+C_flk_landing_series,close,32,25,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+C_flk_landing_series,close,32,26,10,7,2.7219,0,0x0f,0xf0,2000,high_nibble_variable,90:2 70:2 00:2 80:1 50:1 e0:1 20:1
+C_flk_landing_series,close,32,27,10,10,3.3219,0,0x00,0xff,1000,variable_byte,72:1 d8:1 a4:1 b6:1 d7:1 ea:1 0b:1 1d:1
+C_flk_landing_series,close,32,28,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:5 89:5
+C_flk_landing_series,close,32,29,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:10
+C_flk_landing_series,close,32,30,10,4,1.9710,0,0x3f,0xc0,3000,high_nibble_variable,86:3 c6:3 46:2 06:2
+C_flk_landing_series,close,32,31,10,10,3.3219,0,0xc0,0x3f,1000,variable_byte,30:1 17:1 1a:1 1d:1 20:1 22:1 25:1 28:1
+C_flk_landing_series,strong,8,0,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+C_flk_landing_series,strong,8,1,10,2,0.9710,0,0xf0,0x0f,6000,low_nibble_variable,18:6 17:4
+C_flk_landing_series,strong,8,2,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+C_flk_landing_series,strong,8,3,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+C_flk_landing_series,strong,8,4,10,7,2.7219,0,0x0f,0xf0,2000,high_nibble_variable,70:2 00:2 90:2 c0:1 e0:1 20:1 b0:1
+C_flk_landing_series,strong,8,5,10,10,3.3219,0,0x00,0xff,1000,variable_byte,70:1 b6:1 d7:1 ea:1 0b:1 1d:1 3f:1 51:1
+C_flk_landing_series,strong,8,6,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:5 89:5
+C_flk_landing_series,strong,8,7,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:10
+C_flk_landing_series,strong,16,0,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+C_flk_landing_series,strong,16,1,10,2,0.9710,0,0xf0,0x0f,6000,low_nibble_variable,18:6 17:4
+C_flk_landing_series,strong,16,2,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+C_flk_landing_series,strong,16,3,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+C_flk_landing_series,strong,16,4,10,7,2.7219,0,0x0f,0xf0,2000,high_nibble_variable,70:2 00:2 90:2 c0:1 e0:1 20:1 b0:1
+C_flk_landing_series,strong,16,5,10,10,3.3219,0,0x00,0xff,1000,variable_byte,70:1 b6:1 d7:1 ea:1 0b:1 1d:1 3f:1 51:1
+C_flk_landing_series,strong,16,6,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:5 89:5
+C_flk_landing_series,strong,16,7,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:10
+C_flk_landing_series,strong,16,8,10,4,1.9710,0,0x3f,0xc0,3000,high_nibble_variable,06:3 46:3 c6:2 86:2
+C_flk_landing_series,strong,16,9,10,10,3.3219,0,0xc0,0x3f,1000,variable_byte,36:1 1d:1 20:1 22:1 25:1 28:1 2b:1 2d:1
+C_flk_landing_series,strong,16,10,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:10
+C_flk_landing_series,strong,16,11,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:5 f4:5
+C_flk_landing_series,strong,16,12,10,2,0.9710,0,0xf0,0x0f,6000,low_nibble_variable,18:6 17:4
+C_flk_landing_series,strong,16,13,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+C_flk_landing_series,strong,16,14,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:5 f4:5
+C_flk_landing_series,strong,16,15,10,7,2.7219,0,0x0f,0xf0,2000,high_nibble_variable,70:2 00:2 90:2 b0:1 50:1 e0:1 20:1
+C_flk_landing_series,strong,32,0,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+C_flk_landing_series,strong,32,1,10,2,0.9710,0,0xf0,0x0f,6000,low_nibble_variable,18:6 17:4
+C_flk_landing_series,strong,32,2,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+C_flk_landing_series,strong,32,3,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+C_flk_landing_series,strong,32,4,10,7,2.7219,0,0x0f,0xf0,2000,high_nibble_variable,70:2 00:2 90:2 c0:1 e0:1 20:1 b0:1
+C_flk_landing_series,strong,32,5,10,10,3.3219,0,0x00,0xff,1000,variable_byte,70:1 b6:1 d7:1 ea:1 0b:1 1d:1 3f:1 51:1
+C_flk_landing_series,strong,32,6,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:5 89:5
+C_flk_landing_series,strong,32,7,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:10
+C_flk_landing_series,strong,32,8,10,4,1.9710,0,0x3f,0xc0,3000,high_nibble_variable,06:3 46:3 c6:2 86:2
+C_flk_landing_series,strong,32,9,10,10,3.3219,0,0xc0,0x3f,1000,variable_byte,36:1 1d:1 20:1 22:1 25:1 28:1 2b:1 2d:1
+C_flk_landing_series,strong,32,10,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:10
+C_flk_landing_series,strong,32,11,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:5 f4:5
+C_flk_landing_series,strong,32,12,10,2,0.9710,0,0xf0,0x0f,6000,low_nibble_variable,18:6 17:4
+C_flk_landing_series,strong,32,13,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+C_flk_landing_series,strong,32,14,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,84:5 f4:5
+C_flk_landing_series,strong,32,15,10,7,2.7219,0,0x0f,0xf0,2000,high_nibble_variable,70:2 00:2 90:2 b0:1 50:1 e0:1 20:1
+C_flk_landing_series,strong,32,16,10,10,3.3219,0,0x00,0xff,1000,variable_byte,84:1 a4:1 b6:1 d7:1 ea:1 0b:1 1d:1 3f:1
+C_flk_landing_series,strong,32,17,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,89:5 f9:5
+C_flk_landing_series,strong,32,18,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:10
+C_flk_landing_series,strong,32,19,10,4,1.9710,0,0x3f,0xc0,3000,high_nibble_variable,46:3 86:3 06:2 c6:2
+C_flk_landing_series,strong,32,20,10,10,3.3219,0,0xc0,0x3f,1000,variable_byte,33:1 1a:1 1d:1 20:1 22:1 25:1 28:1 2b:1
+C_flk_landing_series,strong,32,21,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fb:10
+C_flk_landing_series,strong,32,22,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+C_flk_landing_series,strong,32,23,10,3,1.3610,0,0xf0,0x0f,5000,low_nibble_variable,18:5 17:4 19:1
+C_flk_landing_series,strong,32,24,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,70:10
+C_flk_landing_series,strong,32,25,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f4:5 84:5
+C_flk_landing_series,strong,32,26,10,7,2.7219,0,0x0f,0xf0,2000,high_nibble_variable,90:2 70:2 00:2 80:1 50:1 e0:1 20:1
+C_flk_landing_series,strong,32,27,10,10,3.3219,0,0x00,0xff,1000,variable_byte,72:1 d8:1 a4:1 b6:1 d7:1 ea:1 0b:1 1d:1
+C_flk_landing_series,strong,32,28,10,2,1.0000,0,0x8f,0x70,5000,high_nibble_variable,f9:5 89:5
+C_flk_landing_series,strong,32,29,10,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:10
+C_flk_landing_series,strong,32,30,10,4,1.9710,0,0x3f,0xc0,3000,high_nibble_variable,86:3 c6:3 46:2 06:2
+C_flk_landing_series,strong,32,31,10,10,3.3219,0,0xc0,0x3f,1000,variable_byte,30:1 17:1 1a:1 1d:1 20:1 22:1 25:1 28:1
+D_ann_generated_stub_family,all,8,0,31,3,0.6595,0,0x2d,0xd2,8709,dominant_value_variable,ce:27 1c:3 1e:1
+D_ann_generated_stub_family,all,8,1,31,2,0.4587,0,0x6a,0x95,9032,dominant_value_variable,b0:28 25:3
+D_ann_generated_stub_family,all,8,2,31,3,0.6595,0,0x9a,0x65,8709,dominant_value_variable,01:27 65:3 00:1
+D_ann_generated_stub_family,all,8,3,31,2,0.4587,0,0xfa,0x05,9032,low_nibble_variable,03:28 06:3
+D_ann_generated_stub_family,all,8,4,31,3,0.6595,0,0x38,0xc7,8709,dominant_value_variable,98:27 1e:3 59:1
+D_ann_generated_stub_family,all,8,5,31,3,0.6595,0,0xa1,0x5e,8709,dominant_value_variable,fc:27 be:3 a0:1
+D_ann_generated_stub_family,all,8,6,31,3,0.6595,0,0x00,0xff,8709,dominant_value_variable,00:27 6a:3 d5:1
+D_ann_generated_stub_family,all,8,7,31,3,0.6595,0,0x90,0x6f,8709,dominant_value_variable,08:27 66:3 05:1
+D_ann_generated_stub_family,all,16,0,31,3,0.6595,0,0x2d,0xd2,8709,dominant_value_variable,ce:27 1c:3 1e:1
+D_ann_generated_stub_family,all,16,1,31,2,0.4587,0,0x6a,0x95,9032,dominant_value_variable,b0:28 25:3
+D_ann_generated_stub_family,all,16,2,31,3,0.6595,0,0x9a,0x65,8709,dominant_value_variable,01:27 65:3 00:1
+D_ann_generated_stub_family,all,16,3,31,2,0.4587,0,0xfa,0x05,9032,low_nibble_variable,03:28 06:3
+D_ann_generated_stub_family,all,16,4,31,3,0.6595,0,0x38,0xc7,8709,dominant_value_variable,98:27 1e:3 59:1
+D_ann_generated_stub_family,all,16,5,31,3,0.6595,0,0xa1,0x5e,8709,dominant_value_variable,fc:27 be:3 a0:1
+D_ann_generated_stub_family,all,16,6,31,3,0.6595,0,0x00,0xff,8709,dominant_value_variable,00:27 6a:3 d5:1
+D_ann_generated_stub_family,all,16,7,31,3,0.6595,0,0x90,0x6f,8709,dominant_value_variable,08:27 66:3 05:1
+D_ann_generated_stub_family,all,16,8,31,3,0.6595,0,0xc2,0x3d,8709,dominant_value_variable,08:27 25:3 31:1
+D_ann_generated_stub_family,all,16,9,31,3,0.6595,0,0x01,0xfe,8709,dominant_value_variable,02:27 5e:3 a8:1
+D_ann_generated_stub_family,all,16,10,31,3,0.6595,0,0x1a,0xe5,8709,dominant_value_variable,40:27 64:3 85:1
+D_ann_generated_stub_family,all,16,11,31,3,0.6595,0,0xc1,0x3e,8709,dominant_value_variable,02:27 10:3 3e:1
+D_ann_generated_stub_family,all,16,12,31,3,0.6595,0,0x37,0xc8,8709,dominant_value_variable,40:27 00:3 c8:1
+D_ann_generated_stub_family,all,16,13,31,3,0.6595,0,0xc1,0x3e,8709,dominant_value_variable,08:27 30:3 06:1
+D_ann_generated_stub_family,all,16,14,31,2,0.4587,0,0x2b,0xd4,9032,dominant_value_variable,04:28 d0:3
+D_ann_generated_stub_family,all,16,15,31,2,0.4587,0,0xf8,0x07,9032,low_nibble_variable,02:28 05:3
+D_ann_generated_stub_family,all,32,0,31,3,0.6595,0,0x2d,0xd2,8709,dominant_value_variable,ce:27 1c:3 1e:1
+D_ann_generated_stub_family,all,32,1,31,2,0.4587,0,0x6a,0x95,9032,dominant_value_variable,b0:28 25:3
+D_ann_generated_stub_family,all,32,2,31,3,0.6595,0,0x9a,0x65,8709,dominant_value_variable,01:27 65:3 00:1
+D_ann_generated_stub_family,all,32,3,31,2,0.4587,0,0xfa,0x05,9032,low_nibble_variable,03:28 06:3
+D_ann_generated_stub_family,all,32,4,31,3,0.6595,0,0x38,0xc7,8709,dominant_value_variable,98:27 1e:3 59:1
+D_ann_generated_stub_family,all,32,5,31,3,0.6595,0,0xa1,0x5e,8709,dominant_value_variable,fc:27 be:3 a0:1
+D_ann_generated_stub_family,all,32,6,31,3,0.6595,0,0x00,0xff,8709,dominant_value_variable,00:27 6a:3 d5:1
+D_ann_generated_stub_family,all,32,7,31,3,0.6595,0,0x90,0x6f,8709,dominant_value_variable,08:27 66:3 05:1
+D_ann_generated_stub_family,all,32,8,31,3,0.6595,0,0xc2,0x3d,8709,dominant_value_variable,08:27 25:3 31:1
+D_ann_generated_stub_family,all,32,9,31,3,0.6595,0,0x01,0xfe,8709,dominant_value_variable,02:27 5e:3 a8:1
+D_ann_generated_stub_family,all,32,10,31,3,0.6595,0,0x1a,0xe5,8709,dominant_value_variable,40:27 64:3 85:1
+D_ann_generated_stub_family,all,32,11,31,3,0.6595,0,0xc1,0x3e,8709,dominant_value_variable,02:27 10:3 3e:1
+D_ann_generated_stub_family,all,32,12,31,3,0.6595,0,0x37,0xc8,8709,dominant_value_variable,40:27 00:3 c8:1
+D_ann_generated_stub_family,all,32,13,31,3,0.6595,0,0xc1,0x3e,8709,dominant_value_variable,08:27 30:3 06:1
+D_ann_generated_stub_family,all,32,14,31,2,0.4587,0,0x2b,0xd4,9032,dominant_value_variable,04:28 d0:3
+D_ann_generated_stub_family,all,32,15,31,2,0.4587,0,0xf8,0x07,9032,low_nibble_variable,02:28 05:3
+D_ann_generated_stub_family,all,32,16,31,2,0.4587,0,0x83,0x7c,9032,dominant_value_variable,f0:28 8c:3
+D_ann_generated_stub_family,all,32,17,31,2,0.4587,0,0x2b,0xd4,9032,dominant_value_variable,20:28 f4:3
+D_ann_generated_stub_family,all,32,18,31,2,0.4587,0,0xf9,0x06,9032,low_nibble_variable,00:28 06:3
+D_ann_generated_stub_family,all,32,19,31,2,0.4587,0,0x0b,0xf4,9032,dominant_value_variable,f0:28 04:3
+D_ann_generated_stub_family,all,32,20,31,2,0.4587,0,0xdd,0x22,9032,sparse_bit_variable,20:28 02:3
+D_ann_generated_stub_family,all,32,21,31,2,0.4587,0,0xe2,0x1d,9032,dominant_value_variable,00:28 1d:3
+D_ann_generated_stub_family,all,32,22,31,5,2.1665,0,0x2a,0xd5,3548,variable_byte,65:11 e5:8 25:5 a5:4 f0:3
+D_ann_generated_stub_family,all,32,23,31,28,4.7363,0,0x00,0xff,967,variable_byte,00:3 78:2 ff:1 c2:1 b0:1 1b:1 7b:1 2d:1
+D_ann_generated_stub_family,all,32,24,31,18,3.9134,0,0xe0,0x1f,1935,variable_byte,07:6 00:3 10:2 15:2 03:2 04:2 0c:2 09:2
+D_ann_generated_stub_family,all,32,25,31,3,0.6595,0,0x4d,0xb2,8709,dominant_value_variable,92:27 00:3 b2:1
+D_ann_generated_stub_family,all,32,26,31,2,0.4587,0,0xfd,0x02,9032,low_nibble_variable,02:28 00:3
+D_ann_generated_stub_family,all,32,27,31,2,0.4587,0,0xf2,0x0d,9032,low_nibble_variable,0d:28 00:3
+D_ann_generated_stub_family,all,32,28,31,2,0.4587,0,0x5f,0xa0,9032,high_nibble_variable,a0:28 00:3
+D_ann_generated_stub_family,all,32,29,31,2,0.4587,0,0x75,0x8a,9032,dominant_value_variable,a8:28 22:3
+D_ann_generated_stub_family,all,32,30,31,2,0.4587,0,0x29,0xd6,9032,dominant_value_variable,74:28 a2:3
+D_ann_generated_stub_family,all,32,31,31,2,0.4587,0,0x5f,0xa0,9032,high_nibble_variable,a0:28 00:3
+D_ann_generated_stub_family,close,8,0,14,2,0.7496,0,0x2d,0xd2,7857,variable_byte,ce:11 1c:3
+D_ann_generated_stub_family,close,8,1,14,2,0.7496,0,0x6a,0x95,7857,variable_byte,b0:11 25:3
+D_ann_generated_stub_family,close,8,2,14,2,0.7496,0,0x9b,0x64,7857,variable_byte,01:11 65:3
+D_ann_generated_stub_family,close,8,3,14,2,0.7496,0,0xfa,0x05,7857,low_nibble_variable,03:11 06:3
+D_ann_generated_stub_family,close,8,4,14,2,0.7496,0,0x79,0x86,7857,variable_byte,98:11 1e:3
+D_ann_generated_stub_family,close,8,5,14,2,0.7496,0,0xbd,0x42,7857,sparse_bit_variable,fc:11 be:3
+D_ann_generated_stub_family,close,8,6,14,2,0.7496,0,0x95,0x6a,7857,variable_byte,00:11 6a:3
+D_ann_generated_stub_family,close,8,7,14,2,0.7496,0,0x91,0x6e,7857,variable_byte,08:11 66:3
+D_ann_generated_stub_family,close,16,0,14,2,0.7496,0,0x2d,0xd2,7857,variable_byte,ce:11 1c:3
+D_ann_generated_stub_family,close,16,1,14,2,0.7496,0,0x6a,0x95,7857,variable_byte,b0:11 25:3
+D_ann_generated_stub_family,close,16,2,14,2,0.7496,0,0x9b,0x64,7857,variable_byte,01:11 65:3
+D_ann_generated_stub_family,close,16,3,14,2,0.7496,0,0xfa,0x05,7857,low_nibble_variable,03:11 06:3
+D_ann_generated_stub_family,close,16,4,14,2,0.7496,0,0x79,0x86,7857,variable_byte,98:11 1e:3
+D_ann_generated_stub_family,close,16,5,14,2,0.7496,0,0xbd,0x42,7857,sparse_bit_variable,fc:11 be:3
+D_ann_generated_stub_family,close,16,6,14,2,0.7496,0,0x95,0x6a,7857,variable_byte,00:11 6a:3
+D_ann_generated_stub_family,close,16,7,14,2,0.7496,0,0x91,0x6e,7857,variable_byte,08:11 66:3
+D_ann_generated_stub_family,close,16,8,14,2,0.7496,0,0xd2,0x2d,7857,variable_byte,08:11 25:3
+D_ann_generated_stub_family,close,16,9,14,2,0.7496,0,0xa3,0x5c,7857,variable_byte,02:11 5e:3
+D_ann_generated_stub_family,close,16,10,14,2,0.7496,0,0xdb,0x24,7857,sparse_bit_variable,40:11 64:3
+D_ann_generated_stub_family,close,16,11,14,2,0.7496,0,0xed,0x12,7857,sparse_bit_variable,02:11 10:3
+D_ann_generated_stub_family,close,16,12,14,2,0.7496,0,0xbf,0x40,7857,high_nibble_variable,40:11 00:3
+D_ann_generated_stub_family,close,16,13,14,2,0.7496,0,0xc7,0x38,7857,variable_byte,08:11 30:3
+D_ann_generated_stub_family,close,16,14,14,2,0.7496,0,0x2b,0xd4,7857,variable_byte,04:11 d0:3
+D_ann_generated_stub_family,close,16,15,14,2,0.7496,0,0xf8,0x07,7857,low_nibble_variable,02:11 05:3
+D_ann_generated_stub_family,close,32,0,14,2,0.7496,0,0x2d,0xd2,7857,variable_byte,ce:11 1c:3
+D_ann_generated_stub_family,close,32,1,14,2,0.7496,0,0x6a,0x95,7857,variable_byte,b0:11 25:3
+D_ann_generated_stub_family,close,32,2,14,2,0.7496,0,0x9b,0x64,7857,variable_byte,01:11 65:3
+D_ann_generated_stub_family,close,32,3,14,2,0.7496,0,0xfa,0x05,7857,low_nibble_variable,03:11 06:3
+D_ann_generated_stub_family,close,32,4,14,2,0.7496,0,0x79,0x86,7857,variable_byte,98:11 1e:3
+D_ann_generated_stub_family,close,32,5,14,2,0.7496,0,0xbd,0x42,7857,sparse_bit_variable,fc:11 be:3
+D_ann_generated_stub_family,close,32,6,14,2,0.7496,0,0x95,0x6a,7857,variable_byte,00:11 6a:3
+D_ann_generated_stub_family,close,32,7,14,2,0.7496,0,0x91,0x6e,7857,variable_byte,08:11 66:3
+D_ann_generated_stub_family,close,32,8,14,2,0.7496,0,0xd2,0x2d,7857,variable_byte,08:11 25:3
+D_ann_generated_stub_family,close,32,9,14,2,0.7496,0,0xa3,0x5c,7857,variable_byte,02:11 5e:3
+D_ann_generated_stub_family,close,32,10,14,2,0.7496,0,0xdb,0x24,7857,sparse_bit_variable,40:11 64:3
+D_ann_generated_stub_family,close,32,11,14,2,0.7496,0,0xed,0x12,7857,sparse_bit_variable,02:11 10:3
+D_ann_generated_stub_family,close,32,12,14,2,0.7496,0,0xbf,0x40,7857,high_nibble_variable,40:11 00:3
+D_ann_generated_stub_family,close,32,13,14,2,0.7496,0,0xc7,0x38,7857,variable_byte,08:11 30:3
+D_ann_generated_stub_family,close,32,14,14,2,0.7496,0,0x2b,0xd4,7857,variable_byte,04:11 d0:3
+D_ann_generated_stub_family,close,32,15,14,2,0.7496,0,0xf8,0x07,7857,low_nibble_variable,02:11 05:3
+D_ann_generated_stub_family,close,32,16,14,2,0.7496,0,0x83,0x7c,7857,variable_byte,f0:11 8c:3
+D_ann_generated_stub_family,close,32,17,14,2,0.7496,0,0x2b,0xd4,7857,variable_byte,20:11 f4:3
+D_ann_generated_stub_family,close,32,18,14,2,0.7496,0,0xf9,0x06,7857,low_nibble_variable,00:11 06:3
+D_ann_generated_stub_family,close,32,19,14,2,0.7496,0,0x0b,0xf4,7857,variable_byte,f0:11 04:3
+D_ann_generated_stub_family,close,32,20,14,2,0.7496,0,0xdd,0x22,7857,sparse_bit_variable,20:11 02:3
+D_ann_generated_stub_family,close,32,21,14,2,0.7496,0,0xe2,0x1d,7857,variable_byte,00:11 1d:3
+D_ann_generated_stub_family,close,32,22,14,4,1.8092,0,0x2a,0xd5,3571,variable_byte,e5:5 65:5 f0:3 25:1
+D_ann_generated_stub_family,close,32,23,14,12,3.4677,0,0x00,0xff,2142,variable_byte,00:3 c2:1 78:1 b0:1 1b:1 7b:1 2d:1 e8:1
+D_ann_generated_stub_family,close,32,24,14,10,3.1820,0,0xe0,0x1f,2142,variable_byte,00:3 03:2 04:2 10:1 01:1 15:1 0f:1 0d:1
+D_ann_generated_stub_family,close,32,25,14,2,0.7496,0,0x6d,0x92,7857,variable_byte,92:11 00:3
+D_ann_generated_stub_family,close,32,26,14,2,0.7496,0,0xfd,0x02,7857,low_nibble_variable,02:11 00:3
+D_ann_generated_stub_family,close,32,27,14,2,0.7496,0,0xf2,0x0d,7857,low_nibble_variable,0d:11 00:3
+D_ann_generated_stub_family,close,32,28,14,2,0.7496,0,0x5f,0xa0,7857,high_nibble_variable,a0:11 00:3
+D_ann_generated_stub_family,close,32,29,14,2,0.7496,0,0x75,0x8a,7857,variable_byte,a8:11 22:3
+D_ann_generated_stub_family,close,32,30,14,2,0.7496,0,0x29,0xd6,7857,variable_byte,74:11 a2:3
+D_ann_generated_stub_family,close,32,31,14,2,0.7496,0,0x5f,0xa0,7857,high_nibble_variable,a0:11 00:3
+D_ann_generated_stub_family,exact,8,0,9,2,0.5033,0,0x2f,0xd0,8888,high_nibble_variable,ce:8 1e:1
+D_ann_generated_stub_family,exact,8,1,9,1,-0.0000,1,0xff,0x00,10000,fixed_byte,b0:9
+D_ann_generated_stub_family,exact,8,2,9,2,0.5033,0,0xfe,0x01,8888,low_nibble_variable,01:8 00:1
+D_ann_generated_stub_family,exact,8,3,9,1,-0.0000,1,0xff,0x00,10000,fixed_byte,03:9
+D_ann_generated_stub_family,exact,8,4,9,2,0.5033,0,0x3e,0xc1,8888,dominant_value_variable,98:8 59:1
+D_ann_generated_stub_family,exact,8,5,9,2,0.5033,0,0xa3,0x5c,8888,dominant_value_variable,fc:8 a0:1
+D_ann_generated_stub_family,exact,8,6,9,2,0.5033,0,0x2a,0xd5,8888,dominant_value_variable,00:8 d5:1
+D_ann_generated_stub_family,exact,8,7,9,2,0.5033,0,0xf2,0x0d,8888,low_nibble_variable,08:8 05:1
+D_ann_generated_stub_family,exact,16,0,9,2,0.5033,0,0x2f,0xd0,8888,high_nibble_variable,ce:8 1e:1
+D_ann_generated_stub_family,exact,16,1,9,1,-0.0000,1,0xff,0x00,10000,fixed_byte,b0:9
+D_ann_generated_stub_family,exact,16,2,9,2,0.5033,0,0xfe,0x01,8888,low_nibble_variable,01:8 00:1
+D_ann_generated_stub_family,exact,16,3,9,1,-0.0000,1,0xff,0x00,10000,fixed_byte,03:9
+D_ann_generated_stub_family,exact,16,4,9,2,0.5033,0,0x3e,0xc1,8888,dominant_value_variable,98:8 59:1
+D_ann_generated_stub_family,exact,16,5,9,2,0.5033,0,0xa3,0x5c,8888,dominant_value_variable,fc:8 a0:1
+D_ann_generated_stub_family,exact,16,6,9,2,0.5033,0,0x2a,0xd5,8888,dominant_value_variable,00:8 d5:1
+D_ann_generated_stub_family,exact,16,7,9,2,0.5033,0,0xf2,0x0d,8888,low_nibble_variable,08:8 05:1
+D_ann_generated_stub_family,exact,16,8,9,2,0.5033,0,0xc6,0x39,8888,dominant_value_variable,08:8 31:1
+D_ann_generated_stub_family,exact,16,9,9,2,0.5033,0,0x55,0xaa,8888,dominant_value_variable,02:8 a8:1
+D_ann_generated_stub_family,exact,16,10,9,2,0.5033,0,0x3a,0xc5,8888,dominant_value_variable,40:8 85:1
+D_ann_generated_stub_family,exact,16,11,9,2,0.5033,0,0xc3,0x3c,8888,dominant_value_variable,02:8 3e:1
+D_ann_generated_stub_family,exact,16,12,9,2,0.5033,0,0x77,0x88,8888,sparse_bit_variable,40:8 c8:1
+D_ann_generated_stub_family,exact,16,13,9,2,0.5033,0,0xf1,0x0e,8888,low_nibble_variable,08:8 06:1
+D_ann_generated_stub_family,exact,16,14,9,1,-0.0000,1,0xff,0x00,10000,fixed_byte,04:9
+D_ann_generated_stub_family,exact,16,15,9,1,-0.0000,1,0xff,0x00,10000,fixed_byte,02:9
+D_ann_generated_stub_family,exact,32,0,9,2,0.5033,0,0x2f,0xd0,8888,high_nibble_variable,ce:8 1e:1
+D_ann_generated_stub_family,exact,32,1,9,1,-0.0000,1,0xff,0x00,10000,fixed_byte,b0:9
+D_ann_generated_stub_family,exact,32,2,9,2,0.5033,0,0xfe,0x01,8888,low_nibble_variable,01:8 00:1
+D_ann_generated_stub_family,exact,32,3,9,1,-0.0000,1,0xff,0x00,10000,fixed_byte,03:9
+D_ann_generated_stub_family,exact,32,4,9,2,0.5033,0,0x3e,0xc1,8888,dominant_value_variable,98:8 59:1
+D_ann_generated_stub_family,exact,32,5,9,2,0.5033,0,0xa3,0x5c,8888,dominant_value_variable,fc:8 a0:1
+D_ann_generated_stub_family,exact,32,6,9,2,0.5033,0,0x2a,0xd5,8888,dominant_value_variable,00:8 d5:1
+D_ann_generated_stub_family,exact,32,7,9,2,0.5033,0,0xf2,0x0d,8888,low_nibble_variable,08:8 05:1
+D_ann_generated_stub_family,exact,32,8,9,2,0.5033,0,0xc6,0x39,8888,dominant_value_variable,08:8 31:1
+D_ann_generated_stub_family,exact,32,9,9,2,0.5033,0,0x55,0xaa,8888,dominant_value_variable,02:8 a8:1
+D_ann_generated_stub_family,exact,32,10,9,2,0.5033,0,0x3a,0xc5,8888,dominant_value_variable,40:8 85:1
+D_ann_generated_stub_family,exact,32,11,9,2,0.5033,0,0xc3,0x3c,8888,dominant_value_variable,02:8 3e:1
+D_ann_generated_stub_family,exact,32,12,9,2,0.5033,0,0x77,0x88,8888,sparse_bit_variable,40:8 c8:1
+D_ann_generated_stub_family,exact,32,13,9,2,0.5033,0,0xf1,0x0e,8888,low_nibble_variable,08:8 06:1
+D_ann_generated_stub_family,exact,32,14,9,1,-0.0000,1,0xff,0x00,10000,fixed_byte,04:9
+D_ann_generated_stub_family,exact,32,15,9,1,-0.0000,1,0xff,0x00,10000,fixed_byte,02:9
+D_ann_generated_stub_family,exact,32,16,9,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f0:9
+D_ann_generated_stub_family,exact,32,17,9,1,-0.0000,1,0xff,0x00,10000,fixed_byte,20:9
+D_ann_generated_stub_family,exact,32,18,9,1,-0.0000,1,0xff,0x00,10000,fixed_byte,00:9
+D_ann_generated_stub_family,exact,32,19,9,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f0:9
+D_ann_generated_stub_family,exact,32,20,9,1,-0.0000,1,0xff,0x00,10000,fixed_byte,20:9
+D_ann_generated_stub_family,exact,32,21,9,1,-0.0000,1,0xff,0x00,10000,fixed_byte,00:9
+D_ann_generated_stub_family,exact,32,22,9,3,1.5850,0,0x3f,0xc0,3333,high_nibble_variable,25:3 65:3 a5:3
+D_ann_generated_stub_family,exact,32,23,9,9,3.1699,0,0x00,0xff,1111,variable_byte,ff:1 71:1 b8:1 50:1 ae:1 9c:1 e7:1 0e:1
+D_ann_generated_stub_family,exact,32,24,9,8,2.9477,0,0xe0,0x1f,2222,variable_byte,09:2 11:1 15:1 16:1 17:1 10:1 02:1 07:1
+D_ann_generated_stub_family,exact,32,25,9,2,0.5033,0,0xdf,0x20,8888,high_nibble_variable,92:8 b2:1
+D_ann_generated_stub_family,exact,32,26,9,1,-0.0000,1,0xff,0x00,10000,fixed_byte,02:9
+D_ann_generated_stub_family,exact,32,27,9,1,-0.0000,1,0xff,0x00,10000,fixed_byte,0d:9
+D_ann_generated_stub_family,exact,32,28,9,1,-0.0000,1,0xff,0x00,10000,fixed_byte,a0:9
+D_ann_generated_stub_family,exact,32,29,9,1,-0.0000,1,0xff,0x00,10000,fixed_byte,a8:9
+D_ann_generated_stub_family,exact,32,30,9,1,-0.0000,1,0xff,0x00,10000,fixed_byte,74:9
+D_ann_generated_stub_family,exact,32,31,9,1,-0.0000,1,0xff,0x00,10000,fixed_byte,a0:9
+D_ann_generated_stub_family,far,8,0,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,ce:8
+D_ann_generated_stub_family,far,8,1,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,b0:8
+D_ann_generated_stub_family,far,8,2,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:8
+D_ann_generated_stub_family,far,8,3,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,03:8
+D_ann_generated_stub_family,far,8,4,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,98:8
+D_ann_generated_stub_family,far,8,5,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fc:8
+D_ann_generated_stub_family,far,8,6,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,00:8
+D_ann_generated_stub_family,far,8,7,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,08:8
+D_ann_generated_stub_family,far,16,0,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,ce:8
+D_ann_generated_stub_family,far,16,1,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,b0:8
+D_ann_generated_stub_family,far,16,2,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:8
+D_ann_generated_stub_family,far,16,3,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,03:8
+D_ann_generated_stub_family,far,16,4,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,98:8
+D_ann_generated_stub_family,far,16,5,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fc:8
+D_ann_generated_stub_family,far,16,6,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,00:8
+D_ann_generated_stub_family,far,16,7,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,08:8
+D_ann_generated_stub_family,far,16,8,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,08:8
+D_ann_generated_stub_family,far,16,9,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,02:8
+D_ann_generated_stub_family,far,16,10,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,40:8
+D_ann_generated_stub_family,far,16,11,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,02:8
+D_ann_generated_stub_family,far,16,12,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,40:8
+D_ann_generated_stub_family,far,16,13,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,08:8
+D_ann_generated_stub_family,far,16,14,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,04:8
+D_ann_generated_stub_family,far,16,15,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,02:8
+D_ann_generated_stub_family,far,32,0,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,ce:8
+D_ann_generated_stub_family,far,32,1,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,b0:8
+D_ann_generated_stub_family,far,32,2,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,01:8
+D_ann_generated_stub_family,far,32,3,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,03:8
+D_ann_generated_stub_family,far,32,4,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,98:8
+D_ann_generated_stub_family,far,32,5,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,fc:8
+D_ann_generated_stub_family,far,32,6,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,00:8
+D_ann_generated_stub_family,far,32,7,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,08:8
+D_ann_generated_stub_family,far,32,8,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,08:8
+D_ann_generated_stub_family,far,32,9,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,02:8
+D_ann_generated_stub_family,far,32,10,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,40:8
+D_ann_generated_stub_family,far,32,11,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,02:8
+D_ann_generated_stub_family,far,32,12,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,40:8
+D_ann_generated_stub_family,far,32,13,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,08:8
+D_ann_generated_stub_family,far,32,14,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,04:8
+D_ann_generated_stub_family,far,32,15,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,02:8
+D_ann_generated_stub_family,far,32,16,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f0:8
+D_ann_generated_stub_family,far,32,17,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,20:8
+D_ann_generated_stub_family,far,32,18,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,00:8
+D_ann_generated_stub_family,far,32,19,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,f0:8
+D_ann_generated_stub_family,far,32,20,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,20:8
+D_ann_generated_stub_family,far,32,21,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,00:8
+D_ann_generated_stub_family,far,32,22,8,4,1.8113,0,0x3f,0xc0,3750,high_nibble_variable,e5:3 65:3 25:1 a5:1
+D_ann_generated_stub_family,far,32,23,8,8,3.0000,0,0x00,0xff,1250,variable_byte,62:1 e0:1 35:1 18:1 f9:1 70:1 78:1 7f:1
+D_ann_generated_stub_family,far,32,24,8,4,1.7500,0,0xf0,0x0f,5000,low_nibble_variable,07:4 0c:2 0a:1 0b:1
+D_ann_generated_stub_family,far,32,25,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,92:8
+D_ann_generated_stub_family,far,32,26,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,02:8
+D_ann_generated_stub_family,far,32,27,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,0d:8
+D_ann_generated_stub_family,far,32,28,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,a0:8
+D_ann_generated_stub_family,far,32,29,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,a8:8
+D_ann_generated_stub_family,far,32,30,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,74:8
+D_ann_generated_stub_family,far,32,31,8,1,-0.0000,1,0xff,0x00,10000,fixed_byte,a0:8
+D_ann_generated_stub_family,strong,8,0,23,3,0.8077,0,0x2d,0xd2,8260,dominant_value_variable,ce:19 1c:3 1e:1
+D_ann_generated_stub_family,strong,8,1,23,2,0.5586,0,0x6a,0x95,8695,dominant_value_variable,b0:20 25:3
+D_ann_generated_stub_family,strong,8,2,23,3,0.8077,0,0x9a,0x65,8260,dominant_value_variable,01:19 65:3 00:1
+D_ann_generated_stub_family,strong,8,3,23,2,0.5586,0,0xfa,0x05,8695,low_nibble_variable,03:20 06:3
+D_ann_generated_stub_family,strong,8,4,23,3,0.8077,0,0x38,0xc7,8260,dominant_value_variable,98:19 1e:3 59:1
+D_ann_generated_stub_family,strong,8,5,23,3,0.8077,0,0xa1,0x5e,8260,dominant_value_variable,fc:19 be:3 a0:1
+D_ann_generated_stub_family,strong,8,6,23,3,0.8077,0,0x00,0xff,8260,dominant_value_variable,00:19 6a:3 d5:1
+D_ann_generated_stub_family,strong,8,7,23,3,0.8077,0,0x90,0x6f,8260,dominant_value_variable,08:19 66:3 05:1
+D_ann_generated_stub_family,strong,16,0,23,3,0.8077,0,0x2d,0xd2,8260,dominant_value_variable,ce:19 1c:3 1e:1
+D_ann_generated_stub_family,strong,16,1,23,2,0.5586,0,0x6a,0x95,8695,dominant_value_variable,b0:20 25:3
+D_ann_generated_stub_family,strong,16,2,23,3,0.8077,0,0x9a,0x65,8260,dominant_value_variable,01:19 65:3 00:1
+D_ann_generated_stub_family,strong,16,3,23,2,0.5586,0,0xfa,0x05,8695,low_nibble_variable,03:20 06:3
+D_ann_generated_stub_family,strong,16,4,23,3,0.8077,0,0x38,0xc7,8260,dominant_value_variable,98:19 1e:3 59:1
+D_ann_generated_stub_family,strong,16,5,23,3,0.8077,0,0xa1,0x5e,8260,dominant_value_variable,fc:19 be:3 a0:1
+D_ann_generated_stub_family,strong,16,6,23,3,0.8077,0,0x00,0xff,8260,dominant_value_variable,00:19 6a:3 d5:1
+D_ann_generated_stub_family,strong,16,7,23,3,0.8077,0,0x90,0x6f,8260,dominant_value_variable,08:19 66:3 05:1
+D_ann_generated_stub_family,strong,16,8,23,3,0.8077,0,0xc2,0x3d,8260,dominant_value_variable,08:19 25:3 31:1
+D_ann_generated_stub_family,strong,16,9,23,3,0.8077,0,0x01,0xfe,8260,dominant_value_variable,02:19 5e:3 a8:1
+D_ann_generated_stub_family,strong,16,10,23,3,0.8077,0,0x1a,0xe5,8260,dominant_value_variable,40:19 64:3 85:1
+D_ann_generated_stub_family,strong,16,11,23,3,0.8077,0,0xc1,0x3e,8260,dominant_value_variable,02:19 10:3 3e:1
+D_ann_generated_stub_family,strong,16,12,23,3,0.8077,0,0x37,0xc8,8260,dominant_value_variable,40:19 00:3 c8:1
+D_ann_generated_stub_family,strong,16,13,23,3,0.8077,0,0xc1,0x3e,8260,dominant_value_variable,08:19 30:3 06:1
+D_ann_generated_stub_family,strong,16,14,23,2,0.5586,0,0x2b,0xd4,8695,dominant_value_variable,04:20 d0:3
+D_ann_generated_stub_family,strong,16,15,23,2,0.5586,0,0xf8,0x07,8695,low_nibble_variable,02:20 05:3
+D_ann_generated_stub_family,strong,32,0,23,3,0.8077,0,0x2d,0xd2,8260,dominant_value_variable,ce:19 1c:3 1e:1
+D_ann_generated_stub_family,strong,32,1,23,2,0.5586,0,0x6a,0x95,8695,dominant_value_variable,b0:20 25:3
+D_ann_generated_stub_family,strong,32,2,23,3,0.8077,0,0x9a,0x65,8260,dominant_value_variable,01:19 65:3 00:1
+D_ann_generated_stub_family,strong,32,3,23,2,0.5586,0,0xfa,0x05,8695,low_nibble_variable,03:20 06:3
+D_ann_generated_stub_family,strong,32,4,23,3,0.8077,0,0x38,0xc7,8260,dominant_value_variable,98:19 1e:3 59:1
+D_ann_generated_stub_family,strong,32,5,23,3,0.8077,0,0xa1,0x5e,8260,dominant_value_variable,fc:19 be:3 a0:1
+D_ann_generated_stub_family,strong,32,6,23,3,0.8077,0,0x00,0xff,8260,dominant_value_variable,00:19 6a:3 d5:1
+D_ann_generated_stub_family,strong,32,7,23,3,0.8077,0,0x90,0x6f,8260,dominant_value_variable,08:19 66:3 05:1
+D_ann_generated_stub_family,strong,32,8,23,3,0.8077,0,0xc2,0x3d,8260,dominant_value_variable,08:19 25:3 31:1
+D_ann_generated_stub_family,strong,32,9,23,3,0.8077,0,0x01,0xfe,8260,dominant_value_variable,02:19 5e:3 a8:1
+D_ann_generated_stub_family,strong,32,10,23,3,0.8077,0,0x1a,0xe5,8260,dominant_value_variable,40:19 64:3 85:1
+D_ann_generated_stub_family,strong,32,11,23,3,0.8077,0,0xc1,0x3e,8260,dominant_value_variable,02:19 10:3 3e:1
+D_ann_generated_stub_family,strong,32,12,23,3,0.8077,0,0x37,0xc8,8260,dominant_value_variable,40:19 00:3 c8:1
+D_ann_generated_stub_family,strong,32,13,23,3,0.8077,0,0xc1,0x3e,8260,dominant_value_variable,08:19 30:3 06:1
+D_ann_generated_stub_family,strong,32,14,23,2,0.5586,0,0x2b,0xd4,8695,dominant_value_variable,04:20 d0:3
+D_ann_generated_stub_family,strong,32,15,23,2,0.5586,0,0xf8,0x07,8695,low_nibble_variable,02:20 05:3
+D_ann_generated_stub_family,strong,32,16,23,2,0.5586,0,0x83,0x7c,8695,dominant_value_variable,f0:20 8c:3
+D_ann_generated_stub_family,strong,32,17,23,2,0.5586,0,0x2b,0xd4,8695,dominant_value_variable,20:20 f4:3
+D_ann_generated_stub_family,strong,32,18,23,2,0.5586,0,0xf9,0x06,8695,low_nibble_variable,00:20 06:3
+D_ann_generated_stub_family,strong,32,19,23,2,0.5586,0,0x0b,0xf4,8695,dominant_value_variable,f0:20 04:3
+D_ann_generated_stub_family,strong,32,20,23,2,0.5586,0,0xdd,0x22,8695,sparse_bit_variable,20:20 02:3
+D_ann_generated_stub_family,strong,32,21,23,2,0.5586,0,0xe2,0x1d,8695,dominant_value_variable,00:20 1d:3
+D_ann_generated_stub_family,strong,32,22,23,5,2.2140,0,0x2a,0xd5,3478,variable_byte,65:8 e5:5 25:4 f0:3 a5:3
+D_ann_generated_stub_family,strong,32,23,23,21,4.3168,0,0x00,0xff,1304,variable_byte,00:3 ff:1 c2:1 78:1 b0:1 1b:1 7b:1 2d:1
+D_ann_generated_stub_family,strong,32,24,23,15,3.7951,0,0xe0,0x1f,1304,variable_byte,00:3 10:2 15:2 03:2 04:2 07:2 09:2 11:1
+D_ann_generated_stub_family,strong,32,25,23,3,0.8077,0,0x4d,0xb2,8260,dominant_value_variable,92:19 00:3 b2:1
+D_ann_generated_stub_family,strong,32,26,23,2,0.5586,0,0xfd,0x02,8695,low_nibble_variable,02:20 00:3
+D_ann_generated_stub_family,strong,32,27,23,2,0.5586,0,0xf2,0x0d,8695,low_nibble_variable,0d:20 00:3
+D_ann_generated_stub_family,strong,32,28,23,2,0.5586,0,0x5f,0xa0,8695,high_nibble_variable,a0:20 00:3
+D_ann_generated_stub_family,strong,32,29,23,2,0.5586,0,0x75,0x8a,8695,dominant_value_variable,a8:20 22:3
+D_ann_generated_stub_family,strong,32,30,23,2,0.5586,0,0x29,0xd6,8695,dominant_value_variable,74:20 a2:3
+D_ann_generated_stub_family,strong,32,31,23,2,0.5586,0,0x5f,0xa0,8695,high_nibble_variable,a0:20 00:3

@@ -205,6 +205,94 @@ LEARNER_PROFILES: dict[str, dict[str, int]] = {
         "block_include_entry_only": 1,
         "component_enable": 1,
     },
+    "kernel_buckets_strict": {
+        "pcrel_exact_landing_bonus": 4,
+        "pcrel_near_landing_bonus": 3,
+        "internal_pcrel_min_score": 29,
+        "internal_pcrel_dense_insn": 0,
+        "slot_template_min_usable": 4,
+        "slot_template_min_internal": 4,
+        "operand_model_min_usable": 64,
+        "operand_model_min_internal": 64,
+        "operand_model_max_reject_bps": 3000,
+        "operand_model_min_negative": 8,
+        "cfg_edge_min_score": 29,
+        "cfg_edge_allow_dense_insn": 0,
+        "cfg_edge_allow_anchor_landing": 0,
+        "cfg_cluster_min_nodes": 2,
+        "block_extent_enable": 1,
+        "block_include_entry_only": 0,
+        "component_enable": 1,
+        "kernel_bucket_enable": 1,
+        "kernel_bucket_close_distance": 0x20,
+    },
+    "kernel_buckets_broad": {
+        "pcrel_exact_landing_bonus": 4,
+        "pcrel_near_landing_bonus": 3,
+        "internal_pcrel_min_score": 20,
+        "internal_pcrel_dense_insn": 1,
+        "slot_template_min_usable": 1,
+        "slot_template_min_internal": 1,
+        "operand_model_min_usable": 16,
+        "operand_model_min_internal": 16,
+        "operand_model_max_reject_bps": 4000,
+        "operand_model_min_negative": 8,
+        "cfg_edge_min_score": 20,
+        "cfg_edge_allow_dense_insn": 1,
+        "cfg_edge_allow_anchor_landing": 1,
+        "cfg_cluster_min_nodes": 1,
+        "block_extent_enable": 1,
+        "block_include_entry_only": 1,
+        "component_enable": 1,
+        "kernel_bucket_enable": 1,
+        "kernel_bucket_close_distance": 0x40,
+    },
+    "bucket_fields_strict": {
+        "pcrel_exact_landing_bonus": 4,
+        "pcrel_near_landing_bonus": 3,
+        "internal_pcrel_min_score": 29,
+        "internal_pcrel_dense_insn": 0,
+        "slot_template_min_usable": 4,
+        "slot_template_min_internal": 4,
+        "operand_model_min_usable": 64,
+        "operand_model_min_internal": 64,
+        "operand_model_max_reject_bps": 3000,
+        "operand_model_min_negative": 8,
+        "cfg_edge_min_score": 29,
+        "cfg_edge_allow_dense_insn": 0,
+        "cfg_edge_allow_anchor_landing": 0,
+        "cfg_cluster_min_nodes": 2,
+        "block_extent_enable": 1,
+        "block_include_entry_only": 0,
+        "component_enable": 1,
+        "kernel_bucket_enable": 1,
+        "kernel_bucket_close_distance": 0x20,
+        "bucket_field_enable": 1,
+        "bucket_field_width": 32,
+    },
+    "bucket_fields_broad": {
+        "pcrel_exact_landing_bonus": 4,
+        "pcrel_near_landing_bonus": 3,
+        "internal_pcrel_min_score": 20,
+        "internal_pcrel_dense_insn": 1,
+        "slot_template_min_usable": 1,
+        "slot_template_min_internal": 1,
+        "operand_model_min_usable": 16,
+        "operand_model_min_internal": 16,
+        "operand_model_max_reject_bps": 4000,
+        "operand_model_min_negative": 8,
+        "cfg_edge_min_score": 20,
+        "cfg_edge_allow_dense_insn": 1,
+        "cfg_edge_allow_anchor_landing": 1,
+        "cfg_cluster_min_nodes": 1,
+        "block_extent_enable": 1,
+        "block_include_entry_only": 1,
+        "component_enable": 1,
+        "kernel_bucket_enable": 1,
+        "kernel_bucket_close_distance": 0x40,
+        "bucket_field_enable": 1,
+        "bucket_field_width": 32,
+    },
     "template_strict": {"template_threshold": 7, "repeat_bonus": 1},
     "template_aggressive": {"template_threshold": 3, "repeat_bonus": 3},
     "landing_strict": {"landing_margin": 4, "abc_stride_bonus": 6},
@@ -1757,6 +1845,611 @@ def build_block_component_rows(
     return rows, dispatch_rows
 
 
+def parse_counter_text(text: object) -> Counter[str]:
+    counts: Counter[str] = Counter()
+    for token in str(text).split():
+        if ":" not in token:
+            continue
+        key, value = token.rsplit(":", 1)
+        try:
+            counts[key] += int(value)
+        except ValueError:
+            continue
+    return counts
+
+
+def dispatch_component_is_close(row: dict[str, object], close_distance: int) -> bool:
+    relation = str(row.get("relation", ""))
+    if relation in {"", "unmapped"}:
+        return False
+    if relation == "nearest_block_start":
+        return obj_int(row, "distance", 10**9) <= close_distance
+    return True
+
+
+def confidence_rank(confidence: str) -> int:
+    return {
+        "strong": 0,
+        "medium": 1,
+        "inferred": 2,
+        "weak": 3,
+    }.get(confidence, 9)
+
+
+def classify_component_kernel_bucket(
+    component: dict[str, object],
+    dispatch_rows: list[dict[str, object]],
+    close_distance: int,
+) -> tuple[str, str, list[str]]:
+    tables = Counter(str(row["table"]) for row in dispatch_rows)
+    close_rows = [row for row in dispatch_rows if dispatch_component_is_close(row, close_distance)]
+    far_rows = [
+        row for row in dispatch_rows
+        if row["relation"] == "nearest_block_start" and not dispatch_component_is_close(row, close_distance)
+    ]
+    exact_rows = [row for row in dispatch_rows if row["relation"] == "exact_block_start"]
+    successor_rows = [row for row in dispatch_rows if row["relation"] == "successor_node"]
+    region_counts = parse_counter_text(component.get("region_counts", ""))
+    evidence: list[str] = []
+
+    if tables:
+        evidence.append("dispatch_tables_%s" % "".join(sorted(tables)))
+    if close_rows:
+        evidence.append("close_dispatch_%d" % len(close_rows))
+    if far_rows:
+        evidence.append("far_dispatch_%d" % len(far_rows))
+    if exact_rows:
+        evidence.append("exact_dispatch_%d" % len(exact_rows))
+    if successor_rows:
+        evidence.append("successor_dispatch_%d" % len(successor_rows))
+
+    if tables.get("D"):
+        bucket = "D_ann_generated_stub_family"
+        confidence = "strong" if close_rows or exact_rows else "weak"
+        evidence.append("ann_dispatch_table_D")
+        return bucket, confidence, evidence
+
+    if tables.get("C") and any(obj_int(row, "index") == 1 for row in dispatch_rows):
+        bucket = "C_flk_control_anchor"
+        confidence = "strong" if close_rows else "medium"
+        evidence.append("C1_0x700169a4_anchor")
+        return bucket, confidence, evidence
+
+    if tables:
+        table_key = "".join(sorted(tables))
+        bucket = "%s_flk_landing_series" % table_key
+        if exact_rows or successor_rows or len(close_rows) >= 2:
+            confidence = "strong"
+        elif close_rows:
+            confidence = "medium"
+        else:
+            confidence = "weak"
+        evidence.append("abc_dispatch_landing_series")
+        return bucket, confidence, evidence
+
+    if region_counts.get("ann_dense"):
+        return "ann_body_component", "inferred", ["no_dispatch_ann_dense_body"]
+    if region_counts.get("flk_dense"):
+        return "flk_body_component", "inferred", ["no_dispatch_flk_dense_body"]
+    return "unmapped_component", "weak", ["no_dispatch_no_dense_region"]
+
+
+def build_kernel_bucket_rows(
+    component_rows: list[dict[str, object]],
+    dispatch_component_rows: list[dict[str, object]],
+    profile: dict[str, int] | None = None,
+) -> tuple[list[dict[str, object]], list[dict[str, object]], list[dict[str, object]]]:
+    profile = profile or {}
+    if not profile.get("kernel_bucket_enable"):
+        return [], [], []
+
+    close_distance = profile.get("kernel_bucket_close_distance", 0x40)
+    dispatch_by_component: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for row in dispatch_component_rows:
+        component_id = str(row.get("component_id", ""))
+        if component_id:
+            dispatch_by_component[component_id].append(row)
+
+    component_kernel_rows: list[dict[str, object]] = []
+    component_kernel_by_id: dict[str, dict[str, object]] = {}
+    for component in component_rows:
+        component_id = str(component["component_id"])
+        dispatches = dispatch_by_component.get(component_id, [])
+        bucket, confidence, evidence = classify_component_kernel_bucket(component, dispatches, close_distance)
+        close_rows = [row for row in dispatches if dispatch_component_is_close(row, close_distance)]
+        far_rows = [
+            row for row in dispatches
+            if row["relation"] == "nearest_block_start" and not dispatch_component_is_close(row, close_distance)
+        ]
+        exact_rows = [row for row in dispatches if row["relation"] == "exact_block_start"]
+        successor_rows = [row for row in dispatches if row["relation"] == "successor_node"]
+        tables = Counter(str(row["table"]) for row in dispatches)
+        relations = Counter(str(row["relation"]) for row in dispatches)
+        indices = [
+            "%s[%s]" % (row["table"], row["index"])
+            for row in sorted(dispatches, key=lambda item: (str(item["table"]), obj_int(item, "index")))
+        ]
+        item = {
+            "component_id": component_id,
+            "kernel_bucket": bucket,
+            "bucket_confidence": confidence,
+            "component_kind": component["component_kind"],
+            "region_counts": component["region_counts"],
+            "node_count": component["node_count"],
+            "known_block_count": component["known_block_count"],
+            "edge_count": component["edge_count"],
+            "dispatch_count": len(dispatches),
+            "close_dispatch_count": len(close_rows),
+            "far_dispatch_count": len(far_rows),
+            "exact_dispatch_count": len(exact_rows),
+            "successor_dispatch_count": len(successor_rows),
+            "tables": " ".join("%s:%d" % (k, v) for k, v in sorted(tables.items())),
+            "indices": " ".join(indices),
+            "relations": " ".join("%s:%d" % (k, v) for k, v in relations.most_common()),
+            "addr_min": component["addr_min"],
+            "addr_max": component["addr_max"],
+            "evidence": ";".join(evidence),
+        }
+        component_kernel_rows.append(item)
+        component_kernel_by_id[component_id] = item
+
+    bucket_groups: dict[str, list[dict[str, object]]] = defaultdict(list)
+    for row in component_kernel_rows:
+        bucket_groups[str(row["kernel_bucket"])].append(row)
+
+    bucket_rows: list[dict[str, object]] = []
+    for bucket, rows in bucket_groups.items():
+        confidence = sorted({str(row["bucket_confidence"]) for row in rows}, key=confidence_rank)[0]
+        regions: Counter[str] = Counter()
+        tables: Counter[str] = Counter()
+        evidence: Counter[str] = Counter()
+        addr_values = []
+        for row in rows:
+            regions.update(parse_counter_text(row["region_counts"]))
+            tables.update(parse_counter_text(row["tables"]))
+            for token in str(row["evidence"]).split(";"):
+                if token:
+                    evidence[token] += 1
+            for key in ("addr_min", "addr_max"):
+                value = parse_hex(row[key])
+                if value is not None:
+                    addr_values.append(value)
+        bucket_rows.append(
+            {
+                "kernel_bucket": bucket,
+                "bucket_confidence": confidence,
+                "component_count": len(rows),
+                "dispatch_count": sum(obj_int(row, "dispatch_count") for row in rows),
+                "close_dispatch_count": sum(obj_int(row, "close_dispatch_count") for row in rows),
+                "far_dispatch_count": sum(obj_int(row, "far_dispatch_count") for row in rows),
+                "exact_dispatch_count": sum(obj_int(row, "exact_dispatch_count") for row in rows),
+                "successor_dispatch_count": sum(obj_int(row, "successor_dispatch_count") for row in rows),
+                "linear_components": sum(1 for row in rows if row["component_kind"] == "linear_chain"),
+                "branch_components": sum(1 for row in rows if row["component_kind"] == "branch_or_join"),
+                "known_block_count": sum(obj_int(row, "known_block_count") for row in rows),
+                "edge_count": sum(obj_int(row, "edge_count") for row in rows),
+                "regions": " ".join("%s:%d" % (k, v) for k, v in regions.most_common()),
+                "tables": " ".join("%s:%d" % (k, v) for k, v in sorted(tables.items())),
+                "component_ids": " ".join(str(row["component_id"]) for row in rows),
+                "addr_min": hx(min(addr_values) if addr_values else None),
+                "addr_max": hx(max(addr_values) if addr_values else None),
+                "evidence": " ".join("%s:%d" % (k, v) for k, v in evidence.most_common(8)),
+            }
+        )
+
+    dispatch_kernel_rows: list[dict[str, object]] = []
+    for row in dispatch_component_rows:
+        component_id = str(row.get("component_id", ""))
+        component_kernel = component_kernel_by_id.get(component_id)
+        dispatch_kernel_rows.append(
+            {
+                "table": row["table"],
+                "index": row["index"],
+                "target": row["target"],
+                "target_region": row["target_region"],
+                "relation": row["relation"],
+                "close_relation": int(dispatch_component_is_close(row, close_distance)),
+                "component_id": component_id,
+                "kernel_bucket": "" if component_kernel is None else component_kernel["kernel_bucket"],
+                "bucket_confidence": "" if component_kernel is None else component_kernel["bucket_confidence"],
+                "distance": row["distance"],
+                "block_start": row["block_start"],
+                "block_end": row["block_end"],
+                "block_confidence": row["block_confidence"],
+            }
+        )
+
+    component_kernel_rows.sort(key=lambda row: (str(row["kernel_bucket"]), parse_hex(row["addr_min"]) or 0))
+    bucket_rows.sort(
+        key=lambda row: (
+            confidence_rank(str(row["bucket_confidence"])),
+            -obj_int(row, "dispatch_count"),
+            str(row["kernel_bucket"]),
+        )
+    )
+    dispatch_kernel_rows.sort(key=lambda row: (row["table"], obj_int(row, "index")))
+    return bucket_rows, component_kernel_rows, dispatch_kernel_rows
+
+
+def counter_summary(values: Iterable[object], limit: int = 8) -> str:
+    counts = Counter(str(value) for value in values)
+    return " ".join("%s:%d" % (k, v) for k, v in counts.most_common(limit))
+
+
+def byte_counter_summary(values: Iterable[int], limit: int = 8) -> str:
+    counts = Counter(values)
+    return " ".join("%02x:%d" % (k, v) for k, v in counts.most_common(limit))
+
+
+def field_kind_for_bits(variable_bits: int, dominant_ratio_bps: int) -> str:
+    if variable_bits == 0:
+        return "fixed_byte"
+    if variable_bits & 0xF0 == 0 and variable_bits & 0x0F:
+        return "low_nibble_variable"
+    if variable_bits & 0x0F == 0 and variable_bits & 0xF0:
+        return "high_nibble_variable"
+    if variable_bits.bit_count() <= 2:
+        return "sparse_bit_variable"
+    if dominant_ratio_bps >= 8000:
+        return "dominant_value_variable"
+    return "variable_byte"
+
+
+def build_bucket_field_sample_rows(
+    data: bytes,
+    sections: list[A.Section],
+    dispatch_kernel_rows: list[dict[str, object]],
+    profile: dict[str, int] | None = None,
+) -> list[dict[str, object]]:
+    profile = profile or {}
+    if not profile.get("bucket_field_enable"):
+        return []
+    width = profile.get("bucket_field_width", 32)
+    rows: list[dict[str, object]] = []
+    for row in dispatch_kernel_rows:
+        bucket = str(row.get("kernel_bucket", ""))
+        target = parse_hex(row.get("target"))
+        if not bucket or target is None:
+            continue
+        blob = read_va(data, sections, target, width)
+        if len(blob) < 8:
+            continue
+        relation = str(row["relation"])
+        if relation == "exact_block_start":
+            evidence_class = "exact"
+        elif obj_int(row, "close_relation"):
+            evidence_class = "close"
+        else:
+            evidence_class = "far"
+        rows.append(
+            {
+                "table": row["table"],
+                "index": row["index"],
+                "target": row["target"],
+                "target_region": row["target_region"],
+                "kernel_bucket": bucket,
+                "bucket_confidence": row["bucket_confidence"],
+                "relation": relation,
+                "close_relation": row["close_relation"],
+                "evidence_class": evidence_class,
+                "component_id": row["component_id"],
+                "distance": row["distance"],
+                "bytes8": blob[:8].hex(),
+                "bytes16": blob[:16].hex() if len(blob) >= 16 else "",
+                "bytes32": blob[:32].hex() if len(blob) >= 32 else "",
+                "sha1_8": hashlib.sha1(blob[:8]).hexdigest()[:8],
+                "sha1_16": hashlib.sha1(blob[:16]).hexdigest()[:8] if len(blob) >= 16 else "",
+                "sha1_32": hashlib.sha1(blob[:32]).hexdigest()[:8] if len(blob) >= 32 else "",
+            }
+        )
+    rows.sort(key=lambda row: (row["kernel_bucket"], row["table"], obj_int(row, "index")))
+    return rows
+
+
+def bucket_sample_groups(
+    sample_rows: list[dict[str, object]],
+) -> dict[tuple[str, str], list[dict[str, object]]]:
+    groups: dict[tuple[str, str], list[dict[str, object]]] = defaultdict(list)
+    for row in sample_rows:
+        bucket = str(row["kernel_bucket"])
+        evidence_class = str(row["evidence_class"])
+        groups[(bucket, "all")].append(row)
+        if evidence_class in {"exact", "close"}:
+            groups[(bucket, "strong")].append(row)
+        groups[(bucket, evidence_class)].append(row)
+    return groups
+
+
+def build_bucket_field_rows(
+    sample_rows: list[dict[str, object]],
+    profile: dict[str, int] | None = None,
+) -> tuple[list[dict[str, object]], list[dict[str, object]], list[dict[str, object]]]:
+    profile = profile or {}
+    if not profile.get("bucket_field_enable"):
+        return [], [], []
+
+    max_width = profile.get("bucket_field_width", 32)
+    widths = [width for width in (8, 16, 32) if width <= max_width]
+    template_rows: list[dict[str, object]] = []
+    field_rows: list[dict[str, object]] = []
+    variable_rows: list[dict[str, object]] = []
+
+    for (bucket, sample_class), rows in sorted(bucket_sample_groups(sample_rows).items()):
+        for width in widths:
+            key = "bytes%d" % width
+            blobs = [bytes.fromhex(str(row[key])) for row in rows if row.get(key)]
+            if not blobs:
+                continue
+            mask, fixed_positions = byte_mask(blobs)
+            variable_bits_by_offset: list[int] = []
+            fixed_bit_count = 0
+            variable_bit_count = 0
+            for offset in range(width):
+                values = [blob[offset] for blob in blobs]
+                first = values[0]
+                variable_bits = 0
+                for value in values[1:]:
+                    variable_bits |= first ^ value
+                variable_bits_by_offset.append(variable_bits)
+                variable_bit_count += variable_bits.bit_count()
+                fixed_bit_count += 8 - variable_bits.bit_count()
+                counts = Counter(values)
+                dominant_count = counts.most_common(1)[0][1]
+                dominant_ratio_bps = int((dominant_count * 10000) / max(1, len(values)))
+                field_rows.append(
+                    {
+                        "kernel_bucket": bucket,
+                        "sample_class": sample_class,
+                        "width": width,
+                        "offset": offset,
+                        "sample_count": len(blobs),
+                        "unique_values": len(counts),
+                        "entropy": "%.4f" % shannon(values),
+                        "fixed_byte": int(variable_bits == 0),
+                        "fixed_bits": "0x%02x" % (0xFF ^ variable_bits),
+                        "variable_bits": "0x%02x" % variable_bits,
+                        "dominant_ratio_bps": dominant_ratio_bps,
+                        "field_kind": field_kind_for_bits(variable_bits, dominant_ratio_bps),
+                        "value_counts": byte_counter_summary(values),
+                    }
+                )
+            template_rows.append(
+                {
+                    "kernel_bucket": bucket,
+                    "sample_class": sample_class,
+                    "width": width,
+                    "sample_count": len(blobs),
+                    "fixed_byte_count": len(fixed_positions),
+                    "variable_byte_count": width - len(fixed_positions),
+                    "fixed_bit_count": fixed_bit_count,
+                    "variable_bit_count": variable_bit_count,
+                    "mask": mask,
+                    "sha1_8_counts": counter_summary((row["sha1_8"] for row in rows), 6),
+                    "target_samples": " ".join(str(row["target"]) for row in rows[:12]),
+                }
+            )
+
+            if width != max_width:
+                continue
+            start: int | None = None
+            bits_or = 0
+            fixed_and = 0xFF
+            kinds: list[str] = []
+            for offset, variable_bits in enumerate(variable_bits_by_offset + [0]):
+                if offset < width and variable_bits:
+                    if start is None:
+                        start = offset
+                        bits_or = 0
+                        fixed_and = 0xFF
+                        kinds = []
+                    bits_or |= variable_bits
+                    fixed_and &= 0xFF ^ variable_bits
+                    row = field_rows[-width + offset]
+                    kinds.append(str(row["field_kind"]))
+                    continue
+                if start is None:
+                    continue
+                end = offset
+                variable_rows.append(
+                    {
+                        "kernel_bucket": bucket,
+                        "sample_class": sample_class,
+                        "width": width,
+                        "offset_start": start,
+                        "offset_end": end - 1,
+                        "size": end - start,
+                        "variable_bits_or": "0x%02x" % bits_or,
+                        "fixed_bits_and": "0x%02x" % fixed_and,
+                        "field_kinds": counter_summary(kinds, 6),
+                        "sample_count": len(blobs),
+                    }
+                )
+                start = None
+
+    template_rows.sort(key=lambda row: (row["kernel_bucket"], row["sample_class"], obj_int(row, "width")))
+    field_rows.sort(key=lambda row: (row["kernel_bucket"], row["sample_class"], obj_int(row, "width"), obj_int(row, "offset")))
+    variable_rows.sort(key=lambda row: (row["kernel_bucket"], row["sample_class"], obj_int(row, "width"), obj_int(row, "offset_start")))
+    return template_rows, field_rows, variable_rows
+
+
+def build_d_stub_deep_dive_rows(
+    data: bytes,
+    sections: list[A.Section],
+    stride_rows: list[dict[str, object]],
+    dispatch_kernel_rows: list[dict[str, object]],
+    profile: dict[str, int] | None = None,
+) -> list[dict[str, object]]:
+    profile = profile or {}
+    if not profile.get("bucket_field_enable"):
+        return []
+    stride_by_index = {
+        obj_int(row, "index"): row
+        for row in stride_rows
+        if row["table"] == "D"
+    }
+    d_rows = [row for row in dispatch_kernel_rows if row["table"] == "D"]
+    exact_targets = [
+        parse_hex(row["target"])
+        for row in d_rows
+        if row["relation"] == "exact_block_start" and parse_hex(row["target"]) is not None
+    ]
+    out: list[dict[str, object]] = []
+    for row in sorted(d_rows, key=lambda item: obj_int(item, "index")):
+        target = parse_hex(row["target"])
+        if target is None:
+            continue
+        blob = read_va(data, sections, target, 32)
+        stride = stride_by_index.get(obj_int(row, "index"), {})
+        if row["relation"] == "exact_block_start":
+            evidence_class = "exact"
+        elif obj_int(row, "close_relation"):
+            evidence_class = "close"
+        else:
+            evidence_class = "far"
+        nearest_exact = None
+        nearest_exact_distance = None
+        for exact in exact_targets:
+            if exact is None:
+                continue
+            dist = abs(target - exact)
+            if nearest_exact_distance is None or dist < nearest_exact_distance:
+                nearest_exact = exact
+                nearest_exact_distance = dist
+        out.append(
+            {
+                "index": row["index"],
+                "target": row["target"],
+                "relation": row["relation"],
+                "close_relation": row["close_relation"],
+                "evidence_class": evidence_class,
+                "component_id": row["component_id"],
+                "distance": row["distance"],
+                "prev_delta": stride.get("prev_delta", ""),
+                "next_delta": stride.get("next_delta", ""),
+                "nearest_exact_target": hx(nearest_exact),
+                "nearest_exact_distance": "" if nearest_exact_distance is None else nearest_exact_distance,
+                "bytes16": blob[:16].hex() if len(blob) >= 16 else "",
+                "bytes32": blob[:32].hex() if len(blob) >= 32 else "",
+                "sha1_16": hashlib.sha1(blob[:16]).hexdigest()[:8] if len(blob) >= 16 else "",
+                "sha1_32": hashlib.sha1(blob[:32]).hexdigest()[:8] if len(blob) >= 32 else "",
+                "stub_note": (
+                    "strong_generated_stub_sample"
+                    if evidence_class in {"exact", "close"}
+                    else "weak_far_nearest_sample"
+                ),
+            }
+        )
+    return out
+
+
+def build_op_registry_rows(
+    data: bytes,
+    sections: list[A.Section],
+) -> list[dict[str, object]]:
+    rodata = A.section_by_name(sections, ".rodata")
+    dram_op = A.section_by_name(sections, ".dram_op.data")
+    strings = A.find_strings(data, rodata, 3) if rodata is not None else []
+    strings_by_addr = {entry.addr: entry.value for entry in strings}
+    rows: list[dict[str, object]] = []
+    for row in A.op_name_table(data, sections, dram_op, strings_by_addr):
+        rows.append(
+            {
+                "op_id": row["index"],
+                "entry_addr": hx(int(row["entry_addr"])),
+                "name": row["name"],
+                "string_addr": hx(int(row["string_addr"])),
+                "source_section": ".dram_op.data",
+                "static_dispatch_status": "vocabulary_not_dispatch_proof",
+            }
+        )
+    return rows
+
+
+def build_op_dispatch_join_rows(
+    op_registry_rows: list[dict[str, object]],
+    kernel_bucket_rows: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    bucket_inventory = " ".join(
+        "%s:%s" % (row["kernel_bucket"], row["dispatch_count"])
+        for row in kernel_bucket_rows
+        if obj_int(row, "dispatch_count")
+    )
+    rows: list[dict[str, object]] = []
+    for row in op_registry_rows:
+        rows.append(
+            {
+                "op_id": row["op_id"],
+                "name": row["name"],
+                "entry_addr": row["entry_addr"],
+                "string_addr": row["string_addr"],
+                "static_join_status": "unresolved_no_indexed_static_join",
+                "proven_table": "",
+                "proven_index": "",
+                "proven_target": "",
+                "proven_kernel_bucket": "",
+                "candidate_bucket_inventory": bucket_inventory,
+                "next_evidence_needed": (
+                    "runtime opcode trace or parser index evidence linking this "
+                    "vocabulary entry to a dispatch table slot"
+                ),
+            }
+        )
+    return rows
+
+
+def build_ghidra_focus_target_rows(
+    dispatch_kernel_rows: list[dict[str, object]],
+    component_kernel_rows: list[dict[str, object]],
+    profile: dict[str, int] | None = None,
+) -> list[dict[str, object]]:
+    profile = profile or {}
+    if not profile.get("bucket_field_enable"):
+        return []
+    rows: list[dict[str, object]] = []
+    for row in dispatch_kernel_rows:
+        if not row.get("kernel_bucket"):
+            continue
+        if row["relation"] == "exact_block_start":
+            priority = "P0_exact_dispatch_start"
+        elif obj_int(row, "close_relation"):
+            priority = "P1_close_dispatch_landing"
+        else:
+            priority = "P2_far_dispatch_context_only"
+        rows.append(
+            {
+                "focus_kind": "dispatch_target",
+                "priority": priority,
+                "addr_start": row["target"],
+                "addr_end": row["target"],
+                "kernel_bucket": row["kernel_bucket"],
+                "component_id": row["component_id"],
+                "table": row["table"],
+                "index": row["index"],
+                "relation": row["relation"],
+                "reason": "feed decoder only at proven/close anchors; keep far anchors weak",
+            }
+        )
+    for row in component_kernel_rows:
+        if not row.get("kernel_bucket"):
+            continue
+        rows.append(
+            {
+                "focus_kind": "component_extent",
+                "priority": "P1_component_extent" if row["bucket_confidence"] == "strong" else "P2_inferred_component_extent",
+                "addr_start": row["addr_min"],
+                "addr_end": row["addr_max"],
+                "kernel_bucket": row["kernel_bucket"],
+                "component_id": row["component_id"],
+                "table": "",
+                "index": "",
+                "relation": row["relations"],
+                "reason": "bounded FLIX region slice for external decoder review",
+            }
+        )
+    rows.sort(key=lambda row: (row["priority"], parse_hex(row["addr_start"]) or 0, str(row["focus_kind"])))
+    return rows
+
+
 def best_phase_alignment(
     addr: int,
     region: str,
@@ -2047,6 +2740,17 @@ def calculate_flix_metrics(
     block_edge_rows: list[dict[str, object]],
     component_rows: list[dict[str, object]],
     dispatch_component_rows: list[dict[str, object]],
+    kernel_bucket_rows: list[dict[str, object]],
+    component_kernel_rows: list[dict[str, object]],
+    dispatch_kernel_rows: list[dict[str, object]],
+    bucket_sample_rows: list[dict[str, object]],
+    bucket_template_rows: list[dict[str, object]],
+    bucket_field_rows: list[dict[str, object]],
+    bucket_variable_rows: list[dict[str, object]],
+    d_stub_rows: list[dict[str, object]],
+    op_registry_rows: list[dict[str, object]],
+    op_dispatch_join_rows: list[dict[str, object]],
+    ghidra_focus_rows: list[dict[str, object]],
 ) -> dict[str, object]:
     """Fixed evaluator for autoresearch-style iterations.
 
@@ -2155,6 +2859,14 @@ def calculate_flix_metrics(
         row for row in dispatch_component_rows
         if row["relation"] != "unmapped"
     ]
+    close_dispatch = [
+        row for row in mapped_dispatch
+        if row["relation"] != "nearest_block_start" or obj_int(row, "distance", 10**9) <= 0x40
+    ]
+    far_dispatch = [
+        row for row in mapped_dispatch
+        if row["relation"] == "nearest_block_start" and obj_int(row, "distance", 0) > 0x40
+    ]
     exact_dispatch = [
         row for row in dispatch_component_rows
         if row["relation"] == "exact_block_start"
@@ -2174,6 +2886,61 @@ def calculate_flix_metrics(
     d_fixed29 = [
         row for row in template_family_rows
         if str(row["family"]).startswith("D_stride_") and obj_int(row, "fixed32_count") >= 29
+    ]
+    dispatch_kernel_close = [
+        row for row in dispatch_kernel_rows
+        if obj_int(row, "close_relation")
+    ]
+    abc_landing_buckets = [
+        row for row in kernel_bucket_rows
+        if str(row["kernel_bucket"]).endswith("_flk_landing_series")
+    ]
+    d_ann_stub_buckets = [
+        row for row in kernel_bucket_rows
+        if row["kernel_bucket"] == "D_ann_generated_stub_family"
+    ]
+    body_kernel_buckets = [
+        row for row in kernel_bucket_rows
+        if row["kernel_bucket"] in {"ann_body_component", "flk_body_component"}
+    ]
+    control_anchor_buckets = [
+        row for row in kernel_bucket_rows
+        if row["kernel_bucket"] == "C_flk_control_anchor"
+    ]
+    strong_kernel_buckets = [
+        row for row in kernel_bucket_rows
+        if row["bucket_confidence"] == "strong"
+    ]
+    stable_bucket_templates = [
+        row for row in bucket_template_rows
+        if obj_int(row, "sample_count") >= 2 and obj_int(row, "fixed_byte_count") >= max(1, obj_int(row, "width") // 2)
+    ]
+    strong_bucket_templates = [
+        row for row in stable_bucket_templates
+        if row["sample_class"] == "strong"
+    ]
+    fixed_bucket_fields = [
+        row for row in bucket_field_rows
+        if obj_int(row, "fixed_byte")
+    ]
+    variable_bucket_fields = [
+        row for row in bucket_field_rows
+        if not obj_int(row, "fixed_byte")
+    ]
+    d_stub_exact = [row for row in d_stub_rows if row["evidence_class"] == "exact"]
+    d_stub_close = [row for row in d_stub_rows if row["evidence_class"] == "close"]
+    d_stub_far = [row for row in d_stub_rows if row["evidence_class"] == "far"]
+    op_static_joins = [
+        row for row in op_dispatch_join_rows
+        if row["static_join_status"] != "unresolved_no_indexed_static_join"
+    ]
+    op_unresolved_joins = [
+        row for row in op_dispatch_join_rows
+        if row["static_join_status"] == "unresolved_no_indexed_static_join"
+    ]
+    p0_focus_targets = [
+        row for row in ghidra_focus_rows
+        if str(row["priority"]).startswith("P0_")
     ]
 
     c1 = by_key.get(("C", 1))
@@ -2218,7 +2985,20 @@ def calculate_flix_metrics(
     flix_score += min(120, len(strong_blocks) + (len(medium_blocks) // 2))
     flix_score += min(80, len(block_edge_rows))
     flix_score += min(120, 8 * len(component_rows) + 4 * len(linear_components))
-    flix_score += min(120, 2 * len(mapped_dispatch) + 3 * len(exact_dispatch) + len(inside_dispatch) + len(successor_dispatch))
+    flix_score += min(120, 2 * len(close_dispatch) + 3 * len(exact_dispatch) + len(inside_dispatch) + len(successor_dispatch))
+    flix_score += min(160, 14 * len(kernel_bucket_rows) + 2 * len(component_kernel_rows))
+    flix_score += min(
+        140,
+        2 * len(dispatch_kernel_close)
+        + 8 * len(d_ann_stub_buckets)
+        + 6 * len(abc_landing_buckets)
+        + 8 * len(control_anchor_buckets),
+    )
+    flix_score += min(180, 4 * len(strong_bucket_templates) + len(fixed_bucket_fields) // 8)
+    flix_score += min(120, 2 * len(bucket_variable_rows) + len(variable_bucket_fields) // 12)
+    flix_score += min(90, 5 * len(d_stub_exact) + 2 * len(d_stub_close))
+    flix_score += min(35, len(op_registry_rows) // 2)
+    flix_score += min(60, len(p0_focus_targets) * 3)
     flix_score += 20 * len(strong_template_families)
     flix_score += 25 * len(d_fixed29)
     flix_score -= 30 * ambiguous
@@ -2231,7 +3011,7 @@ def calculate_flix_metrics(
     abc_den = max(1, len(abc_minus_0xb))
     d_den = max(1, len(d_generated))
     return {
-        "score_version": "v8_components",
+        "score_version": "v10_bucket_fields",
         "flix_score": flix_score,
         "boundary_rows": len(boundary_rows),
         "resolved_boundary_ratio": "%.4f" % (resolved / coverage_den),
@@ -2282,9 +3062,37 @@ def calculate_flix_metrics(
         "linear_components": len(linear_components),
         "branch_components": len(branch_components),
         "mapped_dispatch_anchors": len(mapped_dispatch),
+        "close_dispatch_anchors": len(close_dispatch),
+        "far_dispatch_anchors": len(far_dispatch),
         "exact_dispatch_blocks": len(exact_dispatch),
         "inside_dispatch_blocks": len(inside_dispatch),
         "successor_dispatch_nodes": len(successor_dispatch),
+        "kernel_buckets": len(kernel_bucket_rows),
+        "strong_kernel_buckets": len(strong_kernel_buckets),
+        "kernel_component_maps": len(component_kernel_rows),
+        "dispatch_kernel_maps": len(dispatch_kernel_rows),
+        "dispatch_kernel_close": len(dispatch_kernel_close),
+        "abc_landing_buckets": len(abc_landing_buckets),
+        "d_ann_stub_buckets": len(d_ann_stub_buckets),
+        "body_kernel_buckets": len(body_kernel_buckets),
+        "control_anchor_buckets": len(control_anchor_buckets),
+        "bucket_field_samples": len(bucket_sample_rows),
+        "bucket_templates": len(bucket_template_rows),
+        "stable_bucket_templates": len(stable_bucket_templates),
+        "strong_bucket_templates": len(strong_bucket_templates),
+        "bucket_field_rows": len(bucket_field_rows),
+        "fixed_bucket_fields": len(fixed_bucket_fields),
+        "variable_bucket_fields": len(variable_bucket_fields),
+        "bucket_variable_ranges": len(bucket_variable_rows),
+        "d_stub_rows": len(d_stub_rows),
+        "d_stub_exact_rows": len(d_stub_exact),
+        "d_stub_close_rows": len(d_stub_close),
+        "d_stub_far_rows": len(d_stub_far),
+        "op_registry_entries": len(op_registry_rows),
+        "op_static_joins": len(op_static_joins),
+        "op_unresolved_static_joins": len(op_unresolved_joins),
+        "ghidra_focus_targets": len(ghidra_focus_rows),
+        "ghidra_p0_focus_targets": len(p0_focus_targets),
         "false_bundle_abc": len(false_bundle_abc),
         "false_template_non_d": len(false_template_non_d),
         "d_missed_templates": len(d_missed),
@@ -2313,6 +3121,17 @@ def summarize_markdown(
     block_edge_rows: list[dict[str, object]],
     component_rows: list[dict[str, object]],
     dispatch_component_rows: list[dict[str, object]],
+    kernel_bucket_rows: list[dict[str, object]],
+    component_kernel_rows: list[dict[str, object]],
+    dispatch_kernel_rows: list[dict[str, object]],
+    bucket_sample_rows: list[dict[str, object]],
+    bucket_template_rows: list[dict[str, object]],
+    bucket_field_rows: list[dict[str, object]],
+    bucket_variable_rows: list[dict[str, object]],
+    d_stub_rows: list[dict[str, object]],
+    op_registry_rows: list[dict[str, object]],
+    op_dispatch_join_rows: list[dict[str, object]],
+    ghidra_focus_rows: list[dict[str, object]],
     metrics: dict[str, object],
     profile_name: str,
 ) -> None:
@@ -2379,9 +3198,37 @@ def summarize_markdown(
         "linear_components",
         "branch_components",
         "mapped_dispatch_anchors",
+        "close_dispatch_anchors",
+        "far_dispatch_anchors",
         "exact_dispatch_blocks",
         "inside_dispatch_blocks",
         "successor_dispatch_nodes",
+        "kernel_buckets",
+        "strong_kernel_buckets",
+        "kernel_component_maps",
+        "dispatch_kernel_maps",
+        "dispatch_kernel_close",
+        "abc_landing_buckets",
+        "d_ann_stub_buckets",
+        "body_kernel_buckets",
+        "control_anchor_buckets",
+        "bucket_field_samples",
+        "bucket_templates",
+        "stable_bucket_templates",
+        "strong_bucket_templates",
+        "bucket_field_rows",
+        "fixed_bucket_fields",
+        "variable_bucket_fields",
+        "bucket_variable_ranges",
+        "d_stub_rows",
+        "d_stub_exact_rows",
+        "d_stub_close_rows",
+        "d_stub_far_rows",
+        "op_registry_entries",
+        "op_static_joins",
+        "op_unresolved_static_joins",
+        "ghidra_focus_targets",
+        "ghidra_p0_focus_targets",
         "false_bundle_abc",
         "false_template_non_d",
         "d_missed_templates",
@@ -2626,6 +3473,129 @@ def summarize_markdown(
             )
         )
     lines.append("")
+    lines.append("## Kernel Buckets")
+    lines.append("")
+    lines.append("* Kernel buckets: %d" % len(kernel_bucket_rows))
+    lines.append("* Component kernel maps: %d" % len(component_kernel_rows))
+    lines.append("* Dispatch kernel maps: %d" % len(dispatch_kernel_rows))
+    lines.append("* Top kernel buckets:")
+    for row in kernel_bucket_rows[:12]:
+        lines.append(
+            "  %s conf=%s components=%s dispatch=%s close=%s far=%s tables=%s addr=%s..%s"
+            % (
+                row["kernel_bucket"],
+                row["bucket_confidence"],
+                row["component_count"],
+                row["dispatch_count"],
+                row["close_dispatch_count"],
+                row["far_dispatch_count"],
+                row["tables"],
+                row["addr_min"],
+                row["addr_max"],
+            )
+        )
+    lines.append("* Dispatch kernel map samples:")
+    for row in dispatch_kernel_rows[:18]:
+        lines.append(
+            "  %s[%s] target=%s relation=%s close=%s component=%s bucket=%s conf=%s"
+            % (
+                row["table"],
+                row["index"],
+                row["target"],
+                row["relation"],
+                row["close_relation"],
+                row["component_id"],
+                row["kernel_bucket"],
+                row["bucket_confidence"],
+            )
+        )
+    lines.append("")
+    lines.append("## Bucket Field Learning")
+    lines.append("")
+    lines.append("* Bucket field samples: %d" % len(bucket_sample_rows))
+    lines.append("* Bucket templates: %d" % len(bucket_template_rows))
+    lines.append("* Variable ranges: %d" % len(bucket_variable_rows))
+    lines.append("* Strong bucket templates:")
+    for row in [r for r in bucket_template_rows if r["sample_class"] == "strong"][:12]:
+        lines.append(
+            "  %s width=%s samples=%s fixed_bytes=%s variable_bits=%s mask=`%s`"
+            % (
+                row["kernel_bucket"],
+                row["width"],
+                row["sample_count"],
+                row["fixed_byte_count"],
+                row["variable_bit_count"],
+                row["mask"],
+            )
+        )
+    lines.append("* Variable field ranges:")
+    for row in bucket_variable_rows[:14]:
+        lines.append(
+            "  %s class=%s width=%s off=%s..%s size=%s var_bits=%s kinds=%s"
+            % (
+                row["kernel_bucket"],
+                row["sample_class"],
+                row["width"],
+                row["offset_start"],
+                row["offset_end"],
+                row["size"],
+                row["variable_bits_or"],
+                row["field_kinds"],
+            )
+        )
+    lines.append("")
+    lines.append("## D Stub Deep Dive")
+    lines.append("")
+    d_counts = Counter(str(row["evidence_class"]) for row in d_stub_rows)
+    lines.append("* D stub evidence classes: %s" % (
+        ", ".join("%s:%d" % (k, v) for k, v in d_counts.most_common()) or "none"
+    ))
+    for row in d_stub_rows[:16]:
+        lines.append(
+            "  D[%s] target=%s class=%s relation=%s dist=%s prev=%s next=%s sha16=%s note=%s"
+            % (
+                row["index"],
+                row["target"],
+                row["evidence_class"],
+                row["relation"],
+                row["distance"],
+                row["prev_delta"],
+                row["next_delta"],
+                row["sha1_16"],
+                row["stub_note"],
+            )
+        )
+    lines.append("")
+    lines.append("## OP Registry Join Status")
+    lines.append("")
+    lines.append("* OP registry entries: %d" % len(op_registry_rows))
+    lines.append("* Proven static OP-to-bucket joins: %s" % metrics["op_static_joins"])
+    lines.append("* Unresolved static joins: %s" % metrics["op_unresolved_static_joins"])
+    lines.append("The `.dram_op.data` table is kept as an op-name vocabulary until an indexed parser/runtime join is found.")
+    for row in op_dispatch_join_rows[:10]:
+        lines.append(
+            "  op=%s name=%s status=%s"
+            % (row["op_id"], row["name"], row["static_join_status"])
+        )
+    lines.append("")
+    lines.append("## Ghidra Focus Pack")
+    lines.append("")
+    lines.append("* Focus targets: %d" % len(ghidra_focus_rows))
+    for row in ghidra_focus_rows[:16]:
+        lines.append(
+            "  %s %s %s..%s bucket=%s comp=%s table=%s[%s]"
+            % (
+                row["priority"],
+                row["focus_kind"],
+                row["addr_start"],
+                row["addr_end"],
+                row["kernel_bucket"],
+                row["component_id"],
+                row["table"],
+                row["index"],
+            )
+        )
+    lines.append("")
     lines.append("## Internal Control Boundary Candidates")
     lines.append("")
     confidence_counts = Counter(str(row["confidence"]) for row in internal_boundary_rows)
@@ -2814,6 +3784,41 @@ def main() -> int:
         anchors,
         LEARNER_PROFILES[args.profile],
     )
+    component_rows, dispatch_component_rows = build_block_component_rows(
+        basic_block_rows,
+        block_edge_rows,
+        anchors,
+        LEARNER_PROFILES[args.profile],
+    )
+    kernel_bucket_rows, component_kernel_rows, dispatch_kernel_rows = build_kernel_bucket_rows(
+        component_rows,
+        dispatch_component_rows,
+        LEARNER_PROFILES[args.profile],
+    )
+    bucket_sample_rows = build_bucket_field_sample_rows(
+        data,
+        sections,
+        dispatch_kernel_rows,
+        LEARNER_PROFILES[args.profile],
+    )
+    bucket_template_rows, bucket_field_rows, bucket_variable_rows = build_bucket_field_rows(
+        bucket_sample_rows,
+        LEARNER_PROFILES[args.profile],
+    )
+    d_stub_rows = build_d_stub_deep_dive_rows(
+        data,
+        sections,
+        stride_rows,
+        dispatch_kernel_rows,
+        LEARNER_PROFILES[args.profile],
+    )
+    op_registry_rows = build_op_registry_rows(data, sections)
+    op_dispatch_join_rows = build_op_dispatch_join_rows(op_registry_rows, kernel_bucket_rows)
+    ghidra_focus_rows = build_ghidra_focus_target_rows(
+        dispatch_kernel_rows,
+        component_kernel_rows,
+        LEARNER_PROFILES[args.profile],
+    )
     boundary_rows = build_boundary_hypothesis_rows(
         data,
         sections,
@@ -2840,6 +3845,19 @@ def main() -> int:
         cfg_cluster_rows,
         basic_block_rows,
         block_edge_rows,
+        component_rows,
+        dispatch_component_rows,
+        kernel_bucket_rows,
+        component_kernel_rows,
+        dispatch_kernel_rows,
+        bucket_sample_rows,
+        bucket_template_rows,
+        bucket_field_rows,
+        bucket_variable_rows,
+        d_stub_rows,
+        op_registry_rows,
+        op_dispatch_join_rows,
+        ghidra_focus_rows,
     )
 
     write_csv(
@@ -3003,6 +4021,137 @@ def main() -> int:
         ],
     )
     write_csv(
+        out_dir / "pcrel_block_components.csv",
+        component_rows,
+        [
+            "component_id", "component_kind", "region_counts", "node_count",
+            "known_block_count", "unresolved_node_count", "edge_count",
+            "pcrel_edge_count", "fallthrough_edge_count", "entry_block_count",
+            "terminal_block_count", "addr_min", "addr_max", "entry_blocks",
+            "terminal_blocks", "unresolved_nodes", "block_confidences",
+            "extent_statuses", "top_prop_groups",
+        ],
+    )
+    write_csv(
+        out_dir / "dispatch_component_map.csv",
+        dispatch_component_rows,
+        [
+            "table", "index", "target", "target_region", "relation",
+            "component_id", "distance", "block_start", "block_end",
+            "block_confidence", "extent_status",
+        ],
+    )
+    write_csv(
+        out_dir / "kernel_family_buckets.csv",
+        kernel_bucket_rows,
+        [
+            "kernel_bucket", "bucket_confidence", "component_count",
+            "dispatch_count", "close_dispatch_count", "far_dispatch_count",
+            "exact_dispatch_count", "successor_dispatch_count",
+            "linear_components", "branch_components", "known_block_count",
+            "edge_count", "regions", "tables", "component_ids",
+            "addr_min", "addr_max", "evidence",
+        ],
+    )
+    write_csv(
+        out_dir / "component_kernel_map.csv",
+        component_kernel_rows,
+        [
+            "component_id", "kernel_bucket", "bucket_confidence",
+            "component_kind", "region_counts", "node_count",
+            "known_block_count", "edge_count", "dispatch_count",
+            "close_dispatch_count", "far_dispatch_count",
+            "exact_dispatch_count", "successor_dispatch_count",
+            "tables", "indices", "relations", "addr_min", "addr_max",
+            "evidence",
+        ],
+    )
+    write_csv(
+        out_dir / "dispatch_kernel_map.csv",
+        dispatch_kernel_rows,
+        [
+            "table", "index", "target", "target_region", "relation",
+            "close_relation", "component_id", "kernel_bucket",
+            "bucket_confidence", "distance", "block_start", "block_end",
+            "block_confidence",
+        ],
+    )
+    write_csv(
+        out_dir / "bucket_field_samples.csv",
+        bucket_sample_rows,
+        [
+            "table", "index", "target", "target_region", "kernel_bucket",
+            "bucket_confidence", "relation", "close_relation", "evidence_class",
+            "component_id", "distance", "bytes8", "bytes16", "bytes32",
+            "sha1_8", "sha1_16", "sha1_32",
+        ],
+    )
+    write_csv(
+        out_dir / "bucket_slot_templates.csv",
+        bucket_template_rows,
+        [
+            "kernel_bucket", "sample_class", "width", "sample_count",
+            "fixed_byte_count", "variable_byte_count", "fixed_bit_count",
+            "variable_bit_count", "mask", "sha1_8_counts", "target_samples",
+        ],
+    )
+    write_csv(
+        out_dir / "kernel_bucket_fields.csv",
+        bucket_field_rows,
+        [
+            "kernel_bucket", "sample_class", "width", "offset",
+            "sample_count", "unique_values", "entropy", "fixed_byte",
+            "fixed_bits", "variable_bits", "dominant_ratio_bps",
+            "field_kind", "value_counts",
+        ],
+    )
+    write_csv(
+        out_dir / "bucket_variable_fields.csv",
+        bucket_variable_rows,
+        [
+            "kernel_bucket", "sample_class", "width", "offset_start",
+            "offset_end", "size", "variable_bits_or", "fixed_bits_and",
+            "field_kinds", "sample_count",
+        ],
+    )
+    write_csv(
+        out_dir / "d_stub_deep_dive.csv",
+        d_stub_rows,
+        [
+            "index", "target", "relation", "close_relation", "evidence_class",
+            "component_id", "distance", "prev_delta", "next_delta",
+            "nearest_exact_target", "nearest_exact_distance", "bytes16",
+            "bytes32", "sha1_16", "sha1_32", "stub_note",
+        ],
+    )
+    write_csv(
+        out_dir / "op_registry.csv",
+        op_registry_rows,
+        [
+            "op_id", "entry_addr", "name", "string_addr", "source_section",
+            "static_dispatch_status",
+        ],
+    )
+    write_csv(
+        out_dir / "op_dispatch_join_status.csv",
+        op_dispatch_join_rows,
+        [
+            "op_id", "name", "entry_addr", "string_addr",
+            "static_join_status", "proven_table", "proven_index",
+            "proven_target", "proven_kernel_bucket",
+            "candidate_bucket_inventory", "next_evidence_needed",
+        ],
+    )
+    write_csv(
+        out_dir / "ghidra_focus_targets.csv",
+        ghidra_focus_rows,
+        [
+            "focus_kind", "priority", "addr_start", "addr_end",
+            "kernel_bucket", "component_id", "table", "index",
+            "relation", "reason",
+        ],
+    )
+    write_csv(
         out_dir / "boundary_hypotheses.csv",
         boundary_rows,
         [
@@ -3049,6 +4198,19 @@ def main() -> int:
         cfg_cluster_rows,
         basic_block_rows,
         block_edge_rows,
+        component_rows,
+        dispatch_component_rows,
+        kernel_bucket_rows,
+        component_kernel_rows,
+        dispatch_kernel_rows,
+        bucket_sample_rows,
+        bucket_template_rows,
+        bucket_field_rows,
+        bucket_variable_rows,
+        d_stub_rows,
+        op_registry_rows,
+        op_dispatch_join_rows,
+        ghidra_focus_rows,
         metrics,
         args.profile,
     )
@@ -3057,7 +4219,7 @@ def main() -> int:
     print("profile=%s" % args.profile)
     print("flix_score=%s" % metrics["flix_score"])
     print(
-        "anchors=%d phase_rows=%d repeat_rows=%d control_rows=%d control_votes=%d boundary_rows=%d template_families=%d"
+        "anchors=%d phase_rows=%d repeat_rows=%d control_rows=%d control_votes=%d boundary_rows=%d template_families=%d kernel_buckets=%d bucket_templates=%d"
         % (
             len(anchor_rows),
             len(phase_rows),
@@ -3066,6 +4228,8 @@ def main() -> int:
             len(control_vote_rows),
             len(boundary_rows),
             len(template_family_rows),
+            len(kernel_bucket_rows),
+            len(bucket_template_rows),
         )
     )
     return 0

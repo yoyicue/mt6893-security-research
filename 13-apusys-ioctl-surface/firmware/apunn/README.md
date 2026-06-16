@@ -55,13 +55,17 @@ landing pads, or slot-level branch targets before assigning opcode semantics.
 
 Run autoresearch-style FLIX learning iterations. This records the fixed
 baseline `flix_score`, tries learner profiles, and stops after five consecutive
-non-improving rounds. The current score version is `v7_block_extent`, which treats
-standard-`j`-looking bytes as constrained PC-relative slot candidates rather
-than direct opcode proof, then tests whether those candidates can infer
+non-improving rounds. The current score version is `v10_bucket_fields`, which
+treats standard-`j`-looking bytes as constrained PC-relative slot candidates
+rather than direct opcode proof, then tests whether those candidates can infer
 dense-region internal control boundaries, stable slot templates, and
 PC-relative operand families with explicit negative guards. Accepted operand
-families are then materialized into CFG edges/nodes and basic-block extent
-hypotheses for dense-region review:
+families are materialized into CFG edges/nodes and basic-block extent
+hypotheses, grouped into connected components, mapped back to dispatch targets,
+classified into dispatch/kernel family buckets, and then used to learn
+bucket-local byte/bit field masks. The loop also emits a D-stub deep dive,
+OP-name registry join status, and a Ghidra focus-target pack; it does not write
+IDA comments/bookmarks/names:
 
 ```sh
 13-apusys-ioctl-surface/tools/flix_autoresearch_loop.py \

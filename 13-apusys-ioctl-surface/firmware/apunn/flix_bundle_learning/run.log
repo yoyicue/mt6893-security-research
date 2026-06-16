@@ -1,0 +1,4 @@
+wrote firmware/apunn/flix_bundle_learning
+profile=bucket_fields_broad
+flix_score=2874
+anchors=72 phase_rows=48 repeat_rows=289 control_rows=445 control_votes=327 boundary_rows=67 template_families=13 kernel_buckets=9 bucket_templates=69

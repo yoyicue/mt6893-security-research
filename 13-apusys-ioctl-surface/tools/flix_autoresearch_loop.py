@@ -28,6 +28,12 @@ DEFAULT_PROFILES = (
     "cfg_edges_broad",
     "block_extent_strict",
     "block_extent_broad",
+    "block_components_strict",
+    "block_components_broad",
+    "kernel_buckets_strict",
+    "kernel_buckets_broad",
+    "bucket_fields_strict",
+    "bucket_fields_broad",
     "template_strict",
     "template_aggressive",
     "landing_strict",
@@ -51,11 +57,52 @@ PROFILE_DESCRIPTIONS = {
     "cfg_edges_broad": "materialize broader PC-relative CFG edges and clusters from accepted operand models",
     "block_extent_strict": "infer strict basic-block extents from PC-relative source slots",
     "block_extent_broad": "infer broader basic-block extents and successor edges from PC-relative source slots",
+    "block_components_strict": "group strict block extents into connected components and map dispatch targets",
+    "block_components_broad": "group broader block extents into connected components and map dispatch targets",
+    "kernel_buckets_strict": "classify strict block components into dispatch/kernel family buckets",
+    "kernel_buckets_broad": "classify broader block components into dispatch/kernel family buckets",
+    "bucket_fields_strict": "learn byte/bit fields from strict dispatch kernel buckets",
+    "bucket_fields_broad": "learn byte/bit fields from broader dispatch kernel buckets",
     "template_strict": "require stronger D template evidence",
     "template_aggressive": "accept D template evidence earlier",
     "landing_strict": "make A/B/C -0xb landing classification stricter",
     "c1_strong": "favor C[1] 0x700169a4 as FLK control anchor",
 }
+
+
+RESULT_METRIC_KEYS = (
+    "resolved_boundary_ratio",
+    "ambiguous_count",
+    "c1_candidate_bundle_start",
+    "d_template_ratio",
+    "pcrel_supported_boundaries",
+    "internal_control_boundaries",
+    "internal_strong_boundaries",
+    "internal_medium_boundaries",
+    "accepted_slot_templates",
+    "high_volume_slot_templates",
+    "accepted_operand_models",
+    "operand_model_internal_edges",
+    "negative_operand_models",
+    "cfg_edges",
+    "cfg_nodes",
+    "accepted_cfg_clusters",
+    "basic_blocks",
+    "terminated_blocks",
+    "block_edges",
+    "block_components",
+    "mapped_dispatch_anchors",
+    "close_dispatch_anchors",
+    "kernel_buckets",
+    "dispatch_kernel_maps",
+    "dispatch_kernel_close",
+    "bucket_templates",
+    "bucket_variable_ranges",
+    "d_stub_rows",
+    "op_registry_entries",
+    "op_static_joins",
+    "ghidra_focus_targets",
+)
 
 
 def read_metrics(out_dir: Path) -> dict[str, str]:
@@ -128,15 +175,9 @@ def main() -> int:
             shutil.rmtree(child)
     results_path = run_dir / "results.tsv"
     results_path.write_text(
-        "iteration\tprofile\tscore_version\tflix_score\tresolved_boundary_ratio\t"
-        "ambiguous_count\tc1_candidate_bundle_start\td_template_ratio\t"
-        "pcrel_supported_boundaries\tinternal_control_boundaries\t"
-        "internal_strong_boundaries\tinternal_medium_boundaries\t"
-        "accepted_slot_templates\thigh_volume_slot_templates\t"
-        "accepted_operand_models\toperand_model_internal_edges\t"
-        "negative_operand_models\tcfg_edges\tcfg_nodes\taccepted_cfg_clusters\t"
-        "basic_blocks\tterminated_blocks\tblock_edges\t"
-        "status\tdescription\tseconds\n"
+        "iteration\tprofile\tscore_version\tflix_score\t"
+        + "\t".join(RESULT_METRIC_KEYS)
+        + "\tstatus\tdescription\tseconds\n"
     )
 
     best_profile = "baseline"
@@ -173,25 +214,7 @@ def main() -> int:
                     profile,
                     metrics.get("score_version", ""),
                     score,
-                    metrics["resolved_boundary_ratio"],
-                    metrics["ambiguous_count"],
-                    metrics["c1_candidate_bundle_start"],
-                    metrics["d_template_ratio"],
-                    metrics.get("pcrel_supported_boundaries", ""),
-                    metrics.get("internal_control_boundaries", ""),
-                    metrics.get("internal_strong_boundaries", ""),
-                    metrics.get("internal_medium_boundaries", ""),
-                    metrics.get("accepted_slot_templates", ""),
-                    metrics.get("high_volume_slot_templates", ""),
-                    metrics.get("accepted_operand_models", ""),
-                    metrics.get("operand_model_internal_edges", ""),
-                    metrics.get("negative_operand_models", ""),
-                    metrics.get("cfg_edges", ""),
-                    metrics.get("cfg_nodes", ""),
-                    metrics.get("accepted_cfg_clusters", ""),
-                    metrics.get("basic_blocks", ""),
-                    metrics.get("terminated_blocks", ""),
-                    metrics.get("block_edges", ""),
+                    *[metrics.get(key, "") for key in RESULT_METRIC_KEYS],
                     status,
                     PROFILE_DESCRIPTIONS.get(profile, profile),
                     "%.3f" % elapsed,
@@ -214,16 +237,7 @@ def main() -> int:
                     profile,
                     "",
                     0,
-                    "0.0000",
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
+                    *[""] * len(RESULT_METRIC_KEYS),
                     "crash",
                     "%s: %s" % (PROFILE_DESCRIPTIONS.get(profile, profile), exc),
                     "0.000",
