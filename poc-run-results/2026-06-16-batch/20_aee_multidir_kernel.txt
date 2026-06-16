@@ -1,0 +1,4 @@
+pattern=aee|aed|dumpstate|tombstone
+source=adb logcat -b kernel or dmesg fallback
+
+06-16 09:30:13.875 25221 25221 I (1)[25221:aee_dumpstate]ufsdbg: cmd history off
