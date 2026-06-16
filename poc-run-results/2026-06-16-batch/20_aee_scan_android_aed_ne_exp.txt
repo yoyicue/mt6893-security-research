@@ -1,0 +1,34 @@
+command=CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex app_process64 /system/bin AeeSessionProbe --socket=android:aee_aed --ind=12 --class=3 --payload --flags=2000 --no-dump-check --max-reqs=12
+probe=aee-session
+dex_md5=3a9b02b7c801a76905718da83e325a68
+dex_sha256=b8ac7e1d630b55618e04e651a33396f3ee955e9dfc151a78380718e76b1bee01
+remote_dex=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex
+shell_port=127.0.0.1:48888
+exit_status=0
+
+uid=1000(system) gid=1000(system) groups=1000(system),3003(inet) context=u:r:system_app:s0
+u:r:system_app:s0
+3a9b02b7c801a76905718da83e325a68  /data/data/com.android.settings/cache/apusys_ioctl_probe.dex
+[AeeSessionProbe] CVE-2024-20032 session driver
+[AeeSessionProbe] uid=1000 pid=27484 target_pid=27484 class=3 ind=12 flags=0x2000 payload=true
+[+] Scratch buffer at 0x718ebd5000
+[*] Trying anonymous PROT_RWX mmap...
+[+] Anonymous RWX page at 0x718ebd4000
+[+] Wrote syscall stub: JNI@+0x00 (36B), call stub JNI@+0x80 (40B); entry_point left untouched
+[*] ArtMethod for nativeSyscall at 0x718ab51c88
+    access_flags = 0x10000108 [NATIVE]
+    data (JNI ptr) = 0x6ee061a2c0
+    entry_point    = 0x103800087763c578
+[*] Patching data_ (JNI) → 0x718ebd4000
+    data_       = 0x718ebd4000 ✓
+    entry_point = 0x103800087763c578 (unchanged)
+[+] ArtMethod patched
+[+] Syscall infrastructure ready
+
+[session] @android:aee_aed connected peer_uid=0
+[session] IND ind=12 class=3 pid=27484 flags=0x2000 payload=14
+[session] IND bytes: 02 00 00 00 0c 00 00 00 5c 6b 00 00 03 00 00 00 0e 00 00 00 00 20 00 00
+[session] daemon closed connection after 0 reqs (normal — session complete, waiting for aee_dumpstate...)
+[session] no REQs on @android:aee_aed (daemon may need crash state)
+
+[phase-check] skipped (--no-dump-check)
