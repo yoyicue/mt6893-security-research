@@ -33,6 +33,7 @@ DEFAULT_XRP_REMOTE_DEX = "/data/data/com.android.settings/cache/xrp_wrapper_insp
 DEFAULT_GED_REMOTE_DEX = "/data/data/com.android.settings/cache/ged_bridge_probe.dex"
 DEFAULT_AEE_REMOTE_DEX = "/data/data/com.android.settings/cache/aee_socket_probe.dex"
 DEFAULT_EEMG_REMOTE_DEX = "/data/data/com.android.settings/cache/eemg_probe.dex"
+DEFAULT_DRM_REMOTE_DEX = "/data/data/com.android.settings/cache/drm_trigger.dex"
 DEFAULT_RESULT_DIR = ROOT / "poc-run-results" / "2026-06-14-batch"
 
 
@@ -41,6 +42,7 @@ def run(cmd, timeout=60, cwd=ROOT, check=True):
         cmd,
         cwd=cwd,
         text=True,
+        errors="replace",
         capture_output=True,
         timeout=timeout,
         check=False,
@@ -97,6 +99,8 @@ def probe_sources(probe):
     if probe == "aslr-extract":
         return "AslrExtract", [DRM_TRIGGER_JAVA, AEE_SESSION_JAVA,
                                ROOT / "20-cve-2024-20032-aee" / "poc" / "AslrExtract.java"]
+    if probe == "drm-trigger":
+        return "DrmTrigger", [DRM_TRIGGER_JAVA]
     if probe == "eemg-proc":
         return "EemgpuProcProbe", [EEMG_PROC_JAVA]
     if probe == "eemg-write":
@@ -325,7 +329,7 @@ def main():
     parser.add_argument("--probe",
                         choices=("apusys", "xrp-wrapper", "ged-bridge",
                                  "aee-socket", "aee-session", "aslr-extract",
-                                 "eemg-proc", "eemg-write"),
+                                 "drm-trigger", "eemg-proc", "eemg-write"),
                         default="apusys")
     parser.add_argument("--mode", default="--run-cmd-vpu-guard")
     parser.add_argument("--remote-dex", default=DEFAULT_REMOTE_DEX)
@@ -350,6 +354,8 @@ def main():
         args.remote_dex = DEFAULT_GED_REMOTE_DEX
     if args.probe == "aee-socket" and args.remote_dex == DEFAULT_REMOTE_DEX:
         args.remote_dex = DEFAULT_AEE_REMOTE_DEX
+    if args.probe == "drm-trigger" and args.remote_dex == DEFAULT_REMOTE_DEX:
+        args.remote_dex = DEFAULT_DRM_REMOTE_DEX
     if args.probe in ("eemg-proc", "eemg-write") and args.remote_dex == DEFAULT_REMOTE_DEX:
         args.remote_dex = DEFAULT_EEMG_REMOTE_DEX
 
