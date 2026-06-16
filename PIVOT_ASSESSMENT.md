@@ -49,8 +49,12 @@ at `ged_kpi_record_POSSIBLE_CVE_2024_20016_DoS` (0x860dc68) is re-attributed.
   (system_app CANNOT directly access mtk_mdp_device; indirect via surfaceflinger)
 - GED `/proc/ged` confirms CVE-2024-20016 access (DoS) but not EoP primitive
 - No ALPS patch ID published ("External report source") — source mapping unclear
-Priority 2 → CVE-2024-20032 aee permission bypass (entry discovery needed).
-Priority 3 → CVE-2024-20037 remaining tasks (SLD, pqindex consumer chain).
+Priority 2 → **CVE-2024-20032 aee permission bypass CONFIRMED** (2026-06-16):
+  system_app connects to @android:aee_aed (root, uid=0) — 6/12 sockets accessible
+  IDA: aed_ioctl_handler_NO_UID_CHECK at 0xffffffc0087b1868 — no UID check
+  Exploit path: send AE_REQ_COREDUMP via socket → read /data/vendor/aee_exp → KASLR
+  Next: reverse libaedv.so AE_REQ_* wire protocol, send valid request
+Priority 3 → CVE-2024-20037 remaining tasks (cmdq buffer overflow possibility).
 Mali candidates are all confirmed dead; APUSYS plane-redirect is suspended.
 
 ---

