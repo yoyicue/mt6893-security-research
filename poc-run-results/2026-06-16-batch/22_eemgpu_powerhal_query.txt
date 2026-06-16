@@ -1,0 +1,11 @@
+command=CLASSPATH=/data/data/com.android.settings/cache/eemg_probe2.dex app_process64 /system/bin EemgpuProcProbe
+probe=proc-read
+dex_md5=f4c8edd91425ff5f9ac027f512986410
+dex_sha256=a1ff2c54a33d8c682f8cb878b2367d83d7e0af1f22f1fb3b7f260553a2ec01dc
+remote_dex=/data/data/com.android.settings/cache/eemg_probe2.dex
+shell_port=127.0.0.1:48888
+exit_status=0
+
+uid=1000(system) gid=1000(system) groups=1000(system),3003(inet) context=u:r:system_app:s0
+u:r:system_app:s0
+f4c8edd91425ff5f9ac027f512986410  /data/data/com.android.settings/cache/eemg_probe2.dex

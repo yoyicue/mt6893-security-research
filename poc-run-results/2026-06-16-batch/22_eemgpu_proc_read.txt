@@ -1,0 +1,56 @@
+command=CLASSPATH=/data/data/com.android.settings/cache/eemg_probe.dex app_process64 /system/bin EemgpuProcProbe
+probe=proc-read
+dex_md5=d15165f88b8ed6cfbf9c29b8dec23cea
+dex_sha256=bfe8ab8bc55f9bceb6381ff4db5af1a3acc97124846ca61a6dfc0ca719582325
+remote_dex=/data/data/com.android.settings/cache/eemg_probe.dex
+shell_port=127.0.0.1:48888
+exit_status=0
+
+uid=1000(system) gid=1000(system) groups=1000(system),3003(inet) context=u:r:system_app:s0
+u:r:system_app:s0
+d15165f88b8ed6cfbf9c29b8dec23cea  /data/data/com.android.settings/cache/eemg_probe.dex
+[EemgpuProcProbe] uid=1000 pid=4462 context=u:r:system_app:s0
+
+=== Device Nodes ===
+[dev] /dev/eem_gpu              exists=false r=false w=false
+[dev] /dev/eem                  exists=false r=false w=false
+[dev] /dev/MT_EEM               exists=false r=false w=false
+[dev] /dev/mtk_eem              exists=false r=false w=false
+[dev] /dev/eemgpu               exists=false r=false w=false
+
+=== Proc Directories ===
+
+--- /proc/eemg ---
+[dir] /proc/eemg: READABLE
+[subdir] /proc/eemg/EEMG_DET_GPU (skipping)
+[subdir] /proc/eemg/EEMG_DET_GPU_HI (skipping)
+[file] /proc/eemg/eemg_dump                          r=false w=false
+[file] /proc/eemg/eemg_log_en                        r=false w=false
+
+--- /proc/eem ---
+[dir] /proc/eem: READABLE
+[subdir] /proc/eem/EEM_DET_B (skipping)
+[subdir] /proc/eem/EEM_DET_BL (skipping)
+[subdir] /proc/eem/EEM_DET_CCI (skipping)
+[subdir] /proc/eem/EEM_DET_L (skipping)
+[file] /proc/eem/eem_dump                            r=false w=false
+[file] /proc/eem/eem_efuse                           r=false w=false
+[file] /proc/eem/eem_freq                            r=false w=false
+[file] /proc/eem/eem_hrid                            r=false w=false
+[file] /proc/eem/eem_log_en                          r=false w=false
+[file] /proc/eem/eem_mar                             r=false w=false
+
+--- /proc/upower ---
+[dir] /proc/upower: READABLE
+[file] /proc/upower/upower_debug                     r=false w=false
+
+--- /proc/scp_dvfs ---
+[dir] /proc/scp_dvfs: READABLE
+[file] /proc/scp_dvfs/scp_dvfs_ctrl                  r=false w=false
+[file] /proc/scp_dvfs/scp_dvfs_sleep                 r=false w=false
+[file] /proc/scp_dvfs/scp_dvfs_sleep_cnt             r=false w=false
+[file] /proc/scp_dvfs/scp_dvfs_state                 r=false w=false
+
+[kaslr] no 0xffffff... kernel VA candidates found in proc files
+
+[EemgpuProcProbe] done

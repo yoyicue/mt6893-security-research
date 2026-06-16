@@ -1,0 +1,5 @@
+pattern=aee|aed|cmdq|drm|disp|mdp|mtk|oops|panic|BUG|Unable to handle|Internal error|Call trace|PC is at|LR is at|DDP|PQ|COLOR|SET_PQ
+source=adb logcat -b kernel or dmesg fallback
+
+06-16 15:44:59.810     0     0 I         : (2)[2508:mali-cmar-backe][name:spm&][SPM] MCUSYSOFF wake up by  R12_SPM_CPU_WAKEUPEVENT_B, timer_out = 0, r13 = 0x84000c80, debug_flag = 0xf8000000 0x2, r12 = 0x10000000, r12_ext = 0x0, raw_sta = 0x0 0x0 0x0, idle_sta = 0x24163f3, req_sta =  0x15c00000 0x180000 0x50000017 0x1e0fff 0x0, cg_check_sta =0x0, isr = 0x0, raw_ext_sta = 0x785a56, wake_misc = 0x0, pcm_flag = 0x400 0x0 0x400 0x400, req = 0x80,  clk_settle = 0x60fe,
+06-16 15:45:00.094   344   344 I         : (4)[344:disp_echk]tct_cust_hx83121a_esd_func check TE pin OK, esd_state:1
